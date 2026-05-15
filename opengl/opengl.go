@@ -11,14 +11,6 @@ import (
 	"github.com/go-gl/glfw/v3.4/glfw"
 )
 
-var (
-	triangle = []float32{
-		0, 0.5, 0, // top
-		-0.5, -0.5, 0, // left
-		0.5, -0.5, 0, // right
-	}
-)
-
 type OpenGL struct {
 	window  *glfw.Window
 	frames  int
@@ -35,7 +27,7 @@ func (opengl *OpenGL) Start(app *models.Application) {
 	last_frame_time := time.Now()
 	now := last_frame_time
 	for !opengl.window.ShouldClose() {
-		opengl.Draw()
+		opengl.Draw(app)
 		opengl.frames++
 
 		if time.Since(last_frame_time).Milliseconds() >= 1000 {
@@ -49,6 +41,7 @@ func (opengl *OpenGL) Start(app *models.Application) {
 
 // init initializes OpenGL and links an initialized program.
 func (opengl *OpenGL) init() {
+
 	if err := gl.Init(); err != nil {
 		panic(err)
 	}
@@ -72,12 +65,12 @@ func (opengl *OpenGL) init() {
 }
 
 // Draw a frame into the display
-func (opengl *OpenGL) Draw() {
+func (opengl *OpenGL) Draw(app *models.Application) {
+
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	gl.UseProgram(opengl.program)
 
-	gl.BindVertexArray(DrawTriangle(triangle))
-	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(triangle)/3))
+	app.Draw(app)
 
 	glfw.PollEvents()
 	opengl.window.SwapBuffers()
