@@ -2,5 +2,5 @@ package models
 
 type GraphicsApi interface {
 	Start(app *Application)
-	Draw()
+	Draw(app *Application)
 }

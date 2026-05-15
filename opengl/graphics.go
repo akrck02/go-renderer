@@ -7,7 +7,13 @@ import (
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
-func DrawTriangle(points []float32) uint32 {
+type OpenGLRenderer struct{}
+
+func (OpenGLRenderer) DrawTriangle(points []float32, color int) {
+
+}
+
+func (OpenGLRenderer) FillTriangle(points []float32, color int) {
 
 	// makeVao initializes and returns a vertex array from the points provided.
 	var vbo uint32
@@ -22,7 +28,20 @@ func DrawTriangle(points []float32) uint32 {
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
 	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 0, nil)
 
-	return vao
+	gl.BindVertexArray(vao)
+	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(points)/3))
+}
+
+func (OpenGLRenderer) DrawRectangle(x int, y int, width int, height int, color int) {
+
+}
+
+func (OpenGLRenderer) FillRectangle(x int, y int, width int, height int, color int) {
+
+}
+
+func (OpenGLRenderer) DrawImage(bytes []byte, x int, y int, width int, height int) {
+
 }
 
 func CompileShader(source string, shaderType uint32) (uint32, error) {

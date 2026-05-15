@@ -11,6 +11,14 @@ const (
 	graphicsApi = "OpenGL"
 )
 
+var (
+	triangle = []float32{
+		0, 0.5, 0, // top
+		-0.5, -0.5, 0, // left
+		0.5, -0.5, 0, // right
+	}
+)
+
 func main() {
 
 	// This is needed to arrange that main() runs on main thread.
@@ -29,10 +37,16 @@ func main() {
 	switch graphicsApi {
 	case "OpenGL":
 		graphics = &opengl.OpenGL{}
+		app.Renderer = opengl.OpenGLRenderer{}
 	default:
 		panic("Unknown graphics API")
 	}
 
+	app.Draw = Draw
 	graphics.Start(app)
 
+}
+
+func Draw(app *models.Application) {
+	app.Renderer.FillTriangle(triangle, 0)
 }
