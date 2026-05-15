@@ -8,7 +8,7 @@ This is a tiny, educational graphics renderer built in Go. The core goal of this
 ---
 * **Understand the Pipeline:** Deep-dive into vertex processing, clipping, rasterization, and fragment shading.
 * **Clean Abstraction:** Create an intuitive, idiomatic Go API that hides backend rendering complexity from the application developer.
-* **Minimal depencies:** Build core math and rendering concepts with minimal dependencies to fully understand the underlying mechanics, .
+* **Minimal depencies:** Build core math and rendering concepts with minimal dependencies to fully understand the underlying mechanics.
 
 ## Current features 
 ---
