@@ -25,9 +25,9 @@ func Identity() Mat4 {
 // Multiply multiplies two 4x4 matrices (A * B).
 func (a Mat4) Multiply(b Mat4) Mat4 {
 	var res Mat4
-	for col := 0; col < 4; col++ {
+	for col := range 4 {
 		bColIdx := col * 4
-		for row := 0; row < 4; row++ {
+		for row := range 4 {
 			res[bColIdx+row] =
 				a[0+row]*b[bColIdx+0] +
 					a[4+row]*b[bColIdx+1] +
