@@ -67,6 +67,7 @@ func (opengl *OpenGL) init() {
 // Draw a frame into the display
 func (opengl *OpenGL) Draw(app *models.Application) {
 
+	gl.ClearColor(0.2, 0.3, 0.3, 1.0)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	gl.UseProgram(opengl.program)
 
