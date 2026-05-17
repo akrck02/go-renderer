@@ -13,7 +13,7 @@ func InitWindow(app *models.Application) *glfw.Window {
 		panic(err)
 	}
 
-	glfw.WindowHint(glfw.Resizable, glfw.False)
+	glfw.WindowHint(glfw.Resizable, glfw.True)
 	glfw.WindowHint(glfw.ContextVersionMajor, 4) // OR 2
 	glfw.WindowHint(glfw.ContextVersionMinor, 1)
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
@@ -26,10 +26,17 @@ func InitWindow(app *models.Application) *glfw.Window {
 		nil,
 		nil,
 	)
+
 	if err != nil {
 		panic(err)
 	}
+
+	window.SetAspectRatio(app.Width, app.Height)
+
 	window.MakeContextCurrent()
+	window.SetFramebufferSizeCallback(func(w *glfw.Window, width, height int) {
+
+	})
 
 	return window
 }
