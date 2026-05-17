@@ -26,8 +26,8 @@ func main() {
 	runtime.LockOSThread()
 
 	app := &models.Application{
-		Width:   700,
-		Height:  500,
+		Width:   1000,
+		Height:  800,
 		Title:   "Renderer",
 		Version: "v0.0.1",
 	}
@@ -49,4 +49,5 @@ func main() {
 
 func Draw(app *models.Application) {
 	app.Renderer.FillTriangle(triangle, 0)
+	app.Renderer.FillRectangle(0, 0, 0, 0, 0)
 }
