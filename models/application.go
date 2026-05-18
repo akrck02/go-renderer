@@ -1,5 +1,7 @@
 package models
 
+import "github.com/akrck02/go-renderer/graphics"
+
 type ApplicationType int
 
 const (
@@ -8,11 +10,12 @@ const (
 )
 
 type Application struct {
-	Type     ApplicationType
-	Width    int
-	Height   int
-	Title    string
-	Version  string
-	Renderer Renderer
-	Draw     func(*Application) error
+	Type       ApplicationType
+	Background graphics.Vec4
+	Width      int
+	Height     int
+	Title      string
+	Version    string
+	Renderer   Renderer
+	Draw       func(*Application) error
 }
