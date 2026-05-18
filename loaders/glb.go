@@ -90,11 +90,12 @@ func LoadGLB(path string) (*models.Model, error) {
 			return nil, err
 		}
 
-		if chunkHeader.Type == 0x4E4F534A { // JSON
+		switch chunkHeader.Type {
+		case 0x4E4F534A: // JSON
 			if err := json.Unmarshal(chunkData, &jsonChunk); err != nil {
 				return nil, err
 			}
-		} else if chunkHeader.Type == 0x004E4942 { // BIN
+		case 0x004E4942: // BIN
 			binaryChunk = chunkData
 		}
 	}
@@ -114,14 +115,14 @@ func LoadGLB(path string) (*models.Model, error) {
 			posAccessor := jsonChunk.Accessors[posIdx]
 			posView := jsonChunk.BufferViews[posAccessor.BufferView]
 			posOffset := posView.ByteOffset + posAccessor.ByteOffset
-			
+
 			// Assuming float32 VEC3 for simplicity
 			for i := 0; i < posAccessor.Count; i++ {
 				offset := posOffset + i*12
 				x := binary.LittleEndian.Uint32(binaryChunk[offset : offset+4])
 				y := binary.LittleEndian.Uint32(binaryChunk[offset+4 : offset+8])
 				z := binary.LittleEndian.Uint32(binaryChunk[offset+8 : offset+12])
-				
+
 				mesh.Vertices = append(mesh.Vertices, graphics.Vec4{
 					math.Float32frombits(x),
 					math.Float32frombits(y),
@@ -137,11 +138,12 @@ func LoadGLB(path string) (*models.Model, error) {
 				indOffset := indView.ByteOffset + indAccessor.ByteOffset
 
 				for i := 0; i < indAccessor.Count; i++ {
-					if indAccessor.ComponentType == 5123 { // UNSIGNED_SHORT
+					switch indAccessor.ComponentType {
+					case 5123: // UNSIGNED_SHORT
 						offset := indOffset + i*2
 						idx := binary.LittleEndian.Uint16(binaryChunk[offset : offset+2])
 						mesh.Indices = append(mesh.Indices, uint32(idx))
-					} else if indAccessor.ComponentType == 5125 { // UNSIGNED_INT
+					case 5125: // UNSIGNED_INT
 						offset := indOffset + i*4
 						idx := binary.LittleEndian.Uint32(binaryChunk[offset : offset+4])
 						mesh.Indices = append(mesh.Indices, idx)
