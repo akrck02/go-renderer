@@ -23,11 +23,12 @@ func main() {
 	runtime.LockOSThread()
 
 	app := &models.Application{
-		Type:    models.WindowApplication,
-		Width:   1000,
-		Height:  800,
-		Title:   "Renderer",
-		Version: "v0.0.1",
+		Type:       models.HeadlessApplication,
+		Title:      "GO Renderer",
+		Version:    "v0.0.1",
+		Width:      1000,
+		Height:     800,
+		Background: graphics.Vec4{0.2, 0.3, 0.3, 0},
 	}
 
 	// Try to render using propper graphics API
@@ -67,8 +68,20 @@ func getCurrentGraphicsApi(app *models.Application) models.GraphicsApi {
 	return graphics
 }
 
+var first = true
+
 func Draw(app *models.Application) error {
-	//app.Renderer.FillTriangle(triangle, 0)
-	app.Renderer.RenderRectangle(graphics.WorldSpace, graphics.Vec4{1, 1, 1}, 1, 0.5, nil, true)
+
+	triangle := []graphics.Vec4{
+		{-0.5, 0.8, 0, 0},  // top
+		{-0.65, 0.5, 0, 0}, // left
+		{-0.35, 0.5, 0, 0}, // right
+	}
+
+	app.Renderer.RenderTriangle(graphics.WorldSpace, triangle, nil, true)
+
+	rectangle := graphics.Vec4{0, 0, 0}
+	app.Renderer.RenderRectangle(graphics.WorldSpace, rectangle, 0.4, 0.3, nil, true)
+
 	return nil
 }

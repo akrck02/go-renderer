@@ -34,17 +34,21 @@ func (OpenGLRenderer) RenderTriangle(
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, 4*len(coordinates), gl.Ptr(coordinates), gl.STATIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, len(coordinates)*16, gl.Ptr(coordinates), gl.STATIC_DRAW)
 
 	var vao uint32
 	gl.GenVertexArrays(1, &vao)
 	gl.BindVertexArray(vao)
 	gl.EnableVertexAttribArray(0)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 0, nil)
+	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 16, nil)
 
 	gl.BindVertexArray(vao)
-	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(coordinates)/3))
+	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(coordinates)))
+
+	// Cleanup to avoid memory leaks
+	gl.DeleteBuffers(1, &vbo)
+	gl.DeleteVertexArrays(1, &vao)
 
 	return nil
 }
@@ -58,11 +62,14 @@ func (OpenGLRenderer) RenderRectangle(
 	fill bool,
 ) error {
 
-	vertices := []float32{
-		0.5, 0.5, 0.0, // top right
-		0.5, -0.5, 0.0, // bottom right
-		-0.5, -0.5, 0.0, // bottom left
-		-0.5, 0.5, 0.0, // top left
+	halfWidth := width / 2
+	halfHeight := height / 2
+
+	vertices := []graphics.Vec4{
+		{coordinates[0] + halfWidth, coordinates[1] + halfHeight, coordinates[2], 0}, // top right
+		{coordinates[0] + halfWidth, coordinates[1] - halfHeight, coordinates[2], 0}, // bottom right
+		{coordinates[0] - halfWidth, coordinates[1] - halfHeight, coordinates[2], 0}, // bottom left
+		{coordinates[0] - halfWidth, coordinates[1] + halfHeight, coordinates[2], 0}, // top left
 	}
 
 	indices := []uint32{ // using uint32 for consistency with gl.UNSIGNED_INT
@@ -77,18 +84,23 @@ func (OpenGLRenderer) RenderRectangle(
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*16, gl.Ptr(vertices), gl.STATIC_DRAW)
 
 	var ebo uint32
 	gl.GenBuffers(1, &ebo)
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(indices)*4, gl.Ptr(indices), gl.STATIC_DRAW)
 
-	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 0, nil)
+	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 16, nil)
 	gl.EnableVertexAttribArray(0)
 
 	gl.BindVertexArray(vao)
-	gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, gl.PtrOffset(0))
+	gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
+
+	// Cleanup to avoid memory leaks
+	gl.DeleteBuffers(1, &vbo)
+	gl.DeleteBuffers(1, &ebo)
+	gl.DeleteVertexArrays(1, &vao)
 
 	return nil
 }

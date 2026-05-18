@@ -26,26 +26,42 @@ func (opengl *OpenGL) StartLoop(app *models.Application) error {
 	defer glfw.Terminate()
 	opengl.init()
 
-	opengl.frames = 0
 	last_frame_time := time.Now()
 	now := last_frame_time
 
 	var err error
-	for !opengl.window.ShouldClose() {
+	switch app.Type {
+	case models.WindowApplication:
+
+		for !opengl.window.ShouldClose() {
+
+			err = opengl.Draw(app)
+			if nil != err {
+				return err
+			}
+
+			opengl.frames++
+
+			if time.Since(last_frame_time).Milliseconds() >= 1000 {
+				now = time.Now()
+				opengl.window.SetTitle(fmt.Sprintf("%s %s   |   %d FPS", app.Title, app.Version, opengl.frames))
+				last_frame_time = now
+				opengl.frames = 0
+			}
+		}
+	case models.HeadlessApplication:
+
+		println("OpenGL does not support headless mode by default for now. Rendering frame with window spawn (slow).")
 
 		err = opengl.Draw(app)
 		if nil != err {
 			return err
 		}
 
-		opengl.frames++
+		opengl.DrawOnDisk(app, "frame.png")
 
-		if time.Since(last_frame_time).Milliseconds() >= 1000 {
-			now = time.Now()
-			opengl.window.SetTitle(fmt.Sprintf("%s %s   |   %d FPS", app.Title, app.Version, opengl.frames))
-			last_frame_time = now
-			opengl.frames = 0
-		}
+		duration := time.Since(last_frame_time)
+		fmt.Printf("Frame generated in %d ms.\n", duration.Milliseconds())
 	}
 
 	return nil
@@ -79,7 +95,12 @@ func (opengl *OpenGL) init() {
 // Draw a frame into the display
 func (opengl *OpenGL) Draw(app *models.Application) error {
 
-	gl.ClearColor(0.2, 0.3, 0.3, 1.0)
+	gl.ClearColor(
+		app.Background[0],
+		app.Background[1],
+		app.Background[2],
+		app.Background[3],
+	)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	gl.UseProgram(opengl.program)
 
@@ -88,8 +109,11 @@ func (opengl *OpenGL) Draw(app *models.Application) error {
 		return err
 	}
 
-	glfw.PollEvents()
-	opengl.window.SwapBuffers()
+	if nil != opengl.window {
+		glfw.PollEvents()
+		opengl.window.SwapBuffers()
+	}
+
 	return nil
 }
 
