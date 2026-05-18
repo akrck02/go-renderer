@@ -4,7 +4,6 @@ import (
 	"math"
 	"runtime"
 	"testing"
-	"time"
 
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/loaders"
@@ -28,21 +27,25 @@ func TestRenderGLB(t *testing.T) {
 		Title:      "GLB Model Test - bogdan.glb",
 		Version:    "v0.0.1",
 		Background: graphics.Vec4{0.1, 0.1, 0.1, 1.0},
+		Camera: models.Camera{
+			Position: graphics.Vec4{0, 0, 5, 1},
+			Target:   graphics.Vec4{0, 0, 0, 1},
+			Up:       graphics.Vec4{0, 1, 0, 0},
+		},
+		Rotation: graphics.Vec4{1, 1, 1, 1},
 	}
 
-	startTime := time.Now()
+	//startTime := time.Now()
 
 	app.Renderer = opengl.OpenGLRenderer{}
 	app.Draw = func(app *models.Application) error {
-		elapsed := time.Since(startTime).Seconds()
+		// 1. Rotation for animation + User input
+		rotX := graphics.RotateX(float64(app.Rotation[0]))
+		rotY := graphics.RotateY(float64(app.Rotation[1]))
+		modelMatrix := rotX.Multiply(rotY)
 
-		// 1. Rotation for animation
-		rotY := graphics.RotateY(elapsed)
-		modelMatrix := rotY
-
-		// 2. View (Camera) - move back to see the model
-		// You might need to adjust this depending on the model's scale
-		view := graphics.Translate(graphics.Vec4{0, 0, -5, 0})
+		// 2. View (Camera) - Now uses the interactive application camera
+		view := graphics.LookAt(app.Camera.Position, app.Camera.Target, app.Camera.Up)
 
 		// 3. Projection
 		aspect := float64(app.Width) / float64(app.Height)
