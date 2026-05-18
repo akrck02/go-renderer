@@ -32,3 +32,5 @@ func (VulkanRenderer) Render3dObject(space graphics.CoordinateSpace, vertices []
 func (VulkanRenderer) Render3dModel(space graphics.CoordinateSpace, model *models.Model, shader *string) error {
 	return errors.New("Graphics API not implemented yet!")
 }
+
+func (VulkanRenderer) SetMatrices(projection, view, model graphics.Mat4) {}
