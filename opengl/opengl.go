@@ -26,6 +26,13 @@ func (opengl *OpenGL) StartLoop(app *models.Application) error {
 	defer glfw.Terminate()
 	opengl.init()
 
+	// Initialize camera if at zero
+	if app.Camera.Up == (graphics.Vec4{}) {
+		app.Camera.Up = graphics.Vec4{0, 1, 0, 0}
+	}
+
+	setInputs(opengl, app)
+
 	last_frame_time := time.Now()
 	now := last_frame_time
 
@@ -65,6 +72,40 @@ func (opengl *OpenGL) StartLoop(app *models.Application) error {
 	}
 
 	return nil
+}
+
+func setInputs(opengl *OpenGL, app *models.Application) {
+	opengl.window.SetKeyCallback(func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+		if action == glfw.Press || action == glfw.Repeat {
+			speed := float32(0.1)
+			rotSpeed := float32(0.05)
+			switch key {
+			// Movement
+			case glfw.KeyUp:
+				app.Camera.Position[1] += speed
+				app.Camera.Target[1] += speed
+			case glfw.KeyDown:
+				app.Camera.Position[1] -= speed
+				app.Camera.Target[1] -= speed
+			case glfw.KeyLeft:
+				app.Camera.Position[0] -= speed
+				app.Camera.Target[0] -= speed
+			case glfw.KeyRight:
+				app.Camera.Position[0] += speed
+				app.Camera.Target[0] += speed
+
+			// Rotation (Model Axis)
+			case glfw.KeyW:
+				app.Rotation[0] -= rotSpeed // Rotate around X
+			case glfw.KeyS:
+				app.Rotation[0] += rotSpeed
+			case glfw.KeyA:
+				app.Rotation[1] -= rotSpeed // Rotate around Y
+			case glfw.KeyD:
+				app.Rotation[1] += rotSpeed
+			}
+		}
+	})
 }
 
 // init initializes OpenGL and links an initialized program.

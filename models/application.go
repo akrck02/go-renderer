@@ -9,6 +9,12 @@ const (
 	WindowApplication   ApplicationType = 2
 )
 
+type Camera struct {
+	Position graphics.Vec4
+	Target   graphics.Vec4
+	Up       graphics.Vec4
+}
+
 type Application struct {
 	Type       ApplicationType
 	Background graphics.Vec4
@@ -18,4 +24,6 @@ type Application struct {
 	Version    string
 	Renderer   Renderer
 	Draw       func(*Application) error
+	Camera     Camera
+	Rotation   graphics.Vec4
 }

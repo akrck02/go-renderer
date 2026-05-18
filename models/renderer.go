@@ -18,4 +18,5 @@ type Renderer interface {
 	RenderImage(space graphics.CoordinateSpace, bytes []byte, coordinates graphics.Vec4, width float32, height float32, shader *string) error
 	Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vec4, shader *string) error
 	Render3dModel(space graphics.CoordinateSpace, model *Model, shader *string) error
+	SetMatrices(projection, view, model graphics.Mat4)
 }
