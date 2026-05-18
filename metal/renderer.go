@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/models"
 )
 
 type MetalRenderer struct{}
