@@ -28,8 +28,13 @@ func main() {
 		Version:    "v0.0.1",
 		Width:      1000,
 		Height:     800,
-		Background: graphics.Vec4{0.1, 0.1, 0.1, 1.0},
-	}
+		Background: graphics.Vec4{0.2, 0.3, 0.3, 1.0},
+		Camera: models.Camera{
+			Position: graphics.Vec4{0, 0, 1, 0},
+			Target:   graphics.Vec4{0, 0, 0, 0},
+			Up:       graphics.Vec4{0, 1, 0, 0},
+		},
+		}
 
 	// Try to render using propper graphics API
 	graphics := getCurrentGraphicsApi(app)

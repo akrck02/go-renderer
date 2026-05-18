@@ -32,3 +32,5 @@ func (WebGPURenderer) Render3dObject(space graphics.CoordinateSpace, vertices []
 func (WebGPURenderer) Render3dModel(space graphics.CoordinateSpace, model *models.Model, shader *string) error {
 	return errors.New("Graphics API not implemented yet!")
 }
+
+func (WebGPURenderer) SetMatrices(projection, view, model graphics.Mat4) {}

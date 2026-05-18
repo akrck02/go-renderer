@@ -13,9 +13,19 @@ import (
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
-type OpenGLRenderer struct{}
+type OpenGLRenderer struct {
+	projection graphics.Mat4
+	view       graphics.Mat4
+	model      graphics.Mat4
+}
 
-func (OpenGLRenderer) RenderPolygon(
+func (r OpenGLRenderer) SetMatrices(projection, view, model graphics.Mat4) {
+	r.projection = projection
+	r.view = view
+	r.model = model
+}
+
+func (r OpenGLRenderer) RenderPolygon(
 	space graphics.CoordinateSpace,
 	coordinates []graphics.Vec4,
 	shader *string,
@@ -24,14 +34,14 @@ func (OpenGLRenderer) RenderPolygon(
 	return nil
 }
 
-func (OpenGLRenderer) RenderTriangle(
+func (r OpenGLRenderer) RenderTriangle(
 	space graphics.CoordinateSpace,
 	coordinates []graphics.Vec4,
 	shader *string,
 	fill bool,
 ) error {
 
-	setupUniforms(graphics.Identity(), graphics.Identity(), graphics.Identity(), graphics.Vec4{1, 1, 1, 1})
+	setupUniforms(r.projection, r.view, r.model, graphics.Vec4{1, 1, 1, 1})
 
 	// makeVao initializes and returns a vertex array from the points provided.
 	var vbo uint32
@@ -56,7 +66,7 @@ func (OpenGLRenderer) RenderTriangle(
 	return nil
 }
 
-func (OpenGLRenderer) RenderRectangle(
+func (r OpenGLRenderer) RenderRectangle(
 	space graphics.CoordinateSpace,
 	coordinates graphics.Vec4,
 	width float32,
@@ -65,7 +75,7 @@ func (OpenGLRenderer) RenderRectangle(
 	fill bool,
 ) error {
 
-	setupUniforms(graphics.Identity(), graphics.Identity(), graphics.Identity(), graphics.Vec4{1, 1, 1, 1})
+	setupUniforms(r.projection, r.view, r.model, graphics.Vec4{1, 1, 1, 1})
 
 	halfWidth := width / 2
 	halfHeight := height / 2
@@ -110,7 +120,7 @@ func (OpenGLRenderer) RenderRectangle(
 	return nil
 }
 
-func (OpenGLRenderer) RenderImage(
+func (r OpenGLRenderer) RenderImage(
 	space graphics.CoordinateSpace,
 	bytes []byte,
 	coordinates graphics.Vec4,
@@ -121,11 +131,9 @@ func (OpenGLRenderer) RenderImage(
 	return nil
 }
 
-func (OpenGLRenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vec4, shader *string) error {
+func (r OpenGLRenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vec4, shader *string) error {
 
-	// For now we use identities as default, but ideally these should come from the application state
-	// In a real implementation we would have a way to set these uniforms
-	setupUniforms(graphics.Identity(), graphics.Identity(), graphics.Identity(), graphics.Vec4{1, 1, 1, 1})
+	setupUniforms(r.projection, r.view, r.model, graphics.Vec4{1, 1, 1, 1})
 
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
@@ -149,9 +157,9 @@ func (OpenGLRenderer) Render3dObject(space graphics.CoordinateSpace, vertices []
 	return nil
 }
 
-func (OpenGLRenderer) Render3dModel(space graphics.CoordinateSpace, model *models.Model, shader *string) error {
+func (r OpenGLRenderer) Render3dModel(space graphics.CoordinateSpace, model *models.Model, shader *string) error {
 
-	setupUniforms(graphics.Identity(), graphics.Identity(), graphics.Identity(), graphics.Vec4{1, 1, 1, 1})
+	setupUniforms(r.projection, r.view, r.model, graphics.Vec4{1, 1, 1, 1})
 
 	for _, mesh := range model.Meshes {
 

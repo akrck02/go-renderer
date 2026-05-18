@@ -82,6 +82,30 @@ func RotateX(rad float64) Mat4 {
 	return m
 }
 
+// Rotate returns a rotation matrix around an arbitrary axis.
+func Rotate(axis Vec4, rad float64) Mat4 {
+	m := Identity()
+	axis = axis.Normalize()
+	x, y, z := axis[0], axis[1], axis[2]
+	s := float32(math.Sin(rad))
+	c := float32(math.Cos(rad))
+	oc := 1.0 - c
+
+	m[0] = x*x*oc + c
+	m[1] = y*x*oc + z*s
+	m[2] = z*x*oc - y*s
+
+	m[4] = x*y*oc - z*s
+	m[5] = y*y*oc + c
+	m[6] = z*y*oc + x*s
+
+	m[8] = x*z*oc + y*s
+	m[9] = y*z*oc - x*s
+	m[10] = z*z*oc + c
+
+	return m
+}
+
 // Apply transforms a Vec4 using the matrix (m * v).
 func (m Mat4) Apply(v Vec4) Vec4 {
 	return Vec4{
