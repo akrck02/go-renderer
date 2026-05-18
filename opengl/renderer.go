@@ -8,22 +8,33 @@ import (
 	"os"
 	"strings"
 
+	"github.com/akrck02/go-renderer/graphics"
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
 type OpenGLRenderer struct{}
 
-func (OpenGLRenderer) DrawTriangle(points []float32, color int) {
+func (OpenGLRenderer) RenderPolygon(
+	space graphics.CoordinateSpace,
+	coordinates []graphics.Vec4,
+	shader *string,
+	fill bool,
+) {
 
 }
 
-func (OpenGLRenderer) FillTriangle(points []float32, color int) {
+func (OpenGLRenderer) RenderTriangle(
+	space graphics.CoordinateSpace,
+	coordinates []graphics.Vec4,
+	shader *string,
+	fill bool,
+) {
 
 	// makeVao initializes and returns a vertex array from the points provided.
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, 4*len(points), gl.Ptr(points), gl.STATIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, 4*len(coordinates), gl.Ptr(coordinates), gl.STATIC_DRAW)
 
 	var vao uint32
 	gl.GenVertexArrays(1, &vao)
@@ -33,14 +44,17 @@ func (OpenGLRenderer) FillTriangle(points []float32, color int) {
 	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 0, nil)
 
 	gl.BindVertexArray(vao)
-	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(points)/3))
+	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(coordinates)/3))
 }
 
-func (OpenGLRenderer) DrawRectangle(x int, y int, width int, height int, color int) {
-
-}
-
-func (OpenGLRenderer) FillRectangle(x int, y int, width int, height int, color int) {
+func (OpenGLRenderer) RenderRectangle(
+	space graphics.CoordinateSpace,
+	coordinates graphics.Vec4,
+	width float32,
+	height float32,
+	shader *string,
+	fill bool,
+) {
 
 	vertices := []float32{
 		0.5, 0.5, 0.0, // top right
@@ -76,11 +90,25 @@ func (OpenGLRenderer) FillRectangle(x int, y int, width int, height int, color i
 
 }
 
-func (OpenGLRenderer) DrawImage(bytes []byte, x int, y int, width int, height int) {
+func (OpenGLRenderer) RenderImage(
+	space graphics.CoordinateSpace,
+	bytes []byte,
+	coordinates graphics.Vec4,
+	width float32,
+	height float32,
+	shader *string,
+) {
 
 }
 
-func CompileShader(source string, shaderType uint32) (uint32, error) {
+func (OpenGLRenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vec4, shader *string) {
+
+}
+
+func CompileShader(
+	source string,
+	shaderType uint32,
+) (uint32, error) {
 	shader := gl.CreateShader(shaderType)
 
 	csources, free := gl.Strs(source)

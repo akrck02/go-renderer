@@ -3,6 +3,7 @@ package main
 import (
 	"runtime"
 
+	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/opengl"
 )
@@ -48,6 +49,6 @@ func main() {
 }
 
 func Draw(app *models.Application) {
-	app.Renderer.FillTriangle(triangle, 0)
-	app.Renderer.FillRectangle(0, 0, 0, 0, 0)
+	//app.Renderer.FillTriangle(triangle, 0)
+	app.Renderer.RenderRectangle(graphics.WorldSpace, graphics.Vec4{1, 1, 1}, 1, 0.5, nil, true)
 }
