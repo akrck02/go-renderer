@@ -19,8 +19,8 @@ func (OpenGLRenderer) RenderPolygon(
 	coordinates []graphics.Vec4,
 	shader *string,
 	fill bool,
-) {
-
+) error {
+	return nil
 }
 
 func (OpenGLRenderer) RenderTriangle(
@@ -28,7 +28,7 @@ func (OpenGLRenderer) RenderTriangle(
 	coordinates []graphics.Vec4,
 	shader *string,
 	fill bool,
-) {
+) error {
 
 	// makeVao initializes and returns a vertex array from the points provided.
 	var vbo uint32
@@ -45,6 +45,8 @@ func (OpenGLRenderer) RenderTriangle(
 
 	gl.BindVertexArray(vao)
 	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(coordinates)/3))
+
+	return nil
 }
 
 func (OpenGLRenderer) RenderRectangle(
@@ -54,7 +56,7 @@ func (OpenGLRenderer) RenderRectangle(
 	height float32,
 	shader *string,
 	fill bool,
-) {
+) error {
 
 	vertices := []float32{
 		0.5, 0.5, 0.0, // top right
@@ -88,6 +90,7 @@ func (OpenGLRenderer) RenderRectangle(
 	gl.BindVertexArray(vao)
 	gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, gl.PtrOffset(0))
 
+	return nil
 }
 
 func (OpenGLRenderer) RenderImage(
@@ -97,12 +100,12 @@ func (OpenGLRenderer) RenderImage(
 	width float32,
 	height float32,
 	shader *string,
-) {
-
+) error {
+	return nil
 }
 
-func (OpenGLRenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vec4, shader *string) {
-
+func (OpenGLRenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vec4, shader *string) error {
+	return nil
 }
 
 func CompileShader(

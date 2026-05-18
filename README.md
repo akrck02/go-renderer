@@ -9,5 +9,19 @@ This is a tiny, educational graphics renderer built in Go. The core goal of this
 * **Clean Abstraction:** Create an intuitive, idiomatic Go API that hides backend rendering complexity from the application developer.
 * **Minimal depencies:** Build core math and rendering concepts with minimal dependencies to fully understand the underlying mechanics.
 
-## Current features 
-*  OpenGL support
+## Roadmap
+This are the goals for the next versions of the library. The feature implementation order can change.
+
+### v1.0.0 Prototype
+* Local space, world space and viewport space coordinate transformations.
+* Render of 2D objects on world space
+* Render of 2D objects on viewport space
+* Render of 3D objects on world space
+* Render of 3D objects on viewport space
+* Camera movement
+* Input bindings
+
+### v2.0.0 Support expansion
+* Metal support (Apple silicon)
+* Vulkan support
+* WebGPU support
