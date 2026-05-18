@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/models"
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
@@ -29,6 +30,8 @@ func (OpenGLRenderer) RenderTriangle(
 	shader *string,
 	fill bool,
 ) error {
+
+	setupUniforms(graphics.Identity(), graphics.Identity(), graphics.Identity(), graphics.Vec4{1, 1, 1, 1})
 
 	// makeVao initializes and returns a vertex array from the points provided.
 	var vbo uint32
@@ -61,6 +64,8 @@ func (OpenGLRenderer) RenderRectangle(
 	shader *string,
 	fill bool,
 ) error {
+
+	setupUniforms(graphics.Identity(), graphics.Identity(), graphics.Identity(), graphics.Vec4{1, 1, 1, 1})
 
 	halfWidth := width / 2
 	halfHeight := height / 2
@@ -117,7 +122,84 @@ func (OpenGLRenderer) RenderImage(
 }
 
 func (OpenGLRenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vec4, shader *string) error {
+
+	// For now we use identities as default, but ideally these should come from the application state
+	// In a real implementation we would have a way to set these uniforms
+	setupUniforms(graphics.Identity(), graphics.Identity(), graphics.Identity(), graphics.Vec4{1, 1, 1, 1})
+
+	var vbo uint32
+	gl.GenBuffers(1, &vbo)
+	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*16, gl.Ptr(vertices), gl.STATIC_DRAW)
+
+	var vao uint32
+	gl.GenVertexArrays(1, &vao)
+	gl.BindVertexArray(vao)
+	gl.EnableVertexAttribArray(0)
+	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 16, nil)
+
+	gl.BindVertexArray(vao)
+	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(vertices)))
+
+	// Cleanup
+	gl.DeleteBuffers(1, &vbo)
+	gl.DeleteVertexArrays(1, &vao)
+
 	return nil
+}
+
+func (OpenGLRenderer) Render3dModel(space graphics.CoordinateSpace, model *models.Model, shader *string) error {
+
+	setupUniforms(graphics.Identity(), graphics.Identity(), graphics.Identity(), graphics.Vec4{1, 1, 1, 1})
+
+	for _, mesh := range model.Meshes {
+
+		var vbo uint32
+		gl.GenBuffers(1, &vbo)
+		gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+		gl.BufferData(gl.ARRAY_BUFFER, len(mesh.Vertices)*16, gl.Ptr(mesh.Vertices), gl.STATIC_DRAW)
+
+		var vao uint32
+		gl.GenVertexArrays(1, &vao)
+		gl.BindVertexArray(vao)
+
+		var ebo uint32
+		gl.GenBuffers(1, &ebo)
+		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
+		gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(mesh.Indices)*4, gl.Ptr(mesh.Indices), gl.STATIC_DRAW)
+
+		gl.EnableVertexAttribArray(0)
+		gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+		gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 16, nil)
+
+		gl.BindVertexArray(vao)
+		gl.DrawElements(gl.TRIANGLES, int32(len(mesh.Indices)), gl.UNSIGNED_INT, nil)
+
+		// Cleanup
+		gl.DeleteBuffers(1, &vbo)
+		gl.DeleteBuffers(1, &ebo)
+		gl.DeleteVertexArrays(1, &vao)
+	}
+
+	return nil
+}
+
+func setupUniforms(projection, view, model graphics.Mat4, color graphics.Vec4) {
+	var program int32
+	gl.GetIntegerv(gl.CURRENT_PROGRAM, &program)
+
+	projLoc := gl.GetUniformLocation(uint32(program), gl.Str("projection\x00"))
+	gl.UniformMatrix4fv(projLoc, 1, false, &projection[0])
+
+	viewLoc := gl.GetUniformLocation(uint32(program), gl.Str("view\x00"))
+	gl.UniformMatrix4fv(viewLoc, 1, false, &view[0])
+
+	modelLoc := gl.GetUniformLocation(uint32(program), gl.Str("model\x00"))
+	gl.UniformMatrix4fv(modelLoc, 1, false, &model[0])
+
+	colorLoc := gl.GetUniformLocation(uint32(program), gl.Str("color\x00"))
+	gl.Uniform4fv(colorLoc, 1, &color[0])
 }
 
 func CompileShader(

@@ -69,6 +69,29 @@ func RotateY(rad float64) Mat4 {
 	return m
 }
 
+// RotateX returns a rotation matrix around the X axis (in radians).
+func RotateX(rad float64) Mat4 {
+	m := Identity()
+	cos := float32(math.Cos(rad))
+	sin := float32(math.Sin(rad))
+
+	m[5] = cos   // Col 1, Row 1
+	m[6] = sin   // Col 1, Row 2
+	m[9] = -sin  // Col 2, Row 1
+	m[10] = cos  // Col 2, Row 2
+	return m
+}
+
+// Apply transforms a Vec4 using the matrix (m * v).
+func (m Mat4) Apply(v Vec4) Vec4 {
+	return Vec4{
+		m[0]*v[0] + m[4]*v[1] + m[8]*v[2] + m[12]*v[3],
+		m[1]*v[0] + m[5]*v[1] + m[9]*v[2] + m[13]*v[3],
+		m[2]*v[0] + m[6]*v[1] + m[10]*v[2] + m[14]*v[3],
+		m[3]*v[0] + m[7]*v[1] + m[11]*v[2] + m[15]*v[3],
+	}
+}
+
 // Cross computes the 3D cross product of two Vec4 vectors (W component is ignored).
 func (v Vec4) Cross(other Vec4) Vec4 {
 	return Vec4{
@@ -91,6 +114,20 @@ func (v Vec4) Normalize() Vec4 {
 // Dot computes the 3D dot product of two vectors (ignoring W).
 func (v Vec4) Dot(other Vec4) float32 {
 	return v[0]*other[0] + v[1]*other[1] + v[2]*other[2]
+}
+
+// Add returns a new Vec4 that is the sum of v and other.
+func (v Vec4) Add(other Vec4) Vec4 {
+	return Vec4{v[0] + other[0], v[1] + other[1], v[2] + other[2], v[3] + other[3]}
+}
+
+// Move applies a translation to a slice of Vec4 vertices.
+func Move(vertices []Vec4, delta Vec4) []Vec4 {
+	res := make([]Vec4, len(vertices))
+	for i, v := range vertices {
+		res[i] = v.Add(delta)
+	}
+	return res
 }
 
 // LookAt creates a Right-Handed View Matrix.

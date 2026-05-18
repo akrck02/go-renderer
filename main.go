@@ -23,12 +23,12 @@ func main() {
 	runtime.LockOSThread()
 
 	app := &models.Application{
-		Type:       models.HeadlessApplication,
+		Type:       models.WindowApplication,
 		Title:      "GO Renderer",
 		Version:    "v0.0.1",
 		Width:      1000,
 		Height:     800,
-		Background: graphics.Vec4{0.2, 0.3, 0.3, 0},
+		Background: graphics.Vec4{0.1, 0.1, 0.1, 1.0},
 	}
 
 	// Try to render using propper graphics API
