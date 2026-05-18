@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/akrck02/go-renderer/models"
+	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.4/glfw"
 )
 
@@ -18,6 +19,7 @@ func InitWindow(app *models.Application) *glfw.Window {
 	glfw.WindowHint(glfw.ContextVersionMinor, 1)
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
+	glfw.WindowHint(glfw.CocoaRetinaFramebuffer, glfw.True)
 
 	window, err := glfw.CreateWindow(
 		app.Width,
@@ -35,7 +37,7 @@ func InitWindow(app *models.Application) *glfw.Window {
 
 	window.MakeContextCurrent()
 	window.SetFramebufferSizeCallback(func(w *glfw.Window, width, height int) {
-
+		gl.Viewport(0, 0, int32(width), int32(height))
 	})
 
 	return window

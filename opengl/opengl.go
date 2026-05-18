@@ -90,10 +90,20 @@ func (opengl *OpenGL) init() {
 	gl.AttachShader(opengl.program, vertexShader)
 	gl.AttachShader(opengl.program, fragmentShader)
 	gl.LinkProgram(opengl.program)
+
+	gl.Enable(gl.DEPTH_TEST)
+	gl.DepthFunc(gl.LESS)
 }
 
 // Draw a frame into the display
 func (opengl *OpenGL) Draw(app *models.Application) error {
+
+	w, h := app.Width, app.Height
+	if nil != opengl.window {
+		w, h = opengl.window.GetFramebufferSize()
+	}
+
+	gl.Viewport(0, 0, int32(w), int32(h))
 
 	gl.ClearColor(
 		app.Background[0],
@@ -120,9 +130,21 @@ func (opengl *OpenGL) Draw(app *models.Application) error {
 // SaveFrameToDisk captures the current OpenGL framebuffer and saves it as a PNG.
 func (opengl *OpenGL) DrawOnDisk(app *models.Application, filePath string) error {
 
+	w, h := app.Width, app.Height
+	if nil != opengl.window {
+		w, h = opengl.window.GetFramebufferSize()
+	}
+
 	// 1. Allocate a tightly packed byte slice for RGBA data
 	// Width * Height * 4 channels (R, G, B, A)
-	pixels := make([]byte, app.Width*app.Height*4)
+	pixels := make([]byte, w*h*4)
+
+	// Ensure all OpenGL commands are finished before reading pixels
+	gl.Flush()
+
+	// By default glReadPixels reads from the BACK buffer.
+	// Since Draw() calls SwapBuffers(), the content is now in the FRONT buffer.
+	gl.ReadBuffer(gl.FRONT)
 
 	// Ensure OpenGL isn't assuming any row padding
 	gl.PixelStorei(gl.PACK_ALIGNMENT, 1)
@@ -130,23 +152,26 @@ func (opengl *OpenGL) DrawOnDisk(app *models.Application, filePath string) error
 	// 2. Read the pixels from the frame buffer
 	gl.ReadPixels(
 		0, 0, // Start at the bottom-left corner (0,0)
-		int32(app.Width), int32(app.Height),
+		int32(w), int32(h),
 		gl.RGBA,          // Format
 		gl.UNSIGNED_BYTE, // Data type
 		gl.Ptr(pixels),   // Destination pointer
 	)
 
+	// Restore default read buffer
+	gl.ReadBuffer(gl.BACK)
+
 	// 3. Create a Go image.NRGBA object
-	img := image.NewNRGBA(image.Rect(0, 0, app.Width, app.Height))
+	img := image.NewNRGBA(image.Rect(0, 0, w, h))
 
 	// OpenGL's origin (0,0) is at the BOTTOM-left, but Go's image origin is TOP-left.
 	// We need to flip the rows vertically while copying to the image buffer.
-	stride := app.Width * 4
-	for y := 0; y < app.Height; y++ {
+	stride := w * 4
+	for y := 0; y < h; y++ {
 		// OpenGL row index (bottom to top)
 		glRow := y * stride
 		// Go image row index (top to bottom)
-		goRow := (app.Height - 1 - y) * stride
+		goRow := (h - 1 - y) * stride
 
 		copy(img.Pix[goRow:goRow+stride], pixels[glRow:glRow+stride])
 	}

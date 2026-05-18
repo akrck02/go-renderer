@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/models"
 )
 
 type WebGPURenderer struct{}
@@ -25,5 +26,9 @@ func (WebGPURenderer) RenderImage(space graphics.CoordinateSpace, bytes []byte, 
 }
 
 func (WebGPURenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vec4, shader *string) error {
+	return errors.New("Graphics API not implemented yet!")
+}
+
+func (WebGPURenderer) Render3dModel(space graphics.CoordinateSpace, model *models.Model, shader *string) error {
 	return errors.New("Graphics API not implemented yet!")
 }
