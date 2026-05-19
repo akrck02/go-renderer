@@ -16,14 +16,16 @@ type Camera struct {
 }
 
 type Application struct {
-	Type       ApplicationType
-	Background graphics.Vec4
-	Width      int
-	Height     int
-	Title      string
-	Version    string
-	Renderer   Renderer
-	Draw       func(*Application) error
-	Camera     Camera
-	Rotation   graphics.Vec4
+	Type             ApplicationType
+	Background       graphics.Vec4
+	Width            int
+	Height           int
+	Title            string
+	Version          string
+	Renderer         Renderer
+	Draw             func(*Application) error
+	Camera           Camera
+	ModelMatrix      graphics.Mat4
+	ViewMatrix       graphics.Mat4
+	ProjectionMatrix graphics.Mat4
 }
