@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/png"
 	"log"
+	"math"
 	"os"
 	"time"
 
@@ -26,9 +27,12 @@ func (opengl *OpenGL) StartLoop(app *models.Application) error {
 	defer glfw.Terminate()
 	opengl.init()
 
-	// Initialize camera if at zero
+	// Initialize state
 	if app.Camera.Up == (graphics.Vec4{}) {
 		app.Camera.Up = graphics.Vec4{0, 1, 0, 0}
+	}
+	if app.ModelMatrix == (graphics.Mat4{}) {
+		app.ModelMatrix = graphics.Identity()
 	}
 
 	setInputs(opengl, app)
@@ -79,6 +83,12 @@ func setInputs(opengl *OpenGL, app *models.Application) {
 		if action == glfw.Press || action == glfw.Repeat {
 			speed := float32(0.1)
 			rotSpeed := float32(0.05)
+
+			// Get camera axes for relative movement/rotation
+			view := graphics.LookAt(app.Camera.Position, app.Camera.Target, app.Camera.Up)
+			right := graphics.Vec4{view[0], view[4], view[8], 0} // First row of View is Right in World Space
+			up := graphics.Vec4{view[1], view[5], view[9], 0}    // Second row of View is Up in World Space
+
 			switch key {
 			// Movement
 			case glfw.KeyUp:
@@ -94,21 +104,24 @@ func setInputs(opengl *OpenGL, app *models.Application) {
 				app.Camera.Position[0] += speed
 				app.Camera.Target[0] += speed
 
-			// Rotation (Model Axis)
+			// Rotation (Model Axis) - Now relative to camera view
 			case glfw.KeyW:
-				app.Rotation[0] -= rotSpeed // Rotate around X
+				rot := graphics.Rotate(right, float64(-rotSpeed))
+				app.ModelMatrix = rot.Multiply(app.ModelMatrix)
 			case glfw.KeyS:
-				app.Rotation[0] += rotSpeed
+				rot := graphics.Rotate(right, float64(rotSpeed))
+				app.ModelMatrix = rot.Multiply(app.ModelMatrix)
 			case glfw.KeyA:
-				app.Rotation[1] -= rotSpeed // Rotate around Y
+				rot := graphics.Rotate(up, float64(-rotSpeed))
+				app.ModelMatrix = rot.Multiply(app.ModelMatrix)
 			case glfw.KeyD:
-				app.Rotation[1] += rotSpeed
+				rot := graphics.Rotate(up, float64(rotSpeed))
+				app.ModelMatrix = rot.Multiply(app.ModelMatrix)
 			}
 		}
 	})
 }
 
-// init initializes OpenGL and links an initialized program.
 func (opengl *OpenGL) init() {
 
 	if err := gl.Init(); err != nil {
@@ -127,22 +140,34 @@ func (opengl *OpenGL) init() {
 		panic(err)
 	}
 
-	opengl.program = gl.CreateProgram()
-	gl.AttachShader(opengl.program, vertexShader)
-	gl.AttachShader(opengl.program, fragmentShader)
-	gl.LinkProgram(opengl.program)
+	opengl.program, err = LinkProgram(vertexShader, fragmentShader)
+	if err != nil {
+		panic(err)
+	}
 
 	gl.Enable(gl.DEPTH_TEST)
 	gl.DepthFunc(gl.LESS)
 }
 
+var firstFrame = true
+
 // Draw a frame into the display
 func (opengl *OpenGL) Draw(app *models.Application) error {
+
+	if firstFrame {
+		fmt.Println("OpenGL: Rendering first frame...")
+		firstFrame = false
+	}
 
 	w, h := app.Width, app.Height
 	if nil != opengl.window {
 		w, h = opengl.window.GetFramebufferSize()
 	}
+
+	// Update matrices
+	app.ProjectionMatrix = graphics.PerspectiveOpenGL(math.Pi/4, float64(w)/float64(h), 0.1, 1000.0)
+	app.ViewMatrix = graphics.LookAt(app.Camera.Position, app.Camera.Target, app.Camera.Up)
+	app.Renderer.SetMatrices(app.ProjectionMatrix, app.ViewMatrix, app.ModelMatrix)
 
 	gl.Viewport(0, 0, int32(w), int32(h))
 

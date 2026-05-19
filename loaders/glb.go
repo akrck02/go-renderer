@@ -90,20 +90,23 @@ func LoadGLB(path string) (*models.Model, error) {
 			return nil, err
 		}
 
-		switch chunkHeader.Type {
-		case 0x4E4F534A: // JSON
+		if chunkHeader.Type == 0x4E4F534A { // JSON
 			if err := json.Unmarshal(chunkData, &jsonChunk); err != nil {
 				return nil, err
 			}
-		case 0x004E4942: // BIN
+		} else if chunkHeader.Type == 0x004E4942 { // BIN
 			binaryChunk = chunkData
 		}
 	}
 
 	model := &models.Model{}
+	fmt.Printf("GLB: Found %d meshes\n", len(jsonChunk.Meshes))
 
-	for _, gMesh := range jsonChunk.Meshes {
-		for _, primitive := range gMesh.Primitives {
+	minX, minY, minZ := float32(math.MaxFloat32), float32(math.MaxFloat32), float32(math.MaxFloat32)
+	maxX, maxY, maxZ := float32(-math.MaxFloat32), float32(-math.MaxFloat32), float32(-math.MaxFloat32)
+
+	for mIdx, gMesh := range jsonChunk.Meshes {
+		for pIdx, primitive := range gMesh.Primitives {
 			mesh := models.Mesh{}
 
 			// Load Positions
@@ -113,37 +116,44 @@ func LoadGLB(path string) (*models.Model, error) {
 			}
 
 			posAccessor := jsonChunk.Accessors[posIdx]
+			fmt.Printf("Mesh %d Primitive %d: %d vertices\n", mIdx, pIdx, posAccessor.Count)
 			posView := jsonChunk.BufferViews[posAccessor.BufferView]
 			posOffset := posView.ByteOffset + posAccessor.ByteOffset
-
+			
 			// Assuming float32 VEC3 for simplicity
 			for i := 0; i < posAccessor.Count; i++ {
 				offset := posOffset + i*12
-				x := binary.LittleEndian.Uint32(binaryChunk[offset : offset+4])
-				y := binary.LittleEndian.Uint32(binaryChunk[offset+4 : offset+8])
-				z := binary.LittleEndian.Uint32(binaryChunk[offset+8 : offset+12])
+				ux := binary.LittleEndian.Uint32(binaryChunk[offset : offset+4])
+				uy := binary.LittleEndian.Uint32(binaryChunk[offset+4 : offset+8])
+				uz := binary.LittleEndian.Uint32(binaryChunk[offset+8 : offset+12])
+				
+				x := math.Float32frombits(ux)
+				y := math.Float32frombits(uy)
+				z := math.Float32frombits(uz)
 
-				mesh.Vertices = append(mesh.Vertices, graphics.Vec4{
-					math.Float32frombits(x),
-					math.Float32frombits(y),
-					math.Float32frombits(z),
-					1.0,
-				})
+				if x < minX { minX = x }
+				if y < minY { minY = y }
+				if z < minZ { minZ = z }
+				if x > maxX { maxX = x }
+				if y > maxY { maxY = y }
+				if z > maxZ { maxZ = z }
+
+				mesh.Vertices = append(mesh.Vertices, graphics.Vec4{x, y, z, 1.0})
 			}
 
 			// Load Indices
 			if primitive.Indices != nil {
 				indAccessor := jsonChunk.Accessors[*primitive.Indices]
+				fmt.Printf("Mesh %d Primitive %d: %d indices\n", mIdx, pIdx, indAccessor.Count)
 				indView := jsonChunk.BufferViews[indAccessor.BufferView]
 				indOffset := indView.ByteOffset + indAccessor.ByteOffset
 
 				for i := 0; i < indAccessor.Count; i++ {
-					switch indAccessor.ComponentType {
-					case 5123: // UNSIGNED_SHORT
+					if indAccessor.ComponentType == 5123 { // UNSIGNED_SHORT
 						offset := indOffset + i*2
 						idx := binary.LittleEndian.Uint16(binaryChunk[offset : offset+2])
 						mesh.Indices = append(mesh.Indices, uint32(idx))
-					case 5125: // UNSIGNED_INT
+					} else if indAccessor.ComponentType == 5125 { // UNSIGNED_INT
 						offset := indOffset + i*4
 						idx := binary.LittleEndian.Uint32(binaryChunk[offset : offset+4])
 						mesh.Indices = append(mesh.Indices, idx)
@@ -154,6 +164,8 @@ func LoadGLB(path string) (*models.Model, error) {
 			model.Meshes = append(model.Meshes, mesh)
 		}
 	}
+
+	fmt.Printf("GLB Bounding Box: Min(%f, %f, %f) Max(%f, %f, %f)\n", minX, minY, minZ, maxX, maxY, maxZ)
 
 	return model, nil
 }
