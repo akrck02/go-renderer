@@ -34,7 +34,8 @@ func main() {
 			Target:   graphics.Vec4{0, 0, 0, 0},
 			Up:       graphics.Vec4{0, 1, 0, 0},
 		},
-		}
+		ModelMatrix: graphics.Identity(),
+	}
 
 	// Try to render using propper graphics API
 	graphics := getCurrentGraphicsApi(app)
@@ -56,7 +57,7 @@ func getCurrentGraphicsApi(app *models.Application) models.GraphicsApi {
 		app.Renderer = software.SoftwareRenderer{}
 	case models.OpenGL:
 		graphics = &opengl.OpenGL{}
-		app.Renderer = opengl.OpenGLRenderer{}
+		app.Renderer = &opengl.OpenGLRenderer{}
 	case models.Vulkan:
 		graphics = &vulkan.Vulkan{}
 		app.Renderer = vulkan.VulkanRenderer{}
