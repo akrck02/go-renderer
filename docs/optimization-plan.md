@@ -103,13 +103,26 @@ baseline table, and its row is added to the results section.
   after the opaque scene with the depth test, so covered pixels cost nothing: 1.1 → 0.2 ms in the
   overview, 1.5 → 0.6 ms walking. Transparent things (water, waterfalls) are drawn after it.
 
-## Phase 3: size and loading
+## Phase 3: size and loading — done
 
-8. **Smaller files**: quantized positions and normals (`KHR_mesh_quantization`) and meshopt
-   compression (`EXT_meshopt_compression`) would shrink the 66 MB scene several times, which
-   matters for sharing scenes more than for speed.
-9. **Background loading**: decode buffers and build meshes off the main thread, upload in slices
-   over several frames, so large scenes open without a pause.
+8. **Smaller files.** The skill's glTF writer now quantizes (`KHR_mesh_quantization`): colors in
+   one byte per channel, normals in one byte per component, 16-bit indices when they fit, and
+   positions in 16-bit integers with the center and the scale in the node; instance rotations and
+   colors are integers too. Meshes that are instanced keep float positions (the node scale would
+   distort every instance), and the levels of a terrain chunk share its box, since they are drawn
+   with the same node. The island goes from **76 MB to 33 MB** (19 → 10 MB zipped for sharing).
+   * Two fixes came with it. The renderer transformed normals with the model matrix itself,
+     wrong for scales that differ per axis; it now uses the inverse transpose (no measurable
+     cost). And with quantized positions the writer must store normals in the mesh's own
+     coordinates (world normals multiplied by the node scale, normalized): with world normals the
+     terrain looked flatter. After both, renders differ from the float file by under one colour
+     level on average.
+   * Speed does not change (the loader expands to floats) and loading goes from ~60–100 ms to
+     ~60 ms.
+   * `EXT_meshopt_compression` was left out: it needs a decoder in Go and would save a few more
+     megabytes on a file that zips to 10 MB.
+9. **Background loading** was not needed: the scene loads in about 60 ms and uploads in about
+   80 ms. It becomes worth it for scenes several times larger.
 
 ## Out of scope for now
 
@@ -146,3 +159,8 @@ without timers (the steadiest), with the processor time of that round.
 | Phase 2 | Walking | 0.65 ms | 2.46 ms (~400 fps) |
 
 Triangles after phase 2: 2.2 M in the overview, 0.46 M close, 1.15 M walking.
+
+| Phase 3 | Overview | — | 4.81 ms (same as phase 2) |
+| Phase 3 | Walking | — | 2.47 ms (same as phase 2) |
+
+Phase 3 changed the file size, not the speed: 76 → 33 MB, loading ~60 ms.
