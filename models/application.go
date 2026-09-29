@@ -52,7 +52,9 @@ type Application struct {
 	// Input, when not nil, is filled by the window backend every frame (keyboard, mouse, scroll).
 	Input *input.State
 	// CapturePath is where a HeadlessApplication saves its frame (PNG); "frame.png" by default.
-	CapturePath      string
+	CapturePath string
+	// Stop, when set by Update or Draw, ends a window application after the current frame.
+	Stop             bool
 	Camera           Camera
 	ModelMatrix      graphics.Mat4
 	ViewMatrix       graphics.Mat4

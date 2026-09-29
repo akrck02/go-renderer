@@ -42,6 +42,7 @@ type viewer struct {
 	baseFogFar     float32
 	savedScale     float32 // vertical exaggeration to restore when leaving walk mode
 	shadowsEnabled bool
+	benchmark      *benchmark
 	timePassing    bool
 	dayElevation   float64 // sun elevation to return to when leaving the night
 }
@@ -55,12 +56,15 @@ type options struct {
 	night         bool
 	sunElevation  float64 // degrees; NaN keeps the scene's sun
 	sunAzimuth    float64
+	benchmark     int // frames to measure; 0 = explore normally
 }
 
 func main() {
 	runtime.LockOSThread()
 	settings, scenePath := parseOptions()
+	loadingStarted := time.Now()
 	world, err := loaders.LoadScene(scenePath)
+	loadingTime := time.Since(loadingStarted)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "cannot load scene:", err)
 		os.Exit(1)
@@ -71,6 +75,9 @@ func main() {
 	session.placeSun(settings.sunAzimuth, settings.sunElevation)
 	if settings.night {
 		session.toggleNight()
+	}
+	if settings.benchmark > 0 {
+		session.benchmark = newBenchmark(settings.benchmark, loadingTime)
 	}
 	app := newApplication(session, settings, scenePath)
 	if err := (&opengl.OpenGL{}).StartLoop(app); err != nil {
@@ -88,11 +95,12 @@ func parseOptions() (options, string) {
 	flag.BoolVar(&settings.night, "night", false, "start at night")
 	flag.Float64Var(&settings.sunElevation, "sun-elevation", math.NaN(), "sun elevation in degrees (negative = below the horizon)")
 	flag.Float64Var(&settings.sunAzimuth, "sun-azimuth", math.NaN(), "sun azimuth in degrees, clockwise from north")
+	flag.IntVar(&settings.benchmark, "benchmark", 0, "measure this many frames, print CPU and GPU times per pass and exit")
 	flag.BoolVar(&settings.noShadows, "no-shadows", false, "start without sun shadows")
 	flag.Float64Var(&settings.zoom, "zoom", 1, "initial orbit distance as a fraction of the default (0.1 = ten times closer)")
 	flag.Parse()
 	if flag.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "usage: visor [-width W] [-height H] [-capture frame.png] [-walk] [-no-shadows] [-night] [-sun-elevation D] [-sun-azimuth D] [-zoom F] scene.glb")
+		fmt.Fprintln(os.Stderr, "usage: visor [-width W] [-height H] [-capture frame.png] [-walk] [-no-shadows] [-night] [-sun-elevation D] [-sun-azimuth D] [-zoom F] [-benchmark N] scene.glb")
 		os.Exit(2)
 	}
 	return settings, flag.Arg(0)
@@ -348,6 +356,11 @@ func (session *viewer) draw(app *models.Application) error {
 	if width == 0 || height == 0 {
 		width, height = app.Width, app.Height
 	}
+	session.renderer.Profiling = session.benchmark != nil
 	session.renderer.Draw(session.world, app.Camera, width, height, time.Since(session.started).Seconds())
+	if session.benchmark != nil && session.benchmark.record(session.renderer.Statistics) {
+		session.benchmark.report(os.Stdout)
+		app.Stop = true
+	}
 	return nil
 }
