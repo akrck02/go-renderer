@@ -146,7 +146,7 @@ func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, wi
 	renderer.measurePass("seabed", func() { renderer.seabed.update(world, commands) })
 	var region shadowRegion
 	var err error
-	renderer.measurePass("shadows", func() { region, err = renderer.renderShadows(world, camera, commands, light.LightDirection) })
+	renderer.measurePass("shadows", func() { region, err = renderer.renderShadows(world, camera, commands, light.LightDirection, seconds) })
 	shadowsReady := err == nil && renderer.Shadows.Enabled
 	clearFrame(light, width, height)
 	renderer.measurePass("sky", func() { renderer.sky.draw(world.Environment, light, camera, matrices, seconds) })
@@ -178,7 +178,7 @@ func (renderer *SceneRenderer) recordStatistics(commands []drawCommand, shadowsD
 }
 
 // renderShadows draws the shadow map for this frame when shadows are enabled.
-func (renderer *SceneRenderer) renderShadows(world *scene.Scene, camera models.Camera, commands []drawCommand, lightDirection graphics.Vec4) (shadowRegion, error) {
+func (renderer *SceneRenderer) renderShadows(world *scene.Scene, camera models.Camera, commands []drawCommand, lightDirection graphics.Vec4, seconds float64) (shadowRegion, error) {
 	if !renderer.Shadows.Enabled {
 		return shadowRegion{}, nil
 	}
@@ -190,7 +190,7 @@ func (renderer *SceneRenderer) renderShadows(world *scene.Scene, camera models.C
 	extent := renderer.Shadows.extent(camera, renderer.sceneSize)
 	depthRange := extent*2 + renderer.sceneHeight*verticalScale*2
 	region := fitShadowRegion(lightDirection, shadowCenter(camera, extent), extent, depthRange, renderer.shadow.resolution)
-	renderer.shadow.renderShadowPass(commands, region, verticalScale)
+	renderer.shadow.renderShadowPass(commands, region, verticalScale, world.Environment.Wind, seconds)
 	return region, nil
 }
 
@@ -253,6 +253,7 @@ func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, l
 	program.setFloat("ambient", environment.Ambient)
 	program.setVector3("fogColor", light.Fog)
 	program.setFloat("brightness", light.Brightness)
+	setWind(program, environment.Wind)
 	gl.Uniform2f(program.location("fogRange"), environment.FogNear, environment.FogFar)
 	program.setVector3("cameraPosition", camera.Position)
 	program.setFloat("time", float32(seconds))
@@ -346,6 +347,7 @@ func (renderer *SceneRenderer) drawNode(command drawCommand) {
 	}
 	program.setVector4("baseColor", baseColor)
 	program.setInteger("kind", int32(command.material.Kind))
+	program.setFloat("sway", command.material.Sway)
 	program.setMatrix("model", command.world)
 	buffers := uploadMesh(command.node.Mesh)
 	if command.node.Instances != nil {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/models"
+	"github.com/akrck02/go-renderer/scene"
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
@@ -174,7 +175,7 @@ func sunOrientation(sunDirection graphics.Vec4) graphics.Mat4 {
 }
 
 // renderShadowPass draws the depth of every opaque command as seen from the sun.
-func (shadow *shadowMap) renderShadowPass(commands []drawCommand, region shadowRegion, verticalScale float32) {
+func (shadow *shadowMap) renderShadowPass(commands []drawCommand, region shadowRegion, verticalScale float32, wind scene.Wind, seconds float64) {
 	gl.BindFramebuffer(gl.FRAMEBUFFER, shadow.framebuffer)
 	gl.Viewport(0, 0, shadow.resolution, shadow.resolution)
 	gl.Clear(gl.DEPTH_BUFFER_BIT)
@@ -188,6 +189,8 @@ func (shadow *shadowMap) renderShadowPass(commands []drawCommand, region shadowR
 	program.setMatrix("projection", region.lightProjection)
 	program.setMatrix("view", region.lightView)
 	program.setFloat("verticalScale", verticalScale)
+	program.setFloat("time", float32(seconds))
+	setWind(program, wind)
 	for _, command := range commands {
 		if !castsShadow(command) {
 			continue
@@ -200,6 +203,7 @@ func (shadow *shadowMap) renderShadowPass(commands []drawCommand, region shadowR
 
 func castShadow(program *shaderProgram, command drawCommand) {
 	program.setMatrix("model", command.world)
+	program.setFloat("sway", command.material.Sway)
 	buffers := uploadMesh(command.node.Mesh)
 	if command.node.Instances != nil {
 		drawInstanced(program, buffers, uploadInstances(command.node.Instances, buffers))

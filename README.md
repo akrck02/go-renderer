@@ -17,13 +17,16 @@ Besides the immediate-mode `Renderer` contract, the project can load and draw co
 * `opengl.SceneRenderer`: uploads each mesh once and draws instanced geometry in a single call; a day and night sky (procedural day gradient, twilight glow, stars that turn around the celestial pole, a moon with phases that lights the night, clouds, constellations, or skybox images: equirectangular panoramas or six cube faces, one for the day and one for the night), sun or moon light with sky ambient, sun shadows (a shadow map fitted around the camera target, PCF filtered, `ShadowSettings`), fog, animated water colored by its depth (a top-down depth map of the ground, rendered once per scene and again when a ground mesh is Dirty) and waterfalls.
 * `input`: backend-independent keyboard and mouse state, fed by the window backend.
 * `camera`: `Orbit` (drag, pan, zoom) and `Walk` (first person on the ground) controllers.
-* `models.Application.Update`: fixed time step before every frame, the place for simulations.
+* `models.Application.Update`: fixed time step before every frame.
+* `viewer`: the interactive explorer behind `cmd/visor` (cameras, sun, fog, shadows, captures, benchmarks). `viewer.Run` takes an optional update function called at every fixed step, so other programs can change the scene while it is shown.
+* The renderer draws the scene as it is and knows nothing about simulations. Moving things, wind gusts, drifting clouds or the day cycle live in the sibling project [go-simulator](../go-simulator), which changes the scene through `viewer.Run`. The renderer only reads the state they leave: node transforms, `Environment.Wind` (bends materials with `Sway` on the GPU, drives the clouds), `Sky.Clouds.Offset` and the sun direction.
 
 ### Visor
 ```bash
 go run ./cmd/visor scene.glb
 go run ./cmd/visor -walk scene.glb
 go run ./cmd/visor -capture frame.png scene.glb   # one frame to PNG, hidden window
+go run ./cmd/visor -benchmark 120 scene.glb       # CPU and GPU times per pass, draw calls, triangles
 ```
 
 #### Orbit camera (default)
@@ -52,7 +55,6 @@ go run ./cmd/visor -capture frame.png scene.glb   # one frame to PNG, hidden win
 | `J` `L` | Turn the sun |
 | `I` `K` | Raise or lower the sun (below the horizon it is night) |
 | `N` | Jump between day and night |
-| `T` | Let time pass, a day lasts two minutes (toggle) |
 | `Z` `X` | Less or more vertical exaggeration (orbit only) |
 | `F` | Fog (toggle) |
 | `O` | Shadows (toggle) |
@@ -67,16 +69,17 @@ go run ./cmd/visor -capture frame.png scene.glb   # one frame to PNG, hidden win
 | `-no-shadows` | Start without shadows |
 | `-width` / `-height` | Window size |
 | `-capture frame.png` | Render one frame to a PNG, hidden window |
+| `-benchmark N` | Measure N frames, print CPU and GPU times per pass and exit |
 
 ### glTF extras read by the renderer
-* scene `extras.environment`: `sunDirection`, `sunColor`, `skyZenith`, `skyHorizon`, `groundAmbient`, `ambient`, `fog {color, near, far}`, `water {level, deep, shallow, size, waveLength, floorDepth, colorDepth}`, `verticalScale`, `sky`:
+* scene `extras.environment`: `sunDirection`, `sunColor`, `skyZenith`, `skyHorizon`, `groundAmbient`, `ambient`, `fog {color, near, far}`, `water {level, deep, shallow, size, waveLength, floorDepth, colorDepth}`, `verticalScale`, `wind {direction, strength}`, `sky`:
   * `nightZenith`, `nightHorizon`, `nightAmbient`, `twilightColor`, `celestialPole`: vectors
   * `stars {density, brightness, twinkle, daytimeVisibility}`
   * `moon {direction, size (degrees), color, phase (0 new, 0.5 full), light}` or `false`
   * `clouds {coverage, color, speed, scale}`
   * `constellations [{name, stars: [[x, y, z], ...] as seen at midnight, lines: [[first, second], ...], color}]`
   * `dayImage`, `nightImage`: `"panorama.png"` or `{faces: [+X, -X, +Y, -Y, +Z, -Z]}`, paths relative to the glTF file (PNG or JPEG); the night image turns with the stars
-* material `extras.kind`: `lit` | `unlit` | `water` | `waterfall`
+* material `extras.kind`: `lit` | `unlit` | `water` | `waterfall`; `extras.sway`: how much the wind bends it (plants modelled with height 1 and the base at the origin)
 * mesh, primitive or node `extras.ground: true`: walkable surface
 
 ## Roadmap
