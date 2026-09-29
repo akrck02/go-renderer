@@ -93,7 +93,7 @@ func newApplication(session *viewer, options Options, title string) *models.Appl
 		app.Type, app.CapturePath = models.HeadlessApplication, options.CapturePath
 	}
 	// without waiting for the display the GPU keeps its speed, so measurements are steady
-	app.DisableVsync = options.Benchmark > 0
+	app.DisableVsync = options.Benchmark > 0 || options.NoVsync
 	session.configureFrustum(&app.Camera)
 	return app
 }
