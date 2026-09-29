@@ -55,7 +55,13 @@ type UpdateFunc func(world *scene.Scene, state *input.State, step float64)
 // Run shows the scene until the window closes (or, for a capture or a benchmark, until it is
 // done). It must be called from the main goroutine. loadingTime only appears in benchmarks.
 func Run(world *scene.Scene, options Options, title string, update UpdateFunc, loadingTime time.Duration) error {
-	session := newViewer(world, options.StartWalking)
+	session := newViewer(world, false)
+	if options.LookAt != nil {
+		session.orbit.Target[0], session.orbit.Target[2] = options.LookAt[0], options.LookAt[1]
+	}
+	if options.StartWalking {
+		session.toggleWalking()
+	}
 	session.update = update
 	session.shadowsEnabled = !options.NoShadows
 	session.orbit.Distance *= zoomOrOne(options.Zoom)
