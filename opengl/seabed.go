@@ -128,13 +128,14 @@ func (seabed *seabedMap) render(commands []drawCommand) {
 func (seabed *seabedMap) bindForWater(program *shaderProgram, water *scene.Water) {
 	enabled := water != nil && seabed.available
 	program.setInteger("seabedMap", 2)
+	// bound even when unused: some drivers check every sampler on every draw
+	gl.ActiveTexture(gl.TEXTURE2)
+	gl.BindTexture(gl.TEXTURE_2D, seabed.depthTexture)
+	gl.ActiveTexture(gl.TEXTURE0)
 	if !enabled {
 		program.setInteger("seabedEnabled", 0)
 		return
 	}
-	gl.ActiveTexture(gl.TEXTURE2)
-	gl.BindTexture(gl.TEXTURE_2D, seabed.depthTexture)
-	gl.ActiveTexture(gl.TEXTURE0)
 	program.setInteger("seabedEnabled", 1)
 	program.setMatrix("seabedViewProjection", seabed.region.viewProjection)
 	gl.Uniform2f(program.location("seabedHeightRange"), seabed.region.top, seabed.region.bottom)
