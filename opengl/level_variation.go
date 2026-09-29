@@ -12,6 +12,7 @@ const levelVariationUnit = 7
 // placeholder for scenes without one (some drivers check every sampler on every draw).
 type levelVariationTexture struct {
 	placeholder uint32
+	active      bool // the frame's water has a variation (draws of the sea surface turn it on)
 }
 
 func newLevelVariationTexture() *levelVariationTexture {
@@ -23,14 +24,14 @@ func (textures *levelVariationTexture) bind(program *shaderProgram, water *scene
 	program.setInteger("levelVariation", levelVariationUnit)
 	gl.ActiveTexture(gl.TEXTURE0 + levelVariationUnit)
 	defer gl.ActiveTexture(gl.TEXTURE0)
-	if water == nil || water.Variation == nil {
+	textures.active = water != nil && water.Variation != nil
+	program.setInteger("levelVariationEnabled", 0)
+	if !textures.active {
 		gl.BindTexture(gl.TEXTURE_2D, textures.placeholder)
-		program.setInteger("levelVariationEnabled", 0)
 		return
 	}
 	variation := water.Variation
 	gl.BindTexture(gl.TEXTURE_2D, uploadVariation(variation))
-	program.setInteger("levelVariationEnabled", 1)
 	program.setVector4("levelVariationArea", [4]float32{variation.MinimumX, variation.MinimumZ, variation.MaximumX, variation.MaximumZ})
 	program.setFloat("levelVariationAngle", variation.Angle)
 }
@@ -71,4 +72,11 @@ func uploadHarmonicTexture(columns, rows int, data []float32) uint32 {
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 	return texture
+}
+
+func boolToInteger(value bool) int32 {
+	if value {
+		return 1
+	}
+	return 0
 }

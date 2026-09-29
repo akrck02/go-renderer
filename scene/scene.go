@@ -107,6 +107,15 @@ type Water struct {
 	FloorDepth float32         // depth of an opaque floor drawn under the water; 0 = Size / 500
 	ColorDepth float32         // water depth at which the color is about two thirds of the way from Shallow to Deep; 0 = FloorDepth / 8
 	Variation  *LevelVariation // raises and lowers the surface over an area (tides, for example); nil = flat
+	ShoreFade  float32         // depth over which the sea fades into the shore; 0 = ColorDepth / 20
+}
+
+// EffectiveShoreFade returns the shore fade depth, deriving it from the color depth when unset.
+func (water *Water) EffectiveShoreFade() float32 {
+	if water.ShoreFade > 0 {
+		return water.ShoreFade
+	}
+	return water.EffectiveColorDepth() / 20
 }
 
 // LevelAt returns the height of the water surface at a point.
