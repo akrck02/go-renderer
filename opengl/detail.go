@@ -69,6 +69,7 @@ type meshMeasure struct {
 func (renderer *SceneRenderer) drawGeometry(program *shaderProgram, command drawCommand, view viewpoint, which pass, counter *drawCounter) {
 	program.setMatrix("model", command.world)
 	program.setFloat("sway", command.material.Sway)
+	program.setFloat("depthBias", command.material.DepthBias)
 	if command.node.Instances != nil {
 		renderer.drawVisibleInstances(program, command, view, which, counter)
 		return

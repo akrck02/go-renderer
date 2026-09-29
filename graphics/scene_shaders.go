@@ -28,6 +28,8 @@ uniform int levelVariationEnabled;
 uniform sampler2D levelVariation;    // r: in phase, g: in quadrature (world units)
 uniform vec4 levelVariationArea;     // minimum x, minimum z, maximum x, maximum z
 uniform float levelVariationAngle;
+uniform float depthBias;             // share of the distance the surface is pulled towards the camera
+uniform vec3 cameraPosition;
 out vec3 worldPosition;
 out vec3 worldNormal;
 out vec4 surfaceColor;
@@ -67,6 +69,8 @@ void main() {
     worldPosition = world.xyz;
     worldNormal = normal;
     surfaceColor = color;
+    // thin surfaces on the terrain (rivers) are drawn a little closer, so its simpler far versions do not hide them
+    if (depthBias > 0.0) world.xyz += (cameraPosition - world.xyz) * depthBias;
     gl_Position = projection * view * world;
 }
 ` + "\x00"

@@ -30,6 +30,8 @@ type Material struct {
 	DoubleSided bool
 	Transparent bool
 	Sway        float32 // how much the wind bends the mesh (0 = rigid); for plants modelled with height 1
+	DepthBias   float32 // pulls the surface towards the camera by this share of its distance, so thin surfaces
+	// lying on terrain (rivers, roads) stay visible over the terrain's simpler far versions; 0 = none
 }
 
 // Mesh is triangle geometry. Positions and normals are xyz triples, colors rgba quads (linear).

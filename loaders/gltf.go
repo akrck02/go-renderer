@@ -328,6 +328,7 @@ func (file *gltfFile) buildMaterials() []*scene.Material {
 			DoubleSided: definition.DoubleSided,
 			Transparent: definition.AlphaMode == "BLEND",
 			Sway:        extraNumber(definition.Extras, "sway", 0),
+			DepthBias:   extraNumber(definition.Extras, "depthBias", 0),
 		}
 	}
 	return materials
