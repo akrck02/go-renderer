@@ -48,7 +48,8 @@ void main() {
     vec4 world = modelMatrix * vec4(vertexPosition, 1.0);
     world.xz += windBend(modelMatrix);
     world.y *= verticalScale;
-    vec3 normal = mat3(modelMatrix) * vertexNormal;
+    // the inverse transpose keeps normals perpendicular under scales that differ per axis
+    vec3 normal = transpose(inverse(mat3(modelMatrix))) * vertexNormal;
     normal.y /= verticalScale;
     worldPosition = world.xyz;
     worldNormal = normal;
