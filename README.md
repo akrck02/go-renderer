@@ -83,6 +83,7 @@ Measure with `-benchmark`. The measurements and the optimization plan are in [do
   * `constellations [{name, stars: [[x, y, z], ...] as seen at midnight, lines: [[first, second], ...], color}]`
   * `dayImage`, `nightImage`: `"panorama.png"` or `{faces: [+X, -X, +Y, -Y, +Z, -Z]}`, paths relative to the glTF file (PNG or JPEG); the night image turns with the stars
 * material `extras.kind`: `lit` | `unlit` | `water` | `waterfall`; `extras.sway`: how much the wind bends it (plants modelled with height 1 and the base at the origin)
+* mesh `extras.detail`: `[{"mesh": index, "screenSize": fraction of the screen height}, ...]`, simpler versions from finer to coarser; the renderer culls instanced nodes by cells and picks a level per cell
 * mesh, primitive or node `extras.ground: true`: walkable surface
 
 ## Roadmap

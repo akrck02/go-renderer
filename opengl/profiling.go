@@ -80,34 +80,6 @@ func passField(times *PassTimes, pass string) *time.Duration {
 	}
 }
 
-// countCommands fills the draw counts of the main and shadow passes from the commands.
-func countCommands(statistics *FrameStatistics, commands []drawCommand, shadowsDrawn bool) {
-	for _, command := range commands {
-		triangles, instances := commandSize(command)
-		statistics.DrawCalls++
-		statistics.Triangles += triangles
-		statistics.Instances += instances
-		if shadowsDrawn && castsShadow(command) {
-			statistics.ShadowDrawCalls++
-			statistics.ShadowTriangles += triangles
-		}
-	}
-}
-
-// commandSize returns the triangles a command draws and how many instances it has.
-func commandSize(command drawCommand) (triangles, instances int) {
-	mesh := command.node.Mesh
-	perCopy := len(mesh.Indices) / 3
-	if perCopy == 0 {
-		perCopy = mesh.VertexCount() / 3
-	}
-	if command.node.Instances == nil {
-		return perCopy, 0
-	}
-	instances = len(command.node.Instances.Transforms)
-	return perCopy * instances, instances
-}
-
 func castsShadow(command drawCommand) bool {
 	return !command.transparent && command.material.Kind != scene.KindUnlit
 }

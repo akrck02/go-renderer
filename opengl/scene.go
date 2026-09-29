@@ -21,15 +21,19 @@ type SceneRenderer struct {
 	Statistics FrameStatistics // the last frame drawn
 	profiler   *passProfiler
 
-	sceneProgram *shaderProgram
-	sky          *skyRenderer
-	waterPlane   *scene.Mesh
-	waterFloor   *scene.Mesh
-	shadow       *shadowMap
-	seabed       *seabedMap
-	measured     *scene.Scene
-	sceneSize    float32 // horizontal size of the measured scene
-	sceneHeight  float32 // vertical span of the measured scene (before vertical scaling)
+	sceneProgram     *shaderProgram
+	sky              *skyRenderer
+	waterPlane       *scene.Mesh
+	waterFloor       *scene.Mesh
+	shadow           *shadowMap
+	seabed           *seabedMap
+	measured         *scene.Scene
+	meshMeasures     map[*scene.Mesh]*meshMeasure
+	instancedDetails map[*scene.Instances]*instancedDetail
+	verticalScale    float32 // of the frame being drawn
+	counters         [passCount]drawCounter
+	sceneSize        float32 // horizontal size of the measured scene
+	sceneHeight      float32 // vertical span of the measured scene (before vertical scaling)
 }
 
 // shaderProgram is a linked program with its uniform locations cached by name.
@@ -78,7 +82,8 @@ func NewSceneRenderer() (*SceneRenderer, error) {
 	if err != nil {
 		return nil, err
 	}
-	renderer := &SceneRenderer{sceneProgram: sceneProgram, sky: sky, Shadows: DefaultShadowSettings(), profiler: newPassProfiler()}
+	renderer := &SceneRenderer{sceneProgram: sceneProgram, sky: sky, Shadows: DefaultShadowSettings(), profiler: newPassProfiler(),
+		meshMeasures: map[*scene.Mesh]*meshMeasure{}, instancedDetails: map[*scene.Instances]*instancedDetail{}}
 	if renderer.shadow, err = newShadowMap(renderer.Shadows.resolution()); err != nil {
 		return nil, err
 	}
@@ -141,20 +146,25 @@ func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, wi
 	started := time.Now()
 	matrices := computeCameraMatrices(camera, width, height)
 	light := world.Environment.Daylight()
+	renderer.startFrame(world)
+	fieldOfView, _, _ := camera.Projection()
+	mainView := newViewpoint(matrices.viewProjection, camera.Position, fieldOfView)
 	commands := renderer.collectDrawCommands(world, camera)
 	sortOpaqueBeforeTransparent(commands)
 	renderer.measurePass("seabed", func() { renderer.seabed.update(world, commands) })
 	var region shadowRegion
 	var err error
-	renderer.measurePass("shadows", func() { region, err = renderer.renderShadows(world, camera, commands, light.LightDirection, seconds) })
+	renderer.measurePass("shadows", func() {
+		region, err = renderer.renderShadows(world, camera, commands, light.LightDirection, seconds, mainView)
+	})
 	shadowsReady := err == nil && renderer.Shadows.Enabled
 	clearFrame(light, width, height)
 	renderer.measurePass("sky", func() { renderer.sky.draw(world.Environment, light, camera, matrices, seconds) })
 	renderer.setFrameUniforms(world.Environment, light, camera, matrices, seconds)
 	renderer.shadow.bindForLighting(renderer.sceneProgram, region, shadowsReady)
 	renderer.seabed.bindForWater(renderer.sceneProgram, world.Environment.Water)
-	renderer.measurePass("scene", func() { renderer.executeDrawCommands(commands) })
-	renderer.recordStatistics(commands, shadowsReady, time.Since(started))
+	renderer.measurePass("scene", func() { renderer.executeDrawCommands(commands, mainView) })
+	renderer.recordStatistics(time.Since(started))
 }
 
 // measurePass runs a pass, timing it on the GPU when profiling.
@@ -168,9 +178,17 @@ func (renderer *SceneRenderer) measurePass(pass string, run func()) {
 	renderer.profiler.end()
 }
 
-func (renderer *SceneRenderer) recordStatistics(commands []drawCommand, shadowsDrawn bool, processorTime time.Duration) {
-	statistics := FrameStatistics{CPU: processorTime}
-	countCommands(&statistics, commands, shadowsDrawn)
+// startFrame resets the counters and remembers what every draw of the frame shares.
+func (renderer *SceneRenderer) startFrame(world *scene.Scene) {
+	renderer.verticalScale = world.Environment.EffectiveVerticalScale()
+	renderer.counters = [passCount]drawCounter{}
+}
+
+func (renderer *SceneRenderer) recordStatistics(processorTime time.Duration) {
+	main, shadow := renderer.counters[mainPass], renderer.counters[shadowPass]
+	statistics := FrameStatistics{CPU: processorTime,
+		DrawCalls: main.drawCalls, Triangles: main.triangles, Instances: main.instances,
+		ShadowDrawCalls: shadow.drawCalls, ShadowTriangles: shadow.triangles}
 	if renderer.Profiling {
 		statistics.GPU = renderer.profiler.collect()
 	}
@@ -178,7 +196,7 @@ func (renderer *SceneRenderer) recordStatistics(commands []drawCommand, shadowsD
 }
 
 // renderShadows draws the shadow map for this frame when shadows are enabled.
-func (renderer *SceneRenderer) renderShadows(world *scene.Scene, camera models.Camera, commands []drawCommand, lightDirection graphics.Vec4, seconds float64) (shadowRegion, error) {
+func (renderer *SceneRenderer) renderShadows(world *scene.Scene, camera models.Camera, commands []drawCommand, lightDirection graphics.Vec4, seconds float64, mainView viewpoint) (shadowRegion, error) {
 	if !renderer.Shadows.Enabled {
 		return shadowRegion{}, nil
 	}
@@ -190,7 +208,12 @@ func (renderer *SceneRenderer) renderShadows(world *scene.Scene, camera models.C
 	extent := renderer.Shadows.extent(camera, renderer.sceneSize)
 	depthRange := extent*2 + renderer.sceneHeight*verticalScale*2
 	region := fitShadowRegion(lightDirection, shadowCenter(camera, extent), extent, depthRange, renderer.shadow.resolution)
-	renderer.shadow.renderShadowPass(commands, region, verticalScale, world.Environment.Wind, seconds)
+	shadowView := mainView
+	shadowView.volume = frustumFromMatrix(region.lightViewProjection())
+	drawCaster := func(program *shaderProgram, command drawCommand) {
+		renderer.drawGeometry(program, command, shadowView, shadowPass, &renderer.counters[shadowPass])
+	}
+	renderer.shadow.renderShadowPass(commands, region, verticalScale, world.Environment.Wind, seconds, drawCaster)
 	return region, nil
 }
 
@@ -313,14 +336,14 @@ func sortOpaqueBeforeTransparent(commands []drawCommand) {
 	})
 }
 
-func (renderer *SceneRenderer) executeDrawCommands(commands []drawCommand) {
+func (renderer *SceneRenderer) executeDrawCommands(commands []drawCommand, view viewpoint) {
 	blending := false
 	for _, command := range commands {
 		if command.transparent && !blending {
 			enableBlending()
 			blending = true
 		}
-		renderer.drawNode(command)
+		renderer.drawNode(command, view)
 	}
 	if blending {
 		disableBlending()
@@ -339,7 +362,7 @@ func disableBlending() {
 	gl.Disable(gl.BLEND)
 }
 
-func (renderer *SceneRenderer) drawNode(command drawCommand) {
+func (renderer *SceneRenderer) drawNode(command drawCommand, view viewpoint) {
 	program := renderer.sceneProgram
 	baseColor := command.material.BaseColor
 	if baseColor == (graphics.Vec4{}) {
@@ -347,14 +370,7 @@ func (renderer *SceneRenderer) drawNode(command drawCommand) {
 	}
 	program.setVector4("baseColor", baseColor)
 	program.setInteger("kind", int32(command.material.Kind))
-	program.setFloat("sway", command.material.Sway)
-	program.setMatrix("model", command.world)
-	buffers := uploadMesh(command.node.Mesh)
-	if command.node.Instances != nil {
-		drawInstanced(program, buffers, uploadInstances(command.node.Instances, buffers))
-		return
-	}
-	drawSingle(program, buffers)
+	renderer.drawGeometry(program, command, view, mainPass, &renderer.counters[mainPass])
 }
 
 func drawSingle(program *shaderProgram, buffers *meshBuffers) {
@@ -480,14 +496,8 @@ func uploadInstances(instances *scene.Instances, mesh *meshBuffers) *instanceBuf
 // packInstances writes the matrix and the color of every instance (white when missing).
 func packInstances(instances *scene.Instances) []float32 {
 	data := make([]float32, len(instances.Transforms)*floatsPerInstance)
-	for instance, transform := range instances.Transforms {
-		offset := instance * floatsPerInstance
-		copy(data[offset:offset+16], transform[:])
-		color := graphics.Vec4{1, 1, 1, 1}
-		if instance < len(instances.Colors) {
-			color = instances.Colors[instance]
-		}
-		copy(data[offset+16:offset+20], color[:])
+	for instance := range instances.Transforms {
+		packInstance(instances, instance, data[instance*floatsPerInstance:])
 	}
 	return data
 }

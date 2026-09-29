@@ -175,7 +175,10 @@ func sunOrientation(sunDirection graphics.Vec4) graphics.Mat4 {
 }
 
 // renderShadowPass draws the depth of every opaque command as seen from the sun.
-func (shadow *shadowMap) renderShadowPass(commands []drawCommand, region shadowRegion, verticalScale float32, wind scene.Wind, seconds float64) {
+// drawCaster draws one command in the shadow pass (the renderer culls it and picks its detail).
+type drawCaster func(program *shaderProgram, command drawCommand)
+
+func (shadow *shadowMap) renderShadowPass(commands []drawCommand, region shadowRegion, verticalScale float32, wind scene.Wind, seconds float64, draw drawCaster) {
 	gl.BindFramebuffer(gl.FRAMEBUFFER, shadow.framebuffer)
 	gl.Viewport(0, 0, shadow.resolution, shadow.resolution)
 	gl.Clear(gl.DEPTH_BUFFER_BIT)
@@ -195,21 +198,10 @@ func (shadow *shadowMap) renderShadowPass(commands []drawCommand, region shadowR
 		if !castsShadow(command) {
 			continue
 		}
-		castShadow(program, command)
+		draw(program, command)
 	}
 	gl.Disable(gl.POLYGON_OFFSET_FILL)
 	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
-}
-
-func castShadow(program *shaderProgram, command drawCommand) {
-	program.setMatrix("model", command.world)
-	program.setFloat("sway", command.material.Sway)
-	buffers := uploadMesh(command.node.Mesh)
-	if command.node.Instances != nil {
-		drawInstanced(program, buffers, uploadInstances(command.node.Instances, buffers))
-		return
-	}
-	drawSingle(program, buffers)
 }
 
 // bindForLighting gives the lighting program the shadow map (texture unit 1) and its region.

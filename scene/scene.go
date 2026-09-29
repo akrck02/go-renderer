@@ -41,9 +41,10 @@ type Mesh struct {
 	Colors    []float32
 	Indices   []uint32
 	Material  *Material
-	Ground    bool // walkable surface (used by GroundHeight)
-	Dirty     bool // geometry changed: backends upload it again
-	GPU       any  // backend handle
+	Details   []DetailLevel // simpler versions for when the mesh looks small, from finer to coarser
+	Ground    bool          // walkable surface (used by GroundHeight)
+	Dirty     bool          // geometry changed: backends upload it again
+	GPU       any           // backend handle
 }
 
 // VertexCount returns the number of vertices.

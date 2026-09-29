@@ -32,7 +32,7 @@ Result: ~25 fps with shadows, ~45 fps without, in every view.
 room for simulations. Every step below is measured with `-benchmark` on the four views of the
 baseline table, and its row is added to the results section.
 
-## Phase 1: draw only the trees that matter (largest gain)
+## Phase 1: draw only the trees that matter (largest gain) — done
 
 1. **Levels of detail for instanced meshes.** A mesh can carry simpler versions and the distance
    (in screen size) at which each one is used: full tree near, a low-polygon version (8–30
@@ -51,6 +51,22 @@ baseline table, and its row is added to the results section.
    * Keep the shadow map between frames when the light direction, the snapped region and the
      casters have not changed (static scenes, a still camera); simulations mark it stale.
    Expected: shadows 19 → 2–4 ms.
+
+### What was done in phase 1
+* `scene.Mesh.Details` holds simpler versions with the apparent size (fraction of the screen
+  height) below which each one is used; glTF mesh extras `"detail": [{"mesh", "screenSize"}]`.
+* Every instanced node is sorted into a grid of cells (about 64 instances each). Each pass (main
+  and shadows) keeps the cells inside its frustum, chooses a level per cell from the apparent size
+  of its largest instance at its nearest point, and draws one call per level. Instance buffers are
+  uploaded again only when the chosen cells change. Single meshes are culled by their box and use
+  their levels too.
+* The shadow pass culls against the light's frustum and uses the same level as the main pass: one
+  level coarser made tree shadows visibly angular in close views.
+* The skill exports two simpler trees: fewer faces (below 3 % of the screen height) and, far away,
+  an 8-face crown with a 3-sided trunk (below 0.8 %). Without the trunk the far forest looked
+  lighter than before, so it stays.
+* Keeping the shadow map between frames was left out: plants bending in the wind change the
+  shadows every frame, so it would rarely apply.
 
 ## Phase 2: steady frame time
 
@@ -85,3 +101,13 @@ baseline table, and its row is added to the results section.
 | Step | View | CPU | GPU shadows | GPU scene | GPU total |
 |---|---|---|---|---|---|
 | Baseline | Overview | 20.6 ms | 19.0 ms | 20.3 ms | 40.4 ms |
+| Baseline | Close | 22.1 ms | 20.9 ms | 20.4 ms | 42.4 ms |
+| Baseline | Walking | 21.0 ms | 19.8 ms | 19.5 ms | 40.8 ms |
+| Phase 1 | Overview | 8.5 ms | 3.7 ms | 6.5 ms | 12.3 ms (10.1 in another run) |
+| Phase 1 | Close | 8.6 ms | 4.3 ms | 2.7 ms | 8.9 ms |
+| Phase 1 | Walking | 9.2 ms | 2.9 ms | 4.3 ms | 10.7 ms |
+| Phase 1 | Overview, no shadows | 5.0 ms | — | 8.1 ms | 10.7 ms |
+
+Triangles per frame after phase 1: 2.7 M in the overview (was 17.5 M), 1.0 M close, 1.6 M
+walking; shadows 1.1–2.4 M (was 17.5 M). Runs vary by about 2 ms; CPU times include waiting for
+the GPU timers.

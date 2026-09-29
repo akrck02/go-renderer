@@ -119,7 +119,7 @@ func (seabed *seabedMap) render(commands []drawCommand) {
 	program.setMatrix("view", graphics.Identity())
 	program.setFloat("verticalScale", 1)
 	for _, command := range commands {
-		castShadow(program, command)
+		drawWholeMesh(program, command)
 	}
 	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
 }
@@ -149,4 +149,16 @@ func shallowColorOf(water *scene.Water) graphics.Vec4 {
 		return graphics.Vec4{0.3, 0.62, 0.6, 0.5}
 	}
 	return water.Shallow
+}
+
+// drawWholeMesh draws a command's full mesh (or all its instances) without culling.
+func drawWholeMesh(program *shaderProgram, command drawCommand) {
+	program.setMatrix("model", command.world)
+	program.setFloat("sway", command.material.Sway)
+	buffers := uploadMesh(command.node.Mesh)
+	if command.node.Instances != nil {
+		drawInstanced(program, buffers, uploadInstances(command.node.Instances, buffers))
+		return
+	}
+	drawSingle(program, buffers)
 }

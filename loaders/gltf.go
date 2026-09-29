@@ -127,6 +127,7 @@ type gltfFile struct {
 //   - scene extras "environment" also: wind {direction, strength}
 //   - material extras "kind": "lit" | "unlit" | "water" | "waterfall"; "sway": bending in the wind
 //   - mesh, primitive or node extras "ground": true (walkable surface)
+//   - mesh extras "detail": [{"mesh": index, "screenSize": fraction}, ...] simpler versions, finer first
 func LoadScene(path string) (*scene.Scene, error) {
 	file, err := readGLTFFile(path)
 	if err != nil {
@@ -282,6 +283,7 @@ func (file *gltfFile) buildScene() (*scene.Scene, error) {
 	if err != nil {
 		return nil, err
 	}
+	file.attachDetailLevels(meshes)
 	rootNodes, sceneExtras := file.rootNodesAndExtras()
 	for _, nodeNumber := range rootNodes {
 		node, err := file.buildNode(nodeNumber, meshes)
@@ -355,6 +357,27 @@ func (file *gltfFile) buildMeshes(materials []*scene.Material) ([][]*scene.Mesh,
 		}
 	}
 	return meshes, nil
+}
+
+// attachDetailLevels links the simpler versions a mesh names in its extras:
+// "detail": [{"mesh": index, "screenSize": fraction of the screen height}, ...], finer first.
+func (file *gltfFile) attachDetailLevels(meshes [][]*scene.Mesh) {
+	for meshNumber, definition := range file.document.Meshes {
+		levels, _ := definition.Extras["detail"].([]any)
+		for _, entry := range levels {
+			level, isObject := entry.(map[string]any)
+			simplerNumber, hasMesh := level["mesh"].(float64)
+			if !isObject || !hasMesh || int(simplerNumber) >= len(meshes) || len(meshes[int(simplerNumber)]) == 0 {
+				continue
+			}
+			for _, mesh := range meshes[meshNumber] {
+				mesh.Details = append(mesh.Details, scene.DetailLevel{
+					Mesh:       meshes[int(simplerNumber)][0],
+					ScreenSize: extraNumber(level, "screenSize", 0),
+				})
+			}
+		}
+	}
 }
 
 func (file *gltfFile) buildPrimitive(mesh gltfMeshDefinition, primitive gltfPrimitiveDefinition, materials []*scene.Material) (*scene.Mesh, error) {
