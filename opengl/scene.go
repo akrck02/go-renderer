@@ -18,8 +18,7 @@ type SceneRenderer struct {
 	Shadows ShadowSettings
 
 	sceneProgram *shaderProgram
-	skyProgram   *shaderProgram
-	emptyArray   uint32
+	sky          *skyRenderer
 	waterPlane   *scene.Mesh
 	waterFloor   *scene.Mesh
 	shadow       *shadowMap
@@ -71,12 +70,11 @@ func NewSceneRenderer() (*SceneRenderer, error) {
 	if err != nil {
 		return nil, err
 	}
-	skyProgram, err := newShaderProgram(graphics.SkyVertexShader, graphics.SkyFragmentShader)
+	sky, err := newSkyRenderer()
 	if err != nil {
 		return nil, err
 	}
-	renderer := &SceneRenderer{sceneProgram: sceneProgram, skyProgram: skyProgram, Shadows: DefaultShadowSettings()}
-	gl.GenVertexArrays(1, &renderer.emptyArray)
+	renderer := &SceneRenderer{sceneProgram: sceneProgram, sky: sky, Shadows: DefaultShadowSettings()}
 	if renderer.shadow, err = newShadowMap(renderer.Shadows.resolution()); err != nil {
 		return nil, err
 	}
@@ -137,21 +135,22 @@ func (program *shaderProgram) setInteger(name string, value int32) {
 // seconds is the elapsed time, which animates water and waterfalls.
 func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int, seconds float64) {
 	matrices := computeCameraMatrices(camera, width, height)
+	light := world.Environment.Daylight()
 	commands := renderer.collectDrawCommands(world, camera)
 	sortOpaqueBeforeTransparent(commands)
 	renderer.seabed.update(world, commands)
-	region, err := renderer.renderShadows(world, camera, commands)
+	region, err := renderer.renderShadows(world, camera, commands, light.LightDirection)
 	shadowsReady := err == nil && renderer.Shadows.Enabled
-	clearFrame(world.Environment, width, height)
-	renderer.drawSky(world.Environment, camera, matrices)
-	renderer.setFrameUniforms(world.Environment, camera, matrices, seconds)
+	clearFrame(light, width, height)
+	renderer.sky.draw(world.Environment, light, camera, matrices, seconds)
+	renderer.setFrameUniforms(world.Environment, light, camera, matrices, seconds)
 	renderer.shadow.bindForLighting(renderer.sceneProgram, region, shadowsReady)
 	renderer.seabed.bindForWater(renderer.sceneProgram, world.Environment.Water)
 	renderer.executeDrawCommands(commands)
 }
 
 // renderShadows draws the shadow map for this frame when shadows are enabled.
-func (renderer *SceneRenderer) renderShadows(world *scene.Scene, camera models.Camera, commands []drawCommand) (shadowRegion, error) {
+func (renderer *SceneRenderer) renderShadows(world *scene.Scene, camera models.Camera, commands []drawCommand, lightDirection graphics.Vec4) (shadowRegion, error) {
 	if !renderer.Shadows.Enabled {
 		return shadowRegion{}, nil
 	}
@@ -162,7 +161,7 @@ func (renderer *SceneRenderer) renderShadows(world *scene.Scene, camera models.C
 	verticalScale := world.Environment.EffectiveVerticalScale()
 	extent := renderer.Shadows.extent(camera, renderer.sceneSize)
 	depthRange := extent*2 + renderer.sceneHeight*verticalScale*2
-	region := fitShadowRegion(world.Environment.SunDirection, shadowCenter(camera, extent), extent, depthRange, renderer.shadow.resolution)
+	region := fitShadowRegion(lightDirection, shadowCenter(camera, extent), extent, depthRange, renderer.shadow.resolution)
 	renderer.shadow.renderShadowPass(commands, region, verticalScale)
 	return region, nil
 }
@@ -203,49 +202,29 @@ func computeCameraMatrices(camera models.Camera, width, height int) cameraMatric
 	return cameraMatrices{projection: projection, view: view, viewProjection: projection.Multiply(view)}
 }
 
-func clearFrame(environment scene.Environment, width, height int) {
+func clearFrame(light scene.Daylight, width, height int) {
 	gl.Viewport(0, 0, int32(width), int32(height))
-	horizon := environment.SkyHorizon
+	horizon := light.Horizon
 	gl.ClearColor(horizon[0], horizon[1], horizon[2], 1)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	gl.Disable(gl.CULL_FACE)
 }
 
-func (renderer *SceneRenderer) drawSky(environment scene.Environment, camera models.Camera, matrices cameraMatrices) {
-	inverse, invertible := matrices.viewProjection.Inverse()
-	if !invertible {
-		return
-	}
-	sky := renderer.skyProgram
-	gl.DepthMask(false)
-	gl.Disable(gl.DEPTH_TEST)
-	gl.UseProgram(sky.handle)
-	sky.setMatrix("inverseViewProjection", inverse)
-	sky.setVector3("cameraPosition", camera.Position)
-	sky.setVector3("sunDirection", environment.SunDirection)
-	sky.setVector3("sunColor", environment.SunColor)
-	sky.setVector3("skyColor", environment.SkyZenith)
-	sky.setVector3("horizonColor", environment.SkyHorizon)
-	gl.BindVertexArray(renderer.emptyArray)
-	gl.DrawArrays(gl.TRIANGLES, 0, 3)
-	gl.DepthMask(true)
-	gl.Enable(gl.DEPTH_TEST)
-	gl.DepthFunc(gl.LEQUAL)
-}
-
-func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, camera models.Camera, matrices cameraMatrices, seconds float64) {
+// setFrameUniforms sets what every draw of the frame shares; the light is the sun or the moon.
+func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, light scene.Daylight, camera models.Camera, matrices cameraMatrices, seconds float64) {
 	program := renderer.sceneProgram
 	gl.UseProgram(program.handle)
 	program.setMatrix("projection", matrices.projection)
 	program.setMatrix("view", matrices.view)
 	program.setFloat("verticalScale", environment.EffectiveVerticalScale())
-	program.setVector3("sunDirection", environment.SunDirection)
-	program.setVector3("sunColor", environment.SunColor)
-	program.setVector3("skyColor", environment.SkyZenith)
-	program.setVector3("horizonColor", environment.SkyHorizon)
-	program.setVector3("groundColor", environment.GroundAmbient)
+	program.setVector3("sunDirection", light.LightDirection)
+	program.setVector3("sunColor", light.LightColor)
+	program.setVector3("skyColor", light.SkyLight)
+	program.setVector3("horizonColor", light.Horizon)
+	program.setVector3("groundColor", light.GroundLight)
 	program.setFloat("ambient", environment.Ambient)
-	program.setVector3("fogColor", environment.FogColor)
+	program.setVector3("fogColor", light.Fog)
+	program.setFloat("brightness", light.Brightness)
 	gl.Uniform2f(program.location("fogRange"), environment.FogNear, environment.FogFar)
 	program.setVector3("cameraPosition", camera.Position)
 	program.setFloat("time", float32(seconds))

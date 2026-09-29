@@ -12,9 +12,9 @@ This is a tiny, educational graphics renderer built in Go. The core goal of this
 ## Scene rendering (OpenGL)
 Besides the immediate-mode `Renderer` contract, the project can load and draw complete scenes:
 
-* `scene`: retained, backend-independent scene — nodes with transforms, meshes (positions, normals, per-vertex colors, indices), materials (`lit`, `unlit`, `water`, `waterfall`), GPU instancing and an environment (sun, sky, fog, water plane, vertical exaggeration). Meshes and instances can be marked `Dirty` so simulations can change them and the backend uploads them again. `GroundHeight(x, z)` answers the height of walkable meshes through a grid index.
+* `scene`: retained, backend-independent scene — nodes with transforms, meshes (positions, normals, per-vertex colors, indices), materials (`lit`, `unlit`, `water`, `waterfall`), GPU instancing and an environment (sun, sky, fog, water plane, vertical exaggeration). `scene.Sky` describes the sky over a whole day and `Environment.Daylight()` derives, from the sun height, the sky colors and the light of the moment (sun by day, moon by night). Meshes and instances can be marked `Dirty` so simulations can change them and the backend uploads them again. `GroundHeight(x, z)` answers the height of walkable meshes through a grid index.
 * `loaders.LoadScene`: glTF 2.0 loader (`.glb` or `.gltf`) with node hierarchy, `COLOR_0`, `EXT_mesh_gpu_instancing` (plus a `_COLOR` per instance) and renderer extras (`environment`, material `kind`, `ground`).
-* `opengl.SceneRenderer`: uploads each mesh once and draws instanced geometry in a single call; sky, sunlight with sky ambient, sun shadows (a shadow map fitted around the camera target, PCF filtered, `ShadowSettings`), fog, animated water colored by its depth (a top-down depth map of the ground, rendered once per scene and again when a ground mesh is Dirty) and waterfalls.
+* `opengl.SceneRenderer`: uploads each mesh once and draws instanced geometry in a single call; a day and night sky (procedural day gradient, twilight glow, stars that turn around the celestial pole, a moon with phases that lights the night, clouds, constellations, or skybox images: equirectangular panoramas or six cube faces, one for the day and one for the night), sun or moon light with sky ambient, sun shadows (a shadow map fitted around the camera target, PCF filtered, `ShadowSettings`), fog, animated water colored by its depth (a top-down depth map of the ground, rendered once per scene and again when a ground mesh is Dirty) and waterfalls.
 * `input`: backend-independent keyboard and mouse state, fed by the window backend.
 * `camera`: `Orbit` (drag, pan, zoom) and `Walk` (first person on the ground) controllers.
 * `models.Application.Update`: fixed time step before every frame, the place for simulations.
@@ -25,10 +25,16 @@ go run ./cmd/visor scene.glb
 go run ./cmd/visor -walk scene.glb
 go run ./cmd/visor -capture frame.png scene.glb   # one frame to PNG, hidden window
 ```
-Left drag rotates, right drag pans, scroll zooms. `Tab` switches to walking (WASD or arrows, mouse to look, shift to run, `[` and `]` change the walking speed). `J`/`L` turn the sun, `I`/`K` raise or lower it, `Z`/`X` change the vertical exaggeration, `F` toggles fog, `O` toggles shadows. Flags: `-walk`, `-no-shadows`, `-zoom F`, `-capture frame.png`.
+Left drag rotates, right drag pans, scroll zooms. `Tab` switches to walking (WASD or arrows, mouse to look, shift to run, `[` and `]` change the walking speed). `J`/`L` turn the sun, `I`/`K` raise or lower it (below the horizon it is night), `N` jumps between day and night, `T` lets time pass (a day lasts two minutes), `Z`/`X` change the vertical exaggeration, `F` toggles fog, `O` toggles shadows. Flags: `-walk`, `-no-shadows`, `-night`, `-sun-elevation D`, `-sun-azimuth D` (degrees), `-zoom F`, `-capture frame.png`.
 
 ### glTF extras read by the renderer
-* scene `extras.environment`: `sunDirection`, `sunColor`, `skyZenith`, `skyHorizon`, `groundAmbient`, `ambient`, `fog {color, near, far}`, `water {level, deep, shallow, size, waveLength, floorDepth, colorDepth}`, `verticalScale`
+* scene `extras.environment`: `sunDirection`, `sunColor`, `skyZenith`, `skyHorizon`, `groundAmbient`, `ambient`, `fog {color, near, far}`, `water {level, deep, shallow, size, waveLength, floorDepth, colorDepth}`, `verticalScale`, `sky`:
+  * `nightZenith`, `nightHorizon`, `nightAmbient`, `twilightColor`, `celestialPole`: vectors
+  * `stars {density, brightness, twinkle, daytimeVisibility}`
+  * `moon {direction, size (degrees), color, phase (0 new, 0.5 full), light}` or `false`
+  * `clouds {coverage, color, speed, scale}`
+  * `constellations [{name, stars: [[x, y, z], ...] as seen at midnight, lines: [[first, second], ...], color}]`
+  * `dayImage`, `nightImage`: `"panorama.png"` or `{faces: [+X, -X, +Y, -Y, +Z, -Z]}`, paths relative to the glTF file (PNG or JPEG); the night image turns with the stars
 * material `extras.kind`: `lit` | `unlit` | `water` | `waterfall`
 * mesh, primitive or node `extras.ground: true`: walkable surface
 
