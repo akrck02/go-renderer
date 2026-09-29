@@ -25,7 +25,48 @@ go run ./cmd/visor scene.glb
 go run ./cmd/visor -walk scene.glb
 go run ./cmd/visor -capture frame.png scene.glb   # one frame to PNG, hidden window
 ```
-Left drag rotates, right drag pans, scroll zooms. `Tab` switches to walking (WASD or arrows, mouse to look, shift to run, `[` and `]` change the walking speed). `J`/`L` turn the sun, `I`/`K` raise or lower it (below the horizon it is night), `N` jumps between day and night, `T` lets time pass (a day lasts two minutes), `Z`/`X` change the vertical exaggeration, `F` toggles fog, `O` toggles shadows. Flags: `-walk`, `-no-shadows`, `-night`, `-sun-elevation D`, `-sun-azimuth D` (degrees), `-zoom F`, `-capture frame.png`.
+
+#### Orbit camera (default)
+| Control | Action |
+|---|---|
+| Left drag | Rotate around the target |
+| Right drag (or shift + left drag) | Pan |
+| Scroll | Zoom |
+| `←` `→` | Rotate |
+| `↑` `↓` | Tilt |
+| `+` `-` | Zoom in or out |
+
+#### Walking (`Tab` switches)
+| Control | Action |
+|---|---|
+| `W` `A` `S` `D` | Move forward, left, back, right |
+| `↑` `↓` | Move forward or back |
+| `←` `→` | Turn |
+| Drag with any mouse button | Look around |
+| `Shift` | Run |
+| `[` `]` | Walk slower or faster (×1.5 per press) |
+
+#### Sun, sky and scene (both modes)
+| Key | Action |
+|---|---|
+| `J` `L` | Turn the sun |
+| `I` `K` | Raise or lower the sun (below the horizon it is night) |
+| `N` | Jump between day and night |
+| `T` | Let time pass, a day lasts two minutes (toggle) |
+| `Z` `X` | Less or more vertical exaggeration (orbit only) |
+| `F` | Fog (toggle) |
+| `O` | Shadows (toggle) |
+
+#### Flags
+| Flag | Effect |
+|---|---|
+| `-walk` | Start walking |
+| `-night` | Start at night |
+| `-sun-elevation D` / `-sun-azimuth D` | Place the sun (degrees; azimuth clockwise from north) |
+| `-zoom F` | Start closer (0.1 = ten times closer) |
+| `-no-shadows` | Start without shadows |
+| `-width` / `-height` | Window size |
+| `-capture frame.png` | Render one frame to a PNG, hidden window |
 
 ### glTF extras read by the renderer
 * scene `extras.environment`: `sunDirection`, `sunColor`, `skyZenith`, `skyHorizon`, `groundAmbient`, `ambient`, `fog {color, near, far}`, `water {level, deep, shallow, size, waveLength, floorDepth, colorDepth}`, `verticalScale`, `sky`:
