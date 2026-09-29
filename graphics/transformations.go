@@ -75,10 +75,10 @@ func RotateX(rad float64) Mat4 {
 	cos := float32(math.Cos(rad))
 	sin := float32(math.Sin(rad))
 
-	m[5] = cos   // Col 1, Row 1
-	m[6] = sin   // Col 1, Row 2
-	m[9] = -sin  // Col 2, Row 1
-	m[10] = cos  // Col 2, Row 2
+	m[5] = cos  // Col 1, Row 1
+	m[6] = sin  // Col 1, Row 2
+	m[9] = -sin // Col 2, Row 1
+	m[10] = cos // Col 2, Row 2
 	return m
 }
 
@@ -234,4 +234,45 @@ func PerspectiveMetal(fovyRad, aspect, near, far float64) Mat4 {
 	m[11] = -1.0
 	m[14] = (n * f) / (n - f)
 	return m
+}
+
+// Inverse returns the inverse of a 4x4 matrix and false when it is singular.
+func (m Mat4) Inverse() (Mat4, bool) {
+	var inverse Mat4
+	inverse[0] = m[5]*m[10]*m[15] - m[5]*m[11]*m[14] - m[9]*m[6]*m[15] + m[9]*m[7]*m[14] + m[13]*m[6]*m[11] - m[13]*m[7]*m[10]
+	inverse[4] = -m[4]*m[10]*m[15] + m[4]*m[11]*m[14] + m[8]*m[6]*m[15] - m[8]*m[7]*m[14] - m[12]*m[6]*m[11] + m[12]*m[7]*m[10]
+	inverse[8] = m[4]*m[9]*m[15] - m[4]*m[11]*m[13] - m[8]*m[5]*m[15] + m[8]*m[7]*m[13] + m[12]*m[5]*m[11] - m[12]*m[7]*m[9]
+	inverse[12] = -m[4]*m[9]*m[14] + m[4]*m[10]*m[13] + m[8]*m[5]*m[14] - m[8]*m[6]*m[13] - m[12]*m[5]*m[10] + m[12]*m[6]*m[9]
+	inverse[1] = -m[1]*m[10]*m[15] + m[1]*m[11]*m[14] + m[9]*m[2]*m[15] - m[9]*m[3]*m[14] - m[13]*m[2]*m[11] + m[13]*m[3]*m[10]
+	inverse[5] = m[0]*m[10]*m[15] - m[0]*m[11]*m[14] - m[8]*m[2]*m[15] + m[8]*m[3]*m[14] + m[12]*m[2]*m[11] - m[12]*m[3]*m[10]
+	inverse[9] = -m[0]*m[9]*m[15] + m[0]*m[11]*m[13] + m[8]*m[1]*m[15] - m[8]*m[3]*m[13] - m[12]*m[1]*m[11] + m[12]*m[3]*m[9]
+	inverse[13] = m[0]*m[9]*m[14] - m[0]*m[10]*m[13] - m[8]*m[1]*m[14] + m[8]*m[2]*m[13] + m[12]*m[1]*m[10] - m[12]*m[2]*m[9]
+	inverse[2] = m[1]*m[6]*m[15] - m[1]*m[7]*m[14] - m[5]*m[2]*m[15] + m[5]*m[3]*m[14] + m[13]*m[2]*m[7] - m[13]*m[3]*m[6]
+	inverse[6] = -m[0]*m[6]*m[15] + m[0]*m[7]*m[14] + m[4]*m[2]*m[15] - m[4]*m[3]*m[14] - m[12]*m[2]*m[7] + m[12]*m[3]*m[6]
+	inverse[10] = m[0]*m[5]*m[15] - m[0]*m[7]*m[13] - m[4]*m[1]*m[15] + m[4]*m[3]*m[13] + m[12]*m[1]*m[7] - m[12]*m[3]*m[5]
+	inverse[14] = -m[0]*m[5]*m[14] + m[0]*m[6]*m[13] + m[4]*m[1]*m[14] - m[4]*m[2]*m[13] - m[12]*m[1]*m[6] + m[12]*m[2]*m[5]
+	inverse[3] = -m[1]*m[6]*m[11] + m[1]*m[7]*m[10] + m[5]*m[2]*m[11] - m[5]*m[3]*m[10] - m[9]*m[2]*m[7] + m[9]*m[3]*m[6]
+	inverse[7] = m[0]*m[6]*m[11] - m[0]*m[7]*m[10] - m[4]*m[2]*m[11] + m[4]*m[3]*m[10] + m[8]*m[2]*m[7] - m[8]*m[3]*m[6]
+	inverse[11] = -m[0]*m[5]*m[11] + m[0]*m[7]*m[9] + m[4]*m[1]*m[11] - m[4]*m[3]*m[9] - m[8]*m[1]*m[7] + m[8]*m[3]*m[5]
+	inverse[15] = m[0]*m[5]*m[10] - m[0]*m[6]*m[9] - m[4]*m[1]*m[10] + m[4]*m[2]*m[9] + m[8]*m[1]*m[6] - m[8]*m[2]*m[5]
+	determinant := m[0]*inverse[0] + m[1]*inverse[4] + m[2]*inverse[8] + m[3]*inverse[12]
+	if determinant == 0 {
+		return Mat4{}, false
+	}
+	for element := range inverse {
+		inverse[element] /= determinant
+	}
+	return inverse, true
+}
+
+// FromTranslationRotationScale builds a matrix from a translation, a rotation quaternion (x, y, z, w) and a scale.
+func FromTranslationRotationScale(translation Vec4, rotation Vec4, scale Vec4) Mat4 {
+	x, y, z, w := rotation[0], rotation[1], rotation[2], rotation[3]
+	matrix := Mat4{
+		(1 - 2*(y*y+z*z)) * scale[0], 2 * (x*y + z*w) * scale[0], 2 * (x*z - y*w) * scale[0], 0,
+		2 * (x*y - z*w) * scale[1], (1 - 2*(x*x+z*z)) * scale[1], 2 * (y*z + x*w) * scale[1], 0,
+		2 * (x*z + y*w) * scale[2], 2 * (y*z - x*w) * scale[2], (1 - 2*(x*x+y*y)) * scale[2], 0,
+		translation[0], translation[1], translation[2], 1,
+	}
+	return matrix
 }

@@ -35,7 +35,13 @@ func (opengl *OpenGL) StartLoop(app *models.Application) error {
 		app.ModelMatrix = graphics.Identity()
 	}
 
-	setInputs(opengl, app)
+	if app.Input != nil {
+		forwardInputEvents(opengl.window, app.Input)
+	} else {
+		setInputs(opengl, app)
+	}
+	clock := newFixedStepClock(app.FixedStep)
+	cursorLocked := false
 
 	last_frame_time := time.Now()
 	now := last_frame_time
@@ -46,9 +52,19 @@ func (opengl *OpenGL) StartLoop(app *models.Application) error {
 
 		for !opengl.window.ShouldClose() {
 
+			if app.Input != nil {
+				updateWindowSizes(opengl.window, app.Input)
+			}
+			if err = clock.advance(app); err != nil {
+				return err
+			}
+
 			err = opengl.Draw(app)
 			if nil != err {
 				return err
+			}
+			if app.Input != nil {
+				applyCursorLock(opengl.window, app.Input, &cursorLocked)
 			}
 
 			opengl.frames++
@@ -64,12 +80,12 @@ func (opengl *OpenGL) StartLoop(app *models.Application) error {
 
 		println("OpenGL does not support headless mode by default for now. Rendering frame with window spawn (slow).")
 
-		err = opengl.Draw(app)
-		if nil != err {
+		if err = opengl.renderSettledFrame(app, clock); err != nil {
 			return err
 		}
-
-		opengl.DrawOnDisk(app, "frame.png")
+		if err = opengl.DrawOnDisk(app, capturePath(app)); err != nil {
+			return err
+		}
 
 		duration := time.Since(last_frame_time)
 		fmt.Printf("Frame generated in %d ms.\n", duration.Milliseconds())
@@ -165,7 +181,8 @@ func (opengl *OpenGL) Draw(app *models.Application) error {
 	}
 
 	// Update matrices
-	app.ProjectionMatrix = graphics.PerspectiveOpenGL(math.Pi/4, float64(w)/float64(h), 0.1, 1000.0)
+	fieldOfView, near, far := app.Camera.Projection()
+	app.ProjectionMatrix = graphics.PerspectiveOpenGL(fieldOfView, float64(w)/float64(h), float64(near), float64(far))
 	app.ViewMatrix = graphics.LookAt(app.Camera.Position, app.Camera.Target, app.Camera.Up)
 	app.Renderer.SetMatrices(app.ProjectionMatrix, app.ViewMatrix, app.ModelMatrix)
 
@@ -250,4 +267,67 @@ func (opengl *OpenGL) DrawOnDisk(app *models.Application, filePath string) error
 	defer file.Close()
 
 	return png.Encode(file, img)
+}
+
+// fixedStepClock runs Application.Update at a fixed time step, independent of the frame rate,
+// so that simulations advance the same way on fast and slow machines.
+type fixedStepClock struct {
+	step        float64
+	previous    time.Time
+	accumulated float64
+}
+
+func newFixedStepClock(step float64) *fixedStepClock {
+	if step <= 0 {
+		step = 1.0 / 60
+	}
+	return &fixedStepClock{step: step, previous: time.Now()}
+}
+
+// advance runs as many update steps as the elapsed time requires (at most a quarter of a second
+// worth, so a stall does not trigger a long catch-up).
+func (clock *fixedStepClock) advance(app *models.Application) error {
+	elapsed := time.Since(clock.previous).Seconds()
+	clock.previous = time.Now()
+	clock.accumulated += math.Min(elapsed, 0.25)
+	for clock.accumulated >= clock.step {
+		if err := runUpdateStep(app, clock.step); err != nil {
+			return err
+		}
+		clock.accumulated -= clock.step
+	}
+	return nil
+}
+
+// runUpdateStep calls the application update once and clears the per-step input deltas.
+func runUpdateStep(app *models.Application, step float64) error {
+	if app.Update != nil {
+		if err := app.Update(app, step); err != nil {
+			return err
+		}
+	}
+	if app.Input != nil {
+		app.Input.EndFrame()
+	}
+	return nil
+}
+
+// renderSettledFrame draws a few frames so that every buffer is uploaded and the camera settled.
+func (opengl *OpenGL) renderSettledFrame(app *models.Application, clock *fixedStepClock) error {
+	for frame := 0; frame < 3; frame++ {
+		if err := runUpdateStep(app, clock.step); err != nil {
+			return err
+		}
+		if err := opengl.Draw(app); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func capturePath(app *models.Application) string {
+	if app.CapturePath == "" {
+		return "frame.png"
+	}
+	return app.CapturePath
 }
