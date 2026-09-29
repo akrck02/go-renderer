@@ -77,7 +77,7 @@ go run ./cmd/visor -benchmark 120 scene.glb       # CPU and GPU times per pass, 
 Measure with `-benchmark`. The measurements and the optimization plan are in [docs/optimization-plan.md](docs/optimization-plan.md).
 
 ### glTF extras read by the renderer
-* scene `extras.environment`: `sunDirection`, `sunColor`, `skyZenith`, `skyHorizon`, `groundAmbient`, `ambient`, `fog {color, near, far}`, `water {level, deep, shallow, size, waveLength, floorDepth, colorDepth, variation}`, `verticalScale`, `wind {direction, strength}`, `sky`:
+* scene `extras.environment`: `sunDirection`, `sunColor`, `skyZenith`, `skyHorizon`, `groundAmbient`, `ambient`, `fog {color, near, far}`, `water {level, deep, shallow, size, waveLength, floorDepth, colorDepth, shoreFade, variation}` (the sea fades into the shore over `shoreFade` of depth, with a line of foam; water meshes such as rivers keep their own colour and do not follow the variation), `verticalScale`, `wind {direction, strength}`, `sky`:
   * `nightZenith`, `nightHorizon`, `nightAmbient`, `twilightColor`, `celestialPole`: vectors
   * `stars {density, brightness, twinkle, daytimeVisibility}`
   * `moon {direction, size (degrees), color, phase (0 new, 0.5 full), light}` or `false`

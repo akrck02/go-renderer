@@ -141,6 +141,7 @@ func (seabed *seabedMap) bindForWater(program *shaderProgram, water *scene.Water
 	gl.Uniform2f(program.location("seabedHeightRange"), seabed.region.top, seabed.region.bottom)
 	program.setVector4("waterShallowColor", shallowColorOf(water))
 	program.setFloat("waterColorDepth", water.EffectiveColorDepth())
+	program.setFloat("shoreFadeDepth", water.EffectiveShoreFade())
 }
 
 func shallowColorOf(water *scene.Water) graphics.Vec4 {

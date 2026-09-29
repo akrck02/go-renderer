@@ -103,6 +103,8 @@ uniform int seabedEnabled;
 uniform float verticalScale;
 uniform vec4 waterShallowColor;
 uniform float waterColorDepth;
+uniform float shoreFadeDepth;      // the sea fades out over this depth at the shore, with a line of foam
+uniform int seaSurface;            // 1 for the environment's sea; rivers and lakes keep their own colour
 out vec4 fragmentColor;
 
 float pseudoRandom(float seed) { return fract(sin(seed * 91.7) * 437.5); }
@@ -161,14 +163,30 @@ float seabedHeight() {
 }
 
 // waterBodyColor goes from the shallow to the deep color as the water under the fragment deepens.
+// waterDepthHere is the depth of the sea under the fragment (the surface may vary with the tides).
+float waterDepthHere() {
+    return max(worldPosition.y / verticalScale - seabedHeight(), 0.0);
+}
+
 vec4 waterBodyColor(vec4 deepColor) {
-    if (seabedEnabled == 0) return deepColor;
-    // the surface may vary (tides): its own height, without the vertical exaggeration
-    float waterDepth = max(worldPosition.y / verticalScale - seabedHeight(), 0.0);
+    if (seabedEnabled == 0 || seaSurface == 0) return deepColor;
+    float waterDepth = waterDepthHere();
     float relativeDepth = waterDepth / max(waterColorDepth, 1e-6);
     vec4 color = mix(waterShallowColor, deepColor, 1.0 - exp(-relativeDepth));
     // deep water hides the seabed completely, including where the geometry ends
     color.a = mix(color.a, 1.0, smoothstep(3.0, 6.0, relativeDepth));
+    return color;
+}
+
+// softenShore fades the sea into the beach instead of cutting it where it meets the ground, with a
+// thin moving line of foam just before the water ends.
+vec4 softenShore(vec4 color) {
+    float depth = waterDepthHere();
+    float fade = max(shoreFadeDepth, 1e-6);
+    float surf = 0.5 + 0.5 * sin(time * 1.4 + (worldPosition.x + worldPosition.z) * 3.0 / fade * 0.01);
+    float foam = (1.0 - smoothstep(fade * 0.3, fade * 1.3, depth)) * smoothstep(0.0, fade * 0.3, depth) * (0.55 + 0.45 * surf);
+    color.rgb = mix(color.rgb, vec3(0.95) * brightness, foam * 0.6);
+    color.a *= smoothstep(0.0, fade, depth);
     return color;
 }
 
@@ -180,8 +198,11 @@ vec4 shadeWater(vec4 color, vec3 towardsCamera) {
     vec3 shaded = mix(color.rgb, mix(horizonColor, skyColor, 0.4), fresnel);
     vec3 reflected = reflect(-normalize(sunDirection), normal);
     shaded += sunColor * pow(max(dot(reflected, towardsCamera), 0.0), 180.0) * 1.6;
-    return vec4(shaded, mix(color.a, 1.0, fresnel));
+    vec4 result = vec4(shaded, mix(color.a, 1.0, fresnel));
+    if (seaSurface == 1 && seabedEnabled == 1) result = softenShore(result);
+    return result;
 }
+
 
 float waterfallOpacity(float baseOpacity) {
     float lane = floor((worldPosition.x + worldPosition.z) * 40.0);

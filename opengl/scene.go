@@ -62,6 +62,7 @@ type drawCommand struct {
 	material              *scene.Material
 	squaredCameraDistance float32
 	transparent           bool
+	seaSurface            bool // the environment's water plane: the only surface the level variation moves
 }
 
 // cameraMatrices are the matrices of one frame.
@@ -388,6 +389,8 @@ func (renderer *SceneRenderer) drawNode(command drawCommand, view viewpoint) {
 	}
 	program.setVector4("baseColor", baseColor)
 	program.setInteger("kind", int32(command.material.Kind))
+	program.setInteger("levelVariationEnabled", boolToInteger(command.seaSurface && renderer.levelVariation.active))
+	program.setInteger("seaSurface", boolToInteger(command.seaSurface))
 	renderer.drawGeometry(program, command, view, mainPass, &renderer.counters[mainPass])
 }
 
@@ -550,7 +553,7 @@ func (renderer *SceneRenderer) waterCommand(water *scene.Water, camera models.Ca
 	renderer.waterPlane.Material.BaseColor = deepColor
 	world := graphics.Translate(graphics.Vec4{camera.Position[0], water.Level, camera.Position[2], 0})
 	node := &scene.Node{Name: "water", Mesh: renderer.waterPlane}
-	return drawCommand{node: node, world: world, material: renderer.waterPlane.Material, squaredCameraDistance: -1, transparent: true}
+	return drawCommand{node: node, world: world, material: renderer.waterPlane.Material, squaredCameraDistance: -1, transparent: true, seaSurface: true}
 }
 
 // waterFloorCommand returns an opaque dark floor under the water, so that nothing behind the
