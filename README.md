@@ -28,7 +28,7 @@ go run ./cmd/visor -capture frame.png scene.glb   # one frame to PNG, hidden win
 Left drag rotates, right drag pans, scroll zooms. `Tab` switches to walking (WASD or arrows, mouse to look, shift to run). `J`/`L` turn the sun, `I`/`K` raise or lower it, `Z`/`X` change the vertical exaggeration, `F` toggles fog.
 
 ### glTF extras read by the renderer
-* scene `extras.environment`: `sunDirection`, `sunColor`, `skyZenith`, `skyHorizon`, `groundAmbient`, `ambient`, `fog {color, near, far}`, `water {level, deep, shallow, size}`, `verticalScale`
+* scene `extras.environment`: `sunDirection`, `sunColor`, `skyZenith`, `skyHorizon`, `groundAmbient`, `ambient`, `fog {color, near, far}`, `water {level, deep, shallow, size, waveLength, floorDepth}`, `verticalScale`
 * material `extras.kind`: `lit` | `unlit` | `water` | `waterfall`
 * mesh, primitive or node `extras.ground: true`: walkable surface
 

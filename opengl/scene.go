@@ -19,6 +19,7 @@ type SceneRenderer struct {
 	skyProgram   *shaderProgram
 	emptyArray   uint32
 	waterPlane   *scene.Mesh
+	waterFloor   *scene.Mesh
 }
 
 // shaderProgram is a linked program with its uniform locations cached by name.
@@ -189,10 +190,10 @@ func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, c
 }
 
 func waveLengthFor(water *scene.Water) float32 {
-	if water == nil || water.Size <= 0 {
+	if water == nil || water.EffectiveWaveLength() <= 0 {
 		return 1
 	}
-	return water.Size / 400
+	return water.EffectiveWaveLength()
 }
 
 func isTransparent(material *scene.Material) bool {
@@ -212,6 +213,7 @@ func (renderer *SceneRenderer) collectDrawCommands(world *scene.Scene, camera mo
 		})
 	})
 	if world.Environment.Water != nil {
+		commands = append(commands, renderer.waterFloorCommand(world.Environment.Water, camera))
 		commands = append(commands, renderer.waterCommand(world.Environment.Water, camera))
 	}
 	return commands
@@ -449,6 +451,21 @@ func (renderer *SceneRenderer) waterCommand(water *scene.Water, camera models.Ca
 	world := graphics.Translate(graphics.Vec4{camera.Position[0], water.Level, camera.Position[2], 0})
 	node := &scene.Node{Name: "water", Mesh: renderer.waterPlane}
 	return drawCommand{node: node, world: world, material: renderer.waterPlane.Material, squaredCameraDistance: -1, transparent: true}
+}
+
+// waterFloorCommand returns an opaque dark floor under the water, so that nothing behind the
+// scene shows through the translucent surface where the geometry ends.
+func (renderer *SceneRenderer) waterFloorCommand(water *scene.Water, camera models.Camera) drawCommand {
+	if renderer.waterFloor == nil {
+		renderer.waterFloor = newWaterPlane(water.Size)
+		renderer.waterFloor.Material = &scene.Material{Name: "water floor", Kind: scene.KindUnlit, DoubleSided: true}
+	}
+	deep := water.Deep
+	renderer.waterFloor.Material.BaseColor = graphics.Vec4{deep[0] * 0.6, deep[1] * 0.6, deep[2] * 0.6, 1}
+	depth := water.Level - water.EffectiveFloorDepth()
+	world := graphics.Translate(graphics.Vec4{camera.Position[0], depth, camera.Position[2], 0})
+	node := &scene.Node{Name: "water floor", Mesh: renderer.waterFloor}
+	return drawCommand{node: node, world: world, material: renderer.waterFloor.Material}
 }
 
 func newWaterPlane(size float32) *scene.Mesh {

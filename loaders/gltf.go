@@ -121,7 +121,7 @@ type gltfFile struct {
 // matrix or TRS; material base color, doubleSided and alphaMode; EXT_mesh_gpu_instancing
 // (TRANSLATION, ROTATION, SCALE and a custom _COLOR). Extras understood by the renderer:
 //   - scene extras "environment": sunDirection, sunColor, skyZenith, skyHorizon, groundAmbient,
-//     ambient, fog {color, near, far}, water {level, deep, shallow, size}, verticalScale
+//     ambient, fog {color, near, far}, water {level, deep, shallow, size, waveLength, floorDepth}, verticalScale
 //   - material extras "kind": "lit" | "unlit" | "water" | "waterfall"
 //   - mesh, primitive or node extras "ground": true (walkable surface)
 func LoadScene(path string) (*scene.Scene, error) {
@@ -571,9 +571,11 @@ func applyFog(environment *scene.Environment, fog map[string]any) {
 
 func waterFromExtras(water map[string]any) *scene.Water {
 	return &scene.Water{
-		Level:   extraNumber(water, "level", 0),
-		Deep:    extraVector(water, "deep", graphics.Vec4{0.05, 0.22, 0.28, 0.85}),
-		Shallow: extraVector(water, "shallow", graphics.Vec4{0.3, 0.62, 0.6, 0.5}),
-		Size:    extraNumber(water, "size", 1000),
+		Level:      extraNumber(water, "level", 0),
+		Deep:       extraVector(water, "deep", graphics.Vec4{0.05, 0.22, 0.28, 0.85}),
+		Shallow:    extraVector(water, "shallow", graphics.Vec4{0.3, 0.62, 0.6, 0.5}),
+		Size:       extraNumber(water, "size", 1000),
+		WaveLength: extraNumber(water, "waveLength", 0),
+		FloorDepth: extraNumber(water, "floorDepth", 0),
 	}
 }

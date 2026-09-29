@@ -80,7 +80,9 @@ vec3 waterNormal() {
         float frequency = waveNumber * frequencies[wave];
         slope += directions[wave] * cos(dot(position, directions[wave]) * frequency + time * (1.2 + float(wave) * 0.5)) * (0.5 / frequencies[wave]);
     }
-    return normalize(vec3(-slope.x * 0.35, 1.0, -slope.y * 0.35));
+    // waves fade with distance so that far water does not alias into regular stripes
+    float fade = 1.0 / (1.0 + distance(cameraPosition, worldPosition) / (waveLength * 60.0));
+    return normalize(vec3(-slope.x * 0.12 * fade, 1.0, -slope.y * 0.12 * fade));
 }
 
 vec4 shadeWater(vec4 color, vec3 towardsCamera) {

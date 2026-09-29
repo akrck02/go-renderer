@@ -87,10 +87,28 @@ type Node struct {
 
 // Water is an infinite animated water plane.
 type Water struct {
-	Level   float32
-	Shallow graphics.Vec4
-	Deep    graphics.Vec4
-	Size    float32 // extent of the plane (world units)
+	Level      float32
+	Shallow    graphics.Vec4
+	Deep       graphics.Vec4
+	Size       float32 // extent of the plane (world units)
+	WaveLength float32 // length of the main wave (world units); 0 = Size / 2000
+	FloorDepth float32 // depth of an opaque floor drawn under the water; 0 = Size / 500
+}
+
+// EffectiveWaveLength returns the wave length, deriving it from the size when unset.
+func (water *Water) EffectiveWaveLength() float32 {
+	if water.WaveLength > 0 {
+		return water.WaveLength
+	}
+	return water.Size / 2000
+}
+
+// EffectiveFloorDepth returns the floor depth, deriving it from the size when unset.
+func (water *Water) EffectiveFloorDepth() float32 {
+	if water.FloorDepth > 0 {
+		return water.FloorDepth
+	}
+	return water.Size / 500
 }
 
 // Environment holds the lighting and atmosphere.
