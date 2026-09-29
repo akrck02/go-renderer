@@ -276,3 +276,13 @@ func FromTranslationRotationScale(translation Vec4, rotation Vec4, scale Vec4) M
 	}
 	return matrix
 }
+
+// OrthographicOpenGL creates an orthographic projection for OpenGL (depth mapped to [-1, 1]).
+func OrthographicOpenGL(left, right, bottom, top, near, far float32) Mat4 {
+	return Mat4{
+		2 / (right - left), 0, 0, 0,
+		0, 2 / (top - bottom), 0, 0,
+		0, 0, -2 / (far - near), 0,
+		-(right + left) / (right - left), -(top + bottom) / (top - bottom), -(far + near) / (far - near), 1,
+	}
+}

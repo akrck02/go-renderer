@@ -15,11 +15,17 @@ import (
 // GPU; they are uploaded again only when marked Dirty (for simulations).
 // It must be created and used on the thread that owns the OpenGL context.
 type SceneRenderer struct {
+	Shadows ShadowSettings
+
 	sceneProgram *shaderProgram
 	skyProgram   *shaderProgram
 	emptyArray   uint32
 	waterPlane   *scene.Mesh
 	waterFloor   *scene.Mesh
+	shadow       *shadowMap
+	measured     *scene.Scene
+	sceneSize    float32 // horizontal size of the measured scene
+	sceneHeight  float32 // vertical span of the measured scene (before vertical scaling)
 }
 
 // shaderProgram is a linked program with its uniform locations cached by name.
@@ -68,8 +74,11 @@ func NewSceneRenderer() (*SceneRenderer, error) {
 	if err != nil {
 		return nil, err
 	}
-	renderer := &SceneRenderer{sceneProgram: sceneProgram, skyProgram: skyProgram}
+	renderer := &SceneRenderer{sceneProgram: sceneProgram, skyProgram: skyProgram, Shadows: DefaultShadowSettings()}
 	gl.GenVertexArrays(1, &renderer.emptyArray)
+	if renderer.shadow, err = newShadowMap(renderer.Shadows.resolution()); err != nil {
+		return nil, err
+	}
 	return renderer, nil
 }
 
@@ -124,12 +133,60 @@ func (program *shaderProgram) setInteger(name string, value int32) {
 // seconds is the elapsed time, which animates water and waterfalls.
 func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int, seconds float64) {
 	matrices := computeCameraMatrices(camera, width, height)
+	commands := renderer.collectDrawCommands(world, camera)
+	sortOpaqueBeforeTransparent(commands)
+	region, err := renderer.renderShadows(world, camera, commands)
+	shadowsReady := err == nil && renderer.Shadows.Enabled
 	clearFrame(world.Environment, width, height)
 	renderer.drawSky(world.Environment, camera, matrices)
 	renderer.setFrameUniforms(world.Environment, camera, matrices, seconds)
-	commands := renderer.collectDrawCommands(world, camera)
-	sortOpaqueBeforeTransparent(commands)
+	renderer.shadow.bindForLighting(renderer.sceneProgram, region, shadowsReady)
 	renderer.executeDrawCommands(commands)
+}
+
+// renderShadows draws the shadow map for this frame when shadows are enabled.
+func (renderer *SceneRenderer) renderShadows(world *scene.Scene, camera models.Camera, commands []drawCommand) (shadowRegion, error) {
+	if !renderer.Shadows.Enabled {
+		return shadowRegion{}, nil
+	}
+	if err := renderer.matchShadowResolution(); err != nil {
+		return shadowRegion{}, err
+	}
+	renderer.measureScene(world)
+	verticalScale := world.Environment.EffectiveVerticalScale()
+	extent := renderer.Shadows.extent(camera, renderer.sceneSize)
+	depthRange := extent*2 + renderer.sceneHeight*verticalScale*2
+	region := fitShadowRegion(world.Environment.SunDirection, shadowCenter(camera, extent), extent, depthRange, renderer.shadow.resolution)
+	renderer.shadow.renderShadowPass(commands, region, verticalScale)
+	return region, nil
+}
+
+// matchShadowResolution recreates the shadow map when the requested resolution changes.
+func (renderer *SceneRenderer) matchShadowResolution() error {
+	wanted := renderer.Shadows.resolution()
+	if renderer.shadow != nil && renderer.shadow.resolution == wanted {
+		return nil
+	}
+	shadow, err := newShadowMap(wanted)
+	if err != nil {
+		return err
+	}
+	renderer.shadow = shadow
+	return nil
+}
+
+// measureScene caches the size of the scene, used to size the shadow region.
+func (renderer *SceneRenderer) measureScene(world *scene.Scene) {
+	if renderer.measured == world {
+		return
+	}
+	minimum, maximum := world.Bounds()
+	renderer.sceneSize = float32(math.Max(float64(maximum[0]-minimum[0]), float64(maximum[2]-minimum[2])))
+	renderer.sceneHeight = maximum[1] - minimum[1]
+	if renderer.sceneSize <= 0 || math.IsInf(float64(renderer.sceneSize), 0) {
+		renderer.sceneSize, renderer.sceneHeight = 1, 1
+	}
+	renderer.measured = world
 }
 
 func computeCameraMatrices(camera models.Camera, width, height int) cameraMatrices {
