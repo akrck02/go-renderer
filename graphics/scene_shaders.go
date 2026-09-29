@@ -23,6 +23,11 @@ uniform float time;
 uniform float sway;           // how much the wind bends this mesh
 uniform vec2 windDirection;   // horizontal (x, z)
 uniform float windStrength;
+uniform int kind;                    // material kind; 2 = water
+uniform int levelVariationEnabled;
+uniform sampler2D levelVariation;    // r: in phase, g: in quadrature (world units)
+uniform vec4 levelVariationArea;     // minimum x, minimum z, maximum x, maximum z
+uniform float levelVariationAngle;
 out vec3 worldPosition;
 out vec3 worldNormal;
 out vec4 surfaceColor;
@@ -38,6 +43,13 @@ vec2 windBend(mat4 modelMatrix) {
     return windDirection * (sway * windStrength * gust * height * height * modelHeight);
 }
 
+// levelOffset is how far a varying water surface (tides) is above its level at a point.
+float levelOffset(vec2 position) {
+    vec2 coordinates = (position - levelVariationArea.xy) / (levelVariationArea.zw - levelVariationArea.xy);
+    vec2 harmonic = texture(levelVariation, coordinates).rg;
+    return harmonic.r * cos(levelVariationAngle) + harmonic.g * sin(levelVariationAngle);
+}
+
 void main() {
     mat4 modelMatrix = model;
     vec4 color = vertexColor;
@@ -47,6 +59,7 @@ void main() {
     }
     vec4 world = modelMatrix * vec4(vertexPosition, 1.0);
     world.xz += windBend(modelMatrix);
+    if (kind == 2 && levelVariationEnabled == 1) world.y += levelOffset(world.xz);
     world.y *= verticalScale;
     // the inverse transpose keeps normals perpendicular under scales that differ per axis
     vec3 normal = transpose(inverse(mat3(modelMatrix))) * vertexNormal;
@@ -87,7 +100,7 @@ uniform sampler2D seabedMap;       // depth of the ground seen from above
 uniform mat4 seabedViewProjection;
 uniform vec2 seabedHeightRange;    // heights at depth 0 and depth 1 of the seabed map
 uniform int seabedEnabled;
-uniform float waterLevel;
+uniform float verticalScale;
 uniform vec4 waterShallowColor;
 uniform float waterColorDepth;
 out vec4 fragmentColor;
@@ -150,7 +163,8 @@ float seabedHeight() {
 // waterBodyColor goes from the shallow to the deep color as the water under the fragment deepens.
 vec4 waterBodyColor(vec4 deepColor) {
     if (seabedEnabled == 0) return deepColor;
-    float waterDepth = max(waterLevel - seabedHeight(), 0.0);
+    // the surface may vary (tides): its own height, without the vertical exaggeration
+    float waterDepth = max(worldPosition.y / verticalScale - seabedHeight(), 0.0);
     float relativeDepth = waterDepth / max(waterColorDepth, 1e-6);
     vec4 color = mix(waterShallowColor, deepColor, 1.0 - exp(-relativeDepth));
     // deep water hides the seabed completely, including where the geometry ends

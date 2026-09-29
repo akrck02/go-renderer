@@ -26,6 +26,7 @@ type SceneRenderer struct {
 	waterPlane       *scene.Mesh
 	waterFloor       *scene.Mesh
 	shadow           *shadowMap
+	levelVariation   *levelVariationTexture
 	seabed           *seabedMap
 	measured         *scene.Scene
 	meshMeasures     map[*scene.Mesh]*meshMeasure
@@ -90,6 +91,7 @@ func NewSceneRenderer() (*SceneRenderer, error) {
 	if renderer.seabed, err = newSeabedMap(seabedResolution); err != nil {
 		return nil, err
 	}
+	renderer.levelVariation = newLevelVariationTexture()
 	return renderer, nil
 }
 
@@ -162,6 +164,7 @@ func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, wi
 	renderer.setFrameUniforms(world.Environment, light, camera, matrices, seconds)
 	renderer.shadow.bindForLighting(renderer.sceneProgram, region, shadowsReady)
 	renderer.seabed.bindForWater(renderer.sceneProgram, world.Environment.Water)
+	renderer.levelVariation.bind(renderer.sceneProgram, world.Environment.Water)
 	opaque, transparent := splitOpaqueAndTransparent(commands)
 	renderer.measurePass("scene", func() { renderer.executeDrawCommands(opaque, mainView) })
 	renderer.measurePass("sky", func() { renderer.sky.draw(world.Environment, light, camera, matrices, seconds) })
@@ -538,7 +541,7 @@ func describeInstanceLayout() {
 // waterCommand returns a large water plane that follows the camera horizontally.
 func (renderer *SceneRenderer) waterCommand(water *scene.Water, camera models.Camera) drawCommand {
 	if renderer.waterPlane == nil {
-		renderer.waterPlane = newWaterPlane(water.Size)
+		renderer.waterPlane = newWaterGrid(water.Size)
 	}
 	deepColor := water.Deep
 	if deepColor == (graphics.Vec4{}) {
@@ -563,6 +566,44 @@ func (renderer *SceneRenderer) waterFloorCommand(water *scene.Water, camera mode
 	world := graphics.Translate(graphics.Vec4{camera.Position[0], depth, camera.Position[2], 0})
 	node := &scene.Node{Name: "water floor", Mesh: renderer.waterFloor}
 	return drawCommand{node: node, world: world, material: renderer.waterFloor.Material}
+}
+
+// waterGridDivisions is the number of cells per side of the water surface.
+const waterGridDivisions = 256
+
+// newWaterGrid returns the water surface as a grid whose cells are small near its centre (the
+// camera) and large far away, so a varying surface (tides) meets the coast accurately nearby.
+func newWaterGrid(size float32) *scene.Mesh {
+	if size <= 0 {
+		size = 1000
+	}
+	half := size / 2
+	vertices := waterGridDivisions + 1
+	mesh := &scene.Mesh{Name: "water",
+		Material: &scene.Material{Name: "water", Kind: scene.KindWater, Transparent: true, DoubleSided: true}}
+	for row := 0; row < vertices; row++ {
+		for column := 0; column < vertices; column++ {
+			mesh.Positions = append(mesh.Positions, half*denseNearCentre(column, vertices), 0, half*denseNearCentre(row, vertices))
+			mesh.Normals = append(mesh.Normals, 0, 1, 0)
+		}
+	}
+	for row := 0; row < waterGridDivisions; row++ {
+		for column := 0; column < waterGridDivisions; column++ {
+			corner := uint32(row*vertices + column)
+			next := corner + uint32(vertices)
+			mesh.Indices = append(mesh.Indices, corner, next, corner+1, corner+1, next, next+1)
+		}
+	}
+	return mesh
+}
+
+// denseNearCentre maps a grid index to -1..1 with a quadratic spacing: fine in the middle.
+func denseNearCentre(index, count int) float32 {
+	linear := 2*float32(index)/float32(count-1) - 1
+	if linear < 0 {
+		return -linear * linear
+	}
+	return linear * linear
 }
 
 func newWaterPlane(size float32) *scene.Mesh {

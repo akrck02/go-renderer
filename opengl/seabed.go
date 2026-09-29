@@ -139,7 +139,6 @@ func (seabed *seabedMap) bindForWater(program *shaderProgram, water *scene.Water
 	program.setInteger("seabedEnabled", 1)
 	program.setMatrix("seabedViewProjection", seabed.region.viewProjection)
 	gl.Uniform2f(program.location("seabedHeightRange"), seabed.region.top, seabed.region.bottom)
-	program.setFloat("waterLevel", water.Level)
 	program.setVector4("waterShallowColor", shallowColorOf(water))
 	program.setFloat("waterColorDepth", water.EffectiveColorDepth())
 }
