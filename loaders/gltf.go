@@ -111,8 +111,9 @@ var bytesPerComponent = map[int]int{componentByte: 1, componentUnsigned: 1, comp
 
 // gltfFile is a parsed document with its binary buffers.
 type gltfFile struct {
-	document gltfDocument
-	buffers  [][]byte
+	document  gltfDocument
+	buffers   [][]byte
+	directory string // folder of the file, for external buffers and sky images
 }
 
 // LoadScene reads a glTF 2.0 file (.glb, or .gltf with external buffers) into a scene.Scene.
@@ -121,7 +122,8 @@ type gltfFile struct {
 // matrix or TRS; material base color, doubleSided and alphaMode; EXT_mesh_gpu_instancing
 // (TRANSLATION, ROTATION, SCALE and a custom _COLOR). Extras understood by the renderer:
 //   - scene extras "environment": sunDirection, sunColor, skyZenith, skyHorizon, groundAmbient,
-//     ambient, fog {color, near, far}, water {level, deep, shallow, size, waveLength, floorDepth}, verticalScale
+//     ambient, fog {color, near, far}, water {level, deep, shallow, size, waveLength, floorDepth, colorDepth},
+//     verticalScale, sky (see skyFromExtras)
 //   - material extras "kind": "lit" | "unlit" | "water" | "waterfall"
 //   - mesh, primitive or node extras "ground": true (walkable surface)
 func LoadScene(path string) (*scene.Scene, error) {
@@ -137,7 +139,7 @@ func readGLTFFile(path string) (*gltfFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	file := &gltfFile{}
+	file := &gltfFile{directory: filepath.Dir(path)}
 	if isGLBContainer(content) {
 		err = file.parseGLBContainer(content)
 	} else {
@@ -146,7 +148,7 @@ func readGLTFFile(path string) (*gltfFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	return file, file.loadExternalBuffers(filepath.Dir(path))
+	return file, file.loadExternalBuffers(file.directory)
 }
 
 func isGLBContainer(content []byte) bool {
@@ -290,6 +292,9 @@ func (file *gltfFile) buildScene() (*scene.Scene, error) {
 	result.Tags = sceneExtras
 	if environment, found := sceneExtras["environment"].(map[string]any); found {
 		applyEnvironment(&result.Environment, environment)
+		if err := file.applySky(&result.Environment, environment); err != nil {
+			return nil, err
+		}
 	}
 	return result, nil
 }

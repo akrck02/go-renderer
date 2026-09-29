@@ -133,6 +133,7 @@ type Environment struct {
 	FogFar        float32 // 0 = no fog
 	Water         *Water
 	VerticalScale float32 // vertical exaggeration applied to the whole scene (0 = 1)
+	Sky           *Sky    // sky over the day and night (nil = DefaultSky)
 }
 
 // DefaultEnvironment returns a daylight environment.
@@ -146,7 +147,18 @@ func DefaultEnvironment() Environment {
 		Ambient:       0.55,
 		FogColor:      graphics.Vec4{0.74, 0.82, 0.86, 1},
 		VerticalScale: 1,
+		Sky:           DefaultSky(),
 	}
+}
+
+var fallbackSky = DefaultSky()
+
+// EffectiveSky returns the sky, or the default sky when unset.
+func (environment Environment) EffectiveSky() *Sky {
+	if environment.Sky == nil {
+		return fallbackSky
+	}
+	return environment.Sky
 }
 
 // EffectiveVerticalScale returns the vertical scale, treating 0 as 1.

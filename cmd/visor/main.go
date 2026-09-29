@@ -5,7 +5,9 @@
 //
 // Controls: left drag rotates, right drag pans, scroll zooms (orbit camera). Tab switches to
 // walking on the ground: WASD or arrows move, mouse looks, shift runs, [ and ] change the walking speed. J/L turn the sun,
-// I/K raise or lower it, Z/X change the vertical exaggeration, F toggles fog, O toggles shadows.
+// I/K raise or lower it (below the horizon it is night), N jumps between day and night, T lets the
+// time pass (the sun and the stars turn around the celestial pole), Z/X change the vertical
+// exaggeration, F toggles fog, O toggles shadows.
 package main
 
 import (
@@ -40,6 +42,8 @@ type viewer struct {
 	baseFogFar     float32
 	savedScale     float32 // vertical exaggeration to restore when leaving walk mode
 	shadowsEnabled bool
+	timePassing    bool
+	dayElevation   float64 // sun elevation to return to when leaving the night
 }
 
 type options struct {
@@ -48,6 +52,9 @@ type options struct {
 	startWalking  bool
 	noShadows     bool
 	zoom          float64
+	night         bool
+	sunElevation  float64 // degrees; NaN keeps the scene's sun
+	sunAzimuth    float64
 }
 
 func main() {
@@ -61,6 +68,10 @@ func main() {
 	session := newViewer(world, settings.startWalking)
 	session.shadowsEnabled = !settings.noShadows
 	session.orbit.Distance *= settings.zoom
+	session.placeSun(settings.sunAzimuth, settings.sunElevation)
+	if settings.night {
+		session.toggleNight()
+	}
 	app := newApplication(session, settings, scenePath)
 	if err := (&opengl.OpenGL{}).StartLoop(app); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -74,11 +85,14 @@ func parseOptions() (options, string) {
 	flag.IntVar(&settings.height, "height", 800, "window height")
 	flag.StringVar(&settings.capturePath, "capture", "", "render one frame to this PNG and exit")
 	flag.BoolVar(&settings.startWalking, "walk", false, "start walking on the ground")
+	flag.BoolVar(&settings.night, "night", false, "start at night")
+	flag.Float64Var(&settings.sunElevation, "sun-elevation", math.NaN(), "sun elevation in degrees (negative = below the horizon)")
+	flag.Float64Var(&settings.sunAzimuth, "sun-azimuth", math.NaN(), "sun azimuth in degrees, clockwise from north")
 	flag.BoolVar(&settings.noShadows, "no-shadows", false, "start without sun shadows")
 	flag.Float64Var(&settings.zoom, "zoom", 1, "initial orbit distance as a fraction of the default (0.1 = ten times closer)")
 	flag.Parse()
 	if flag.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "usage: visor [-width W] [-height H] [-capture frame.png] [-walk] [-no-shadows] [-zoom F] scene.glb")
+		fmt.Fprintln(os.Stderr, "usage: visor [-width W] [-height H] [-capture frame.png] [-walk] [-no-shadows] [-night] [-sun-elevation D] [-sun-azimuth D] [-zoom F] scene.glb")
 		os.Exit(2)
 	}
 	return settings, flag.Arg(0)
@@ -114,6 +128,7 @@ func newViewer(world *scene.Scene, startWalking bool) *viewer {
 	session := &viewer{world: world, sceneSize: size, started: time.Now(),
 		baseFogNear: world.Environment.FogNear, baseFogFar: world.Environment.FogFar}
 	session.sunAzimuth, session.sunElevation = sunAnglesFromDirection(world.Environment.SunDirection)
+	session.dayElevation = math.Max(session.sunElevation, 0.3)
 	session.orbit = newOrbitFor(world, center, size)
 	session.walk = newWalkFor(world, center, size)
 	if startWalking {
@@ -175,6 +190,12 @@ func (session *viewer) handleShortcuts(state *input.State, seconds float64) {
 	if state.Pressed(input.KeyO) {
 		session.shadowsEnabled = !session.shadowsEnabled
 	}
+	if state.Pressed(input.KeyN) {
+		session.toggleNight()
+	}
+	if state.Pressed(input.KeyT) {
+		session.timePassing = !session.timePassing
+	}
 	session.adjustWalkingSpeed(state)
 	session.adjustSun(state, seconds)
 	session.adjustVerticalScale(state, seconds)
@@ -235,9 +256,46 @@ func (session *viewer) adjustSun(state *input.State, seconds float64) {
 		session.sunElevation = math.Min(session.sunElevation+step, 1.5)
 	}
 	if state.Down(input.KeyK) {
-		session.sunElevation = math.Max(session.sunElevation-step, 0.02)
+		session.sunElevation = math.Max(session.sunElevation-step, -1.2)
 	}
 	session.world.Environment.SunDirection = sunDirectionFromAngles(session.sunAzimuth, session.sunElevation)
+	if session.timePassing {
+		session.letTimePass(seconds)
+	}
+}
+
+// placeSun sets the sun from angles in degrees; NaN keeps the current angle.
+func (session *viewer) placeSun(azimuthDegrees, elevationDegrees float64) {
+	if !math.IsNaN(azimuthDegrees) {
+		session.sunAzimuth = azimuthDegrees * math.Pi / 180
+	}
+	if !math.IsNaN(elevationDegrees) {
+		session.sunElevation = elevationDegrees * math.Pi / 180
+	}
+	session.world.Environment.SunDirection = sunDirectionFromAngles(session.sunAzimuth, session.sunElevation)
+}
+
+// toggleNight puts the sun well below the horizon, or back where it was during the day.
+func (session *viewer) toggleNight() {
+	if session.sunElevation > 0 {
+		session.dayElevation = session.sunElevation
+		session.sunElevation = -0.45
+	} else {
+		session.sunElevation = session.dayElevation
+	}
+	session.world.Environment.SunDirection = sunDirectionFromAngles(session.sunAzimuth, session.sunElevation)
+}
+
+// secondsPerDay is how long a whole day lasts while time passes.
+const secondsPerDay = 120.0
+
+// letTimePass turns the sun around the celestial pole; the stars follow it.
+func (session *viewer) letTimePass(seconds float64) {
+	environment := &session.world.Environment
+	pole := environment.EffectiveSky().CelestialPole
+	turn := graphics.Rotate(pole, 2*math.Pi*seconds/secondsPerDay)
+	environment.SunDirection = turn.Apply(environment.SunDirection).Normalize()
+	session.sunAzimuth, session.sunElevation = sunAnglesFromDirection(environment.SunDirection)
 }
 
 func (session *viewer) adjustVerticalScale(state *input.State, seconds float64) {
