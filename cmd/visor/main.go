@@ -5,7 +5,7 @@
 //
 // Controls: left drag rotates, right drag pans, scroll zooms (orbit camera). Tab switches to
 // walking on the ground: WASD or arrows move, mouse looks, shift runs, [ and ] change the walking speed. J/L turn the sun,
-// I/K raise or lower it, Z/X change the vertical exaggeration, F toggles fog.
+// I/K raise or lower it, Z/X change the vertical exaggeration, F toggles fog, O toggles shadows.
 package main
 
 import (
@@ -27,24 +27,27 @@ import (
 
 // viewer holds the state of an exploration session.
 type viewer struct {
-	world        *scene.Scene
-	renderer     *opengl.SceneRenderer
-	orbit        *camera.Orbit
-	walk         *camera.Walk
-	walking      bool
-	sceneSize    float32
-	sunAzimuth   float64
-	sunElevation float64
-	started      time.Time
-	baseFogNear  float32
-	baseFogFar   float32
-	savedScale   float32 // vertical exaggeration to restore when leaving walk mode
+	world          *scene.Scene
+	renderer       *opengl.SceneRenderer
+	orbit          *camera.Orbit
+	walk           *camera.Walk
+	walking        bool
+	sceneSize      float32
+	sunAzimuth     float64
+	sunElevation   float64
+	started        time.Time
+	baseFogNear    float32
+	baseFogFar     float32
+	savedScale     float32 // vertical exaggeration to restore when leaving walk mode
+	shadowsEnabled bool
 }
 
 type options struct {
 	width, height int
 	capturePath   string
 	startWalking  bool
+	noShadows     bool
+	zoom          float64
 }
 
 func main() {
@@ -56,6 +59,8 @@ func main() {
 		os.Exit(1)
 	}
 	session := newViewer(world, settings.startWalking)
+	session.shadowsEnabled = !settings.noShadows
+	session.orbit.Distance *= settings.zoom
 	app := newApplication(session, settings, scenePath)
 	if err := (&opengl.OpenGL{}).StartLoop(app); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -69,9 +74,11 @@ func parseOptions() (options, string) {
 	flag.IntVar(&settings.height, "height", 800, "window height")
 	flag.StringVar(&settings.capturePath, "capture", "", "render one frame to this PNG and exit")
 	flag.BoolVar(&settings.startWalking, "walk", false, "start walking on the ground")
+	flag.BoolVar(&settings.noShadows, "no-shadows", false, "start without sun shadows")
+	flag.Float64Var(&settings.zoom, "zoom", 1, "initial orbit distance as a fraction of the default (0.1 = ten times closer)")
 	flag.Parse()
 	if flag.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "usage: visor [-width W] [-height H] [-capture frame.png] [-walk] scene.glb")
+		fmt.Fprintln(os.Stderr, "usage: visor [-width W] [-height H] [-capture frame.png] [-walk] [-no-shadows] [-zoom F] scene.glb")
 		os.Exit(2)
 	}
 	return settings, flag.Arg(0)
@@ -164,6 +171,9 @@ func (session *viewer) handleShortcuts(state *input.State, seconds float64) {
 	}
 	if state.Pressed(input.KeyF) {
 		session.toggleFog()
+	}
+	if state.Pressed(input.KeyO) {
+		session.shadowsEnabled = !session.shadowsEnabled
 	}
 	session.adjustWalkingSpeed(state)
 	session.adjustSun(state, seconds)
@@ -275,6 +285,7 @@ func (session *viewer) draw(app *models.Application) error {
 		}
 		session.renderer = renderer
 	}
+	session.renderer.Shadows.Enabled = session.shadowsEnabled
 	width, height := app.Input.FramebufferWidth, app.Input.FramebufferHeight
 	if width == 0 || height == 0 {
 		width, height = app.Width, app.Height

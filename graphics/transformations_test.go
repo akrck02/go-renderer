@@ -34,3 +34,19 @@ func TestFromTranslationRotationScale(t *testing.T) {
 		t.Fatalf("unexpected transform: %v", point)
 	}
 }
+
+func TestOrthographicMapsBoxToClipCube(t *testing.T) {
+	projection := OrthographicOpenGL(-2, 6, -1, 3, 1, 11)
+	nearCorner := projection.Apply(Vec4{-2, -1, -1, 1})
+	farCorner := projection.Apply(Vec4{6, 3, -11, 1})
+	for axis, want := range []float32{-1, -1, -1} {
+		if !approximatelyEqual(nearCorner[axis], want) {
+			t.Fatalf("near corner maps to %v", nearCorner)
+		}
+	}
+	for axis, want := range []float32{1, 1, 1} {
+		if !approximatelyEqual(farCorner[axis], want) {
+			t.Fatalf("far corner maps to %v", farCorner)
+		}
+	}
+}

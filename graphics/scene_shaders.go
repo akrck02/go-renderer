@@ -58,14 +58,41 @@ uniform vec2 fogRange;
 uniform vec3 cameraPosition;
 uniform float time;
 uniform float waveLength;
+uniform sampler2DShadow shadowMap;
+uniform mat4 lightViewProjection;
+uniform int shadowsEnabled;
+uniform float shadowTexelSize;     // in shadow map coordinates
+uniform float shadowNormalOffset;  // in world units, pushes the lookup out of the surface
 out vec4 fragmentColor;
 
 float pseudoRandom(float seed) { return fract(sin(seed * 91.7) * 437.5); }
 
+// shadowRegionFade is 1 inside the shadow region and fades to 0 near its border.
+float shadowRegionFade(vec2 coordinates) {
+    vec2 distanceToBorder = min(coordinates, 1.0 - coordinates);
+    return smoothstep(0.0, 0.08, min(distanceToBorder.x, distanceToBorder.y));
+}
+
+// sunVisibility returns how much of the sun reaches the fragment (1 lit, 0 in shadow), filtered 3x3.
+float sunVisibility(vec3 normal) {
+    if (shadowsEnabled == 0) return 1.0;
+    vec4 lightPosition = lightViewProjection * vec4(worldPosition + normal * shadowNormalOffset, 1.0);
+    vec3 coordinates = lightPosition.xyz / lightPosition.w * 0.5 + 0.5;
+    if (coordinates.z > 1.0 || any(lessThan(coordinates.xy, vec2(0.0))) || any(greaterThan(coordinates.xy, vec2(1.0)))) return 1.0;
+    float visible = 0.0;
+    for (int offsetX = -1; offsetX <= 1; offsetX++) {
+        for (int offsetY = -1; offsetY <= 1; offsetY++) {
+            vec2 samplePoint = coordinates.xy + vec2(float(offsetX), float(offsetY)) * shadowTexelSize;
+            visible += texture(shadowMap, vec3(samplePoint, coordinates.z - 0.0005));
+        }
+    }
+    return mix(1.0, visible / 9.0, shadowRegionFade(coordinates.xy));
+}
+
 vec3 shadeLit(vec3 color) {
     vec3 normal = normalize(worldNormal);
     if (!gl_FrontFacing) normal = -normal;
-    float sunlight = max(dot(normal, normalize(sunDirection)), 0.0);
+    float sunlight = max(dot(normal, normalize(sunDirection)), 0.0) * sunVisibility(normal);
     vec3 skylight = mix(groundColor, skyColor, normal.y * 0.5 + 0.5) * ambient;
     return color * (skylight + sunColor * sunlight);
 }
@@ -150,5 +177,12 @@ void main() {
     color += sunColor * (pow(towardsSun, 900.0) * 3.0 + pow(towardsSun, 12.0) * 0.25);
     if (direction.y < 0.0) color = mix(horizonColor, horizonColor * 0.8, min(-direction.y * 4.0, 1.0));
     fragmentColor = vec4(pow(color, vec3(1.0 / 2.2)), 1.0);
+}
+` + "\x00"
+
+// ShadowFragmentShader writes only depth; it pairs with SceneVertexShader for the shadow pass.
+const ShadowFragmentShader = `
+#version 410
+void main() {
 }
 ` + "\x00"
