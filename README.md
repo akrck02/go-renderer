@@ -76,13 +76,14 @@ go run ./cmd/visor -benchmark 120 scene.glb       # CPU and GPU times per pass, 
 Measure with `-benchmark`. The measurements and the optimization plan are in [docs/optimization-plan.md](docs/optimization-plan.md).
 
 ### glTF extras read by the renderer
-* scene `extras.environment`: `sunDirection`, `sunColor`, `skyZenith`, `skyHorizon`, `groundAmbient`, `ambient`, `fog {color, near, far}`, `water {level, deep, shallow, size, waveLength, floorDepth, colorDepth}`, `verticalScale`, `wind {direction, strength}`, `sky`:
+* scene `extras.environment`: `sunDirection`, `sunColor`, `skyZenith`, `skyHorizon`, `groundAmbient`, `ambient`, `fog {color, near, far}`, `water {level, deep, shallow, size, waveLength, floorDepth, colorDepth, variation}`, `verticalScale`, `wind {direction, strength}`, `sky`:
   * `nightZenith`, `nightHorizon`, `nightAmbient`, `twilightColor`, `celestialPole`: vectors
   * `stars {density, brightness, twinkle, daytimeVisibility}`
   * `moon {direction, size (degrees), color, phase (0 new, 0.5 full), light}` or `false`
   * `clouds {coverage, color, speed, scale}`
   * `constellations [{name, stars: [[x, y, z], ...] as seen at midnight, lines: [[first, second], ...], color}]`
   * `dayImage`, `nightImage`: `"panorama.png"` or `{faces: [+X, -X, +Y, -Y, +Z, -Z]}`, paths relative to the glTF file (PNG or JPEG); the night image turns with the stars
+* `water.variation`: a surface that rises and falls with one harmonic that differs from place to place (tides): `{minimum: [x, z], maximum: [x, z], columns, rows, inPhase: accessor, inQuadrature: accessor, angle}`; the offset at a point is `inPhase·cos(angle) + inQuadrature·sin(angle)`. A simulation moves the angle (`Water.Variation.Angle`); walking uses `Water.LevelAt(x, z)`
 * material `extras.kind`: `lit` | `unlit` | `water` | `waterfall`; `extras.sway`: how much the wind bends it (plants modelled with height 1 and the base at the origin)
 * mesh `extras.detail`: `[{"mesh": index, "screenSize": fraction of the screen height}, ...]`, simpler versions from finer to coarser; the renderer culls instanced nodes by cells and picks a level per cell
 * mesh, primitive or node `extras.ground: true`: walkable surface

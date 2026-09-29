@@ -102,10 +102,19 @@ type Water struct {
 	Level      float32
 	Shallow    graphics.Vec4
 	Deep       graphics.Vec4
-	Size       float32 // extent of the plane (world units)
-	WaveLength float32 // length of the main wave (world units); 0 = Size / 2000
-	FloorDepth float32 // depth of an opaque floor drawn under the water; 0 = Size / 500
-	ColorDepth float32 // water depth at which the color is about two thirds of the way from Shallow to Deep; 0 = FloorDepth / 8
+	Size       float32         // extent of the plane (world units)
+	WaveLength float32         // length of the main wave (world units); 0 = Size / 2000
+	FloorDepth float32         // depth of an opaque floor drawn under the water; 0 = Size / 500
+	ColorDepth float32         // water depth at which the color is about two thirds of the way from Shallow to Deep; 0 = FloorDepth / 8
+	Variation  *LevelVariation // raises and lowers the surface over an area (tides, for example); nil = flat
+}
+
+// LevelAt returns the height of the water surface at a point.
+func (water *Water) LevelAt(x, z float32) float32 {
+	if water.Variation == nil {
+		return water.Level
+	}
+	return water.Level + water.Variation.OffsetAt(x, z)
 }
 
 // EffectiveWaveLength returns the wave length, deriving it from the size when unset.

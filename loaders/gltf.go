@@ -123,7 +123,7 @@ type gltfFile struct {
 // (TRANSLATION, ROTATION, SCALE and a custom _COLOR). Extras understood by the renderer:
 //   - scene extras "environment": sunDirection, sunColor, skyZenith, skyHorizon, groundAmbient,
 //     ambient, fog {color, near, far}, water {level, deep, shallow, size, waveLength, floorDepth, colorDepth},
-//     verticalScale, sky (see skyFromExtras)
+//     verticalScale, sky (see applySky); water.variation (see applyLevelVariation)
 //   - scene extras "environment" also: wind {direction, strength}
 //   - material extras "kind": "lit" | "unlit" | "water" | "waterfall"; "sway": bending in the wind
 //   - mesh, primitive or node extras "ground": true (walkable surface)
@@ -296,6 +296,9 @@ func (file *gltfFile) buildScene() (*scene.Scene, error) {
 	if environment, found := sceneExtras["environment"].(map[string]any); found {
 		applyEnvironment(&result.Environment, environment)
 		if err := file.applySky(&result.Environment, environment); err != nil {
+			return nil, err
+		}
+		if err := file.applyLevelVariation(&result.Environment, environment); err != nil {
 			return nil, err
 		}
 	}

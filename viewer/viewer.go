@@ -137,7 +137,7 @@ func isUnderWater(world *scene.Scene, x, z float32) bool {
 	if !found {
 		return true
 	}
-	return world.Environment.Water != nil && height <= world.Environment.Water.Level
+	return world.Environment.Water != nil && height <= world.Environment.Water.LevelAt(x, z)
 }
 
 func (session *viewer) configureFrustum(view *models.Camera) {
