@@ -3,6 +3,7 @@ package opengl
 import (
 	"math"
 	"sort"
+	"time"
 	"unsafe"
 
 	"github.com/akrck02/go-renderer/graphics"
@@ -15,7 +16,10 @@ import (
 // GPU; they are uploaded again only when marked Dirty (for simulations).
 // It must be created and used on the thread that owns the OpenGL context.
 type SceneRenderer struct {
-	Shadows ShadowSettings
+	Shadows    ShadowSettings
+	Profiling  bool            // measure CPU and GPU times into Statistics (waits for the GPU every frame)
+	Statistics FrameStatistics // the last frame drawn
+	profiler   *passProfiler
 
 	sceneProgram *shaderProgram
 	sky          *skyRenderer
@@ -74,7 +78,7 @@ func NewSceneRenderer() (*SceneRenderer, error) {
 	if err != nil {
 		return nil, err
 	}
-	renderer := &SceneRenderer{sceneProgram: sceneProgram, sky: sky, Shadows: DefaultShadowSettings()}
+	renderer := &SceneRenderer{sceneProgram: sceneProgram, sky: sky, Shadows: DefaultShadowSettings(), profiler: newPassProfiler()}
 	if renderer.shadow, err = newShadowMap(renderer.Shadows.resolution()); err != nil {
 		return nil, err
 	}
@@ -134,19 +138,43 @@ func (program *shaderProgram) setInteger(name string, value int32) {
 // Draw renders the scene from the camera into the current framebuffer of the given size.
 // seconds is the elapsed time, which animates water and waterfalls.
 func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int, seconds float64) {
+	started := time.Now()
 	matrices := computeCameraMatrices(camera, width, height)
 	light := world.Environment.Daylight()
 	commands := renderer.collectDrawCommands(world, camera)
 	sortOpaqueBeforeTransparent(commands)
-	renderer.seabed.update(world, commands)
-	region, err := renderer.renderShadows(world, camera, commands, light.LightDirection)
+	renderer.measurePass("seabed", func() { renderer.seabed.update(world, commands) })
+	var region shadowRegion
+	var err error
+	renderer.measurePass("shadows", func() { region, err = renderer.renderShadows(world, camera, commands, light.LightDirection) })
 	shadowsReady := err == nil && renderer.Shadows.Enabled
 	clearFrame(light, width, height)
-	renderer.sky.draw(world.Environment, light, camera, matrices, seconds)
+	renderer.measurePass("sky", func() { renderer.sky.draw(world.Environment, light, camera, matrices, seconds) })
 	renderer.setFrameUniforms(world.Environment, light, camera, matrices, seconds)
 	renderer.shadow.bindForLighting(renderer.sceneProgram, region, shadowsReady)
 	renderer.seabed.bindForWater(renderer.sceneProgram, world.Environment.Water)
-	renderer.executeDrawCommands(commands)
+	renderer.measurePass("scene", func() { renderer.executeDrawCommands(commands) })
+	renderer.recordStatistics(commands, shadowsReady, time.Since(started))
+}
+
+// measurePass runs a pass, timing it on the GPU when profiling.
+func (renderer *SceneRenderer) measurePass(pass string, run func()) {
+	if !renderer.Profiling {
+		run()
+		return
+	}
+	renderer.profiler.begin(pass)
+	run()
+	renderer.profiler.end()
+}
+
+func (renderer *SceneRenderer) recordStatistics(commands []drawCommand, shadowsDrawn bool, processorTime time.Duration) {
+	statistics := FrameStatistics{CPU: processorTime}
+	countCommands(&statistics, commands, shadowsDrawn)
+	if renderer.Profiling {
+		statistics.GPU = renderer.profiler.collect()
+	}
+	renderer.Statistics = statistics
 }
 
 // renderShadows draws the shadow map for this frame when shadows are enabled.

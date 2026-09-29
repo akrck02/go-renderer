@@ -6,7 +6,6 @@ import (
 
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/models"
-	"github.com/akrck02/go-renderer/scene"
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
@@ -190,7 +189,7 @@ func (shadow *shadowMap) renderShadowPass(commands []drawCommand, region shadowR
 	program.setMatrix("view", region.lightView)
 	program.setFloat("verticalScale", verticalScale)
 	for _, command := range commands {
-		if command.transparent || command.material.Kind == scene.KindUnlit {
+		if !castsShadow(command) {
 			continue
 		}
 		castShadow(program, command)

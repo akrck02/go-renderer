@@ -50,7 +50,7 @@ func (opengl *OpenGL) StartLoop(app *models.Application) error {
 	switch app.Type {
 	case models.WindowApplication:
 
-		for !opengl.window.ShouldClose() {
+		for !opengl.window.ShouldClose() && !app.Stop {
 
 			if app.Input != nil {
 				updateWindowSizes(opengl.window, app.Input)
