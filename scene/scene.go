@@ -93,6 +93,7 @@ type Water struct {
 	Size       float32 // extent of the plane (world units)
 	WaveLength float32 // length of the main wave (world units); 0 = Size / 2000
 	FloorDepth float32 // depth of an opaque floor drawn under the water; 0 = Size / 500
+	ColorDepth float32 // water depth at which the color is about two thirds of the way from Shallow to Deep; 0 = FloorDepth / 8
 }
 
 // EffectiveWaveLength returns the wave length, deriving it from the size when unset.
@@ -109,6 +110,14 @@ func (water *Water) EffectiveFloorDepth() float32 {
 		return water.FloorDepth
 	}
 	return water.Size / 500
+}
+
+// EffectiveColorDepth returns the color depth, deriving it from the floor depth when unset.
+func (water *Water) EffectiveColorDepth() float32 {
+	if water.ColorDepth > 0 {
+		return water.ColorDepth
+	}
+	return water.EffectiveFloorDepth() / 8
 }
 
 // Environment holds the lighting and atmosphere.

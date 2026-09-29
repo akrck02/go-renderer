@@ -577,5 +577,6 @@ func waterFromExtras(water map[string]any) *scene.Water {
 		Size:       extraNumber(water, "size", 1000),
 		WaveLength: extraNumber(water, "waveLength", 0),
 		FloorDepth: extraNumber(water, "floorDepth", 0),
+		ColorDepth: extraNumber(water, "colorDepth", 0),
 	}
 }

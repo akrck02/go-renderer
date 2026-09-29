@@ -95,27 +95,20 @@ func (region shadowRegion) lightViewProjection() graphics.Mat4 {
 }
 
 func newShadowMap(resolution int32) (*shadowMap, error) {
-	program, err := newShaderProgram(graphics.SceneVertexShader, graphics.ShadowFragmentShader)
+	program, err := newShaderProgram(graphics.SceneVertexShader, graphics.DepthOnlyFragmentShader)
 	if err != nil {
 		return nil, err
 	}
 	shadow := &shadowMap{resolution: resolution, program: program}
 	shadow.depthTexture = newDepthTexture(resolution)
-	gl.GenFramebuffers(1, &shadow.framebuffer)
-	gl.BindFramebuffer(gl.FRAMEBUFFER, shadow.framebuffer)
-	gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, shadow.depthTexture, 0)
-	gl.DrawBuffer(gl.NONE)
-	gl.ReadBuffer(gl.NONE)
-	status := gl.CheckFramebufferStatus(gl.FRAMEBUFFER)
-	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
-	if status != gl.FRAMEBUFFER_COMPLETE {
-		return nil, fmt.Errorf("shadow framebuffer incomplete: 0x%x", status)
+	enableDepthComparison(shadow.depthTexture)
+	if shadow.framebuffer, err = newDepthFramebuffer(shadow.depthTexture); err != nil {
+		return nil, fmt.Errorf("shadow map: %w", err)
 	}
 	return shadow, nil
 }
 
-// newDepthTexture creates a depth texture that compares on lookup (hardware filtered shadows);
-// everything outside it counts as lit.
+// newDepthTexture creates a square depth texture; lookups outside it read the farthest depth.
 func newDepthTexture(resolution int32) uint32 {
 	var texture uint32
 	gl.GenTextures(1, &texture)
@@ -127,10 +120,33 @@ func newDepthTexture(resolution int32) uint32 {
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_BORDER)
 	border := []float32{1, 1, 1, 1}
 	gl.TexParameterfv(gl.TEXTURE_2D, gl.TEXTURE_BORDER_COLOR, &border[0])
+	gl.BindTexture(gl.TEXTURE_2D, 0)
+	return texture
+}
+
+// enableDepthComparison makes lookups compare against the stored depth (hardware filtered
+// shadows); everything outside the texture counts as lit.
+func enableDepthComparison(texture uint32) {
+	gl.BindTexture(gl.TEXTURE_2D, texture)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL)
 	gl.BindTexture(gl.TEXTURE_2D, 0)
-	return texture
+}
+
+// newDepthFramebuffer creates a framebuffer that renders only into the given depth texture.
+func newDepthFramebuffer(depthTexture uint32) (uint32, error) {
+	var framebuffer uint32
+	gl.GenFramebuffers(1, &framebuffer)
+	gl.BindFramebuffer(gl.FRAMEBUFFER, framebuffer)
+	gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTexture, 0)
+	gl.DrawBuffer(gl.NONE)
+	gl.ReadBuffer(gl.NONE)
+	status := gl.CheckFramebufferStatus(gl.FRAMEBUFFER)
+	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
+	if status != gl.FRAMEBUFFER_COMPLETE {
+		return 0, fmt.Errorf("depth framebuffer incomplete: 0x%x", status)
+	}
+	return framebuffer, nil
 }
 
 // fitShadowRegion places the light's orthographic box around the camera target. The box centre
