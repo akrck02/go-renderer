@@ -63,6 +63,13 @@ uniform mat4 lightViewProjection;
 uniform int shadowsEnabled;
 uniform float shadowTexelSize;     // in shadow map coordinates
 uniform float shadowNormalOffset;  // in world units, pushes the lookup out of the surface
+uniform sampler2D seabedMap;       // depth of the ground seen from above
+uniform mat4 seabedViewProjection;
+uniform vec2 seabedHeightRange;    // heights at depth 0 and depth 1 of the seabed map
+uniform int seabedEnabled;
+uniform float waterLevel;
+uniform vec4 waterShallowColor;
+uniform float waterColorDepth;
 out vec4 fragmentColor;
 
 float pseudoRandom(float seed) { return fract(sin(seed * 91.7) * 437.5); }
@@ -112,7 +119,27 @@ vec3 waterNormal() {
     return normalize(vec3(-slope.x * 0.12 * fade, 1.0, -slope.y * 0.12 * fade));
 }
 
+// seabedHeight returns the height of the ground under the fragment (unscaled world units).
+float seabedHeight() {
+    vec4 projected = seabedViewProjection * vec4(worldPosition.x, 0.0, worldPosition.z, 1.0);
+    vec2 coordinates = projected.xy / projected.w * 0.5 + 0.5;
+    float depth = texture(seabedMap, coordinates).r;
+    return mix(seabedHeightRange.x, seabedHeightRange.y, depth);
+}
+
+// waterBodyColor goes from the shallow to the deep color as the water under the fragment deepens.
+vec4 waterBodyColor(vec4 deepColor) {
+    if (seabedEnabled == 0) return deepColor;
+    float waterDepth = max(waterLevel - seabedHeight(), 0.0);
+    float relativeDepth = waterDepth / max(waterColorDepth, 1e-6);
+    vec4 color = mix(waterShallowColor, deepColor, 1.0 - exp(-relativeDepth));
+    // deep water hides the seabed completely, including where the geometry ends
+    color.a = mix(color.a, 1.0, smoothstep(3.0, 6.0, relativeDepth));
+    return color;
+}
+
 vec4 shadeWater(vec4 color, vec3 towardsCamera) {
+    color = waterBodyColor(color);
     vec3 normal = waterNormal();
     float fresnel = pow(1.0 - max(dot(normal, towardsCamera), 0.0), 4.0) * 0.85 + 0.03;
     vec3 shaded = mix(color.rgb, mix(horizonColor, skyColor, 0.4), fresnel);
@@ -180,8 +207,9 @@ void main() {
 }
 ` + "\x00"
 
-// ShadowFragmentShader writes only depth; it pairs with SceneVertexShader for the shadow pass.
-const ShadowFragmentShader = `
+// DepthOnlyFragmentShader writes only depth; it pairs with SceneVertexShader for the shadow and
+// seabed passes.
+const DepthOnlyFragmentShader = `
 #version 410
 void main() {
 }

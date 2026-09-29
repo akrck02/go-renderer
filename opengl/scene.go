@@ -23,6 +23,7 @@ type SceneRenderer struct {
 	waterPlane   *scene.Mesh
 	waterFloor   *scene.Mesh
 	shadow       *shadowMap
+	seabed       *seabedMap
 	measured     *scene.Scene
 	sceneSize    float32 // horizontal size of the measured scene
 	sceneHeight  float32 // vertical span of the measured scene (before vertical scaling)
@@ -77,6 +78,9 @@ func NewSceneRenderer() (*SceneRenderer, error) {
 	renderer := &SceneRenderer{sceneProgram: sceneProgram, skyProgram: skyProgram, Shadows: DefaultShadowSettings()}
 	gl.GenVertexArrays(1, &renderer.emptyArray)
 	if renderer.shadow, err = newShadowMap(renderer.Shadows.resolution()); err != nil {
+		return nil, err
+	}
+	if renderer.seabed, err = newSeabedMap(seabedResolution); err != nil {
 		return nil, err
 	}
 	return renderer, nil
@@ -135,12 +139,14 @@ func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, wi
 	matrices := computeCameraMatrices(camera, width, height)
 	commands := renderer.collectDrawCommands(world, camera)
 	sortOpaqueBeforeTransparent(commands)
+	renderer.seabed.update(world, commands)
 	region, err := renderer.renderShadows(world, camera, commands)
 	shadowsReady := err == nil && renderer.Shadows.Enabled
 	clearFrame(world.Environment, width, height)
 	renderer.drawSky(world.Environment, camera, matrices)
 	renderer.setFrameUniforms(world.Environment, camera, matrices, seconds)
 	renderer.shadow.bindForLighting(renderer.sceneProgram, region, shadowsReady)
+	renderer.seabed.bindForWater(renderer.sceneProgram, world.Environment.Water)
 	renderer.executeDrawCommands(commands)
 }
 
