@@ -50,8 +50,9 @@ type Moon struct {
 type Clouds struct {
 	Coverage float32 // share of the sky covered (0 = clear)
 	Color    graphics.Vec4
-	Speed    float32 // drift in cloud-texture units per second
-	Scale    float32 // size of the cloud pattern (larger = bigger clouds)
+	Speed    float32       // drift in cloud-texture units per second
+	Scale    float32       // size of the cloud pattern (larger = bigger clouds)
+	Offset   graphics.Vec4 // how far the clouds have drifted (x, z), moved by a simulation
 }
 
 // Constellation is a figure of stars joined by lines, fixed to the night sky.

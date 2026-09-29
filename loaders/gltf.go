@@ -124,7 +124,8 @@ type gltfFile struct {
 //   - scene extras "environment": sunDirection, sunColor, skyZenith, skyHorizon, groundAmbient,
 //     ambient, fog {color, near, far}, water {level, deep, shallow, size, waveLength, floorDepth, colorDepth},
 //     verticalScale, sky (see skyFromExtras)
-//   - material extras "kind": "lit" | "unlit" | "water" | "waterfall"
+//   - scene extras "environment" also: wind {direction, strength}
+//   - material extras "kind": "lit" | "unlit" | "water" | "waterfall"; "sway": bending in the wind
 //   - mesh, primitive or node extras "ground": true (walkable surface)
 func LoadScene(path string) (*scene.Scene, error) {
 	file, err := readGLTFFile(path)
@@ -321,6 +322,7 @@ func (file *gltfFile) buildMaterials() []*scene.Material {
 			BaseColor:   vectorOrDefault(definition.PbrMetallicRoughness.BaseColorFactor, graphics.Vec4{1, 1, 1, 1}),
 			DoubleSided: definition.DoubleSided,
 			Transparent: definition.AlphaMode == "BLEND",
+			Sway:        extraNumber(definition.Extras, "sway", 0),
 		}
 	}
 	return materials
@@ -565,6 +567,10 @@ func applyEnvironment(environment *scene.Environment, extras map[string]any) {
 	}
 	if water, found := extras["water"].(map[string]any); found {
 		environment.Water = waterFromExtras(water)
+	}
+	if wind, found := extras["wind"].(map[string]any); found {
+		environment.Wind.Direction = extraVector(wind, "direction", environment.Wind.Direction).Normalize()
+		environment.Wind.Strength = extraNumber(wind, "strength", environment.Wind.Strength)
 	}
 }
 

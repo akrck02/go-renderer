@@ -2,7 +2,8 @@ package graphics
 
 // SceneVertexShader transforms meshes and GPU instances. Attributes: 0 position, 1 normal,
 // 2 color, 3-6 instance matrix columns, 7 instance color. The vertical scale exaggerates
-// heights (and corrects normals) without touching the geometry.
+// heights (and corrects normals) without touching the geometry. Meshes with sway (plants modelled
+// with height 1 and the base at the origin) bend with the wind, more at the top.
 const SceneVertexShader = `
 #version 410
 layout(location = 0) in vec3 vertexPosition;
@@ -18,9 +19,25 @@ uniform mat4 view;
 uniform mat4 model;
 uniform int instanced;
 uniform float verticalScale;
+uniform float time;
+uniform float sway;           // how much the wind bends this mesh
+uniform vec2 windDirection;   // horizontal (x, z)
+uniform float windStrength;
 out vec3 worldPosition;
 out vec3 worldNormal;
 out vec4 surfaceColor;
+// windBend moves a vertex along the wind, growing with the square of its height in the model, with
+// gusts whose phase depends on where the model stands.
+vec2 windBend(mat4 modelMatrix) {
+    if (sway == 0.0 || windStrength == 0.0) return vec2(0.0);
+    vec3 base = modelMatrix[3].xyz;
+    float modelHeight = length(modelMatrix[1].xyz);
+    float phase = base.x * 37.0 + base.z * 23.0;
+    float gust = 0.65 + 0.35 * sin(time * (1.3 + windStrength) + phase) + 0.15 * sin(time * 3.7 + phase * 1.7);
+    float height = max(vertexPosition.y, 0.0);
+    return windDirection * (sway * windStrength * gust * height * height * modelHeight);
+}
+
 void main() {
     mat4 modelMatrix = model;
     vec4 color = vertexColor;
@@ -29,6 +46,7 @@ void main() {
         color *= instanceColor;
     }
     vec4 world = modelMatrix * vec4(vertexPosition, 1.0);
+    world.xz += windBend(modelMatrix);
     world.y *= verticalScale;
     vec3 normal = mat3(modelMatrix) * vertexNormal;
     normal.y /= verticalScale;
@@ -220,6 +238,8 @@ uniform float cloudCoverage;
 uniform vec3 cloudColor;
 uniform float cloudSpeed;
 uniform float cloudScale;
+uniform vec2 cloudOffset;       // drift moved by a simulation
+uniform vec2 windDirection;
 uniform int dayImageKind;       // 0 none, 1 equirectangular, 2 cube
 uniform int nightImageKind;
 uniform sampler2D dayPanorama;
@@ -333,7 +353,8 @@ vec4 moonDisc(vec3 direction) {
 
 vec4 cloudLayer(vec3 direction) {
     if (cloudCoverage <= 0.0 || direction.y <= 0.0) return vec4(0.0);
-    vec2 position = direction.xz / (direction.y + 0.12) * (1.6 / max(cloudScale, 1e-3)) + vec2(time * cloudSpeed, time * cloudSpeed * 0.3);
+    vec2 drift = cloudOffset + windDirection * time * cloudSpeed;
+    vec2 position = direction.xz / (direction.y + 0.12) * (1.6 / max(cloudScale, 1e-3)) + drift;
     // the noise stays mostly between 0.3 and 0.7, so the coverage moves the threshold inside that range
     float threshold = mix(0.72, 0.3, cloudCoverage);
     float density = smoothstep(threshold, threshold + 0.14, fractalNoise(position));

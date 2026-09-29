@@ -62,6 +62,8 @@ const (
 	KeyPageDown
 	KeyLeftBracket
 	KeyRightBracket
+	KeyComma
+	KeyPeriod
 	keyCount
 )
 

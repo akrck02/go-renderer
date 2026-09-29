@@ -80,6 +80,7 @@ func (renderer *skyRenderer) drawDome(environment scene.Environment, light scene
 	setStars(program, sky.Stars)
 	setMoon(program, sky.Moon, light.MoonDirection)
 	setClouds(program, sky.Clouds)
+	setWind(program, environment.Wind)
 	bindSkyImage(program, sky.DayImage, "dayImageKind", "dayPanorama", "dayCube", dayPanoramaUnit, dayCubeUnit)
 	bindSkyImage(program, sky.NightImage, "nightImageKind", "nightPanorama", "nightCube", nightPanoramaUnit, nightCubeUnit)
 	gl.BindVertexArray(renderer.emptyArray)
@@ -123,6 +124,14 @@ func setClouds(program *shaderProgram, clouds scene.Clouds) {
 	program.setVector3("cloudColor", colorOrWhite(clouds.Color))
 	program.setFloat("cloudSpeed", clouds.Speed)
 	program.setFloat("cloudScale", scaleOrOne(clouds.Scale))
+	gl.Uniform2f(program.location("cloudOffset"), clouds.Offset[0], clouds.Offset[2])
+}
+
+// setWind gives a program the horizontal wind direction and strength.
+func setWind(program *shaderProgram, wind scene.Wind) {
+	direction := graphics.Vec4{wind.Direction[0], 0, wind.Direction[2], 0}.Normalize()
+	gl.Uniform2f(program.location("windDirection"), direction[0], direction[2])
+	program.setFloat("windStrength", wind.Strength)
 }
 
 func colorOrWhite(color graphics.Vec4) graphics.Vec4 {

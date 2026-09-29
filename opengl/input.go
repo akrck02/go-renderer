@@ -22,6 +22,7 @@ var keysFromGLFW = map[glfw.Key]input.Key{
 	glfw.KeyEqual: input.KeyPlus, glfw.KeyKPAdd: input.KeyPlus, glfw.KeyMinus: input.KeyMinus, glfw.KeyKPSubtract: input.KeyMinus,
 	glfw.KeyPageUp: input.KeyPageUp, glfw.KeyPageDown: input.KeyPageDown,
 	glfw.KeyLeftBracket: input.KeyLeftBracket, glfw.KeyRightBracket: input.KeyRightBracket,
+	glfw.KeyComma: input.KeyComma, glfw.KeyPeriod: input.KeyPeriod,
 }
 
 var mouseButtonsFromGLFW = map[glfw.MouseButton]input.MouseButton{

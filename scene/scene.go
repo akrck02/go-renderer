@@ -29,6 +29,7 @@ type Material struct {
 	BaseColor   graphics.Vec4 // linear RGBA multiplied with vertex colors
 	DoubleSided bool
 	Transparent bool
+	Sway        float32 // how much the wind bends the mesh (0 = rigid); for plants modelled with height 1
 }
 
 // Mesh is triangle geometry. Positions and normals are xyz triples, colors rgba quads (linear).
@@ -134,6 +135,13 @@ type Environment struct {
 	Water         *Water
 	VerticalScale float32 // vertical exaggeration applied to the whole scene (0 = 1)
 	Sky           *Sky    // sky over the day and night (nil = DefaultSky)
+	Wind          Wind
+}
+
+// Wind moves clouds and bends plants (materials with Sway).
+type Wind struct {
+	Direction graphics.Vec4 // horizontal direction the wind blows towards
+	Strength  float32       // 0 calm, 1 strong
 }
 
 // DefaultEnvironment returns a daylight environment.
@@ -148,6 +156,7 @@ func DefaultEnvironment() Environment {
 		FogColor:      graphics.Vec4{0.74, 0.82, 0.86, 1},
 		VerticalScale: 1,
 		Sky:           DefaultSky(),
+		Wind:          Wind{Direction: graphics.Vec4{1, 0, 0.3, 0}.Normalize(), Strength: 0.35},
 	}
 }
 
