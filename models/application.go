@@ -53,6 +53,8 @@ type Application struct {
 	Input *input.State
 	// CapturePath is where a HeadlessApplication saves its frame (PNG); "frame.png" by default.
 	CapturePath string
+	// DisableVsync draws frames as fast as possible instead of waiting for the display (benchmarks).
+	DisableVsync bool
 	// Stop, when set by Update or Draw, ends a window application after the current frame.
 	Stop             bool
 	Camera           Camera

@@ -41,6 +41,9 @@ func InitWindow(app *models.Application) *glfw.Window {
 	}
 
 	window.MakeContextCurrent()
+	if app.DisableVsync {
+		glfw.SwapInterval(0)
+	}
 	window.SetFramebufferSizeCallback(func(w *glfw.Window, width, height int) {
 		gl.Viewport(0, 0, int32(width), int32(height))
 	})

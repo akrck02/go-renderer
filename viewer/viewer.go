@@ -92,6 +92,8 @@ func newApplication(session *viewer, options Options, title string) *models.Appl
 	if options.CapturePath != "" {
 		app.Type, app.CapturePath = models.HeadlessApplication, options.CapturePath
 	}
+	// without waiting for the display the GPU keeps its speed, so measurements are steady
+	app.DisableVsync = options.Benchmark > 0
 	session.configureFrustum(&app.Camera)
 	return app
 }
@@ -327,7 +329,7 @@ func (session *viewer) draw(app *models.Application) error {
 	if width == 0 || height == 0 {
 		width, height = app.Width, app.Height
 	}
-	session.renderer.Profiling = session.benchmark != nil
+	session.renderer.Profiling = session.benchmark != nil && session.benchmark.timing()
 	session.renderer.Draw(session.world, app.Camera, width, height, time.Since(session.started).Seconds())
 	if session.benchmark != nil && session.benchmark.record(session.renderer.Statistics) {
 		session.benchmark.report(os.Stdout)
