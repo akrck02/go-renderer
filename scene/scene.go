@@ -69,11 +69,21 @@ func (mesh *Mesh) ForEachTriangle(visit func(first, second, third uint32)) {
 }
 
 // Instances draws a mesh many times with a transform and a color per instance.
+//
+// After changing instances, a simulation either sets Dirty (instances were added or removed, or
+// most of them changed: everything is prepared again) or lists the changed ones with MarkChanged
+// (only those are uploaded). The backend clears both.
 type Instances struct {
 	Transforms []graphics.Mat4
 	Colors     []graphics.Vec4
 	Dirty      bool
+	Changed    []int // indices changed since the last draw
 	GPU        any
+}
+
+// MarkChanged records that these instances changed their transform or color.
+func (instances *Instances) MarkChanged(indices ...int) {
+	instances.Changed = append(instances.Changed, indices...)
 }
 
 // Node places a mesh (optionally instanced) in the world; children inherit the transform.

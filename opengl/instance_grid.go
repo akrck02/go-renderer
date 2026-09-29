@@ -19,6 +19,8 @@ const maximumCellsPerSide = 128
 type instanceGrid struct {
 	cells  []instanceCell
 	packed []float32 // floatsPerInstance values per instance, ordered by cell
+	slots  []int     // position of each instance in packed
+	cellOf []int     // cell of each instance
 }
 
 // instanceCell is a group of nearby instances.
@@ -41,16 +43,34 @@ func buildInstanceGrid(instances *scene.Instances, meshBounds box) *instanceGrid
 		cells[cellOf[instance]].count++
 	}
 	assignFirstInstances(cells)
-	grid := &instanceGrid{packed: make([]float32, count*floatsPerInstance)}
+	grid := &instanceGrid{packed: make([]float32, count*floatsPerInstance), slots: make([]int, count)}
 	filled := make([]int, len(cells))
 	for instance, cell := range cellOf {
 		position := cells[cell].first + filled[cell]
 		filled[cell]++
+		grid.slots[instance] = position
 		packInstance(instances, instance, grid.packed[position*floatsPerInstance:])
 	}
 	measureCells(cells, grid.packed, meshBounds)
-	grid.cells = nonEmptyCells(cells)
+	var renumbered []int
+	grid.cells, renumbered = nonEmptyCells(cells)
+	grid.cellOf = cellOf
+	for instance, cell := range cellOf {
+		grid.cellOf[instance] = renumbered[cell]
+	}
 	return grid
+}
+
+// updateInstance writes a changed instance in its place and widens its cell to contain it (an
+// instance keeps its cell even if it moves away; the cell box grows). It returns the cell.
+func (grid *instanceGrid) updateInstance(instances *scene.Instances, instance int, meshBounds box) int {
+	slot := grid.slots[instance]
+	packInstance(instances, instance, grid.packed[slot*floatsPerInstance:])
+	cell := &grid.cells[grid.cellOf[instance]]
+	instanceBounds := meshBounds.transformed(instances.Transforms[instance], 1)
+	cell.bounds.merge(instanceBounds)
+	cell.largest = float32(math.Max(float64(cell.largest), float64(instanceBounds.diagonal())))
+	return grid.cellOf[instance]
 }
 
 func cellsPerSide(count int) int {
@@ -111,14 +131,17 @@ func unpackTransform(packed []float32, instance int) graphics.Mat4 {
 	return transform
 }
 
-func nonEmptyCells(cells []instanceCell) []instanceCell {
+// nonEmptyCells drops the empty cells and returns the new number of every old cell.
+func nonEmptyCells(cells []instanceCell) ([]instanceCell, []int) {
 	result := make([]instanceCell, 0, len(cells))
-	for _, cell := range cells {
+	renumbered := make([]int, len(cells))
+	for index, cell := range cells {
+		renumbered[index] = len(result)
 		if cell.count > 0 {
 			result = append(result, cell)
 		}
 	}
-	return result
+	return result, renumbered
 }
 
 // packInstance writes the matrix and the color of one instance (white when missing).

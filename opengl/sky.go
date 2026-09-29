@@ -61,14 +61,17 @@ func newSkyRenderer() (*skyRenderer, error) {
 	return renderer, nil
 }
 
-// draw paints the sky behind everything and leaves depth testing ready for the scene.
+// draw paints the sky where the opaque scene left the far plane uncovered, so the covered pixels
+// cost nothing; it leaves depth testing ready for the transparent scene.
 func (renderer *skyRenderer) draw(environment scene.Environment, light scene.Daylight, camera models.Camera, matrices cameraMatrices, seconds float64) {
 	inverse, invertible := matrices.viewProjection.Inverse()
 	if !invertible {
 		return
 	}
+	// drawn after the opaque scene, only where nothing covers the far plane
 	gl.DepthMask(false)
-	gl.Disable(gl.DEPTH_TEST)
+	gl.Enable(gl.DEPTH_TEST)
+	gl.DepthFunc(gl.LEQUAL)
 	renderer.drawDome(environment, light, camera, inverse, seconds)
 	renderer.drawConstellations(environment.EffectiveSky(), light, camera, matrices)
 	gl.DepthMask(true)

@@ -159,11 +159,13 @@ func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, wi
 	})
 	shadowsReady := err == nil && renderer.Shadows.Enabled
 	clearFrame(light, width, height)
-	renderer.measurePass("sky", func() { renderer.sky.draw(world.Environment, light, camera, matrices, seconds) })
 	renderer.setFrameUniforms(world.Environment, light, camera, matrices, seconds)
 	renderer.shadow.bindForLighting(renderer.sceneProgram, region, shadowsReady)
 	renderer.seabed.bindForWater(renderer.sceneProgram, world.Environment.Water)
-	renderer.measurePass("scene", func() { renderer.executeDrawCommands(commands, mainView) })
+	opaque, transparent := splitOpaqueAndTransparent(commands)
+	renderer.measurePass("scene", func() { renderer.executeDrawCommands(opaque, mainView) })
+	renderer.measurePass("sky", func() { renderer.sky.draw(world.Environment, light, camera, matrices, seconds) })
+	renderer.measurePass("transparent", func() { renderer.executeDrawCommands(transparent, mainView) })
 	renderer.recordStatistics(time.Since(started))
 }
 
@@ -336,7 +338,20 @@ func sortOpaqueBeforeTransparent(commands []drawCommand) {
 	})
 }
 
+// splitOpaqueAndTransparent cuts the sorted commands where the transparent ones start.
+func splitOpaqueAndTransparent(commands []drawCommand) (opaque, transparent []drawCommand) {
+	for index, command := range commands {
+		if command.transparent {
+			return commands[:index], commands[index:]
+		}
+	}
+	return commands, nil
+}
+
 func (renderer *SceneRenderer) executeDrawCommands(commands []drawCommand, view viewpoint) {
+	gl.UseProgram(renderer.sceneProgram.handle)
+	gl.Enable(gl.DEPTH_TEST)
+	gl.DepthFunc(gl.LEQUAL)
 	blending := false
 	for _, command := range commands {
 		if command.transparent && !blending {
