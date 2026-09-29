@@ -49,6 +49,7 @@ type instanceSelection struct {
 	chosen       [][]int
 	batches      []*instanceBatch
 	staging      []float32
+	cellOffsets  []map[int]int // per level: where each chosen cell starts in the batch (in instances)
 }
 
 // instanceBatch is an instance buffer drawn with one version of the mesh.
@@ -122,6 +123,7 @@ func (renderer *SceneRenderer) drawVisibleInstances(program *shaderProgram, comm
 func (renderer *SceneRenderer) instancedDetailFor(node *scene.Node) *instancedDetail {
 	detail, found := renderer.instancedDetails[node.Instances]
 	if found && !node.Instances.Dirty && detail.mesh == node.Mesh {
+		detail.applyChanges(node.Instances, renderer.boundsOf(node.Mesh))
 		return detail
 	}
 	grid := buildInstanceGrid(node.Instances, renderer.boundsOf(node.Mesh))
@@ -130,8 +132,39 @@ func (renderer *SceneRenderer) instancedDetailFor(node *scene.Node) *instancedDe
 		detail.selections[which] = &instanceSelection{}
 	}
 	renderer.instancedDetails[node.Instances] = detail
-	node.Instances.Dirty = false
+	node.Instances.Dirty, node.Instances.Changed = false, nil
 	return detail
+}
+
+// applyChanges updates the instances a simulation marked as changed, in the grid and in the
+// batches that hold them, uploading only their part of each buffer.
+func (detail *instancedDetail) applyChanges(instances *scene.Instances, meshBounds box) {
+	for _, instance := range instances.Changed {
+		if instance < 0 || instance >= len(detail.grid.slots) {
+			continue
+		}
+		cell := detail.grid.updateInstance(instances, instance, meshBounds)
+		for _, selection := range detail.selections {
+			selection.uploadInstance(detail.grid, instance, cell)
+		}
+	}
+	instances.Changed = instances.Changed[:0]
+}
+
+// uploadInstance rewrites one instance in the batch of the level that holds its cell, if any.
+func (selection *instanceSelection) uploadInstance(grid *instanceGrid, instance, cell int) {
+	for level, offsets := range selection.cellOffsets {
+		start, chosen := offsets[cell]
+		batch := selection.batches[level]
+		if !chosen || batch == nil {
+			continue
+		}
+		slot := grid.slots[instance]
+		position := start + slot - grid.cells[cell].first
+		values := grid.packed[slot*floatsPerInstance : (slot+1)*floatsPerInstance]
+		gl.BindBuffer(gl.ARRAY_BUFFER, batch.instanceBuffer)
+		gl.BufferSubData(gl.ARRAY_BUFFER, position*floatsPerInstance*bytesPerFloat, len(values)*bytesPerFloat, gl.Ptr(values))
+	}
 }
 
 // choose picks the visible cells and their levels, and uploads the batches that changed.
@@ -161,6 +194,7 @@ func (selection *instanceSelection) resetLevels(levels int) {
 		selection.cellsByLevel = make([][]int, levels)
 		selection.chosen = make([][]int, levels)
 		selection.batches = make([]*instanceBatch, levels)
+		selection.cellOffsets = make([]map[int]int, levels)
 	}
 	for level := range selection.cellsByLevel {
 		selection.cellsByLevel[level] = selection.cellsByLevel[level][:0]
@@ -172,8 +206,11 @@ func (selection *instanceSelection) upload(detail *instancedDetail, level int) {
 	cells := selection.cellsByLevel[level]
 	selection.chosen[level] = append(selection.chosen[level][:0], cells...)
 	selection.staging = selection.staging[:0]
+	offsets := make(map[int]int, len(cells))
+	selection.cellOffsets[level] = offsets
 	for _, index := range cells {
 		cell := detail.grid.cells[index]
+		offsets[index] = len(selection.staging) / floatsPerInstance
 		selection.staging = append(selection.staging, detail.grid.packed[cell.first*floatsPerInstance:(cell.first+cell.count)*floatsPerInstance]...)
 	}
 	mesh := uploadMesh(detail.mesh.Level(level))
