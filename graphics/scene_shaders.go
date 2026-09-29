@@ -334,7 +334,9 @@ vec4 moonDisc(vec3 direction) {
 vec4 cloudLayer(vec3 direction) {
     if (cloudCoverage <= 0.0 || direction.y <= 0.0) return vec4(0.0);
     vec2 position = direction.xz / (direction.y + 0.12) * (1.6 / max(cloudScale, 1e-3)) + vec2(time * cloudSpeed, time * cloudSpeed * 0.3);
-    float density = smoothstep(1.0 - cloudCoverage, 1.0 - cloudCoverage + 0.35, fractalNoise(position));
+    // the noise stays mostly between 0.3 and 0.7, so the coverage moves the threshold inside that range
+    float threshold = mix(0.72, 0.3, cloudCoverage);
+    float density = smoothstep(threshold, threshold + 0.14, fractalNoise(position));
     density *= smoothstep(0.0, 0.18, direction.y);
     float towardsSun = max(dot(direction, normalize(sunDirection)), 0.0);
     vec3 litColor = cloudColor * (sunColor * (0.55 + 0.45 * pow(towardsSun, 8.0)) + horizonColor * 0.5);
