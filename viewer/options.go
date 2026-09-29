@@ -16,6 +16,7 @@ type Options struct {
 	SunAzimuth    float64 // degrees clockwise from north; NaN keeps the scene's sun
 	Zoom          float64 // initial orbit distance as a fraction of the default (0 = 1)
 	Benchmark     int     // frames to measure before printing times and exiting; 0 = explore
+	NoVsync       bool    // draw as fast as possible instead of waiting for the display
 }
 
 // DefaultOptions returns a 1280×800 window with the scene's own sun.
@@ -35,8 +36,9 @@ func (options *Options) RegisterFlags(flags *flag.FlagSet) {
 	flags.Float64Var(&options.SunAzimuth, "sun-azimuth", defaults.SunAzimuth, "sun azimuth in degrees, clockwise from north")
 	flags.IntVar(&options.Benchmark, "benchmark", 0, "measure this many frames, print CPU and GPU times per pass and exit")
 	flags.BoolVar(&options.NoShadows, "no-shadows", false, "start without sun shadows")
+	flags.BoolVar(&options.NoVsync, "no-vsync", false, "do not wait for the display: the title shows the real frames per second")
 	flags.Float64Var(&options.Zoom, "zoom", defaults.Zoom, "initial orbit distance as a fraction of the default (0.1 = ten times closer)")
 }
 
 // Usage lists the viewer flags for a usage line.
-const Usage = "[-width W] [-height H] [-capture frame.png] [-walk] [-no-shadows] [-night] [-sun-elevation D] [-sun-azimuth D] [-zoom F] [-benchmark N]"
+const Usage = "[-width W] [-height H] [-capture frame.png] [-walk] [-no-shadows] [-night] [-sun-elevation D] [-sun-azimuth D] [-zoom F] [-benchmark N] [-no-vsync]"

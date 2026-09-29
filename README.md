@@ -70,6 +70,7 @@ go run ./cmd/visor -benchmark 120 scene.glb       # CPU and GPU times per pass, 
 | `-width` / `-height` | Window size |
 | `-capture frame.png` | Render one frame to a PNG, hidden window |
 | `-benchmark N` | Measure N frames, print CPU and GPU times per pass and exit |
+| `-no-vsync` | Do not wait for the display; the window title shows the real frames per second |
 
 ### Performance
 Measure with `-benchmark`. The measurements and the optimization plan are in [docs/optimization-plan.md](docs/optimization-plan.md).
