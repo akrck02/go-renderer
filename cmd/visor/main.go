@@ -4,7 +4,7 @@
 //	go run ./cmd/visor -capture frame.png scene.glb   (renders one frame to a PNG, no visible window)
 //
 // Controls: left drag rotates, right drag pans, scroll zooms (orbit camera). Tab switches to
-// walking on the ground: WASD or arrows move, mouse looks, shift runs. J/L turn the sun,
+// walking on the ground: WASD or arrows move, mouse looks, shift runs, [ and ] change the walking speed. J/L turn the sun,
 // I/K raise or lower it, Z/X change the vertical exaggeration, F toggles fog.
 package main
 
@@ -123,7 +123,7 @@ func newOrbitFor(world *scene.Scene, center graphics.Vec4, size float32) *camera
 }
 
 func newWalkFor(world *scene.Scene, center graphics.Vec4, size float32) *camera.Walk {
-	walk := camera.NewWalk(center[0], center[2], size*0.00004, size*0.00025)
+	walk := camera.NewWalk(center[0], center[2], size*0.00004, size*0.00075)
 	walk.Ground = world.GroundHeight
 	walk.Blocked = func(x, z float32) bool { return isUnderWater(world, x, z) }
 	return walk
@@ -165,6 +165,7 @@ func (session *viewer) handleShortcuts(state *input.State, seconds float64) {
 	if state.Pressed(input.KeyF) {
 		session.toggleFog()
 	}
+	session.adjustWalkingSpeed(state)
 	session.adjustSun(state, seconds)
 	session.adjustVerticalScale(state, seconds)
 }
@@ -181,6 +182,23 @@ func (session *viewer) toggleWalking() {
 	environment.VerticalScale = 1
 	session.walk.X, session.walk.Z = session.orbit.Target[0], session.orbit.Target[2]
 	session.walk.Yaw = math.Pi - session.orbit.Yaw
+}
+
+// adjustWalkingSpeed makes walking faster with ] and slower with [, by a factor of 1.5 per press.
+func (session *viewer) adjustWalkingSpeed(state *input.State) {
+	factor := float32(1)
+	if state.Pressed(input.KeyRightBracket) {
+		factor = 1.5
+	}
+	if state.Pressed(input.KeyLeftBracket) {
+		factor = 1 / 1.5
+	}
+	if factor == 1 {
+		return
+	}
+	minimum, maximum := session.sceneSize*0.00002, session.sceneSize*0.02
+	session.walk.Speed = float32(math.Max(float64(minimum), math.Min(float64(maximum), float64(session.walk.Speed*factor))))
+	fmt.Printf("walking speed: %.4g units per second (shift: x%.0f)\n", session.walk.Speed, session.walk.RunFactor)
 }
 
 func (session *viewer) toggleFog() {
