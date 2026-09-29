@@ -71,6 +71,9 @@ go run ./cmd/visor -benchmark 120 scene.glb       # CPU and GPU times per pass, 
 | `-capture frame.png` | Render one frame to a PNG, hidden window |
 | `-benchmark N` | Measure N frames, print CPU and GPU times per pass and exit |
 
+### Performance
+Measure with `-benchmark`. The measurements and the optimization plan are in [docs/optimization-plan.md](docs/optimization-plan.md).
+
 ### glTF extras read by the renderer
 * scene `extras.environment`: `sunDirection`, `sunColor`, `skyZenith`, `skyHorizon`, `groundAmbient`, `ambient`, `fog {color, near, far}`, `water {level, deep, shallow, size, waveLength, floorDepth, colorDepth}`, `verticalScale`, `wind {direction, strength}`, `sky`:
   * `nightZenith`, `nightHorizon`, `nightAmbient`, `twilightColor`, `celestialPole`: vectors
