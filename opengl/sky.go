@@ -17,6 +17,13 @@ type skyRenderer struct {
 	constellationProgram *shaderProgram
 	emptyArray           uint32
 	constellations       *constellationBuffers
+	placeholders         placeholderTextures
+}
+
+// placeholderTextures fill the image units of the sky when there is no image: some drivers check
+// every sampler on every draw, even the ones the shader does not read.
+type placeholderTextures struct {
+	panorama, cube uint32
 }
 
 // constellationBuffers holds the stars and lines of the constellations of one sky.
@@ -49,7 +56,7 @@ func newSkyRenderer() (*skyRenderer, error) {
 	if err != nil {
 		return nil, err
 	}
-	renderer := &skyRenderer{program: program, constellationProgram: constellationProgram}
+	renderer := &skyRenderer{program: program, constellationProgram: constellationProgram, placeholders: newPlaceholderTextures()}
 	gl.GenVertexArrays(1, &renderer.emptyArray)
 	return renderer, nil
 }
@@ -81,6 +88,7 @@ func (renderer *skyRenderer) drawDome(environment scene.Environment, light scene
 	setMoon(program, sky.Moon, light.MoonDirection)
 	setClouds(program, sky.Clouds)
 	setWind(program, environment.Wind)
+	renderer.placeholders.bind(dayPanoramaUnit, nightPanoramaUnit, dayCubeUnit, nightCubeUnit)
 	bindSkyImage(program, sky.DayImage, "dayImageKind", "dayPanorama", "dayCube", dayPanoramaUnit, dayCubeUnit)
 	bindSkyImage(program, sky.NightImage, "nightImageKind", "nightPanorama", "nightCube", nightPanoramaUnit, nightCubeUnit)
 	gl.BindVertexArray(renderer.emptyArray)
@@ -166,6 +174,25 @@ func bindSkyImage(program *shaderProgram, skyImage *scene.SkyImage, kindName, pa
 		gl.ActiveTexture(gl.TEXTURE0 + uint32(panoramaUnit))
 		gl.BindTexture(gl.TEXTURE_2D, texture)
 		program.setInteger(kindName, 1)
+	}
+	gl.ActiveTexture(gl.TEXTURE0)
+}
+
+func newPlaceholderTextures() placeholderTextures {
+	black := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	faces := [6]image.Image{black, black, black, black, black, black}
+	return placeholderTextures{panorama: uploadPanoramaTexture(black), cube: uploadCubeTexture(faces)}
+}
+
+// bind puts the placeholders on the panorama and cube units; real images replace them afterwards.
+func (placeholders placeholderTextures) bind(dayPanorama, nightPanorama, dayCube, nightCube int32) {
+	for _, unit := range []int32{dayPanorama, nightPanorama} {
+		gl.ActiveTexture(gl.TEXTURE0 + uint32(unit))
+		gl.BindTexture(gl.TEXTURE_2D, placeholders.panorama)
+	}
+	for _, unit := range []int32{dayCube, nightCube} {
+		gl.ActiveTexture(gl.TEXTURE0 + uint32(unit))
+		gl.BindTexture(gl.TEXTURE_CUBE_MAP, placeholders.cube)
 	}
 	gl.ActiveTexture(gl.TEXTURE0)
 }
