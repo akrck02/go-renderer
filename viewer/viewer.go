@@ -61,6 +61,7 @@ func Run(world *scene.Scene, options Options, title string, update UpdateFunc, l
 	}
 	if options.StartWalking {
 		session.toggleWalking()
+		session.placeWalker(options)
 	}
 	session.update = update
 	session.shadowsEnabled = !options.NoShadows
@@ -200,6 +201,17 @@ func (session *viewer) toggleWalking() {
 	environment.VerticalScale = 1
 	session.walk.X, session.walk.Z = session.orbit.Target[0], session.orbit.Target[2]
 	session.walk.Yaw = math.Pi - session.orbit.Yaw
+}
+
+// placeWalker applies the walking options: where the walker faces, looks and how tall it is.
+func (session *viewer) placeWalker(options Options) {
+	if !math.IsNaN(options.Heading) {
+		session.walk.Yaw = options.Heading * math.Pi / 180
+	}
+	session.walk.Pitch = options.Pitch * math.Pi / 180
+	if options.EyeHeight > 0 {
+		session.walk.EyeHeight = float32(options.EyeHeight)
+	}
 }
 
 // adjustWalkingSpeed makes walking faster with ] and slower with [, by a factor of 1.5 per press.

@@ -21,11 +21,14 @@ type Options struct {
 	Benchmark     int         // frames to measure before printing times and exiting; 0 = explore
 	NoVsync       bool        // draw as fast as possible instead of waiting for the display
 	LookAt        *[2]float32 // point (x, z) the view starts centred on, and where walking starts; nil = the scene centre
+	Heading       float64     // walking: degrees clockwise from north (-z) the walker starts facing; NaN keeps the default
+	Pitch         float64     // walking: degrees the walker starts looking up (negative = down)
+	EyeHeight     float64     // walking: eye height in scene units; 0 keeps the default (a share of the scene size)
 }
 
 // DefaultOptions returns a 1280×800 window with the scene's own sun.
 func DefaultOptions() Options {
-	return Options{Width: 1280, Height: 800, SunElevation: math.NaN(), SunAzimuth: math.NaN(), Zoom: 1}
+	return Options{Width: 1280, Height: 800, SunElevation: math.NaN(), SunAzimuth: math.NaN(), Zoom: 1, Heading: math.NaN()}
 }
 
 // RegisterFlags declares the viewer options as command-line flags, starting from the defaults.
@@ -43,10 +46,13 @@ func (options *Options) RegisterFlags(flags *flag.FlagSet) {
 	flags.BoolVar(&options.NoVsync, "no-vsync", false, "do not wait for the display: the title shows the real frames per second")
 	flags.Var(pointFlag{&options.LookAt}, "look-at", "start centred on this point, \"x,z\" in scene units (with -walk, start walking there)")
 	flags.Float64Var(&options.Zoom, "zoom", defaults.Zoom, "initial orbit distance as a fraction of the default (0.1 = ten times closer)")
+	flags.Float64Var(&options.Heading, "heading", defaults.Heading, "with -walk, start facing this way: degrees clockwise from north (-z)")
+	flags.Float64Var(&options.Pitch, "pitch", defaults.Pitch, "with -walk, start looking up this many degrees (negative = down)")
+	flags.Float64Var(&options.EyeHeight, "eye-height", defaults.EyeHeight, "with -walk, eye height in scene units (0 = a share of the scene size)")
 }
 
 // Usage lists the viewer flags for a usage line.
-const Usage = "[-width W] [-height H] [-capture frame.png] [-walk] [-no-shadows] [-night] [-sun-elevation D] [-sun-azimuth D] [-zoom F] [-benchmark N] [-no-vsync] [-look-at x,z]"
+const Usage = "[-width W] [-height H] [-capture frame.png] [-walk] [-no-shadows] [-night] [-sun-elevation D] [-sun-azimuth D] [-zoom F] [-benchmark N] [-no-vsync] [-look-at x,z] [-heading D] [-pitch D] [-eye-height H]"
 
 // pointFlag reads a point "x,z" from the command line.
 type pointFlag struct {
