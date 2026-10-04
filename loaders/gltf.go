@@ -126,7 +126,9 @@ type gltfFile struct {
 //     verticalScale, sky (see applySky); water.variation (see applyLevelVariation)
 //   - scene extras "environment" also: wind {direction, strength}
 //   - material extras "kind": "lit" | "unlit" | "water" | "waterfall" | "glow"; "sway": bending in the wind;
-//     "pattern": cobbles | masonry | plaster | shingles | planks | grass, with "patternScale" (world units)
+//     "pattern": cobbles | masonry | plaster | shingles | planks | grass, with "patternScale" (world units);
+//     "foliage": true (takes the environment's foliageTint)
+//   - scene extras "environment" also: snow {level, blend, color}, foliageTint [r, g, b, amount]
 //   - mesh, primitive or node extras "ground": true (walkable surface)
 //   - mesh extras "detail": [{"mesh": index, "screenSize": fraction}, ...] simpler versions, finer first
 func LoadScene(path string) (*scene.Scene, error) {
@@ -331,6 +333,7 @@ func (file *gltfFile) buildMaterials() []*scene.Material {
 			Sway:        extraNumber(definition.Extras, "sway", 0),
 			DepthBias:   extraNumber(definition.Extras, "depthBias", 0),
 		}
+		materials[materialNumber].Foliage = definition.Extras["foliage"] == true
 		if name, named := definition.Extras["pattern"].(string); named {
 			materials[materialNumber].Pattern = scene.PatternNamed(name)
 			materials[materialNumber].PatternScale = extraNumber(definition.Extras, "patternScale", 0)
@@ -602,6 +605,11 @@ func applyEnvironment(environment *scene.Environment, extras map[string]any) {
 	if water, found := extras["water"].(map[string]any); found {
 		environment.Water = waterFromExtras(water)
 	}
+	if snow, found := extras["snow"].(map[string]any); found {
+		environment.Snow = &scene.Snow{Level: extraNumber(snow, "level", 0), Blend: extraNumber(snow, "blend", 0),
+			Color: extraVector(snow, "color", graphics.Vec4{0.92, 0.94, 0.97, 1})}
+	}
+	environment.FoliageTint = extraVector(extras, "foliageTint", environment.FoliageTint)
 	if wind, found := extras["wind"].(map[string]any); found {
 		environment.Wind.Direction = extraVector(wind, "direction", environment.Wind.Direction).Normalize()
 		environment.Wind.Strength = extraNumber(wind, "strength", environment.Wind.Strength)

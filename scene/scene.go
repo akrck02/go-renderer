@@ -58,6 +58,7 @@ type Material struct {
 	// lying on terrain (rivers, roads) stay visible over the terrain's simpler far versions; 0 = none
 	Pattern      Pattern // procedural surface pattern of lit and glowing materials
 	PatternScale float32 // size of one pattern cell (a stone, a course, a shingle) in world units
+	Foliage      bool    // takes the environment's FoliageTint (leaves that change with the seasons)
 }
 
 // Mesh is triangle geometry. Positions and normals are xyz triples, colors rgba quads (linear).
@@ -193,6 +194,15 @@ type Environment struct {
 	VerticalScale float32 // vertical exaggeration applied to the whole scene (0 = 1)
 	Sky           *Sky    // sky over the day and night (nil = DefaultSky)
 	Wind          Wind
+	Snow          *Snow         // snow on the ground above a height (nil = none)
+	FoliageTint   graphics.Vec4 // colour foliage materials take (alpha = how much; zero = none): the season's
+}
+
+// Snow covers the lit surfaces that face up above a height, blending over a band.
+type Snow struct {
+	Level float32       // world units, before vertical scaling
+	Blend float32       // world units over which the snow fades in
+	Color graphics.Vec4 // linear
 }
 
 // Wind moves clouds and bends plants (materials with Sway).

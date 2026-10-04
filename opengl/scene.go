@@ -284,9 +284,23 @@ func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, l
 	program.setFloat("brightness", light.Brightness)
 	setWind(program, environment.Wind)
 	gl.Uniform2f(program.location("fogRange"), environment.FogNear, environment.FogFar)
+	setSeason(program, environment)
 	program.setVector3("cameraPosition", camera.Position)
 	program.setFloat("time", float32(seconds))
 	program.setFloat("waveLength", waveLengthFor(environment.Water))
+}
+
+// setSeason sets the snow and the colour of the foliage.
+func setSeason(program *shaderProgram, environment scene.Environment) {
+	program.setVector4("foliageTint", environment.FoliageTint)
+	if environment.Snow == nil {
+		program.setInteger("snowEnabled", 0)
+		return
+	}
+	program.setInteger("snowEnabled", 1)
+	program.setFloat("snowLevel", environment.Snow.Level)
+	program.setFloat("snowBlend", max(environment.Snow.Blend, 1e-6))
+	program.setVector3("snowColor", environment.Snow.Color)
 }
 
 func waveLengthFor(water *scene.Water) float32 {
@@ -390,6 +404,7 @@ func (renderer *SceneRenderer) drawNode(command drawCommand, view viewpoint) {
 	program.setVector4("baseColor", baseColor)
 	program.setInteger("kind", int32(command.material.Kind))
 	program.setInteger("pattern", int32(command.material.Pattern))
+	program.setInteger("foliage", boolToInteger(command.material.Foliage))
 	program.setFloat("patternScale", command.material.PatternScale)
 	program.setInteger("levelVariationEnabled", boolToInteger(command.seaSurface && renderer.levelVariation.active))
 	program.setInteger("seaSurface", boolToInteger(command.seaSurface))
