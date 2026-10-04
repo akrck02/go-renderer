@@ -204,6 +204,72 @@ float planks(vec2 point) {
     return mix(0.6, (0.82 + 0.26 * hashOf(vec2(board, floor(point.x * 0.25 + hashOf(vec2(board, 3.0)))))) * grain, gap);
 }
 
+// patternHeight is the relief of a pattern (0 in the joints, up to 1 on a stone, a tile or a
+// board), which bends the light: rounded cobbles, sunken joints, overlapping tiles, board gaps.
+float patternHeight(vec2 point) {
+    if (pattern == 1) {
+        vec2 cell = floor(point);
+        float nearest = 8.0, second = 8.0;
+        for (int column = -1; column <= 1; column++) {
+            for (int row = -1; row <= 1; row++) {
+                vec2 neighbour = cell + vec2(float(column), float(row));
+                float gap = length(neighbour + 0.15 + 0.7 * hashOf2(neighbour) - point);
+                if (gap < nearest) { second = nearest; nearest = gap; }
+                else if (gap < second) { second = gap; }
+            }
+        }
+        float edge = smoothstep(0.0, 0.35, second - nearest);
+        return sqrt(edge) * (1.0 - 0.35 * nearest * nearest);
+    }
+    if (pattern == 2) {
+        float course = floor(point.y);
+        float along = point.x * 0.5 + 0.5 * mod(course, 2.0);
+        return smoothstep(0.0, 0.08, fract(point.y)) * smoothstep(1.0, 0.92, fract(point.y))
+             * smoothstep(0.0, 0.04, fract(along)) * smoothstep(1.0, 0.96, fract(along))
+             * (0.85 + 0.15 * valueNoise(point * 3.0));
+    }
+    if (pattern == 4) {
+        float along = point.x * 1.4 + 0.5 * mod(floor(point.y), 2.0);
+        return fract(point.y) * smoothstep(0.0, 0.06, fract(along)) * smoothstep(1.0, 0.94, fract(along));
+    }
+    if (pattern == 5) return smoothstep(0.0, 0.06, fract(point.y)) * smoothstep(1.0, 0.94, fract(point.y));
+    if (pattern == 3 || pattern == 6) return valueNoise(point * 3.0);
+    return 0.0;
+}
+
+// bumpStrength is how far each pattern's relief bends the normal.
+float bumpStrength() {
+    if (pattern == 1) return 0.55;
+    if (pattern == 2) return 0.35;
+    if (pattern == 4) return 0.45;
+    if (pattern == 5) return 0.25;
+    return 0.08;
+}
+
+// bumpedNormal bends a surface's normal by its pattern's relief, fading out with distance like the
+// pattern itself.
+vec3 bumpedNormal(vec3 normal) {
+    if (pattern == 0 || patternScale <= 0.0) return normal;
+    float cellsPerPixel = length(fwidth(worldPosition)) / patternScale;
+    float strength = (1.0 - smoothstep(0.15, 0.6, cellsPerPixel)) * bumpStrength();
+    if (strength <= 0.0) return normal;
+    vec2 point = surfaceCoordinates(normal);
+    const float step = 0.04;
+    float here = patternHeight(point);
+    float slopeU = (patternHeight(point + vec2(step, 0.0)) - here) / step;
+    float slopeV = (patternHeight(point + vec2(0.0, step)) - here) / step;
+    vec3 tangentU, tangentV;
+    if (abs(normal.y) > 0.92) {
+        tangentU = vec3(1.0, 0.0, 0.0);
+        tangentV = vec3(0.0, 0.0, 1.0);
+    } else {
+        vec2 across = normalize(vec2(-normal.z, normal.x) + vec2(1e-5, 0.0));
+        tangentU = vec3(across.x, 0.0, across.y);
+        tangentV = vec3(0.0, 1.0, 0.0);
+    }
+    return normalize(normal - strength * 0.1 * (slopeU * tangentU + slopeV * tangentV));
+}
+
 // patternFactor multiplies a surface's colour by the material's pattern, fading it out where a
 // cell covers less than about two pixels.
 float patternFactor(vec3 normal) {
@@ -225,9 +291,17 @@ float patternFactor(vec3 normal) {
 vec3 shadeLit(vec3 color) {
     vec3 normal = normalize(worldNormal);
     if (!gl_FrontFacing) normal = -normal;
-    float sunlight = max(dot(normal, normalize(sunDirection)), 0.0) * sunVisibility(normal);
-    vec3 skylight = mix(groundColor, skyColor, normal.y * 0.5 + 0.5) * ambient;
-    return color * (skylight + sunColor * sunlight);
+    vec3 surface = bumpedNormal(normal);
+    vec3 towardsSun = normalize(sunDirection);
+    float shadowed = sunVisibility(normal);
+    float sunlight = max(dot(surface, towardsSun), 0.0) * shadowed;
+    // the relief also hides light from the sky: joints and gaps are darker
+    float cavity = mix(1.0, 0.8 + 0.2 * max(dot(surface, normal), 0.0), step(0.5, float(pattern)));
+    vec3 skylight = mix(groundColor, skyColor, surface.y * 0.5 + 0.5) * ambient * cavity;
+    // a soft sheen on stone, tiles and wood under the sun
+    vec3 towardsCamera = normalize(cameraPosition - worldPosition);
+    float sheen = pattern > 0 ? pow(max(dot(normalize(towardsSun + towardsCamera), surface), 0.0), 24.0) * 0.12 * shadowed : 0.0;
+    return color * (skylight + sunColor * sunlight) + sunColor * sheen;
 }
 
 vec3 waterNormal() {
