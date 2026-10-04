@@ -19,6 +19,9 @@ type OpenGL struct {
 	window  *glfw.Window
 	frames  int
 	program uint32
+	// capturing keeps the last frame in the back buffer (no swap) so it can be read: after a swap
+	// the front buffer is undefined on some platforms (Wayland), and reading it gives an empty image
+	capturing bool
 }
 
 func (opengl *OpenGL) StartLoop(app *models.Application) error {
@@ -81,6 +84,10 @@ func (opengl *OpenGL) StartLoop(app *models.Application) error {
 		println("OpenGL does not support headless mode by default for now. Rendering frame with window spawn (slow).")
 
 		if err = opengl.renderSettledFrame(app, clock); err != nil {
+			return err
+		}
+		opengl.capturing = true
+		if err = opengl.Draw(app); err != nil {
 			return err
 		}
 		if err = opengl.DrawOnDisk(app, capturePath(app)); err != nil {
@@ -202,7 +209,7 @@ func (opengl *OpenGL) Draw(app *models.Application) error {
 		return err
 	}
 
-	if nil != opengl.window {
+	if nil != opengl.window && !opengl.capturing {
 		glfw.PollEvents()
 		opengl.window.SwapBuffers()
 	}
@@ -225,9 +232,10 @@ func (opengl *OpenGL) DrawOnDisk(app *models.Application, filePath string) error
 	// Ensure all OpenGL commands are finished before reading pixels
 	gl.Flush()
 
-	// By default glReadPixels reads from the BACK buffer.
-	// Since Draw() calls SwapBuffers(), the content is now in the FRONT buffer.
-	gl.ReadBuffer(gl.FRONT)
+	// The capture frame was drawn without swapping, so it is still in the back buffer of the
+	// default framebuffer.
+	gl.BindFramebuffer(gl.READ_FRAMEBUFFER, 0)
+	gl.ReadBuffer(gl.BACK)
 
 	// Ensure OpenGL isn't assuming any row padding
 	gl.PixelStorei(gl.PACK_ALIGNMENT, 1)
@@ -257,6 +265,10 @@ func (opengl *OpenGL) DrawOnDisk(app *models.Application, filePath string) error
 		goRow := (h - 1 - y) * stride
 
 		copy(img.Pix[goRow:goRow+stride], pixels[glRow:glRow+stride])
+	}
+	// the window's alpha is not the picture's: the frame is opaque
+	for index := 3; index < len(img.Pix); index += 4 {
+		img.Pix[index] = 255
 	}
 
 	// 4. Encode and save to disk
