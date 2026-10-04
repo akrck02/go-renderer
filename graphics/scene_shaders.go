@@ -111,6 +111,12 @@ uniform float waterColorDepth;
 uniform float shoreFadeDepth;      // the sea fades out over this depth at the shore, with a line of foam
 uniform int seaSurface;            // 1 for the environment's sea; rivers and lakes keep their own colour
 uniform int pattern;               // procedural surface pattern (scene.Pattern), 0 = none
+uniform int foliage;               // 1: the material takes the season's foliage tint
+uniform vec4 foliageTint;          // colour and amount (alpha) of the season's foliage
+uniform int snowEnabled;
+uniform float snowLevel;           // world units, before vertical scaling
+uniform float snowBlend;
+uniform vec3 snowColor;
 uniform float patternScale;        // world units per pattern cell
 out vec4 fragmentColor;
 
@@ -300,7 +306,17 @@ void main() {
     vec3 towardsCamera = normalize(cameraPosition - worldPosition);
     if (kind == 0 || kind == 4) {
         vec3 normal = normalize(worldNormal);
-        color.rgb *= patternFactor(gl_FrontFacing ? normal : -normal);
+        if (!gl_FrontFacing) normal = -normal;
+        color.rgb *= patternFactor(normal);
+        if (foliage == 1 && foliageTint.a > 0.0) {
+            float lightness = 0.6 + 0.8 * dot(color.rgb, vec3(0.333));
+            color.rgb = mix(color.rgb, foliageTint.rgb * lightness, foliageTint.a);
+        }
+        if (snowEnabled == 1) {
+            float height = worldPosition.y / max(verticalScale, 1e-6);
+            float covered = smoothstep(snowLevel - snowBlend, snowLevel + snowBlend, height) * smoothstep(0.45, 0.8, normal.y);
+            color.rgb = mix(color.rgb, snowColor, covered);
+        }
     }
     if (kind == 0) {
         color.rgb = shadeLit(color.rgb);
