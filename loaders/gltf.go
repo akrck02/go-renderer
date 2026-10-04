@@ -125,7 +125,8 @@ type gltfFile struct {
 //     ambient, fog {color, near, far}, water {level, deep, shallow, size, waveLength, floorDepth, colorDepth},
 //     verticalScale, sky (see applySky); water.variation (see applyLevelVariation)
 //   - scene extras "environment" also: wind {direction, strength}
-//   - material extras "kind": "lit" | "unlit" | "water" | "waterfall"; "sway": bending in the wind
+//   - material extras "kind": "lit" | "unlit" | "water" | "waterfall" | "glow"; "sway": bending in the wind;
+//     "pattern": cobbles | masonry | plaster | shingles | planks | grass, with "patternScale" (world units)
 //   - mesh, primitive or node extras "ground": true (walkable surface)
 //   - mesh extras "detail": [{"mesh": index, "screenSize": fraction}, ...] simpler versions, finer first
 func LoadScene(path string) (*scene.Scene, error) {
@@ -330,6 +331,10 @@ func (file *gltfFile) buildMaterials() []*scene.Material {
 			Sway:        extraNumber(definition.Extras, "sway", 0),
 			DepthBias:   extraNumber(definition.Extras, "depthBias", 0),
 		}
+		if name, named := definition.Extras["pattern"].(string); named {
+			materials[materialNumber].Pattern = scene.PatternNamed(name)
+			materials[materialNumber].PatternScale = extraNumber(definition.Extras, "patternScale", 0)
+		}
 	}
 	return materials
 }
@@ -342,6 +347,8 @@ func materialKindFromExtras(extras map[string]any) scene.MaterialKind {
 		return scene.KindWater
 	case "waterfall":
 		return scene.KindWaterfall
+	case "glow":
+		return scene.KindGlow
 	}
 	return scene.KindLit
 }

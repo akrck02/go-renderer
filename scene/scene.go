@@ -20,7 +20,31 @@ const (
 	KindUnlit                         // flat color (+ fog)
 	KindWater                         // animated water surface
 	KindWaterfall                     // animated, translucent falling water
+	KindGlow                          // lit by day; shines with its own colour in the dark (glowing flowers, lamps)
 )
+
+// Pattern is a procedural surface pattern that modulates a lit material's colour, computed from
+// the world position (no texture): stones, blocks, shingles… It fades out where its cells get too
+// small on screen.
+type Pattern int
+
+const (
+	PatternNone     Pattern = iota
+	PatternCobbles          // irregular paving stones with joints (horizontal surfaces)
+	PatternMasonry          // courses of stone blocks with mortar (walls)
+	PatternPlaster          // mottled render
+	PatternShingles         // overlapping rows of shingles or slates (roofs)
+	PatternPlanks           // wooden planks
+	PatternGrass            // mottled grass
+)
+
+// PatternNamed returns the pattern with a name (cobbles, masonry, plaster, shingles, planks,
+// grass); PatternNone for any other name.
+func PatternNamed(name string) Pattern {
+	patterns := map[string]Pattern{"cobbles": PatternCobbles, "masonry": PatternMasonry, "plaster": PatternPlaster,
+		"shingles": PatternShingles, "planks": PatternPlanks, "grass": PatternGrass}
+	return patterns[name]
+}
 
 // Material describes how a mesh is shaded.
 type Material struct {
@@ -32,6 +56,8 @@ type Material struct {
 	Sway        float32 // how much the wind bends the mesh (0 = rigid); for plants modelled with height 1
 	DepthBias   float32 // pulls the surface towards the camera by this share of its distance, so thin surfaces
 	// lying on terrain (rivers, roads) stay visible over the terrain's simpler far versions; 0 = none
+	Pattern      Pattern // procedural surface pattern of lit and glowing materials
+	PatternScale float32 // size of one pattern cell (a stone, a course, a shingle) in world units
 }
 
 // Mesh is triangle geometry. Positions and normals are xyz triples, colors rgba quads (linear).
