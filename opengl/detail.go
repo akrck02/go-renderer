@@ -40,6 +40,12 @@ type instancedDetail struct {
 	grid       *instanceGrid
 	mesh       *scene.Mesh
 	selections [passCount]*instanceSelection
+	// the cells' boxes in world units, for the world matrix and vertical scale they were made for:
+	// the same every frame unless the node moves or the relief's exaggeration changes
+	worldCells        []box
+	worldCellsFor     graphics.Mat4
+	worldCellsScale   float32
+	worldCellsLargest []float32
 }
 
 // instanceSelection holds the visible cells of one pass, grouped by level of detail, and one GPU
@@ -145,6 +151,7 @@ func (detail *instancedDetail) applyChanges(instances *scene.Instances, meshBoun
 			continue
 		}
 		cell := detail.grid.updateInstance(instances, instance, meshBounds)
+		detail.worldCells = nil // a cell's box may have changed
 		for _, selection := range detail.selections {
 			selection.uploadInstance(detail.grid, instance, cell)
 		}
@@ -172,13 +179,12 @@ func (selection *instanceSelection) uploadInstance(grid *instanceGrid, instance,
 func (selection *instanceSelection) choose(detail *instancedDetail, world graphics.Mat4, verticalScale float32, view viewpoint) {
 	levels := detail.mesh.LevelCount()
 	selection.resetLevels(levels)
-	worldScale := largestScale(world)
-	for index, cell := range detail.grid.cells {
-		cellBounds := cell.bounds.transformed(world, verticalScale).grown(cell.largest * worldScale * 0.05)
+	worldCells, largest := detail.cellsInWorld(world, verticalScale)
+	for index, cellBounds := range worldCells {
 		if !view.volume.containsBox(cellBounds) {
 			continue
 		}
-		apparent := view.apparentSize(cell.largest*worldScale, cellBounds.distanceTo(view.eye))
+		apparent := view.apparentSize(largest[index], cellBounds.distanceTo(view.eye))
 		level := coarserLevel(detail.mesh, detail.mesh.LevelForScreenSize(apparent), view.levelBias)
 		selection.cellsByLevel[level] = append(selection.cellsByLevel[level], index)
 	}
@@ -187,6 +193,23 @@ func (selection *instanceSelection) choose(detail *instancedDetail, world graphi
 			selection.upload(detail, level)
 		}
 	}
+}
+
+// cellsInWorld are the cells' boxes in world units (grown a little, as the instances sway) and the
+// size of their largest instance, made again only when the node moves or the exaggeration changes.
+func (detail *instancedDetail) cellsInWorld(world graphics.Mat4, verticalScale float32) ([]box, []float32) {
+	if detail.worldCells != nil && detail.worldCellsFor == world && detail.worldCellsScale == verticalScale {
+		return detail.worldCells, detail.worldCellsLargest
+	}
+	worldScale := largestScale(world)
+	detail.worldCells = make([]box, len(detail.grid.cells))
+	detail.worldCellsLargest = make([]float32, len(detail.grid.cells))
+	for index, cell := range detail.grid.cells {
+		detail.worldCells[index] = cell.bounds.transformed(world, verticalScale).grown(cell.largest * worldScale * 0.05)
+		detail.worldCellsLargest[index] = cell.largest * worldScale
+	}
+	detail.worldCellsFor, detail.worldCellsScale = world, verticalScale
+	return detail.worldCells, detail.worldCellsLargest
 }
 
 // resetLevels empties this frame's lists, keeping the previous choice to compare with.
