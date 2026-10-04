@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime/pprof"
 	"time"
 
 	"github.com/akrck02/go-renderer/loaders"
@@ -19,7 +20,16 @@ import (
 func main() {
 	options := viewer.DefaultOptions()
 	options.RegisterFlags(flag.CommandLine)
+	cpuProfile := flag.String("cpu-profile", "", "write a CPU profile of the session to this file (go tool pprof)")
 	flag.Parse()
+	if *cpuProfile != "" {
+		stop, err := startProfile(*cpuProfile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		defer stop()
+	}
 	if flag.NArg() != 1 {
 		fmt.Fprintln(os.Stderr, "usage: visor", viewer.Usage, "scene.glb")
 		os.Exit(2)
@@ -35,4 +45,17 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// startProfile records where the processor spends its time until the returned function is called.
+func startProfile(path string) (func(), error) {
+	file, err := os.Create(path)
+	if err != nil {
+		return nil, err
+	}
+	if err := pprof.StartCPUProfile(file); err != nil {
+		file.Close()
+		return nil, err
+	}
+	return func() { pprof.StopCPUProfile(); file.Close() }, nil
 }

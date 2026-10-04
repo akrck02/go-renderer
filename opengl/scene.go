@@ -201,6 +201,10 @@ func (renderer *SceneRenderer) recordStatistics(processorTime time.Duration) {
 	renderer.Statistics = statistics
 }
 
+// shadowLevelBias makes casters one level of detail coarser than what the camera sees: a shadow
+// shows an outline, and the shadow pass covers more than the view (what is behind the camera too).
+const shadowLevelBias = 1
+
 // renderShadows draws the shadow map for this frame when shadows are enabled.
 func (renderer *SceneRenderer) renderShadows(world *scene.Scene, camera models.Camera, commands []drawCommand, lightDirection graphics.Vec4, seconds float64, mainView viewpoint) (shadowRegion, error) {
 	if !renderer.Shadows.Enabled {
@@ -216,6 +220,7 @@ func (renderer *SceneRenderer) renderShadows(world *scene.Scene, camera models.C
 	region := fitShadowRegion(lightDirection, shadowCenter(camera, extent), extent, depthRange, renderer.shadow.resolution)
 	shadowView := mainView
 	shadowView.volume = frustumFromMatrix(region.lightViewProjection())
+	shadowView.levelBias += shadowLevelBias
 	drawCaster := func(program *shaderProgram, command drawCommand) {
 		renderer.drawGeometry(program, command, shadowView, shadowPass, &renderer.counters[shadowPass])
 	}
