@@ -75,7 +75,8 @@ void main() {
 }
 ` + "\x00"
 
-// SceneFragmentShader shades by material kind: 0 lit, 1 unlit, 2 water, 3 waterfall.
+// SceneFragmentShader shades by material kind: 0 lit, 1 unlit, 2 water, 3 waterfall, 4 glow; lit and
+// glowing materials can carry a procedural surface pattern (see scene.Pattern).
 const SceneFragmentShader = `
 #version 410
 in vec3 worldPosition;
@@ -109,6 +110,8 @@ uniform vec4 waterShallowColor;
 uniform float waterColorDepth;
 uniform float shoreFadeDepth;      // the sea fades out over this depth at the shore, with a line of foam
 uniform int seaSurface;            // 1 for the environment's sea; rivers and lakes keep their own colour
+uniform int pattern;               // procedural surface pattern (scene.Pattern), 0 = none
+uniform float patternScale;        // world units per pattern cell
 out vec4 fragmentColor;
 
 float pseudoRandom(float seed) { return fract(sin(seed * 91.7) * 437.5); }
@@ -133,6 +136,84 @@ float sunVisibility(vec3 normal) {
         }
     }
     return mix(1.0, visible / 9.0, shadowRegionFade(coordinates.xy));
+}
+
+float hashOf(vec2 cell) { return fract(sin(dot(cell, vec2(127.1, 311.7))) * 43758.5453); }
+vec2 hashOf2(vec2 cell) { return fract(sin(vec2(dot(cell, vec2(127.1, 311.7)), dot(cell, vec2(269.5, 183.3)))) * 43758.5453); }
+
+float valueNoise(vec2 point) {
+    vec2 cell = floor(point), inside = fract(point);
+    vec2 eased = inside * inside * (3.0 - 2.0 * inside);
+    return mix(mix(hashOf(cell), hashOf(cell + vec2(1.0, 0.0)), eased.x),
+               mix(hashOf(cell + vec2(0.0, 1.0)), hashOf(cell + vec2(1.0, 1.0)), eased.x), eased.y);
+}
+
+// surfaceCoordinates are pattern coordinates on the surface: x and z on flat ground; along the
+// wall and up on walls; along the slope's contour and down the slope on roofs.
+vec2 surfaceCoordinates(vec3 normal) {
+    vec3 position = worldPosition / patternScale;
+    if (abs(normal.y) > 0.92) return position.xz;
+    vec2 across = normalize(vec2(-normal.z, normal.x) + vec2(1e-5, 0.0));
+    return vec2(dot(position.xz, across), position.y);
+}
+
+float cobbles(vec2 point) {
+    vec2 cell = floor(point);
+    float nearest = 8.0, second = 8.0;
+    vec2 nearestCell = cell;
+    for (int column = -1; column <= 1; column++) {
+        for (int row = -1; row <= 1; row++) {
+            vec2 neighbour = cell + vec2(float(column), float(row));
+            float gap = length(neighbour + 0.15 + 0.7 * hashOf2(neighbour) - point);
+            if (gap < nearest) { second = nearest; nearest = gap; nearestCell = neighbour; }
+            else if (gap < second) { second = gap; }
+        }
+    }
+    float joint = smoothstep(0.03, 0.12, second - nearest);
+    return mix(0.55, 0.82 + 0.3 * hashOf(nearestCell), joint) * (1.0 - 0.12 * nearest);
+}
+
+float masonry(vec2 point) {
+    float course = floor(point.y);
+    float along = point.x * 0.5 + 0.5 * mod(course, 2.0);
+    vec2 block = vec2(floor(along), course);
+    float joint = smoothstep(0.0, 0.06, fract(point.y)) * smoothstep(1.0, 0.94, fract(point.y))
+                * smoothstep(0.0, 0.03, fract(along)) * smoothstep(1.0, 0.97, fract(along));
+    return mix(0.62, 0.84 + 0.26 * hashOf(block) + 0.06 * valueNoise(point * 4.0), joint);
+}
+
+float shingles(vec2 point) {
+    float row = floor(point.y);
+    float along = point.x * 1.4 + 0.5 * mod(row, 2.0);
+    float tone = 0.8 + 0.3 * hashOf(vec2(floor(along), row));
+    float overlap = 0.72 + 0.28 * fract(point.y);
+    float gap = smoothstep(0.0, 0.05, fract(along)) * smoothstep(1.0, 0.95, fract(along));
+    return tone * overlap * mix(0.7, 1.0, gap);
+}
+
+float planks(vec2 point) {
+    float board = floor(point.y);
+    float gap = smoothstep(0.0, 0.05, fract(point.y)) * smoothstep(1.0, 0.95, fract(point.y));
+    float grain = 0.94 + 0.08 * valueNoise(vec2(point.x * 0.6, point.y * 9.0));
+    return mix(0.6, (0.82 + 0.26 * hashOf(vec2(board, floor(point.x * 0.25 + hashOf(vec2(board, 3.0)))))) * grain, gap);
+}
+
+// patternFactor multiplies a surface's colour by the material's pattern, fading it out where a
+// cell covers less than about two pixels.
+float patternFactor(vec3 normal) {
+    if (pattern == 0 || patternScale <= 0.0) return 1.0;
+    float cellsPerPixel = length(fwidth(worldPosition)) / patternScale;
+    float strength = 1.0 - smoothstep(0.25, 0.8, cellsPerPixel);
+    if (strength <= 0.0) return 1.0;
+    vec2 point = surfaceCoordinates(normal);
+    float factor = 1.0;
+    if (pattern == 1) factor = cobbles(point);
+    else if (pattern == 2) factor = masonry(point);
+    else if (pattern == 3) factor = 0.9 + 0.1 * valueNoise(point * 0.8) + 0.06 * valueNoise(point * 7.0);
+    else if (pattern == 4) factor = shingles(point);
+    else if (pattern == 5) factor = planks(point);
+    else if (pattern == 6) factor = 0.82 + 0.2 * valueNoise(point * 0.7) + 0.1 * valueNoise(point * 5.0);
+    return mix(1.0, factor, strength);
 }
 
 vec3 shadeLit(vec3 color) {
@@ -217,8 +298,15 @@ float waterfallOpacity(float baseOpacity) {
 void main() {
     vec4 color = surfaceColor * baseColor;
     vec3 towardsCamera = normalize(cameraPosition - worldPosition);
+    if (kind == 0 || kind == 4) {
+        vec3 normal = normalize(worldNormal);
+        color.rgb *= patternFactor(gl_FrontFacing ? normal : -normal);
+    }
     if (kind == 0) {
         color.rgb = shadeLit(color.rgb);
+    } else if (kind == 4) {
+        // glows: lit by day, its own colour in the dark
+        color.rgb = max(shadeLit(color.rgb), color.rgb * (1.0 - brightness) * 1.4);
     } else if (kind == 2) {
         color = shadeWater(color, towardsCamera);
     } else if (kind == 3) {

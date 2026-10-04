@@ -389,6 +389,8 @@ func (renderer *SceneRenderer) drawNode(command drawCommand, view viewpoint) {
 	}
 	program.setVector4("baseColor", baseColor)
 	program.setInteger("kind", int32(command.material.Kind))
+	program.setInteger("pattern", int32(command.material.Pattern))
+	program.setFloat("patternScale", command.material.PatternScale)
 	program.setInteger("levelVariationEnabled", boolToInteger(command.seaSurface && renderer.levelVariation.active))
 	program.setInteger("seaSurface", boolToInteger(command.seaSurface))
 	renderer.drawGeometry(program, command, view, mainPass, &renderer.counters[mainPass])
