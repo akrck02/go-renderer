@@ -41,7 +41,7 @@ I write most of my code by hand, so I want to be clear about where AI was used h
   instancing, levels of detail), `camera`, `input`, `viewer`, `cmd/visor` and the documentation in
   `docs/`. It also extended `graphics`, `loaders` and `models`.
 
-Commits made with AI carry a `Co-Authored-By: Claude` line (29 of the 49 commits on this branch).
+Commits made with AI carry a `Co-Authored-By: Claude` line (32 of the 52 commits on this branch).
 
 **Status: pending thorough review.** The code compiles and its tests pass, but I have not yet
 reviewed it line by line. Treat it as a working draft, not as code I vouch for.
