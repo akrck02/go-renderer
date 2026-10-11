@@ -32,3 +32,5 @@ func (SoftwareRenderer) Render3dObject(space graphics.CoordinateSpace, vertices 
 func (SoftwareRenderer) Render3dModel(space graphics.CoordinateSpace, model *models.Model, shader *string) error {
 	return errors.New("Graphics API not implemented yet!")
 }
+
+func (SoftwareRenderer) SetMatrices(projection, view, model graphics.Mat4) {}

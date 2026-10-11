@@ -1,27 +1,47 @@
 # Go Renderer
 
-This is a tiny, educational graphics renderer built in Go. The core goal of this project is to explore and implement complex graphics pipelines from scratch, while exposing a clean, simple contract (API) for building applications on top.
+> **Note:** parts of this project (the scene renderer, the viewer and the docs) were written with an AI assistant and are pending thorough review. See the [AI disclosure](#ai-disclosure).
 
-> ⚠️ **Warning:** This software is an educational experiment and is absolutely **not suitable for production use**. APIs will break, performance is unoptimized, and errors are highly probable.
+A tiny, educational graphics renderer built in Go. The goal is to explore and implement graphics
+pipelines from scratch while exposing a clean, simple API for building applications on top: draw
+shapes every frame, or load a whole glTF scene (terrain, forests, towns, sea and sky) and explore
+it in a viewer.
 
-##  Project Goals
-* **Understand the Pipeline:** Deep-dive into vertex processing, clipping, rasterization, and fragment shading.
-* **Clean Abstraction:** Create an intuitive, idiomatic Go API that hides backend rendering complexity from the application developer.
-* **Minimal depencies:** Build core math and rendering concepts with minimal dependencies to fully understand the underlying mechanics.
+> ⚠️ **Warning:** This software is an educational experiment and is **not suitable for production
+> use**. APIs will break and errors are likely.
 
-## Roadmap
-This are the goals for the next versions of the library. The feature implementation order can change.
+```bash
+go run ./cmd/visor scene.glb          # explore a scene: drag to orbit, Tab to walk, M for a 2D map
+go run ./cmd/visor -walk -night scene.glb
+```
 
-### v1.0.0 Prototype
-* Local space, world space and viewport space coordinate transformations.
-* Render of 2D objects on world space
-* Render of 2D objects on viewport space
-* Render of 3D objects on world space
-* Render of 3D objects on viewport space
-* Camera movement
-* Input bindings
+## Goals
 
-### v2.0.0 Support expansion
-* Metal support (Apple silicon)
-* Vulkan support
-* WebGPU support
+* **Understand the pipeline:** vertex processing, clipping, rasterization and fragment shading.
+* **Clean abstraction:** an idiomatic Go API that hides backend complexity from the application.
+* **Minimal dependencies:** core maths and rendering concepts built by hand, to understand them.
+
+## Documentation
+
+Everything is in [docs/](docs/README.md): [architecture](docs/architecture.md),
+[the viewer](docs/viewer.md), [glTF extras](docs/gltf-extras.md),
+[optimization plan](docs/optimization-plan.md) and [roadmap](docs/roadmap.md).
+
+Simulations (moving things, weather, growing towns) live in the sibling project
+[go-simulator](https://github.com/akrck02/go-simulator), which changes the scene while the viewer shows it.
+
+## AI disclosure
+
+I write most of my code by hand, so I want to be clear about where AI was used here.
+
+- **Hand-written (May 2026):** the immediate-mode `Renderer` contract, the `software`, `vulkan`,
+  `metal` and `webgpu` backends, the `graphics` maths and the first OpenGL work.
+- **Written by an AI assistant (Claude, by Anthropic) under my direction, since September 2026:**
+  the retained scene (`scene`), the glTF loader, the OpenGL scene renderer (sky, shadows, water,
+  instancing, levels of detail), `camera`, `input`, `viewer`, `cmd/visor` and the documentation in
+  `docs/`. It also extended `graphics`, `loaders` and `models`.
+
+Commits made with AI carry a `Co-Authored-By: Claude` line.
+
+**Status: pending thorough review.** The code compiles and its tests pass, but I have not yet
+reviewed it line by line. Treat it as a working draft, not as code I vouch for.
