@@ -20,6 +20,9 @@ func InitWindow(app *models.Application) *glfw.Window {
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
 	glfw.WindowHint(glfw.CocoaRetinaFramebuffer, glfw.True)
+	if app.Type == models.HeadlessApplication {
+		glfw.WindowHint(glfw.Visible, glfw.False)
+	}
 
 	window, err := glfw.CreateWindow(
 		app.Width,
@@ -33,9 +36,14 @@ func InitWindow(app *models.Application) *glfw.Window {
 		panic(err)
 	}
 
-	window.SetAspectRatio(app.Width, app.Height)
+	if app.Input == nil {
+		window.SetAspectRatio(app.Width, app.Height)
+	}
 
 	window.MakeContextCurrent()
+	if app.DisableVsync {
+		glfw.SwapInterval(0)
+	}
 	window.SetFramebufferSizeCallback(func(w *glfw.Window, width, height int) {
 		gl.Viewport(0, 0, int32(width), int32(height))
 	})
