@@ -26,4 +26,4 @@ Everything is in [docs/](docs/README.md): [architecture](docs/architecture.md),
 [optimization plan](docs/optimization-plan.md) and [roadmap](docs/roadmap.md).
 
 Simulations (moving things, weather, growing towns) live in the sibling project
-[go-simulator](https://github.com/akrck02/go-3d-simulator), which changes the scene while the viewer shows it.
+[go-simulator](https://github.com/akrck02/go-simulator), which changes the scene while the viewer shows it.
