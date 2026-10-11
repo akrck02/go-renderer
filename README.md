@@ -11,7 +11,7 @@ it in a viewer.
 > use**. APIs will break and errors are likely.
 
 ```bash
-go run ./cmd/visor scene.glb          # explore a scene: drag to orbit, Tab to walk
+go run ./cmd/visor scene.glb          # explore a scene: drag to orbit, Tab to walk, M for a 2D map
 go run ./cmd/visor -walk -night scene.glb
 ```
 

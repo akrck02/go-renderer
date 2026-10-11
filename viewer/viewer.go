@@ -6,7 +6,9 @@
 // Controls: left drag rotates, right drag pans, scroll zooms (orbit camera). Tab switches to
 // walking on the ground: WASD or arrows move, mouse looks, shift runs, [ and ] change the walking
 // speed. J/L turn the sun, I/K raise or lower it (below the horizon it is night), N jumps between
-// day and night, Z/X change the vertical exaggeration, F toggles fog, O toggles shadows.
+// day and night, Z/X change the vertical exaggeration, F toggles fog, O toggles shadows. M switches
+// to a map: the ground from straight above without perspective, then an isometric view, then back;
+// on the map any drag moves it, scroll zooms and Q/E turn it a quarter.
 package viewer
 
 import (
@@ -31,6 +33,9 @@ type viewer struct {
 	orbit          *camera.Orbit
 	walk           *camera.Walk
 	walking        bool
+	plan           *camera.Plan
+	planning       bool       // showing the map (top or isometric view) instead of the orbit
+	fogBeforePlan  [2]float32 // fog near and far to restore when leaving the map
 	sceneSize      float32
 	sunAzimuth     float64
 	sunElevation   float64
@@ -59,9 +64,14 @@ func Run(world *scene.Scene, options Options, title string, update UpdateFunc, l
 	if options.LookAt != nil {
 		session.orbit.Target[0], session.orbit.Target[2] = options.LookAt[0], options.LookAt[1]
 	}
+	session.plan.Target = session.orbit.Target
 	if options.StartWalking {
 		session.toggleWalking()
 		session.placeWalker(options)
+	}
+	if options.StartMap || options.Isometric {
+		session.enterPlan(options.Isometric)
+		session.plan.Span *= zoomOrOne(options.Zoom)
 	}
 	session.update = update
 	session.shadowsEnabled = !options.NoShadows
@@ -118,6 +128,7 @@ func newViewer(world *scene.Scene, startWalking bool) *viewer {
 	session.dayElevation = math.Max(session.sunElevation, 0.3)
 	session.orbit = newOrbitFor(world, center, size)
 	session.walk = newWalkFor(world, center, size)
+	session.plan = newPlanFor(world, center, size)
 	if startWalking {
 		session.toggleWalking()
 	}
@@ -129,6 +140,12 @@ func newOrbitFor(world *scene.Scene, center graphics.Vec4, size float32) *camera
 	orbit.MaximumDistance = float64(size) * 3
 	orbit.Ground = world.GroundHeight
 	return orbit
+}
+
+func newPlanFor(world *scene.Scene, center graphics.Vec4, size float32) *camera.Plan {
+	plan := camera.NewPlan(center, float64(size)*1.05)
+	plan.Ground = world.GroundHeight
+	return plan
 }
 
 func newWalkFor(world *scene.Scene, center graphics.Vec4, size float32) *camera.Walk {
@@ -161,6 +178,12 @@ func (session *viewer) advance(app *models.Application, seconds float64) error {
 	}
 	session.handleShortcuts(state, seconds)
 	session.syncVerticalScale()
+	if session.planning {
+		session.plan.Update(state, seconds, &app.Camera)
+		return nil
+	}
+	app.Camera.OrthographicHeight = 0
+	app.Camera.Far = session.sceneSize * 12
 	if session.walking {
 		session.walk.Update(state, seconds, &app.Camera)
 		app.Camera.Near = session.walk.EyeHeight * 0.1
@@ -173,7 +196,11 @@ func (session *viewer) advance(app *models.Application, seconds float64) error {
 
 func (session *viewer) handleShortcuts(state *input.State, seconds float64) {
 	if state.Pressed(input.KeyTab) {
+		session.leavePlan()
 		session.toggleWalking()
+	}
+	if state.Pressed(input.KeyM) {
+		session.switchMapView()
 	}
 	if state.Pressed(input.KeyF) {
 		session.toggleFog()
@@ -201,6 +228,49 @@ func (session *viewer) toggleWalking() {
 	environment.VerticalScale = 1
 	session.walk.X, session.walk.Z = session.orbit.Target[0], session.orbit.Target[2]
 	session.walk.Yaw = math.Pi - session.orbit.Yaw
+}
+
+// switchMapView goes from the orbit (or walking) to the map seen from straight above, then to the
+// isometric view, then back to the orbit.
+func (session *viewer) switchMapView() {
+	switch {
+	case !session.planning:
+		if session.walking {
+			session.toggleWalking()
+		}
+		session.enterPlan(false)
+	case !session.plan.Isometric:
+		session.plan.Isometric = true
+	default:
+		session.leavePlan()
+	}
+}
+
+// enterPlan shows the map centred where the orbit looks. Fog is lifted: seen from high above
+// without perspective, it would hide the whole map.
+func (session *viewer) enterPlan(isometric bool) {
+	if session.planning {
+		session.plan.Isometric = isometric
+		return
+	}
+	environment := &session.world.Environment
+	session.planning, session.plan.Isometric = true, isometric
+	session.plan.Target = session.orbit.Target
+	session.fogBeforePlan = [2]float32{environment.FogNear, environment.FogFar}
+	environment.FogNear, environment.FogFar = 0, 0
+}
+
+// leavePlan goes back to the orbit, centred where the map was, with the fog it had.
+func (session *viewer) leavePlan() {
+	if !session.planning {
+		return
+	}
+	environment := &session.world.Environment
+	session.planning = false
+	session.orbit.Target[0], session.orbit.Target[2] = session.plan.Target[0], session.plan.Target[2]
+	if environment.FogFar == 0 {
+		environment.FogNear, environment.FogFar = session.fogBeforePlan[0], session.fogBeforePlan[1]
+	}
 }
 
 // placeWalker applies the walking options: where the walker faces, looks and how tall it is.
@@ -315,7 +385,7 @@ func (session *viewer) adjustVerticalScale(state *input.State, seconds float64) 
 // syncVerticalScale tells the controllers the current exaggeration so they follow the drawn ground.
 func (session *viewer) syncVerticalScale() {
 	scale := session.world.Environment.EffectiveVerticalScale()
-	session.orbit.VerticalScale, session.walk.VerticalScale = scale, scale
+	session.orbit.VerticalScale, session.walk.VerticalScale, session.plan.VerticalScale = scale, scale, scale
 }
 
 // sunDirectionFromAngles converts azimuth (from north, clockwise, radians) and elevation to a

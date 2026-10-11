@@ -150,8 +150,7 @@ func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, wi
 	matrices := computeCameraMatrices(camera, width, height)
 	light := world.Environment.Daylight()
 	renderer.startFrame(world)
-	fieldOfView, _, _ := camera.Projection()
-	mainView := newViewpoint(matrices.viewProjection, camera.Position, fieldOfView)
+	mainView := newViewpoint(matrices.viewProjection, camera)
 	commands := renderer.collectDrawCommands(world, camera)
 	sortOpaqueBeforeTransparent(commands)
 	renderer.measurePass("seabed", func() { renderer.seabed.update(world, commands) })
@@ -257,9 +256,8 @@ func (renderer *SceneRenderer) measureScene(world *scene.Scene) {
 }
 
 func computeCameraMatrices(camera models.Camera, width, height int) cameraMatrices {
-	fieldOfView, near, far := camera.Projection()
 	aspect := float64(width) / math.Max(float64(height), 1)
-	projection := graphics.PerspectiveOpenGL(fieldOfView, aspect, float64(near), float64(far))
+	projection := camera.ProjectionMatrix(aspect)
 	view := graphics.LookAt(camera.Position, camera.Target, camera.Up)
 	return cameraMatrices{projection: projection, view: view, viewProjection: projection.Multiply(view)}
 }

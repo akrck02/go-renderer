@@ -46,14 +46,26 @@ func (settings ShadowSettings) extent(camera models.Camera, sceneSize float32) f
 	if maximum <= 0 {
 		maximum = sceneSize * 0.75
 	}
-	cameraDistance := distance(camera.Position, camera.Target)
-	return clampFloat(cameraDistance*perDistance, minimum, float32(math.Max(float64(minimum), float64(maximum))))
+	reach := distance(camera.Position, camera.Target) * perDistance
+	if camera.IsOrthographic() {
+		// without perspective the camera stands far away whatever it shows: what counts is the
+		// ground on screen, about this wide on a wide window
+		reach = camera.OrthographicHeight * orthographicShadowReach
+	}
+	return clampFloat(reach, minimum, float32(math.Max(float64(minimum), float64(maximum))))
 }
+
+// orthographicShadowReach is the half-size of the shadow box, as a share of the height an
+// orthographic camera shows: enough for the corners of a 16:10 screen.
+const orthographicShadowReach = 0.95
 
 // shadowCenter places the shadowed region in front of the camera: half an extent ahead along the
 // view direction, or at the target when it is nearer. The region then covers what is closest to
 // the viewer, including the ground under a walking camera whose target is only a direction.
 func shadowCenter(camera models.Camera, extent float32) graphics.Vec4 {
+	if camera.IsOrthographic() {
+		return camera.Target // the middle of the screen
+	}
 	targetDistance := distance(camera.Position, camera.Target)
 	if targetDistance == 0 {
 		return camera.Target

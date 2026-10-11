@@ -188,8 +188,7 @@ func (opengl *OpenGL) Draw(app *models.Application) error {
 	}
 
 	// Update matrices
-	fieldOfView, near, far := app.Camera.Projection()
-	app.ProjectionMatrix = graphics.PerspectiveOpenGL(fieldOfView, float64(w)/float64(h), float64(near), float64(far))
+	app.ProjectionMatrix = app.Camera.ProjectionMatrix(float64(w) / float64(h))
 	app.ViewMatrix = graphics.LookAt(app.Camera.Position, app.Camera.Target, app.Camera.Up)
 	app.Renderer.SetMatrices(app.ProjectionMatrix, app.ViewMatrix, app.ModelMatrix)
 

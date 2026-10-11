@@ -19,6 +19,25 @@ type Camera struct {
 	FieldOfView float64 // vertical field of view in radians (0 = pi/4)
 	Near        float32 // near clipping plane (0 = 0.1)
 	Far         float32 // far clipping plane (0 = 1000)
+	// OrthographicHeight, when above 0, makes the camera orthographic: no perspective, and this
+	// many world units fit between the bottom and the top of the screen. Maps and isometric views
+	// use it; 0 keeps the perspective of FieldOfView.
+	OrthographicHeight float32
+}
+
+// IsOrthographic tells whether the camera has no perspective.
+func (camera Camera) IsOrthographic() bool { return camera.OrthographicHeight > 0 }
+
+// ProjectionMatrix returns the camera's projection for OpenGL, perspective or orthographic, for a
+// screen of this width over height.
+func (camera Camera) ProjectionMatrix(aspect float64) graphics.Mat4 {
+	fieldOfView, near, far := camera.Projection()
+	if !camera.IsOrthographic() {
+		return graphics.PerspectiveOpenGL(fieldOfView, aspect, float64(near), float64(far))
+	}
+	halfHeight := camera.OrthographicHeight / 2
+	halfWidth := halfHeight * float32(aspect)
+	return graphics.OrthographicOpenGL(-halfWidth, halfWidth, -halfHeight, halfHeight, near, far)
 }
 
 // Projection returns the camera frustum values, filling defaults for zero fields.

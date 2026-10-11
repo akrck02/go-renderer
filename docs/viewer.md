@@ -1,12 +1,14 @@
 # The viewer
 
 `cmd/visor` opens a glTF 2.0 scene (`.glb` or `.gltf`) and lets you explore it: fly around it like
-a bird, or walk on the ground at eye height; move the sun to see it at dawn or at night; take a
+a bird, walk on the ground at eye height, or look at it as a flat map; move the sun to see it at dawn or at night; take a
 picture or measure how fast it draws.
 
 ```bash
 go run ./cmd/visor scene.glb
 go run ./cmd/visor -walk scene.glb
+go run ./cmd/visor -map scene.glb                 # a 2D map seen from straight above
+go run ./cmd/visor -isometric scene.glb           # the same map, at the classic isometric angle
 go run ./cmd/visor -capture frame.png scene.glb   # one frame to PNG, hidden window
 go run ./cmd/visor -benchmark 120 scene.glb       # CPU and GPU times per pass, draw calls, triangles
 ```
@@ -33,7 +35,22 @@ go run ./cmd/visor -benchmark 120 scene.glb       # CPU and GPU times per pass, 
 | `Shift` | Run |
 | `[` `]` | Walk slower or faster (×1.5 per press) |
 
-## Sun, sky and scene (both modes)
+## Map (`M` switches)
+
+`M` goes round three views: the orbit camera, a map seen from straight above, and an isometric
+view, then back to the orbit. Both maps use an orthographic camera: nothing gets smaller with
+distance, so lengths and areas can be compared anywhere on screen, as on a printed map. Fog is
+lifted while a map is shown.
+
+| Control | Action |
+|---|---|
+| Drag with any mouse button | Move the map (the ground follows the cursor) |
+| `←` `→` `↑` `↓` | Move the map |
+| Scroll, `+` `-` | Zoom |
+| `Q` `E` | Turn a quarter (the top view starts with north up) |
+| `Tab` | Leave the map and walk |
+
+## Sun, sky and scene (all modes)
 
 | Key | Action |
 |---|---|
@@ -49,6 +66,8 @@ go run ./cmd/visor -benchmark 120 scene.glb       # CPU and GPU times per pass, 
 | Option | Effect |
 |---|---|
 | `-walk` | Start walking on the ground |
+| `-map` | Start with the map seen from above (`-zoom` and `-look-at` work too) |
+| `-isometric` | Start with the isometric map |
 | `-night` | Start at night |
 | `-sun-elevation D` / `-sun-azimuth D` | Place the sun (degrees; negative elevation is below the horizon; azimuth clockwise from north) |
 | `-zoom F` | Initial orbit distance as a fraction of the default (0.1 = ten times closer) |
