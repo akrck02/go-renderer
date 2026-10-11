@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/png"
 	"log"
+	"math"
 	"os"
 	"time"
 
@@ -18,6 +19,9 @@ type OpenGL struct {
 	window  *glfw.Window
 	frames  int
 	program uint32
+	// capturing keeps the last frame in the back buffer (no swap) so it can be read: after a swap
+	// the front buffer is undefined on some platforms (Wayland), and reading it gives an empty image
+	capturing bool
 }
 
 func (opengl *OpenGL) StartLoop(app *models.Application) error {
@@ -26,6 +30,22 @@ func (opengl *OpenGL) StartLoop(app *models.Application) error {
 	defer glfw.Terminate()
 	opengl.init()
 
+	// Initialize state
+	if app.Camera.Up == (graphics.Vec4{}) {
+		app.Camera.Up = graphics.Vec4{0, 1, 0, 0}
+	}
+	if app.ModelMatrix == (graphics.Mat4{}) {
+		app.ModelMatrix = graphics.Identity()
+	}
+
+	if app.Input != nil {
+		forwardInputEvents(opengl.window, app.Input)
+	} else {
+		setInputs(opengl, app)
+	}
+	clock := newFixedStepClock(app.FixedStep)
+	cursorLocked := false
+
 	last_frame_time := time.Now()
 	now := last_frame_time
 
@@ -33,11 +53,21 @@ func (opengl *OpenGL) StartLoop(app *models.Application) error {
 	switch app.Type {
 	case models.WindowApplication:
 
-		for !opengl.window.ShouldClose() {
+		for !opengl.window.ShouldClose() && !app.Stop {
+
+			if app.Input != nil {
+				updateWindowSizes(opengl.window, app.Input)
+			}
+			if err = clock.advance(app); err != nil {
+				return err
+			}
 
 			err = opengl.Draw(app)
 			if nil != err {
 				return err
+			}
+			if app.Input != nil {
+				applyCursorLock(opengl.window, app.Input, &cursorLocked)
 			}
 
 			opengl.frames++
@@ -53,12 +83,16 @@ func (opengl *OpenGL) StartLoop(app *models.Application) error {
 
 		println("OpenGL does not support headless mode by default for now. Rendering frame with window spawn (slow).")
 
-		err = opengl.Draw(app)
-		if nil != err {
+		if err = opengl.renderSettledFrame(app, clock); err != nil {
 			return err
 		}
-
-		opengl.DrawOnDisk(app, "frame.png")
+		opengl.capturing = true
+		if err = opengl.Draw(app); err != nil {
+			return err
+		}
+		if err = opengl.DrawOnDisk(app, capturePath(app)); err != nil {
+			return err
+		}
 
 		duration := time.Since(last_frame_time)
 		fmt.Printf("Frame generated in %d ms.\n", duration.Milliseconds())
@@ -67,7 +101,50 @@ func (opengl *OpenGL) StartLoop(app *models.Application) error {
 	return nil
 }
 
-// init initializes OpenGL and links an initialized program.
+func setInputs(opengl *OpenGL, app *models.Application) {
+	opengl.window.SetKeyCallback(func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+		if action == glfw.Press || action == glfw.Repeat {
+			speed := float32(0.1)
+			rotSpeed := float32(0.05)
+
+			// Get camera axes for relative movement/rotation
+			view := graphics.LookAt(app.Camera.Position, app.Camera.Target, app.Camera.Up)
+			right := graphics.Vec4{view[0], view[4], view[8], 0} // First row of View is Right in World Space
+			up := graphics.Vec4{view[1], view[5], view[9], 0}    // Second row of View is Up in World Space
+
+			switch key {
+			// Movement
+			case glfw.KeyUp:
+				app.Camera.Position[1] += speed
+				app.Camera.Target[1] += speed
+			case glfw.KeyDown:
+				app.Camera.Position[1] -= speed
+				app.Camera.Target[1] -= speed
+			case glfw.KeyLeft:
+				app.Camera.Position[0] -= speed
+				app.Camera.Target[0] -= speed
+			case glfw.KeyRight:
+				app.Camera.Position[0] += speed
+				app.Camera.Target[0] += speed
+
+			// Rotation (Model Axis) - Now relative to camera view
+			case glfw.KeyW:
+				rot := graphics.Rotate(right, float64(-rotSpeed))
+				app.ModelMatrix = rot.Multiply(app.ModelMatrix)
+			case glfw.KeyS:
+				rot := graphics.Rotate(right, float64(rotSpeed))
+				app.ModelMatrix = rot.Multiply(app.ModelMatrix)
+			case glfw.KeyA:
+				rot := graphics.Rotate(up, float64(-rotSpeed))
+				app.ModelMatrix = rot.Multiply(app.ModelMatrix)
+			case glfw.KeyD:
+				rot := graphics.Rotate(up, float64(rotSpeed))
+				app.ModelMatrix = rot.Multiply(app.ModelMatrix)
+			}
+		}
+	})
+}
+
 func (opengl *OpenGL) init() {
 
 	if err := gl.Init(); err != nil {
@@ -86,22 +163,34 @@ func (opengl *OpenGL) init() {
 		panic(err)
 	}
 
-	opengl.program = gl.CreateProgram()
-	gl.AttachShader(opengl.program, vertexShader)
-	gl.AttachShader(opengl.program, fragmentShader)
-	gl.LinkProgram(opengl.program)
+	opengl.program, err = LinkProgram(vertexShader, fragmentShader)
+	if err != nil {
+		panic(err)
+	}
 
 	gl.Enable(gl.DEPTH_TEST)
 	gl.DepthFunc(gl.LESS)
 }
 
+var firstFrame = true
+
 // Draw a frame into the display
 func (opengl *OpenGL) Draw(app *models.Application) error {
+
+	if firstFrame {
+		fmt.Println("OpenGL: Rendering first frame...")
+		firstFrame = false
+	}
 
 	w, h := app.Width, app.Height
 	if nil != opengl.window {
 		w, h = opengl.window.GetFramebufferSize()
 	}
+
+	// Update matrices
+	app.ProjectionMatrix = app.Camera.ProjectionMatrix(float64(w) / float64(h))
+	app.ViewMatrix = graphics.LookAt(app.Camera.Position, app.Camera.Target, app.Camera.Up)
+	app.Renderer.SetMatrices(app.ProjectionMatrix, app.ViewMatrix, app.ModelMatrix)
 
 	gl.Viewport(0, 0, int32(w), int32(h))
 
@@ -119,7 +208,7 @@ func (opengl *OpenGL) Draw(app *models.Application) error {
 		return err
 	}
 
-	if nil != opengl.window {
+	if nil != opengl.window && !opengl.capturing {
 		glfw.PollEvents()
 		opengl.window.SwapBuffers()
 	}
@@ -142,9 +231,10 @@ func (opengl *OpenGL) DrawOnDisk(app *models.Application, filePath string) error
 	// Ensure all OpenGL commands are finished before reading pixels
 	gl.Flush()
 
-	// By default glReadPixels reads from the BACK buffer.
-	// Since Draw() calls SwapBuffers(), the content is now in the FRONT buffer.
-	gl.ReadBuffer(gl.FRONT)
+	// The capture frame was drawn without swapping, so it is still in the back buffer of the
+	// default framebuffer.
+	gl.BindFramebuffer(gl.READ_FRAMEBUFFER, 0)
+	gl.ReadBuffer(gl.BACK)
 
 	// Ensure OpenGL isn't assuming any row padding
 	gl.PixelStorei(gl.PACK_ALIGNMENT, 1)
@@ -175,6 +265,10 @@ func (opengl *OpenGL) DrawOnDisk(app *models.Application, filePath string) error
 
 		copy(img.Pix[goRow:goRow+stride], pixels[glRow:glRow+stride])
 	}
+	// the window's alpha is not the picture's: the frame is opaque
+	for index := 3; index < len(img.Pix); index += 4 {
+		img.Pix[index] = 255
+	}
 
 	// 4. Encode and save to disk
 	file, err := os.Create(filePath)
@@ -184,4 +278,67 @@ func (opengl *OpenGL) DrawOnDisk(app *models.Application, filePath string) error
 	defer file.Close()
 
 	return png.Encode(file, img)
+}
+
+// fixedStepClock runs Application.Update at a fixed time step, independent of the frame rate,
+// so that simulations advance the same way on fast and slow machines.
+type fixedStepClock struct {
+	step        float64
+	previous    time.Time
+	accumulated float64
+}
+
+func newFixedStepClock(step float64) *fixedStepClock {
+	if step <= 0 {
+		step = 1.0 / 60
+	}
+	return &fixedStepClock{step: step, previous: time.Now()}
+}
+
+// advance runs as many update steps as the elapsed time requires (at most a quarter of a second
+// worth, so a stall does not trigger a long catch-up).
+func (clock *fixedStepClock) advance(app *models.Application) error {
+	elapsed := time.Since(clock.previous).Seconds()
+	clock.previous = time.Now()
+	clock.accumulated += math.Min(elapsed, 0.25)
+	for clock.accumulated >= clock.step {
+		if err := runUpdateStep(app, clock.step); err != nil {
+			return err
+		}
+		clock.accumulated -= clock.step
+	}
+	return nil
+}
+
+// runUpdateStep calls the application update once and clears the per-step input deltas.
+func runUpdateStep(app *models.Application, step float64) error {
+	if app.Update != nil {
+		if err := app.Update(app, step); err != nil {
+			return err
+		}
+	}
+	if app.Input != nil {
+		app.Input.EndFrame()
+	}
+	return nil
+}
+
+// renderSettledFrame draws a few frames so that every buffer is uploaded and the camera settled.
+func (opengl *OpenGL) renderSettledFrame(app *models.Application, clock *fixedStepClock) error {
+	for frame := 0; frame < 3; frame++ {
+		if err := runUpdateStep(app, clock.step); err != nil {
+			return err
+		}
+		if err := opengl.Draw(app); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func capturePath(app *models.Application) string {
+	if app.CapturePath == "" {
+		return "frame.png"
+	}
+	return app.CapturePath
 }
