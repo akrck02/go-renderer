@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/models"
 )
 
 // box is an axis-aligned box.
@@ -129,21 +130,29 @@ func pick(condition bool, whenTrue, whenFalse float32) float32 {
 type viewpoint struct {
 	volume      frustum
 	eye         graphics.Vec4
-	screenScale float32 // apparent size = world size × screenScale / distance
+	screenScale float32 // apparent size = world size × screenScale / distance (÷ 1 without perspective)
 	levelBias   int     // extra coarseness (the shadow pass uses simpler models)
+	// orthographic views have no perspective: things look the same size however far they are
+	orthographic bool
 }
 
-// newViewpoint builds the viewpoint of a camera with this vertical field of view.
-func newViewpoint(viewProjection graphics.Mat4, eye graphics.Vec4, fieldOfView float64) viewpoint {
-	return viewpoint{
-		volume:      frustumFromMatrix(viewProjection),
-		eye:         eye,
-		screenScale: float32(1 / (2 * math.Tan(fieldOfView/2))),
+// newViewpoint builds the viewpoint of a camera.
+func newViewpoint(viewProjection graphics.Mat4, camera models.Camera) viewpoint {
+	view := viewpoint{volume: frustumFromMatrix(viewProjection), eye: camera.Position}
+	if camera.IsOrthographic() {
+		view.orthographic, view.screenScale = true, 1/camera.OrthographicHeight
+		return view
 	}
+	fieldOfView, _, _ := camera.Projection()
+	view.screenScale = float32(1 / (2 * math.Tan(fieldOfView/2)))
+	return view
 }
 
 // apparentSize returns the fraction of the screen height taken by something of this size seen
 // from this distance.
 func (view viewpoint) apparentSize(size, distanceToEye float32) float32 {
+	if view.orthographic {
+		return size * view.screenScale
+	}
 	return size * view.screenScale / float32(math.Max(float64(distanceToEye), 1e-6))
 }

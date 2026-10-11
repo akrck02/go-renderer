@@ -13,6 +13,8 @@ type Options struct {
 	Width, Height int
 	CapturePath   string // render one frame to this PNG (hidden window) instead of exploring
 	StartWalking  bool
+	StartMap      bool // start on the map: the ground from straight above, without perspective
+	Isometric     bool // start on the map's isometric view
 	NoShadows     bool
 	Night         bool
 	SunElevation  float64     // degrees; NaN keeps the scene's sun
@@ -38,6 +40,8 @@ func (options *Options) RegisterFlags(flags *flag.FlagSet) {
 	flags.IntVar(&options.Height, "height", defaults.Height, "window height")
 	flags.StringVar(&options.CapturePath, "capture", "", "render one frame to this PNG and exit")
 	flags.BoolVar(&options.StartWalking, "walk", false, "start walking on the ground")
+	flags.BoolVar(&options.StartMap, "map", false, "start on the map: the ground from straight above, without perspective (M switches views)")
+	flags.BoolVar(&options.Isometric, "isometric", false, "start on the map's isometric view")
 	flags.BoolVar(&options.Night, "night", false, "start at night")
 	flags.Float64Var(&options.SunElevation, "sun-elevation", defaults.SunElevation, "sun elevation in degrees (negative = below the horizon)")
 	flags.Float64Var(&options.SunAzimuth, "sun-azimuth", defaults.SunAzimuth, "sun azimuth in degrees, clockwise from north")

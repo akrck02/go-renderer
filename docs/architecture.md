@@ -22,7 +22,7 @@ scene, and it shows the result.
 | `scene` | The retained, backend-independent scene |
 | `loaders` | glTF 2.0 loading, including the renderer's extras |
 | `input` | A backend-independent snapshot of keyboard and mouse state |
-| `camera` | Camera controllers: orbit and walk |
+| `camera` | Camera controllers: orbit, walk and map |
 | `viewer` | The interactive explorer behind `cmd/visor` |
 | `cmd/visor` | The viewer as a program |
 
@@ -101,7 +101,10 @@ flowchart LR
 ## Input, cameras and the viewer
 
 The window backend feeds `input` with a snapshot of the keyboard and the mouse. `camera.Orbit`
-(drag, pan, zoom) and `camera.Walk` (first person on the ground) turn it into a camera placement.
+(drag, pan, zoom), `camera.Walk` (first person on the ground) and `camera.Plan` (a flat map, from
+above or isometric) turn it into a camera placement. A camera with an `OrthographicHeight` is
+drawn without perspective: it shows that many scene units from the bottom to the top of the
+window, and shadows and levels of detail follow that size instead of the distance to the camera.
 The `viewer` package puts it all together: cameras, sun, fog, shadows, vertical exaggeration,
 headless captures and benchmarks. `viewer.Run` takes an optional update function called at every
 fixed step, so another program can change the scene while it is shown.
