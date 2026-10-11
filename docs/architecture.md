@@ -110,6 +110,6 @@ fixed step, so another program can change the scene while it is shown.
 
 The renderer draws the scene as it is and knows nothing about simulations. Moving things, wind
 gusts, drifting clouds, the day cycle or growing cities live in the sibling project
-[go-simulator](https://github.com/akrck02/go-3d-simulator), which changes the scene through `viewer.Run`. The renderer only
+[go-simulator](https://github.com/akrck02/go-simulator), which changes the scene through `viewer.Run`. The renderer only
 reads the state they leave: node transforms, `Environment.Wind`, `Sky.Clouds.Offset`, the sun
 direction, the snow line and the foliage tint.
