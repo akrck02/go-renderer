@@ -51,6 +51,9 @@ type viewer struct {
 	shadowsEnabled bool
 	benchmark      *benchmark
 	update         UpdateFunc
+	edit           EditFunc
+	lowest         float32 // the scene's lowest and highest true heights, for finding the ground
+	highest        float32
 	dayElevation   float64     // sun elevation to return to when leaving the night
 	fixedTime      float64     // seconds every frame is drawn at; NaN = the real time
 	shown          *drawnFrame // what the window shows, when drawing on demand
@@ -68,6 +71,29 @@ type UpdateFunc func(world *scene.Scene, state *input.State, step float64)
 // done). It must be called from the main goroutine. loadingTime only appears in benchmarks.
 func Run(world *scene.Scene, options Options, title string, update UpdateFunc, loadingTime time.Duration) error {
 	session := newViewer(world, false)
+	session.update = update
+	return session.run(options, title, loadingTime)
+}
+
+// EditFunc changes the scene in answer to the user, at every step the viewer runs, before the
+// viewer's own controls; view tells where the camera that drew the last frame was, so the program
+// can find what the pointer is on (View.PointOnPlane, View.PointOnGround).
+type EditFunc func(world *scene.Scene, state *input.State, step float64, view View)
+
+// Edit shows the scene like Run, for a program that edits it (a level editor, a floor plan
+// designer). Unlike a simulation it changes only when the user does something, so the viewer
+// still draws on demand: when input arrives, while a key is held or the camera moves, and when the
+// program asks for a frame with input.State.RequestFrame. A program that claims the mouse
+// (input.State.ClaimMouse) keeps it from the camera for that step. It must be called from the main
+// goroutine.
+func Edit(world *scene.Scene, options Options, title string, edit EditFunc) error {
+	session := newViewer(world, false)
+	session.edit = edit
+	return session.run(options, title, 0)
+}
+
+// run applies the options and shows the session until the window closes.
+func (session *viewer) run(options Options, title string, loadingTime time.Duration) error {
 	if options.LookAt != nil {
 		session.orbit.Target[0], session.orbit.Target[2] = options.LookAt[0], options.LookAt[1]
 	}
@@ -80,7 +106,6 @@ func Run(world *scene.Scene, options Options, title string, update UpdateFunc, l
 		session.enterPlan(options.Isometric)
 		session.plan.Span *= zoomOrOne(options.Zoom)
 	}
-	session.update = update
 	session.fixedTime = options.Time
 	session.shadowsEnabled = !options.NoShadows
 	session.orbit.Distance *= zoomOrOne(options.Zoom)
@@ -142,7 +167,8 @@ func newApplication(session *viewer, options Options, title string) *models.Appl
 	app.DisableVsync = options.Benchmark > 0 || options.NoVsync
 	// a still scene costs nothing while nobody touches it; a simulation or a benchmark draws on
 	app.DrawOnDemand = !options.Continuous && session.update == nil && options.Benchmark == 0
-	if app.DrawOnDemand {
+	if app.DrawOnDemand && session.edit == nil {
+		// an editor changes the scene and its own drawing, which the view state does not see
 		app.Unchanged = session.unchanged
 	}
 	session.configureFrustum(&app.Camera)
@@ -157,6 +183,7 @@ func newViewer(world *scene.Scene, startWalking bool) *viewer {
 	}
 	center := graphics.Vec4{(minimum[0] + maximum[0]) / 2, 0, (minimum[2] + maximum[2]) / 2, 1}
 	session := &viewer{world: world, sceneSize: size, started: time.Now(), fixedTime: math.NaN(),
+		lowest: minimum[1], highest: maximum[1],
 		baseFogNear: world.Environment.FogNear, baseFogFar: world.Environment.FogFar}
 	session.sunAzimuth, session.sunElevation = sunAnglesFromDirection(world.Environment.SunDirection)
 	session.dayElevation = math.Max(session.sunElevation, 0.3)
@@ -211,6 +238,9 @@ func (session *viewer) advance(app *models.Application, seconds float64) error {
 	before := session.snapshot(app)
 	if session.update != nil {
 		session.update(session.world, app.Input, seconds)
+	}
+	if session.edit != nil {
+		session.edit(session.world, app.Input, seconds, session.view(app))
 	}
 	unclaimed := app.Input.Unclaimed()
 	state := &unclaimed

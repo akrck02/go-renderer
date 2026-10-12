@@ -27,7 +27,7 @@ scene, and it shows the result.
 | `opengl/overlay` | Lays out the overlay as rectangles of one atlas of glyphs, icons and rounded corners (no graphics context needed) |
 | `draw2d` | A list of flat shapes (rounded rectangles, shadows, text, icons, clips, layers) to paint over the view, filled by a program or an interface library |
 | `input` | A backend-independent snapshot of keyboard and mouse state: held keys and buttons, presses and releases, double clicks, typed characters, clipboard, pointer shape, and what an interface claimed |
-| `camera` | Camera controllers: orbit, walk and map |
+| `camera` | Camera controllers: orbit, walk and map; the ray through a point of the window (`RayThrough`) and where it meets a plane or the ground |
 | `viewer` | The interactive explorer behind `cmd/visor` |
 | `cmd/visor` | The viewer as a program |
 
@@ -144,6 +144,8 @@ The `viewer` package puts it all together: cameras, sun, fog, shadows, vertical 
 headless captures and benchmarks. `viewer.Run` takes an optional update function called at every
 fixed step, so another program can change the scene while it is shown. Without one, the viewer
 draws on demand: only while input arrives, a key is held or the view is still moving.
+`viewer.Edit` is for programs that edit the scene: they run at every step with a `viewer.View`
+that turns the pointer into a point on the ground, and the viewer still draws on demand.
 
 ## Simulations
 

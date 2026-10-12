@@ -20,6 +20,25 @@ between it sleeps and uses no processor or GPU, and the water and clouds stand s
 frame. `-continuous` draws every frame instead; a program that passes an update function (a
 simulation) and `-benchmark` always do.
 
+### Editing the scene
+
+`viewer.Edit` shows a scene like `viewer.Run`, for a program that changes it in answer to the user
+(a level editor, a floor plan designer). Its function runs at every step, before the viewer's own
+controls, and receives a `viewer.View`: the camera that drew the frame the user is looking at and
+the window's size. `View.PointOnPlane(x, y, height)` and `View.PointOnGround(x, y)` turn a point of
+the window (the pointer, `input.State.CursorX` and `CursorY`) into a point of the scene: on a flat
+floor, or on the walkable ground with its relief. The viewer keeps drawing on demand; a program
+that claims the mouse (`input.State.ClaimMouse`, as go-ui does over its panels) keeps it from the
+camera for that step. `camera.RayThrough` is the ray behind both, for any camera.
+
+```go
+viewer.Edit(world, options, "Editor", func(world *scene.Scene, state *input.State, step float64, view viewer.View) {
+	if point, onGround := view.PointOnGround(state.CursorX, state.CursorY); onGround && state.ButtonReleased(input.MouseLeft) {
+		placeSomething(world, point)
+	}
+})
+```
+
 ## Orbit camera (default)
 
 | Control | Action |
