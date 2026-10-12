@@ -142,7 +142,8 @@ drawn without perspective: it shows that many scene units from the bottom to the
 window, and shadows and levels of detail follow that size instead of the distance to the camera.
 The `viewer` package puts it all together: cameras, sun, fog, shadows, vertical exaggeration,
 headless captures and benchmarks. `viewer.Run` takes an optional update function called at every
-fixed step, so another program can change the scene while it is shown.
+fixed step, so another program can change the scene while it is shown. Without one, the viewer
+draws on demand: only while input arrives, a key is held or the view is still moving.
 
 ## Simulations
 

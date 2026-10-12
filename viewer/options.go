@@ -28,6 +28,10 @@ type Options struct {
 	Pitch         float64     // walking: degrees the walker starts looking up (negative = down)
 	EyeHeight     float64     // walking: eye height in scene units; 0 keeps the default (a share of the scene size)
 	WalkSpeed     float64     // walking: speed in scene units per second; 0 keeps the default (a share of the scene size)
+	// Continuous draws every frame, so water, clouds and plants in the wind keep moving while
+	// nothing else happens. By default the viewer draws only when something changes (input, the
+	// camera, the sun, notices), unless it runs a program's update function (a simulation).
+	Continuous bool
 	// Backend is what draws: Automatic (Metal on macOS, OpenGL elsewhere), Metal or OpenGL.
 	Backend Backend
 	// Time, when not NaN, draws every frame as if this many seconds had passed (water, clouds and
@@ -61,12 +65,13 @@ func (options *Options) RegisterFlags(flags *flag.FlagSet) {
 	flags.Float64Var(&options.Pitch, "pitch", defaults.Pitch, "with -walk, start looking up this many degrees (negative = down)")
 	flags.Float64Var(&options.EyeHeight, "eye-height", defaults.EyeHeight, "with -walk, eye height in scene units (0 = a share of the scene size)")
 	flags.Float64Var(&options.WalkSpeed, "walk-speed", defaults.WalkSpeed, "walking speed in scene units per second (0 = a share of the scene size)")
+	flags.BoolVar(&options.Continuous, "continuous", false, "draw every frame, so water, clouds and wind keep moving while nothing else happens")
 	flags.Var(&options.Backend, "backend", "what draws the scene: automatic, metal or opengl")
 	flags.Float64Var(&options.Time, "time", defaults.Time, "draw as if this many seconds had passed, with water and clouds still (captures to compare)")
 }
 
 // Usage lists the viewer flags for a usage line.
-const Usage = "[-width W] [-height H] [-capture frame.png] [-walk] [-no-shadows] [-night] [-sun-elevation D] [-sun-azimuth D] [-zoom F] [-benchmark N] [-no-vsync] [-look-at x,z] [-heading D] [-pitch D] [-eye-height H] [-walk-speed S] [-time S] [-backend B]"
+const Usage = "[-width W] [-height H] [-capture frame.png] [-walk] [-no-shadows] [-night] [-sun-elevation D] [-sun-azimuth D] [-zoom F] [-benchmark N] [-no-vsync] [-look-at x,z] [-heading D] [-pitch D] [-eye-height H] [-walk-speed S] [-time S] [-backend B] [-continuous]"
 
 // pointFlag reads a point "x,z" from the command line.
 type pointFlag struct {

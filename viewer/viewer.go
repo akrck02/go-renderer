@@ -51,8 +51,9 @@ type viewer struct {
 	shadowsEnabled bool
 	benchmark      *benchmark
 	update         UpdateFunc
-	dayElevation   float64 // sun elevation to return to when leaving the night
-	fixedTime      float64 // seconds every frame is drawn at; NaN = the real time
+	dayElevation   float64     // sun elevation to return to when leaving the night
+	fixedTime      float64     // seconds every frame is drawn at; NaN = the real time
+	shown          *drawnFrame // what the window shows, when drawing on demand
 }
 
 // init keeps the main goroutine on the main thread, where the window system must run; it has to
@@ -139,6 +140,11 @@ func newApplication(session *viewer, options Options, title string) *models.Appl
 	}
 	// without waiting for the display the GPU keeps its speed, so measurements are steady
 	app.DisableVsync = options.Benchmark > 0 || options.NoVsync
+	// a still scene costs nothing while nobody touches it; a simulation or a benchmark draws on
+	app.DrawOnDemand = !options.Continuous && session.update == nil && options.Benchmark == 0
+	if app.DrawOnDemand {
+		app.Unchanged = session.unchanged
+	}
 	session.configureFrustum(&app.Camera)
 	return app
 }
@@ -202,6 +208,7 @@ func (session *viewer) configureFrustum(view *models.Camera) {
 // without what an interface drawn by the program claimed (input.State.Unclaimed), so dragging a
 // slider does not turn the camera and typing a name does not walk.
 func (session *viewer) advance(app *models.Application, seconds float64) error {
+	before := session.snapshot(app)
 	if session.update != nil {
 		session.update(session.world, app.Input, seconds)
 	}
@@ -210,9 +217,55 @@ func (session *viewer) advance(app *models.Application, seconds float64) error {
 	session.world.Overlay.Advance(seconds)
 	session.handleShortcuts(state, seconds)
 	session.syncVerticalScale()
+	session.moveCamera(app, state, seconds)
+	if session.stillChanging(app, before) {
+		app.Input.RequestFrame(0)
+	}
+	return nil
+}
+
+// viewState is what a frame of the viewer shows besides the scene's own animation: when it
+// changes during a step, the next step follows at once.
+type viewState struct {
+	camera      models.Camera
+	environment scene.Environment
+	shadows     bool
+}
+
+func (session *viewer) snapshot(app *models.Application) viewState {
+	return viewState{camera: app.Camera, environment: session.world.Environment, shadows: session.shadowsEnabled}
+}
+
+// stillChanging tells whether the view is moving, so another frame should follow even without
+// input: a key or button held (walking, turning the sun), the camera or the light still changing
+// (a camera easing to a stop), notices fading.
+func (session *viewer) stillChanging(app *models.Application, before viewState) bool {
+	return app.Input.AnyHeld() || session.snapshot(app) != before || len(session.world.Overlay.Notices) > 0
+}
+
+// drawnFrame is what the last frame shown was drawn from.
+type drawnFrame struct {
+	view          viewState
+	width, height int
+}
+
+// unchanged tells whether a frame would look like the last one shown (the pointer moving over the
+// window with no button held, say), and otherwise remembers it as the one about to be shown. Only
+// for a scene nothing else changes: the water and clouds stand still between the frames drawn.
+func (session *viewer) unchanged(app *models.Application) bool {
+	current := drawnFrame{view: session.snapshot(app), width: app.Input.FramebufferWidth, height: app.Input.FramebufferHeight}
+	if session.shown != nil && *session.shown == current && len(session.world.Overlay.Notices) == 0 {
+		return true
+	}
+	session.shown = &current
+	return false
+}
+
+// moveCamera lets the camera of the current mode follow the input.
+func (session *viewer) moveCamera(app *models.Application, state *input.State, seconds float64) {
 	if session.planning {
 		session.plan.Update(state, seconds, &app.Camera)
-		return nil
+		return
 	}
 	app.Camera.OrthographicHeight = 0
 	app.Camera.Far = session.sceneSize * 12
@@ -223,7 +276,6 @@ func (session *viewer) advance(app *models.Application, seconds float64) error {
 		session.orbit.Update(state, seconds, &app.Camera)
 		app.Camera.Near = float32(math.Max(float64(session.sceneSize)*0.00002, session.orbit.Distance*0.002))
 	}
-	return nil
 }
 
 func (session *viewer) handleShortcuts(state *input.State, seconds float64) {

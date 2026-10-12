@@ -14,6 +14,12 @@ go run ./cmd/visor -sample island                 # a built-in made-up island, n
 go run ./cmd/visor -benchmark 120 scene.glb       # CPU and GPU times per pass, draw calls, triangles
 ```
 
+The viewer **draws only when something changes**: a key or button held, the mouse moving the
+camera, a camera easing to a stop, the sun turning, a notice fading, the window resized. In
+between it sleeps and uses no processor or GPU, and the water and clouds stand still until the next
+frame. `-continuous` draws every frame instead; a program that passes an update function (a
+simulation) and `-benchmark` always do.
+
 ## Orbit camera (default)
 
 | Control | Action |
@@ -83,6 +89,7 @@ lifted while a map is shown.
 | `-benchmark N` | Measure N frames, print CPU and GPU times per pass, draw calls and triangles, and exit |
 | `-no-vsync` | Do not wait for the display; the window title shows the real frames per second |
 | `-cpu-profile file` | Write a CPU profile of the session for `go tool pprof` |
+| `-continuous` | Draw every frame, so the water, clouds and plants in the wind keep moving while nothing else happens |
 | `-backend B` | What draws: `automatic` (Metal on macOS, OpenGL elsewhere), `metal` or `opengl` |
 | `-sample island` / `-sample night` | Open the built-in sample island (package `scene/sample`) instead of a file |
 | `-time S` | Draw every frame as if S seconds had passed: water and clouds stand still, so captures can be compared |
