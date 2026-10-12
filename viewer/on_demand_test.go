@@ -121,3 +121,27 @@ func abs32(value float32) float32 {
 	}
 	return value
 }
+
+// An editing program can ask for a rectangle of ground to be shown: the cameras aim at its middle,
+// the map fits it, and a frame follows.
+func TestAProgramFramesARectangleOfGround(t *testing.T) {
+	session := newViewer(sample.Island(), false)
+	asked := false
+	session.edit = func(_ *scene.Scene, _ *input.State, _ float64, view View) {
+		if !asked {
+			view.FrameGround(100, 20, 300, 60)
+			asked = true
+		}
+	}
+	app := newApplication(session, DefaultOptions(), "test")
+	app.Input.WindowWidth, app.Input.WindowHeight = 800, 400
+	if !step(t, session, app) {
+		t.Error("framing asks for a frame")
+	}
+	if session.plan.Target[0] != 200 || session.plan.Target[2] != 40 || session.orbit.Target[0] != 200 {
+		t.Errorf("aimed at %v / %v", session.plan.Target, session.orbit.Target)
+	}
+	if session.plan.Span != 100 { // 200 wide in a window twice as wide as high
+		t.Errorf("span %v", session.plan.Span)
+	}
+}
