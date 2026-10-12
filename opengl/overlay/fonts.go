@@ -10,6 +10,7 @@ import (
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/gofont/gobold"
 	"golang.org/x/image/font/gofont/gomedium"
+	"golang.org/x/image/font/gofont/gomonobold"
 	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
@@ -23,7 +24,28 @@ const (
 	strongFace                  // Go Bold: the first line of the header
 	iconFace                    // Lucide: icons
 	regularFace                 // Go Regular: body text of drawings (interfaces)
+	monoFace                    // Go Mono Bold: codes and keys (draw2d.Mono)
 )
+
+// Fonts are the TrueType or OpenType fonts text is drawn with, one per weight; an empty one keeps
+// the default (the Go fonts).
+type Fonts struct {
+	Regular, Medium, Bold, Mono []byte
+}
+
+// chosen are the fonts UseFonts set.
+var chosen Fonts
+
+// UseFonts makes text draw in other fonts, such as a brand's. Call it before the first window or
+// measurer is made: painters and measurers read the fonts when they are created.
+func UseFonts(fonts Fonts) { chosen = fonts }
+
+func orDefault(chosen, fallback []byte) []byte {
+	if len(chosen) > 0 {
+		return chosen
+	}
+	return fallback
+}
 
 // PrebuiltCharacters are drawn into the atlas as soon as a face is first used, so the first frames
 // with text do not stop to draw them one by one: ASCII, Latin-1 and a few common signs.
@@ -52,7 +74,8 @@ type faceKey struct {
 }
 
 func loadFonts() (*fonts, error) {
-	sources := map[faceName][]byte{textFace: gomedium.TTF, strongFace: gobold.TTF, iconFace: lucide.Font(), regularFace: goregular.TTF}
+	sources := map[faceName][]byte{textFace: orDefault(chosen.Medium, gomedium.TTF), strongFace: orDefault(chosen.Bold, gobold.TTF),
+		iconFace: lucide.Font(), regularFace: orDefault(chosen.Regular, goregular.TTF), monoFace: orDefault(chosen.Mono, gomonobold.TTF)}
 	loaded := &fonts{parsed: map[faceName]*opentype.Font{}, faces: map[faceKey]font.Face{}}
 	for name, data := range sources {
 		parsed, err := opentype.Parse(data)
