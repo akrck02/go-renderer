@@ -1,0 +1,158 @@
+package overlay
+
+import (
+	"fmt"
+	"image"
+	"image/draw"
+	"math"
+
+	"github.com/akrck02/go-renderer/opengl/overlay/lucide"
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/gofont/gobold"
+	"golang.org/x/image/font/gofont/gomedium"
+	"golang.org/x/image/font/gofont/goregular"
+	"golang.org/x/image/font/opentype"
+	"golang.org/x/image/math/fixed"
+)
+
+// faceName says which font a text is written in.
+type faceName int
+
+const (
+	textFace    faceName = iota // Go Medium: labels, badges, notices
+	strongFace                  // Go Bold: the first line of the header
+	iconFace                    // Lucide: icons
+	regularFace                 // Go Regular: body text of drawings (interfaces)
+)
+
+// PrebuiltCharacters are drawn into the atlas as soon as a face is first used, so the first frames
+// with text do not stop to draw them one by one: ASCII, Latin-1 and a few common signs.
+var PrebuiltCharacters = prebuiltCharacters()
+
+func prebuiltCharacters() []rune {
+	var characters []rune
+	for character := rune(0x20); character <= 0x7e; character++ {
+		characters = append(characters, character)
+	}
+	for character := rune(0xa1); character <= 0xff; character++ {
+		characters = append(characters, character)
+	}
+	return append(characters, '→', '←', '↑', '↓', '…', '–', '—', '€', '•')
+}
+
+// fonts parses the embedded fonts once and keeps a face for every size asked for.
+type fonts struct {
+	parsed map[faceName]*opentype.Font
+	faces  map[faceKey]font.Face
+}
+
+type faceKey struct {
+	name faceName
+	size int
+}
+
+func loadFonts() (*fonts, error) {
+	sources := map[faceName][]byte{textFace: gomedium.TTF, strongFace: gobold.TTF, iconFace: lucide.Font(), regularFace: goregular.TTF}
+	loaded := &fonts{parsed: map[faceName]*opentype.Font{}, faces: map[faceKey]font.Face{}}
+	for name, data := range sources {
+		parsed, err := opentype.Parse(data)
+		if err != nil {
+			return nil, fmt.Errorf("overlay font %d: %w", name, err)
+		}
+		loaded.parsed[name] = parsed
+	}
+	return loaded, nil
+}
+
+// face returns a font at a size in pixels. Text is hinted to the pixel grid so it stays crisp at
+// small sizes; icons are not, so their strokes keep their drawn proportions.
+func (loaded *fonts) face(name faceName, size int) font.Face {
+	key := faceKey{name, size}
+	if face, found := loaded.faces[key]; found {
+		return face
+	}
+	hinting := font.HintingFull
+	if name == iconFace {
+		hinting = font.HintingNone
+	}
+	face, err := opentype.NewFace(loaded.parsed[name], &opentype.FaceOptions{Size: float64(size), DPI: 72, Hinting: hinting})
+	if err != nil {
+		// a parsed font accepts any positive size, so this only happens for a size of zero
+		return nil
+	}
+	loaded.faces[key] = face
+	return face
+}
+
+// faceMetrics are the vertical measures of a face, in pixels.
+type faceMetrics struct {
+	ascent, descent, capHeight float32
+}
+
+func (loaded *fonts) metrics(name faceName, size int) faceMetrics {
+	face := loaded.face(name, size)
+	if face == nil {
+		return faceMetrics{}
+	}
+	measures := face.Metrics()
+	capHeight := toPixels(measures.CapHeight)
+	if capHeight <= 0 {
+		capHeight = toPixels(measures.Ascent) * 0.7
+	}
+	return faceMetrics{ascent: toPixels(measures.Ascent), descent: toPixels(measures.Descent), capHeight: capHeight}
+}
+
+// glyph returns the picture of a character in a face, drawing it into the atlas the first time.
+// The entry's offset places the picture relative to the dot on the baseline.
+func (painter *Painter) glyph(name faceName, size int, character rune) Entry {
+	key := entryKey{kind: glyphEntry, face: name, size: size, character: character}
+	return painter.atlas.lookup(key, func() (*image.Alpha, Entry) {
+		return rasteriseGlyph(painter.fonts.face(name, size), character)
+	})
+}
+
+func rasteriseGlyph(face font.Face, character rune) (*image.Alpha, Entry) {
+	if face == nil {
+		return nil, Entry{}
+	}
+	bounds, mask, maskPoint, advance, found := face.Glyph(fixed.Point26_6{}, character)
+	if !found {
+		return nil, Entry{}
+	}
+	entry := Entry{Offset: bounds.Min, Advance: toPixels(advance)}
+	if bounds.Empty() {
+		return nil, entry
+	}
+	copied := image.NewAlpha(image.Rect(0, 0, bounds.Dx(), bounds.Dy()))
+	draw.Draw(copied, copied.Bounds(), mask, maskPoint, draw.Src)
+	return copied, entry
+}
+
+// prebuild draws the common characters of a text face at a size into the atlas.
+func (painter *Painter) prebuild(name faceName, size int) {
+	key := faceKey{name, size}
+	if painter.prebuilt[key] {
+		return
+	}
+	painter.prebuilt[key] = true
+	for _, character := range PrebuiltCharacters {
+		painter.glyph(name, size, character)
+	}
+}
+
+// hasGlyph tells whether a face can draw a character.
+func (loaded *fonts) hasGlyph(name faceName, size int, character rune) bool {
+	face := loaded.face(name, size)
+	if face == nil {
+		return false
+	}
+	_, found := face.GlyphAdvance(character)
+	return found
+}
+
+func toPixels(value fixed.Int26_6) float32 { return float32(value) / 64 }
+
+// pixels converts a length in layout pixels to whole screen pixels at a scale.
+func pixels(length float32, scale float32) int {
+	return int(math.Round(float64(length * scale)))
+}

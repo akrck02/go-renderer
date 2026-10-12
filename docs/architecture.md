@@ -18,10 +18,13 @@ scene, and it shows the result.
 |---|---|
 | `graphics` | Vectors, matrices, coordinate spaces and transformations; the shader sources |
 | `models` | The application loop (`Application`, a fixed time step before every frame), the `Renderer` contract and the backend enumeration |
-| `software`, `opengl`, `vulkan`, `metal`, `webgpu` | Backends behind the contract; OpenGL is the complete one |
-| `scene` | The retained, backend-independent scene |
+| `software`, `opengl`, `vulkan`, `metal`, `webgpu` | Backends behind the contract; OpenGL is the complete one. |
+| `windowloop` | The window loop both OpenGL and Metal use: GLFW events and input, drawing on demand, the fixed-step clock, redrawing while resizing, the pointer's shape and lock |
+| `scene` | The retained, backend-independent scene, with its overlay (labels, header, notices) |
 | `loaders` | glTF 2.0 loading, including the renderer's extras |
-| `input` | A backend-independent snapshot of keyboard and mouse state |
+| `opengl/overlay` | Lays out the overlay as rectangles of one atlas of glyphs, icons and rounded corners (no graphics context needed) |
+| `draw2d` | A list of flat shapes (rounded rectangles, shadows, text, icons, clips, layers) to paint over the view, filled by a program or an interface library |
+| `input` | A backend-independent snapshot of keyboard and mouse state: held keys and buttons, presses and releases, double clicks, typed characters, clipboard, pointer shape, and what an interface claimed |
 | `camera` | Camera controllers: orbit, walk and map |
 | `viewer` | The interactive explorer behind `cmd/visor` |
 | `cmd/visor` | The viewer as a program |
@@ -45,6 +48,21 @@ type Renderer interface {
 Coordinates can be given in local, world or viewport space; the backend does the transformations.
 `models.Application.Update` runs at a fixed time step before every frame, so motion does not
 depend on the frame rate.
+
+An application that is mostly still (a window of controls) sets `DrawOnDemand`: the loop then
+sleeps in `glfw.WaitEvents` and draws only when input arrives, when the program asked for a frame
+with `input.State.RequestFrame` (a caret's next blink), or when another goroutine calls
+`opengl.Wake` (or `windowloop.Wake`). Each such frame runs one update step, and a frame with input is followed by one
+more so hover looks catch up with a layout that just changed. Idle, it uses no processor. `Application.Unchanged` lets an application say a frame would repeat
+the last one shown (go-ui compares `draw2d.List.Fingerprint`), and the loop then neither draws nor
+presents it. In the default, continuous mode a frame is drawn only after an update step, so a
+display faster than the updates does not draw the same picture twice. While a
+window is being resized, it is redrawn from GLFW's refresh callback, since macOS holds the loop
+until the mouse is let go.
+
+This loop lives in `windowloop` and knows nothing about the graphics interface: `windowloop.Run`
+takes the window, the application and a function that draws and shows one frame. The OpenGL
+backend and the Metal flat window both use it, so they behave the same way.
 
 ## The retained scene
 
@@ -80,7 +98,7 @@ forest of a hundred thousand trees costs a few draw calls. Every frame goes thro
 
 ```mermaid
 flowchart LR
-    A[Culling<br/>what is in view,<br/>at what detail] --> B[Shadows<br/>the scene seen<br/>from the sun] --> C[Sky<br/>day, night,<br/>stars, clouds] --> D[Scene<br/>light, fog, patterns,<br/>snow, wind] --> E[Water<br/>depth, waves,<br/>tides, foam]
+    A[Culling<br/>what is in view,<br/>at what detail] --> B[Shadows<br/>the scene seen<br/>from the sun] --> C[Sky<br/>day, night,<br/>stars, clouds] --> D[Scene<br/>light, fog, patterns,<br/>snow, wind] --> E[Water<br/>depth, waves,<br/>tides, foam] --> F[Overlay<br/>labels, header,<br/>notices]
 ```
 
 
@@ -97,10 +115,18 @@ flowchart LR
 5. **Water.** Coloured by its depth, read from a top-down depth map of the ground that is rendered
    once per scene (and again when a ground mesh is `Dirty`); waves, foam on the shore, tides that
    rise and fall differently from place to place, and waterfalls.
+6. **Overlay.** Labels over things in the world, a header and fading notices, and on top of them
+   a free 2D drawing (`Overlay.Drawing`, a `draw2d.List`), in screen space with one texture atlas
+   and one draw call (see [the overlay](overlay.md)).
 
 ## Input, cameras and the viewer
 
-The window backend feeds `input` with a snapshot of the keyboard and the mouse. `camera.Orbit`
+The window backend feeds `input` with a snapshot of the keyboard and the mouse: what is held, and
+what happened since the last update step (keys and buttons that went down or up, keys repeated by
+the system, characters typed, which click of a double click a press was). An interface drawn over
+the view can **claim** the mouse or the keyboard for a step (`ClaimMouse`, `ClaimKeyboard`); the
+viewer gives its cameras and shortcuts `State.Unclaimed()`, a copy without what was claimed, so a
+slider being dragged does not turn the camera. `camera.Orbit`
 (drag, pan, zoom), `camera.Walk` (first person on the ground) and `camera.Plan` (a flat map, from
 above or isometric) turn it into a camera placement. A camera with an `OrthographicHeight` is
 drawn without perspective: it shows that many scene units from the bottom to the top of the

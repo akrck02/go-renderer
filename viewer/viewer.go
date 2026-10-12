@@ -37,6 +37,7 @@ type viewer struct {
 	planning       bool       // showing the map (top or isometric view) instead of the orbit
 	fogBeforePlan  [2]float32 // fog near and far to restore when leaving the map
 	sceneSize      float32
+	walkLimits     [2]float32 // slowest and fastest walking speed [ and ] reach
 	sunAzimuth     float64
 	sunElevation   float64
 	started        time.Time
@@ -170,12 +171,16 @@ func (session *viewer) configureFrustum(view *models.Camera) {
 	view.Near = session.sceneSize * 0.0002
 }
 
-// advance runs the program's update and then the viewer's controls.
+// advance runs the program's update and then the viewer's controls. The controls see the input
+// without what an interface drawn by the program claimed (input.State.Unclaimed), so dragging a
+// slider does not turn the camera and typing a name does not walk.
 func (session *viewer) advance(app *models.Application, seconds float64) error {
-	state := app.Input
 	if session.update != nil {
-		session.update(session.world, state, seconds)
+		session.update(session.world, app.Input, seconds)
 	}
+	unclaimed := app.Input.Unclaimed()
+	state := &unclaimed
+	session.world.Overlay.Advance(seconds)
 	session.handleShortcuts(state, seconds)
 	session.syncVerticalScale()
 	if session.planning {
@@ -282,6 +287,18 @@ func (session *viewer) placeWalker(options Options) {
 	if options.EyeHeight > 0 {
 		session.walk.EyeHeight = float32(options.EyeHeight)
 	}
+	if options.WalkSpeed > 0 {
+		session.walk.Speed = float32(options.WalkSpeed)
+	}
+	session.walkLimits = walkingSpeedLimits(session.sceneSize, session.walk.Speed)
+}
+
+// walkingSpeedLimits keeps [ and ] within a range around both the scene's size and the speed walking starts at, so
+// a scene measured in large units (a few hundred metres in kilometres) can still be walked at a person's pace.
+func walkingSpeedLimits(sceneSize, start float32) [2]float32 {
+	minimum := float32(math.Min(float64(sceneSize*0.00002), float64(start/20)))
+	maximum := float32(math.Max(float64(sceneSize*0.02), float64(start*20)))
+	return [2]float32{minimum, maximum}
 }
 
 // adjustWalkingSpeed makes walking faster with ] and slower with [, by a factor of 1.5 per press.
@@ -296,7 +313,10 @@ func (session *viewer) adjustWalkingSpeed(state *input.State) {
 	if factor == 1 {
 		return
 	}
-	minimum, maximum := session.sceneSize*0.00002, session.sceneSize*0.02
+	if session.walkLimits[1] == 0 {
+		session.walkLimits = walkingSpeedLimits(session.sceneSize, session.walk.Speed)
+	}
+	minimum, maximum := session.walkLimits[0], session.walkLimits[1]
 	session.walk.Speed = float32(math.Max(float64(minimum), math.Min(float64(maximum), float64(session.walk.Speed*factor))))
 	fmt.Printf("walking speed: %.4g units per second (shift: x%.0f)\n", session.walk.Speed, session.walk.RunFactor)
 }
@@ -417,6 +437,7 @@ func (session *viewer) draw(app *models.Application) error {
 	if width == 0 || height == 0 {
 		width, height = app.Width, app.Height
 	}
+	session.renderer.OverlayScale = overlayScale(app.Input.WindowWidth, app.Width, width)
 	session.renderer.Profiling = session.benchmark != nil && session.benchmark.timing()
 	session.renderer.Draw(session.world, app.Camera, width, height, time.Since(session.started).Seconds())
 	if session.benchmark != nil && session.benchmark.record(session.renderer.Statistics) {
@@ -424,4 +445,16 @@ func (session *viewer) draw(app *models.Application) error {
 		app.Stop = true
 	}
 	return nil
+}
+
+// overlayScale is how many framebuffer pixels make one window pixel (2 on a high-density screen),
+// so the overlay keeps the same size on any screen.
+func overlayScale(windowWidth, requestedWidth, framebufferWidth int) float32 {
+	if windowWidth <= 0 {
+		windowWidth = requestedWidth
+	}
+	if windowWidth <= 0 || framebufferWidth <= 0 {
+		return 1
+	}
+	return float32(framebufferWidth) / float32(windowWidth)
 }

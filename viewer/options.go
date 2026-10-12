@@ -26,6 +26,7 @@ type Options struct {
 	Heading       float64     // walking: degrees clockwise from north (-z) the walker starts facing; NaN keeps the default
 	Pitch         float64     // walking: degrees the walker starts looking up (negative = down)
 	EyeHeight     float64     // walking: eye height in scene units; 0 keeps the default (a share of the scene size)
+	WalkSpeed     float64     // walking: speed in scene units per second; 0 keeps the default (a share of the scene size)
 }
 
 // DefaultOptions returns a 1280×800 window with the scene's own sun.
@@ -53,10 +54,11 @@ func (options *Options) RegisterFlags(flags *flag.FlagSet) {
 	flags.Float64Var(&options.Heading, "heading", defaults.Heading, "with -walk, start facing this way: degrees clockwise from north (-z)")
 	flags.Float64Var(&options.Pitch, "pitch", defaults.Pitch, "with -walk, start looking up this many degrees (negative = down)")
 	flags.Float64Var(&options.EyeHeight, "eye-height", defaults.EyeHeight, "with -walk, eye height in scene units (0 = a share of the scene size)")
+	flags.Float64Var(&options.WalkSpeed, "walk-speed", defaults.WalkSpeed, "walking speed in scene units per second (0 = a share of the scene size)")
 }
 
 // Usage lists the viewer flags for a usage line.
-const Usage = "[-width W] [-height H] [-capture frame.png] [-walk] [-no-shadows] [-night] [-sun-elevation D] [-sun-azimuth D] [-zoom F] [-benchmark N] [-no-vsync] [-look-at x,z] [-heading D] [-pitch D] [-eye-height H]"
+const Usage = "[-width W] [-height H] [-capture frame.png] [-walk] [-no-shadows] [-night] [-sun-elevation D] [-sun-azimuth D] [-zoom F] [-benchmark N] [-no-vsync] [-look-at x,z] [-heading D] [-pitch D] [-eye-height H] [-walk-speed S]"
 
 // pointFlag reads a point "x,z" from the command line.
 type pointFlag struct {

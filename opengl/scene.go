@@ -19,10 +19,14 @@ type SceneRenderer struct {
 	Shadows    ShadowSettings
 	Profiling  bool            // measure CPU and GPU times into Statistics (waits for the GPU every frame)
 	Statistics FrameStatistics // the last frame drawn
-	profiler   *passProfiler
+	// OverlayScale is how many framebuffer pixels make one pixel of the overlay (labels, header,
+	// notices): 2 on a high-density screen, so they keep their size; 0 = 1.
+	OverlayScale float32
+	profiler     *passProfiler
 
 	sceneProgram     *shaderProgram
 	sky              *skyRenderer
+	overlay          *overlayRenderer
 	waterPlane       *scene.Mesh
 	waterFloor       *scene.Mesh
 	shadow           *shadowMap
@@ -93,6 +97,9 @@ func NewSceneRenderer() (*SceneRenderer, error) {
 		return nil, err
 	}
 	renderer.levelVariation = newLevelVariationTexture()
+	if renderer.overlay, err = newOverlayRenderer(); err != nil {
+		return nil, err
+	}
 	return renderer, nil
 }
 
@@ -143,8 +150,8 @@ func (program *shaderProgram) setInteger(name string, value int32) {
 	gl.Uniform1i(program.location(name), value)
 }
 
-// Draw renders the scene from the camera into the current framebuffer of the given size.
-// seconds is the elapsed time, which animates water and waterfalls.
+// Draw renders the scene from the camera into the current framebuffer of the given size, then its
+// overlay on top. seconds is the elapsed time, which animates water and waterfalls.
 func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int, seconds float64) {
 	started := time.Now()
 	matrices := computeCameraMatrices(camera, width, height)
@@ -169,6 +176,7 @@ func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, wi
 	renderer.measurePass("scene", func() { renderer.executeDrawCommands(opaque, mainView) })
 	renderer.measurePass("sky", func() { renderer.sky.draw(world.Environment, light, camera, matrices, seconds) })
 	renderer.measurePass("transparent", func() { renderer.executeDrawCommands(transparent, mainView) })
+	renderer.measurePass("overlay", func() { renderer.overlay.draw(world, matrices, width, height, renderer.OverlayScale) })
 	renderer.recordStatistics(time.Since(started))
 }
 

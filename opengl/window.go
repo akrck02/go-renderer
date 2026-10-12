@@ -23,6 +23,13 @@ func InitWindow(app *models.Application) *glfw.Window {
 	if app.Type == models.HeadlessApplication {
 		glfw.WindowHint(glfw.Visible, glfw.False)
 	}
+	if app.FlatOnly {
+		glfw.WindowHint(glfw.DepthBits, 0)
+		glfw.WindowHint(glfw.StencilBits, 0)
+		// a Mac with two GPUs would otherwise keep the discrete one running while the window is
+		// open; flat drawing is light work for the integrated one
+		glfw.WindowHint(glfw.CocoaGraphicsSwitching, glfw.True)
+	}
 
 	window, err := glfw.CreateWindow(
 		app.Width,
@@ -40,9 +47,17 @@ func InitWindow(app *models.Application) *glfw.Window {
 		window.SetAspectRatio(app.Width, app.Height)
 	}
 
+	if app.MinWidth > 0 || app.MinHeight > 0 {
+		window.SetSizeLimits(max(app.MinWidth, glfw.DontCare), max(app.MinHeight, glfw.DontCare), glfw.DontCare, glfw.DontCare)
+	}
+
 	window.MakeContextCurrent()
+	// Ask for vsync either way: GLFW sets no swap interval when it makes the context, and the
+	// driver's default is not reliable (on macOS it was seen presenting at twice the display rate).
 	if app.DisableVsync {
 		glfw.SwapInterval(0)
+	} else {
+		glfw.SwapInterval(1)
 	}
 	window.SetFramebufferSizeCallback(func(w *glfw.Window, width, height int) {
 		gl.Viewport(0, 0, int32(width), int32(height))

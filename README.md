@@ -24,7 +24,7 @@ go run ./cmd/visor -walk -night scene.glb
 ## Documentation
 
 Everything is in [docs/](docs/README.md): [architecture](docs/architecture.md),
-[the viewer](docs/viewer.md), [glTF extras](docs/gltf-extras.md),
+[the viewer](docs/viewer.md), [the overlay](docs/overlay.md), [glTF extras](docs/gltf-extras.md),
 [optimization plan](docs/optimization-plan.md) and [roadmap](docs/roadmap.md).
 
 Simulations (moving things, weather, growing towns) live in the sibling project
@@ -38,10 +38,14 @@ I write most of my code by hand, so I want to be clear about where AI was used h
   `metal` and `webgpu` backends, the `graphics` maths and the first OpenGL work.
 - **Written by an AI assistant (Claude, by Anthropic) under my direction, since September 2026:**
   the retained scene (`scene`), the glTF loader, the OpenGL scene renderer (sky, shadows, water,
-  instancing, levels of detail), `camera`, `input`, `viewer`, `cmd/visor` and the documentation in
-  `docs/`. It also extended `graphics`, `loaders` and `models`.
+  instancing, levels of detail, the overlay of labels and notices with its font and icon atlas in
+  `opengl/overlay`, and the 2D draw lists of `draw2d` it paints), `camera`, `input`, `viewer`,
+  `cmd/visor` and the documentation in `docs/`. It also extended `graphics`, `loaders` and `models`.
 
 Commits made with AI carry a `Co-Authored-By: Claude` line.
+
+The overlay embeds third-party fonts: the Go fonts (BSD, through `golang.org/x/image`) and the
+[Lucide](https://lucide.dev) icon font (ISC, licence in `opengl/overlay/lucide/LICENSE`).
 
 **Status: pending thorough review.** The code compiles and its tests pass, but I have not yet
 reviewed it line by line. Treat it as a working draft, not as code I vouch for.

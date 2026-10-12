@@ -75,9 +75,10 @@ lifted while a map is shown.
 | `-heading D` | With `-walk`, start facing this way: degrees clockwise from north (−z) |
 | `-pitch D` | With `-walk`, start looking up this many degrees (negative = down) |
 | `-eye-height H` | With `-walk`, eye height in scene units (0 = a share of the scene size) |
+| `-walk-speed S` | Walking speed in scene units per second (0 = a share of the scene size); `[` `]` then change it within a range around it, so a small scene in large units (a plant in kilometres) walks at a person's pace |
 | `-no-shadows` | Start without sun shadows |
 | `-width` / `-height` | Window size |
-| `-capture frame.png` | Render one frame to a PNG with a hidden window, and exit |
+| `-capture frame.png` | Render one frame to a PNG with a hidden window, and exit (the [overlay](overlay.md) included) |
 | `-benchmark N` | Measure N frames, print CPU and GPU times per pass, draw calls and triangles, and exit |
 | `-no-vsync` | Do not wait for the display; the window title shows the real frames per second |
 | `-cpu-profile file` | Write a CPU profile of the session for `go tool pprof` |
