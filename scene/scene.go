@@ -250,6 +250,7 @@ type Scene struct {
 	Nodes       []*Node
 	Environment Environment
 	Tags        map[string]any
+	Overlay     Overlay // labels, header and notices drawn over the view
 
 	ground *groundIndex
 }

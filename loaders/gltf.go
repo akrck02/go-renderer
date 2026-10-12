@@ -131,6 +131,7 @@ type gltfFile struct {
 //   - scene extras "environment" also: snow {level, blend, color}, foliageTint [r, g, b, amount]
 //   - mesh, primitive or node extras "ground": true (walkable surface)
 //   - mesh extras "detail": [{"mesh": index, "screenSize": fraction}, ...] simpler versions, finer first
+//   - node extras "label", "icon", "badge", "label_color", "pinned": the overlay (see readOverlay)
 func LoadScene(path string) (*scene.Scene, error) {
 	file, err := readGLTFFile(path)
 	if err != nil {
@@ -296,6 +297,7 @@ func (file *gltfFile) buildScene() (*scene.Scene, error) {
 		result.Nodes = append(result.Nodes, node)
 	}
 	result.Tags = sceneExtras
+	readOverlay(result)
 	if environment, found := sceneExtras["environment"].(map[string]any); found {
 		applyEnvironment(&result.Environment, environment)
 		if err := file.applySky(&result.Environment, environment); err != nil {
