@@ -17,6 +17,8 @@ type View struct {
 	lowest        float32
 	highest       float32
 	framing       **[4]float32
+	zooming       *float64
+	span          float64 // the map's span when the step began
 }
 
 // view returns the view of this step.
@@ -26,7 +28,7 @@ func (session *viewer) view(app *models.Application) View {
 		width, height = app.Width, app.Height
 	}
 	return View{Camera: app.Camera, Width: width, Height: height, world: session.world,
-		lowest: session.lowest, highest: session.highest, framing: &session.framing}
+		lowest: session.lowest, highest: session.highest, framing: &session.framing, zooming: &session.zooming, span: session.plan.Span}
 }
 
 // Ray returns the ray from the camera through a point of the window, in drawn heights.
@@ -88,5 +90,32 @@ func (session *viewer) applyFraming(app *models.Application) {
 	if span > 0 {
 		session.plan.Span = min(max(span, session.plan.MinimumSpan), session.plan.MaximumSpan)
 	}
+	app.Input.RequestFrame(0)
+}
+
+// ZoomBy asks the cameras to come nearer by a factor (2 shows half as much, 0.5 twice as much),
+// keeping what they aim at, as a zoom button does. It takes effect after this step.
+func (view View) ZoomBy(factor float64) {
+	if view.zooming != nil && factor > 0 {
+		if *view.zooming == 0 {
+			*view.zooming = 1
+		}
+		*view.zooming *= factor
+	}
+}
+
+// Span is how much ground the map shows from the bottom of the window to its top, in world units:
+// a program shows its zoom from it.
+func (view View) Span() float64 { return view.span }
+
+// applyZoom moves the cameras by the zoom the program asked for, if it asked.
+func (session *viewer) applyZoom(app *models.Application) {
+	factor := session.zooming
+	if factor == 0 {
+		return
+	}
+	session.zooming = 0
+	session.plan.Span = min(max(session.plan.Span/factor, session.plan.MinimumSpan), session.plan.MaximumSpan)
+	session.orbit.Distance /= factor
 	app.Input.RequestFrame(0)
 }

@@ -58,6 +58,7 @@ type viewer struct {
 	fixedTime      float64     // seconds every frame is drawn at; NaN = the real time
 	shown          *drawnFrame // what the window shows, when drawing on demand
 	framing        *[4]float32 // a rectangle of ground the program asked to show (View.FrameGround)
+	zooming        float64     // how much nearer the program asked the cameras to come (View.ZoomBy); 0 = no change
 }
 
 // init keeps the main goroutine on the main thread, where the window system must run; it has to
@@ -243,6 +244,7 @@ func (session *viewer) advance(app *models.Application, seconds float64) error {
 	if session.edit != nil {
 		session.edit(session.world, app.Input, seconds, session.view(app))
 		session.applyFraming(app)
+		session.applyZoom(app)
 	}
 	unclaimed := app.Input.Unclaimed()
 	state := &unclaimed

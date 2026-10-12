@@ -145,3 +145,28 @@ func TestAProgramFramesARectangleOfGround(t *testing.T) {
 		t.Errorf("span %v", session.plan.Span)
 	}
 }
+
+// A program can zoom the cameras, as a zoom button does, and read how much the map shows.
+func TestAProgramZoomsTheCameras(t *testing.T) {
+	session := newViewer(sample.Island(), false)
+	var shown float64
+	steps := 0
+	session.edit = func(_ *scene.Scene, _ *input.State, _ float64, view View) {
+		steps++
+		shown = view.Span()
+		if steps == 1 {
+			view.ZoomBy(2)
+		}
+	}
+	app := newApplication(session, DefaultOptions(), "test")
+	app.Input.WindowWidth, app.Input.WindowHeight = 800, 400
+	before := session.plan.Span
+	step(t, session, app)
+	if session.plan.Span != before/2 {
+		t.Errorf("span %v after zooming by 2 from %v", session.plan.Span, before)
+	}
+	step(t, session, app)
+	if shown != before/2 {
+		t.Errorf("the view tells the span: %v", shown)
+	}
+}
