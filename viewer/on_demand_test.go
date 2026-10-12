@@ -78,3 +78,46 @@ func TestASimulationOrABenchmarkDrawsEveryFrame(t *testing.T) {
 		t.Error("-continuous keeps drawing")
 	}
 }
+
+func TestAnEditorStillDrawsOnDemand(t *testing.T) {
+	session := newViewer(sample.Island(), false)
+	session.edit = func(*scene.Scene, *input.State, float64, View) {}
+	app := newApplication(session, DefaultOptions(), "test")
+	if !app.DrawOnDemand {
+		t.Error("an editor changes only with input, so it draws on demand")
+	}
+	if app.Unchanged != nil {
+		t.Error("an editor changes its own drawing, which the viewer cannot compare")
+	}
+}
+
+// The editor sees the camera that drew the frame, and the middle of the window lies where that
+// camera looks.
+func TestAnEditorFindsThePointUnderThePointer(t *testing.T) {
+	session := newViewer(sample.Island(), false)
+	session.enterPlan(false)
+	var seen View
+	session.edit = func(_ *scene.Scene, _ *input.State, _ float64, view View) { seen = view }
+	app := newApplication(session, DefaultOptions(), "test")
+	app.Input.WindowWidth, app.Input.WindowHeight = 800, 500
+	for step := 0; step < 2; step++ {
+		if err := session.advance(app, 1.0/60); err != nil {
+			t.Fatal(err)
+		}
+	}
+	point, hit := seen.PointOnPlane(400, 250, 0)
+	target := app.Camera.Target
+	if !hit || abs32(point[0]-target[0]) > 0.01 || abs32(point[2]-target[2]) > 0.01 {
+		t.Errorf("the middle of the map is %v, want the camera's target %v", point, target)
+	}
+	if ground, onGround := seen.PointOnGround(400, 250); !onGround || abs32(ground[0]-target[0]) > 0.5 {
+		t.Errorf("the ground under the middle of the map is %v (%v), want near %v", ground, onGround, target)
+	}
+}
+
+func abs32(value float32) float32 {
+	if value < 0 {
+		return -value
+	}
+	return value
+}
