@@ -4,6 +4,7 @@ import (
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
+	"github.com/akrck02/go-renderer/sceneplan"
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
@@ -57,11 +58,11 @@ func (renderer *overlayRenderer) describeVertexLayout() {
 
 // draw lays out and paints the overlay in screen space: no depth test, alpha blending, so it
 // covers the scene whatever is in front.
-func (renderer *overlayRenderer) draw(world *scene.Scene, matrices cameraMatrices, width, height int, scale float32) {
+func (renderer *overlayRenderer) draw(world *scene.Scene, matrices sceneplan.CameraMatrices, width, height int, scale float32) {
 	if world.Overlay.IsEmpty() {
 		return
 	}
-	frame := overlay.Frame{ViewProjection: matrices.viewProjection, Width: width, Height: height,
+	frame := overlay.Frame{ViewProjection: matrices.ViewProjection, Width: width, Height: height,
 		Scale: scale, VerticalScale: world.Environment.EffectiveVerticalScale()}
 	quads := renderer.painter.Paint(&world.Overlay, world.WorldTransforms(anchoredNodes(world.Overlay.Labels)), frame)
 	renderer.drawQuads(quads, width, height)

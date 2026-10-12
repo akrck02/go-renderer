@@ -3,6 +3,7 @@ package metal
 import (
 	"errors"
 	"fmt"
+	"image"
 	"image/png"
 	"os"
 
@@ -15,10 +16,8 @@ import (
 // the same loop as the OpenGL backend: drawing on demand, the fixed-step clock, the resize
 // follower. The application's Draw callback paints with Renderer.
 type FlatWindow struct {
-	window   *glfw.Window
 	renderer *FlatRenderer
-	// unchangedFrames counts frames skipped because they would repeat the last one shown.
-	unchangedFrames int
+	window   metalWindow
 }
 
 // Renderer is the window's renderer, for the application's Draw callback.
@@ -27,6 +26,55 @@ func (flat *FlatWindow) Renderer() *FlatRenderer { return flat.renderer }
 // StartLoop opens the window and runs the application until it closes; a HeadlessApplication
 // draws one frame into its CapturePath instead. It must be called on the program's main thread.
 func (flat *FlatWindow) StartLoop(app *models.Application) error {
+	return flat.window.run(app, func(window *glfw.Window, vsync bool) (capturer, error) {
+		renderer, err := NewFlatRenderer(window, vsync)
+		flat.renderer = renderer
+		return renderer, err
+	})
+}
+
+// SceneWindow runs an application that draws a 3D scene through Metal (the viewer, for one),
+// with the same loop as the OpenGL backend. The application's Draw callback draws with Renderer.
+type SceneWindow struct {
+	renderer *SceneRenderer
+	window   metalWindow
+}
+
+// Renderer is the window's renderer, for the application's Draw callback.
+func (scene *SceneWindow) Renderer() *SceneRenderer { return scene.renderer }
+
+// StartLoop opens the window and runs the application until it closes; a HeadlessApplication
+// draws one frame into its CapturePath instead. It must be called on the program's main thread.
+func (scene *SceneWindow) StartLoop(app *models.Application) error {
+	return scene.window.run(app, func(window *glfw.Window, vsync bool) (capturer, error) {
+		renderer, err := NewSceneRenderer(window, vsync)
+		scene.renderer = renderer
+		return renderer, err
+	})
+}
+
+// capturer is a renderer that can draw its frames off screen, for captures.
+type capturer interface {
+	startCapturing()
+	capturedPicture() *image.NRGBA
+	Close()
+}
+
+func (renderer *FlatRenderer) startCapturing()               { renderer.capturing = true }
+func (renderer *FlatRenderer) capturedPicture() *image.NRGBA { return renderer.captured }
+
+func (renderer *SceneRenderer) startCapturing()               { renderer.capturing = true }
+func (renderer *SceneRenderer) capturedPicture() *image.NRGBA { return renderer.captured }
+
+// metalWindow is a GLFW window with no OpenGL context, run by the shared window loop.
+type metalWindow struct {
+	window *glfw.Window
+	// unchangedFrames counts frames skipped because they would repeat the last one shown.
+	unchangedFrames int
+}
+
+// run opens the window, makes its renderer and runs the loop, or captures one frame.
+func (metal *metalWindow) run(app *models.Application, makeRenderer func(*glfw.Window, bool) (capturer, error)) error {
 	if !windowloop.OnMainThread() {
 		return errors.New("metal: StartLoop must run on the main thread; call runtime.LockOSThread in an init function of package main")
 	}
@@ -38,13 +86,12 @@ func (flat *FlatWindow) StartLoop(app *models.Application) error {
 	if err != nil {
 		return err
 	}
-	flat.window = window
+	metal.window = window
 	defer window.Destroy()
-	renderer, err := NewFlatRenderer(window, !app.DisableVsync)
+	renderer, err := makeRenderer(window, !app.DisableVsync)
 	if err != nil {
 		return err
 	}
-	flat.renderer = renderer
 	defer renderer.Close()
 
 	if app.Input != nil {
@@ -52,9 +99,9 @@ func (flat *FlatWindow) StartLoop(app *models.Application) error {
 	}
 	clock := windowloop.NewClock(app.FixedStep)
 	if app.Type == models.HeadlessApplication {
-		return flat.capture(app, clock)
+		return metal.capture(app, clock, renderer)
 	}
-	return windowloop.Run(window, app, clock, func() error { return flat.drawFrame(app) })
+	return windowloop.Run(window, app, clock, func() error { return metal.drawFrame(app) })
 }
 
 // openWindow makes a window with no OpenGL context, for a Metal layer.
@@ -77,22 +124,22 @@ func openWindow(app *models.Application) (*glfw.Window, error) {
 }
 
 // drawFrame draws and shows a frame, unless the application says it would look like the last one.
-func (flat *FlatWindow) drawFrame(app *models.Application) error {
+func (metal *metalWindow) drawFrame(app *models.Application) error {
 	if app.Unchanged != nil && app.Unchanged(app) {
-		flat.unchangedFrames++
+		metal.unchangedFrames++
 		return nil
 	}
 	return app.Draw(app)
 }
 
-// capture runs a few update steps so the interface settles, then draws one frame off screen and
-// saves it as a PNG.
-func (flat *FlatWindow) capture(app *models.Application, clock *windowloop.Clock) error {
-	flat.renderer.capturing = true
+// capture runs a few update steps so the application settles, drawing each frame off screen, and
+// saves the last as a PNG.
+func (metal *metalWindow) capture(app *models.Application, clock *windowloop.Clock, renderer capturer) error {
+	renderer.startCapturing()
 	for frame := 0; frame < 3; frame++ {
 		glfw.PollEvents()
 		if app.Input != nil {
-			windowloop.UpdateSizes(flat.window, app.Input)
+			windowloop.UpdateSizes(metal.window, app.Input)
 		}
 		if err := windowloop.RunUpdateStep(app, clock.Step()); err != nil {
 			return err
@@ -101,7 +148,8 @@ func (flat *FlatWindow) capture(app *models.Application, clock *windowloop.Clock
 			return err
 		}
 	}
-	if flat.renderer.captured == nil {
+	picture := renderer.capturedPicture()
+	if picture == nil {
 		return errors.New("metal: the capture drew nothing")
 	}
 	path := app.CapturePath
@@ -113,5 +161,5 @@ func (flat *FlatWindow) capture(app *models.Application, clock *windowloop.Clock
 		return err
 	}
 	defer file.Close()
-	return png.Encode(file, flat.renderer.captured)
+	return png.Encode(file, picture)
 }

@@ -1,4 +1,4 @@
-package opengl
+package sceneplan
 
 import (
 	"math/rand"
@@ -27,7 +27,7 @@ func TestGridKeepsEveryInstanceOnce(t *testing.T) {
 	for _, cell := range grid.cells {
 		total += cell.count
 	}
-	if total != 5000 || len(grid.packed) != 5000*floatsPerInstance {
+	if total != 5000 || len(grid.packed) != 5000*FloatsPerInstance {
 		t.Fatalf("grid holds %d instances", total)
 	}
 	for instance, transform := range instances.Transforms {

@@ -2,6 +2,7 @@ package opengl
 
 import (
 	"github.com/akrck02/go-renderer/scene"
+	"github.com/akrck02/go-renderer/sceneplan"
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
@@ -45,19 +46,9 @@ func uploadVariation(variation *scene.LevelVariation) uint32 {
 	if uploaded {
 		gl.DeleteTextures(1, &texture)
 	}
-	texture = uploadHarmonicTexture(variation.Columns, variation.Rows, interleaveHarmonics(variation))
+	texture = uploadHarmonicTexture(variation.Columns, variation.Rows, sceneplan.InterleaveHarmonics(variation))
 	variation.GPU, variation.Dirty = texture, false
 	return texture
-}
-
-// interleaveHarmonics packs the in-phase and in-quadrature grids as two channels.
-func interleaveHarmonics(variation *scene.LevelVariation) []float32 {
-	cells := variation.Columns * variation.Rows
-	data := make([]float32, 2*cells)
-	for cell := 0; cell < cells && cell < len(variation.InPhase) && cell < len(variation.InQuadrature); cell++ {
-		data[2*cell], data[2*cell+1] = variation.InPhase[cell], variation.InQuadrature[cell]
-	}
-	return data
 }
 
 // uploadHarmonicTexture creates a two-channel float texture, linearly filtered and clamped.

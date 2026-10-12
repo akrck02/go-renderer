@@ -13,6 +13,7 @@ it in a viewer.
 ```bash
 go run ./cmd/visor scene.glb          # explore a scene: drag to orbit, Tab to walk, M for a 2D map
 go run ./cmd/visor -walk -night scene.glb
+go run ./cmd/visor -sample island         # a built-in made-up island
 ```
 
 ## Goals
@@ -41,9 +42,11 @@ I write most of my code by hand, so I want to be clear about where AI was used h
   instancing, levels of detail, the overlay of labels and notices with its font and icon atlas in
   `opengl/overlay`, and the 2D draw lists of `draw2d` it paints), `camera`, `input`, `viewer`,
   `cmd/visor` and the documentation in `docs/`. It also extended `graphics`, `loaders` and `models`.
-  Since October 2026 it also wrote the shared window loop (`windowloop`) and the flat Metal
-  renderer in `metal/` (`FlatWindow`, `FlatRenderer`, `flat_darwin.m`), next to my hand-written
-  `metal` stubs, which it left as they were.
+  Since October 2026 it also wrote the shared window loop (`windowloop`), the frame planning both
+  scene renderers share (`sceneplan`), the sample island (`scene/sample`) and the Metal renderers
+  in `metal/` (flat and 3D: `FlatWindow`, `FlatRenderer`, `SceneWindow`, `SceneRenderer`, the
+  Objective-C files and the translated shaders), next to my hand-written `metal` stubs, which it
+  left as they were.
 
 Commits made with AI carry a `Co-Authored-By: Claude` line.
 
