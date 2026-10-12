@@ -375,6 +375,12 @@ func (state *State) HasInput() bool {
 		state.CursorDeltaX != 0 || state.CursorDeltaY != 0 || state.ScrollDelta != 0 || state.ScrollDeltaX != 0
 }
 
+// AnyHeld tells whether a key or a mouse button is being held down: a program that draws on demand
+// keeps drawing while one is, since holding a key (walking forward) sends no events.
+func (state *State) AnyHeld() bool {
+	return state.keysHeld != [keyCount]bool{} || state.buttonsHeld != [mouseButtonCount]bool{}
+}
+
 // EndFrame clears per-frame movement, presses, typed characters and claims; the backend calls it
 // after each update step.
 func (state *State) EndFrame() {

@@ -217,3 +217,23 @@ func TestHasInput(t *testing.T) {
 		t.Fatal("the pointer moved")
 	}
 }
+
+func TestAnyHeldFollowsKeysAndButtons(t *testing.T) {
+	state := NewState()
+	if state.AnyHeld() {
+		t.Fatal("nothing is held at first")
+	}
+	state.SetKey(KeyW, true)
+	if !state.AnyHeld() {
+		t.Error("a key held down counts")
+	}
+	state.SetKey(KeyW, false)
+	state.SetButton(MouseLeft, true)
+	if !state.AnyHeld() {
+		t.Error("a button held down counts")
+	}
+	state.SetButton(MouseLeft, false)
+	if state.AnyHeld() {
+		t.Error("nothing is held once both are let go")
+	}
+}
