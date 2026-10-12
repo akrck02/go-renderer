@@ -10,6 +10,7 @@ go run ./cmd/visor -walk scene.glb
 go run ./cmd/visor -map scene.glb                 # a 2D map seen from straight above
 go run ./cmd/visor -isometric scene.glb           # the same map, at the classic isometric angle
 go run ./cmd/visor -capture frame.png scene.glb   # one frame to PNG, hidden window
+go run ./cmd/visor -sample island                 # a built-in made-up island, no file needed
 go run ./cmd/visor -benchmark 120 scene.glb       # CPU and GPU times per pass, draw calls, triangles
 ```
 
@@ -82,6 +83,9 @@ lifted while a map is shown.
 | `-benchmark N` | Measure N frames, print CPU and GPU times per pass, draw calls and triangles, and exit |
 | `-no-vsync` | Do not wait for the display; the window title shows the real frames per second |
 | `-cpu-profile file` | Write a CPU profile of the session for `go tool pprof` |
+| `-backend B` | What draws: `automatic` (Metal on macOS, OpenGL elsewhere), `metal` or `opengl` |
+| `-sample island` / `-sample night` | Open the built-in sample island (package `scene/sample`) instead of a file |
+| `-time S` | Draw every frame as if S seconds had passed: water and clouds stand still, so captures can be compared |
 
 Other programs reuse these options: `viewer.Options.RegisterFlags` adds them to any flag set, as
 go-simulator's live simulator does.

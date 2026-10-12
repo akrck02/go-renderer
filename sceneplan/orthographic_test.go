@@ -1,4 +1,4 @@
-package opengl
+package sceneplan
 
 import (
 	"testing"

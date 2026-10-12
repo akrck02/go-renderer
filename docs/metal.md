@@ -1,7 +1,8 @@
 # Metal: a backend for flat drawing
 
-**Status:** the flat path is built (October 2026), and go-ui's window draws through it on macOS
-by default. This page started as the design; *What was built* and *Measured* say how it turned
+**Status:** built (October 2026): the flat path, which go-ui's window draws through on macOS by
+default, and the 3D scene renderer, which the viewer draws through on macOS by default (see *The 3D
+scene renderer* below). This page started as the design; *What was built* and *Measured* say how it turned
 out. Pending a look on screen: live resizing by dragging an edge, and a second screen with another
 scale.
 
@@ -72,13 +73,49 @@ still** (a probe with 30 lines of text, `-continuous`):
 Most of the memory saved is the window's buffers and the driver's caches: OpenGL on macOS runs on
 a translation layer over Metal, which keeps more buffers and caches of its own.
 
+## The 3D scene renderer
+
+Built after the flat path, in the same way:
+
+- **One plan, two backends.** What a frame draws (commands in order, culling, levels of detail,
+  instance batches, the shadow and seabed regions) moved out of `opengl` into `sceneplan`, which
+  makes no graphics calls. OpenGL's captures came out identical, pixel for pixel, before and after
+  the move. `metal.SceneRenderer` draws the same plan.
+- **Shaders translated one to one** (`metal/scene_shaders.go`), compiled at start with precise
+  maths: the noise behind the patterns, stars and clouds takes sines of large numbers, and fast
+  maths would round them differently. The uniform blocks are mirrored in Go byte for byte, checked
+  by tests on both sides.
+- **A thin Objective-C layer** (`scene_darwin.m`): buffers, textures, pipelines, passes and draw
+  calls; the logic stays in Go. A frame waits for the previous one, so buffers can be rewritten in
+  place (a simulation moving instances).
+- **Memoryless depth buffer** where the GPU allows it (Apple silicon): nothing reads it after the
+  frame, so it takes no memory.
+- **The viewer** chooses with `-backend` (Metal on macOS, falling back to OpenGL), and the visor
+  opens a built-in sample island (`-sample island`) and draws at a fixed time (`-time`) for captures
+  that can be compared.
+
+Measured with the sample island and a factory floor scene, 1280 × 800 on a high-density screen,
+drawing every frame:
+
+| | OpenGL | Metal |
+|---|---|---|
+| Captures | | differ only by rounding (1/255) and where two surfaces share a plane |
+| Draw calls and triangles | 15 and 160 756 | the same |
+| Processor per frame (benchmark) | 0.76 ms | **0.32 ms** |
+| Processor, the viewer open | 17.5 % of a core | **11.4 %** |
+| GPU busy | 52–73 % | 60–92 % (precise maths) |
+| Memory | 305–322 MB | **214–230 MB** |
+
+Not tested yet: sky images (panoramas and cube faces), a second screen, simulations that move
+instances every frame.
+
 ## Scope
 
 **First:** the flat path, `FlatRenderer` — everything an interface-only window needs (go-ui's
 `window` package). It is small: about 25 OpenGL calls, two short shaders, one atlas texture and one
 draw call a frame.
 
-**Later, and only if OpenGL is removed:** the 3D scene renderer (shadows, sky, water, levels of
+**Later (now done, see above):** the 3D scene renderer (shadows, sky, water, levels of
 detail, instancing; about 3400 lines and 660 lines of GLSL). That is three to six weeks and a
 decision of its own (see *Options*).
 

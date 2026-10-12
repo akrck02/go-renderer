@@ -43,7 +43,7 @@ func NewFlatRenderer(window *glfw.Window, vsync bool) (*FlatRenderer, error) {
 		return nil, err
 	}
 	var failure *C.char
-	handle := C.flatRendererCreate(window.GetCocoaWindow(), boolToInt(vsync), &failure)
+	handle := C.flatRendererCreate(window.GetCocoaWindow(), C.int(boolean(vsync)), &failure)
 	if handle == nil {
 		defer C.free(unsafe.Pointer(failure))
 		return nil, fmt.Errorf("%w: %s", ErrUnavailable, C.GoString(failure))
@@ -100,16 +100,6 @@ func (renderer *FlatRenderer) capture(background *C.float, width, height int) {
 	picture := image.NewNRGBA(image.Rect(0, 0, width, height))
 	C.flatRendererCapture(renderer.handle, renderer.instancePointer(), C.int(len(renderer.instances)), background,
 		C.int(width), C.int(height), (*C.uint8_t)(unsafe.Pointer(&picture.Pix[0])))
-	for index := 0; index < len(picture.Pix); index += 4 {
-		picture.Pix[index], picture.Pix[index+2] = picture.Pix[index+2], picture.Pix[index]
-		picture.Pix[index+3] = 255 // the frame is opaque
-	}
+	swapRedAndBlue(picture)
 	renderer.captured = picture
-}
-
-func boolToInt(value bool) C.int {
-	if value {
-		return 1
-	}
-	return 0
 }

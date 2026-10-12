@@ -16,3 +16,11 @@ type FlatWindow struct{}
 func (flat *FlatWindow) StartLoop(app *models.Application) error {
 	return fmt.Errorf("%w: only on macOS", ErrUnavailable)
 }
+
+// SceneWindow draws a scene through Metal, which only macOS has; elsewhere StartLoop says so.
+type SceneWindow struct{}
+
+// StartLoop fails: Metal is only on macOS.
+func (scene *SceneWindow) StartLoop(app *models.Application) error {
+	return fmt.Errorf("%w: only on macOS", ErrUnavailable)
+}

@@ -3,32 +3,8 @@ package opengl
 import (
 	"time"
 
-	"github.com/akrck02/go-renderer/scene"
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
-
-// FrameStatistics describes the last frame drawn by a SceneRenderer. Counts are always filled;
-// times only when SceneRenderer.Profiling is on.
-type FrameStatistics struct {
-	DrawCalls       int // main pass
-	ShadowDrawCalls int
-	Triangles       int // main pass, instances included
-	ShadowTriangles int
-	Instances       int // instances drawn in the main pass
-
-	CPU time.Duration // time spent by Draw on the processor (without waiting for the GPU)
-	GPU PassTimes     // time spent by the GPU on each pass
-}
-
-// PassTimes are GPU durations of the passes of one frame.
-type PassTimes struct {
-	Seabed, Shadows, Sky, Scene time.Duration
-}
-
-// Total returns the sum of the pass durations.
-func (times PassTimes) Total() time.Duration {
-	return times.Seabed + times.Shadows + times.Sky + times.Scene
-}
 
 // passProfiler measures GPU passes with timer queries. Results are read at the end of the frame,
 // which waits for the GPU: profiling slows the frame down and is meant for measurements only.
@@ -78,8 +54,4 @@ func passField(times *PassTimes, pass string) *time.Duration {
 	default:
 		return &times.Scene
 	}
-}
-
-func castsShadow(command drawCommand) bool {
-	return !command.transparent && command.material.Kind != scene.KindUnlit
 }

@@ -12,7 +12,9 @@
 package viewer
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"runtime"
@@ -21,6 +23,7 @@ import (
 	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/input"
+	"github.com/akrck02/go-renderer/metal"
 	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/opengl"
 	"github.com/akrck02/go-renderer/scene"
@@ -29,7 +32,8 @@ import (
 // viewer holds the state of an exploration session.
 type viewer struct {
 	world          *scene.Scene
-	renderer       *opengl.SceneRenderer
+	renderer       sceneDrawer
+	makeRenderer   func() (sceneDrawer, error) // set by the backend the session runs on
 	orbit          *camera.Orbit
 	walk           *camera.Walk
 	walking        bool
@@ -48,6 +52,7 @@ type viewer struct {
 	benchmark      *benchmark
 	update         UpdateFunc
 	dayElevation   float64 // sun elevation to return to when leaving the night
+	fixedTime      float64 // seconds every frame is drawn at; NaN = the real time
 }
 
 // init keeps the main goroutine on the main thread, where the window system must run; it has to
@@ -75,6 +80,7 @@ func Run(world *scene.Scene, options Options, title string, update UpdateFunc, l
 		session.plan.Span *= zoomOrOne(options.Zoom)
 	}
 	session.update = update
+	session.fixedTime = options.Time
 	session.shadowsEnabled = !options.NoShadows
 	session.orbit.Distance *= zoomOrOne(options.Zoom)
 	session.placeSun(options.SunAzimuth, options.SunElevation)
@@ -84,7 +90,28 @@ func Run(world *scene.Scene, options Options, title string, update UpdateFunc, l
 	if options.Benchmark > 0 {
 		session.benchmark = newBenchmark(options.Benchmark, loadingTime)
 	}
-	return (&opengl.OpenGL{}).StartLoop(newApplication(session, options, title))
+	app := newApplication(session, options, title)
+	if options.Backend.usesMetal() {
+		err := runMetal(session, app)
+		if !errors.Is(err, metal.ErrUnavailable) || options.Backend == Metal {
+			return err
+		}
+		log.Printf("viewer: %v; drawing through OpenGL", err)
+		app.Input = input.NewState()
+	}
+	return runOpenGL(session, app)
+}
+
+// runOpenGL shows the session through OpenGL.
+func runOpenGL(session *viewer, app *models.Application) error {
+	session.makeRenderer = func() (sceneDrawer, error) {
+		renderer, err := opengl.NewSceneRenderer()
+		if err != nil {
+			return nil, err
+		}
+		return openGLScene{renderer}, nil
+	}
+	return (&opengl.OpenGL{}).StartLoop(app)
 }
 
 func zoomOrOne(zoom float64) float64 {
@@ -123,7 +150,7 @@ func newViewer(world *scene.Scene, startWalking bool) *viewer {
 		size = 10
 	}
 	center := graphics.Vec4{(minimum[0] + maximum[0]) / 2, 0, (minimum[2] + maximum[2]) / 2, 1}
-	session := &viewer{world: world, sceneSize: size, started: time.Now(),
+	session := &viewer{world: world, sceneSize: size, started: time.Now(), fixedTime: math.NaN(),
 		baseFogNear: world.Environment.FogNear, baseFogFar: world.Environment.FogFar}
 	session.sunAzimuth, session.sunElevation = sunAnglesFromDirection(world.Environment.SunDirection)
 	session.dayElevation = math.Max(session.sunElevation, 0.3)
@@ -426,25 +453,32 @@ func sunAnglesFromDirection(direction graphics.Vec4) (azimuth, elevation float64
 
 func (session *viewer) draw(app *models.Application) error {
 	if session.renderer == nil {
-		renderer, err := opengl.NewSceneRenderer()
+		renderer, err := session.makeRenderer()
 		if err != nil {
 			return err
 		}
 		session.renderer = renderer
 	}
-	session.renderer.Shadows.Enabled = session.shadowsEnabled
 	width, height := app.Input.FramebufferWidth, app.Input.FramebufferHeight
 	if width == 0 || height == 0 {
 		width, height = app.Width, app.Height
 	}
-	session.renderer.OverlayScale = overlayScale(app.Input.WindowWidth, app.Width, width)
-	session.renderer.Profiling = session.benchmark != nil && session.benchmark.timing()
-	session.renderer.Draw(session.world, app.Camera, width, height, time.Since(session.started).Seconds())
-	if session.benchmark != nil && session.benchmark.record(session.renderer.Statistics) {
+	settings := drawSettings{shadows: session.shadowsEnabled, overlayScale: overlayScale(app.Input.WindowWidth, app.Width, width),
+		profiling: session.benchmark != nil && session.benchmark.timing()}
+	statistics := session.renderer.draw(session.world, app.Camera, width, height, session.seconds(), settings)
+	if session.benchmark != nil && session.benchmark.record(statistics) {
 		session.benchmark.report(os.Stdout)
 		app.Stop = true
 	}
 	return nil
+}
+
+// seconds is the time the frame is drawn at: since the session started, or the fixed time.
+func (session *viewer) seconds() float64 {
+	if !math.IsNaN(session.fixedTime) {
+		return session.fixedTime
+	}
+	return time.Since(session.started).Seconds()
 }
 
 // overlayScale is how many framebuffer pixels make one window pixel (2 on a high-density screen),

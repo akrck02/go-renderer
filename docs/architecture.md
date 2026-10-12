@@ -19,6 +19,8 @@ scene, and it shows the result.
 | `graphics` | Vectors, matrices, coordinate spaces and transformations; the shader sources |
 | `models` | The application loop (`Application`, a fixed time step before every frame), the `Renderer` contract and the backend enumeration |
 | `software`, `opengl`, `vulkan`, `metal`, `webgpu` | Backends behind the contract; OpenGL is the complete one. `metal` also has `FlatWindow` and `FlatRenderer`, which draw a flat interface through Metal on macOS ([design](metal.md)) |
+| `sceneplan` | Decides what a frame of a scene draws, for any backend: the draw commands in order, culling and levels of detail, instance batches, where the shadow and seabed maps look |
+| `scene/sample` | A made-up island that uses every feature the renderers draw, for tests and comparisons |
 | `windowloop` | The window loop both OpenGL and Metal use: GLFW events and input, drawing on demand, the fixed-step clock, redrawing while resizing, the pointer's shape and lock |
 | `scene` | The retained, backend-independent scene, with its overlay (labels, header, notices) |
 | `loaders` | glTF 2.0 loading, including the renderer's extras |
@@ -91,9 +93,16 @@ attributes (`KHR_mesh_quantization`: integer positions, normals, colours and ind
 [extras](gltf-extras.md): environment, sky, water, material kinds, levels of detail and walkable
 ground.
 
-## The OpenGL scene renderer
+## The scene renderers
 
-`opengl.SceneRenderer` uploads each mesh once and draws instanced geometry in a single call, so a
+There are two, which draw the same frame: `opengl.SceneRenderer` and, on macOS, `metal.SceneRenderer`
+(the viewer chooses with `-backend`; Metal by default on macOS). What a frame draws is decided once,
+in `sceneplan`, which makes no graphics calls; each backend only uploads and draws that plan, with
+shaders that are faithful translations of each other. Their captures of the sample island match
+except for rounding and where two surfaces lie in the same plane (`cmd/visor`'s
+`TestMetalDrawsTheSceneLikeOpenGL`; [measurements](metal.md)).
+
+Each uploads each mesh once and draws instanced geometry in a single call, so a
 forest of a hundred thousand trees costs a few draw calls. Every frame goes through the same passes:
 
 ```mermaid

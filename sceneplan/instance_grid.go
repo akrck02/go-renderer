@@ -1,4 +1,4 @@
-package opengl
+package sceneplan
 
 import (
 	"math"
@@ -18,7 +18,7 @@ const maximumCellsPerSide = 128
 // Everything is in the node's own coordinates; the node may move.
 type instanceGrid struct {
 	cells  []instanceCell
-	packed []float32 // floatsPerInstance values per instance, ordered by cell
+	packed []float32 // FloatsPerInstance values per instance, ordered by cell
 	slots  []int     // position of each instance in packed
 	cellOf []int     // cell of each instance
 }
@@ -43,13 +43,13 @@ func buildInstanceGrid(instances *scene.Instances, meshBounds box) *instanceGrid
 		cells[cellOf[instance]].count++
 	}
 	assignFirstInstances(cells)
-	grid := &instanceGrid{packed: make([]float32, count*floatsPerInstance), slots: make([]int, count)}
+	grid := &instanceGrid{packed: make([]float32, count*FloatsPerInstance), slots: make([]int, count)}
 	filled := make([]int, len(cells))
 	for instance, cell := range cellOf {
 		position := cells[cell].first + filled[cell]
 		filled[cell]++
 		grid.slots[instance] = position
-		packInstance(instances, instance, grid.packed[position*floatsPerInstance:])
+		packInstance(instances, instance, grid.packed[position*FloatsPerInstance:])
 	}
 	measureCells(cells, grid.packed, meshBounds)
 	var renumbered []int
@@ -65,7 +65,7 @@ func buildInstanceGrid(instances *scene.Instances, meshBounds box) *instanceGrid
 // instance keeps its cell even if it moves away; the cell box grows). It returns the cell.
 func (grid *instanceGrid) updateInstance(instances *scene.Instances, instance int, meshBounds box) int {
 	slot := grid.slots[instance]
-	packInstance(instances, instance, grid.packed[slot*floatsPerInstance:])
+	packInstance(instances, instance, grid.packed[slot*FloatsPerInstance:])
 	cell := &grid.cells[grid.cellOf[instance]]
 	instanceBounds := meshBounds.transformed(instances.Transforms[instance], 1)
 	cell.bounds.merge(instanceBounds)
@@ -127,7 +127,7 @@ func measureCells(cells []instanceCell, packed []float32, meshBounds box) {
 
 func unpackTransform(packed []float32, instance int) graphics.Mat4 {
 	var transform graphics.Mat4
-	copy(transform[:], packed[instance*floatsPerInstance:instance*floatsPerInstance+16])
+	copy(transform[:], packed[instance*FloatsPerInstance:instance*FloatsPerInstance+16])
 	return transform
 }
 
