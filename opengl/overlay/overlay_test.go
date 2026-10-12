@@ -4,9 +4,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/akrck02/go-renderer/draw2d"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/opengl/overlay/lucide"
 	"github.com/akrck02/go-renderer/scene"
+	"golang.org/x/image/font/gofont/gomonobold"
 )
 
 func newTestPainter(t *testing.T) *Painter {
@@ -230,4 +232,26 @@ func abs(value float32) float32 {
 		return -value
 	}
 	return value
+}
+
+// A program can draw text in its own fonts, and codes in a monospaced one.
+func TestTextCanUseAProgramsFontsAndAMonospacedOneForCodes(t *testing.T) {
+	measurer, err := NewMeasurer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	narrow := measurer.MeasureText("iiii", 14, draw2d.Mono, 1)
+	wide := measurer.MeasureText("MMMM", 14, draw2d.Mono, 1)
+	if narrow.Width != wide.Width {
+		t.Errorf("monospaced codes: iiii %v wide, MMMM %v", narrow.Width, wide.Width)
+	}
+	defer UseFonts(Fonts{})
+	UseFonts(Fonts{Regular: gomonobold.TTF})
+	chosen, err := NewMeasurer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if text := chosen.MeasureText("iiii", 14, draw2d.Regular, 1); text.Width != narrow.Width {
+		t.Errorf("the chosen regular font draws the text: %v, want %v", text.Width, narrow.Width)
+	}
 }

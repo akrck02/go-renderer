@@ -178,6 +178,8 @@ func faceForWeight(weight draw2d.Weight) faceName {
 		return textFace
 	case draw2d.Bold:
 		return strongFace
+	case draw2d.Mono:
+		return monoFace
 	default:
 		return regularFace
 	}

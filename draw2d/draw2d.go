@@ -109,6 +109,7 @@ const (
 	Regular Weight = iota // body text
 	Medium                // labels that should stand out a little
 	Bold                  // titles
+	Mono                  // codes and keys, in a monospaced face, so they stand apart from words
 )
 
 // TextMetrics are the measures of a line of text, in layout pixels.
