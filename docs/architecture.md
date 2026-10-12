@@ -18,7 +18,7 @@ scene, and it shows the result.
 |---|---|
 | `graphics` | Vectors, matrices, coordinate spaces and transformations; the shader sources |
 | `models` | The application loop (`Application`, a fixed time step before every frame), the `Renderer` contract and the backend enumeration |
-| `software`, `opengl`, `vulkan`, `metal`, `webgpu` | Backends behind the contract; OpenGL is the complete one. |
+| `software`, `opengl`, `vulkan`, `metal`, `webgpu` | Backends behind the contract; OpenGL is the complete one. `metal` also has `FlatWindow` and `FlatRenderer`, which draw a flat interface through Metal on macOS ([design](metal.md)) |
 | `windowloop` | The window loop both OpenGL and Metal use: GLFW events and input, drawing on demand, the fixed-step clock, redrawing while resizing, the pointer's shape and lock |
 | `scene` | The retained, backend-independent scene, with its overlay (labels, header, notices) |
 | `loaders` | glTF 2.0 loading, including the renderer's extras |
