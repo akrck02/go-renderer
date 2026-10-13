@@ -241,3 +241,22 @@ func TestAMergedBatchIsMadeAgainOnlyWhenItChanges(t *testing.T) {
 		t.Fatal("a rewritten batch should be made and uploaded again")
 	}
 }
+
+func TestANewRendererUploadsTheMeshesAgain(t *testing.T) {
+	world := sample.Island()
+	first, err := NewSceneRenderer(newRecorder())
+	if err != nil {
+		t.Fatal(err)
+	}
+	first.Draw(world, islandCamera(), 1280, 800)
+	// a phone came back from the background: a new graphics context, a new renderer
+	fake := newRecorder()
+	second, err := NewSceneRenderer(fake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second.Draw(world, islandCamera(), 1280, 800)
+	if fake.bufferUploads[ElementArrayBuffer] == 0 {
+		t.Fatal("the new renderer drew the ground with the old context's buffers")
+	}
+}
