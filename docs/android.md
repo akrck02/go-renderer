@@ -125,10 +125,17 @@ list): touching it opens the program. Android 13 and later show them only once t
 it: `NotificationsAllowed` tells, and `AskForNotifications` shows Android's question (the package
 names `android.permission.POST_NOTIFICATIONS`). Tried on a OnePlus 7 Pro (Android 10).
 
+**The back gesture.** Android's back (the gesture from a side, or the button) is the program's:
+the window records it (`State.PressBack`), and the part of the program the person is in answers it
+(`State.TakeBack`, go-ui's `Context.Back`): a dialog closes, a screen goes back to the one before.
+A back nobody answers sends the program to the background (`moveTaskToBack`), as a phone's own
+applications do at their first screen; it comes back as it was. When the on-screen keyboard is up,
+the back puts it away first, as everywhere on Android.
+
 ## Not yet
 
 - Characters a keyboard sends whole rather than key by key (some keyboards' suggestions, emoji):
   Android hands them as one event whose text needs the Java event, which a NativeActivity does not
   get.
-- Long presses, and the back gesture inside the program (it closes the activity today).
+- Long presses.
 - Instanced drawing with OpenGL ES 3, and the full scene renderer (shadows, sky, waves) on phones.
