@@ -31,14 +31,14 @@ not use GLFW, and **a renderer** that speaks WebGL2.
 ```text
 your program              the same scene, camera and update function as on the desktop
 browser   (js only)       the canvas, its events → input.State, requestAnimationFrame, WebGL2
-gles                      FlatRenderer and SceneRenderer, in GLSL ES 3.00, over gles.Functions
+gles                      FlatRenderer and SceneRenderer, in GLSL ES 1.00, over gles.Functions
 frameloop                 the fixed-step clock, shared with windowloop
 overlay, scene, camera…   unchanged
 ```
 
-### `gles`: renderers written once for OpenGL ES 3
+### `gles`: renderers written once for OpenGL ES
 
-WebGL2 *is* OpenGL ES 3.0, and Android phones draw with OpenGL ES 3 too. So the renderers are
+Browsers draw with WebGL2 (OpenGL ES 3.0) and Android phones with OpenGL ES. So the renderers are
 written once, in package `gles`, against a small interface, `gles.Functions`: about forty calls
 to make shaders, buffers and textures and to draw. Each platform implements it:
 
@@ -54,10 +54,16 @@ with vertex colours, instances, the light of the time of day (`Environment.Dayli
 translucent water and, over everything, the overlay. What a frame draws is still decided by
 `sceneplan`, so culling and levels of detail work as on the desktop.
 
+They use **only what OpenGL ES 2.0 has** (plus 32-bit indices, which every current phone has),
+because on Android `golang.org/x/mobile/gl` asks for an OpenGL ES 2 context and knows no newer
+function; WebGL2 accepts all of it. So the shaders are GLSL ES 1.00, there are no vertex array
+objects (each draw describes its vertices, a handful of calls), the atlas is a `LUMINANCE`
+texture, and the normal matrix is worked out on the processor (GLSL ES 1.00 has no `inverse`).
+
 Each rectangle of the overlay is six vertices and each instance its own draw call, because
-OpenGL ES through `golang.org/x/mobile/gl` cannot draw instances. That is fine for scenes like the
-sample island (about a thousand calls a frame); large forests need instancing, which WebGL2 has,
-as a later step.
+OpenGL ES 2 cannot draw instances. That is fine for scenes like the sample island (about a
+thousand calls a frame); large forests need instancing, which WebGL2 and OpenGL ES 3 have, as a
+later step behind the same interface.
 
 ### `browser`: the canvas as a window
 
@@ -92,7 +98,7 @@ servers usually do on the fly. The fonts and icons are inside it, so the page lo
 ## Testing
 
 - `go test ./gles ./frameloop` on any computer: the renderers against the fake (shaders are
-  OpenGL ES 3.00, one draw call for an interface, the atlas and meshes uploaded only when they
+  GLSL ES 1.00 with nothing newer, one draw call for an interface, the atlas and meshes uploaded only when they
   change).
 - `GOOS=js GOARCH=wasm go test ./browser ./gles` runs the browser package's own tests under
   Node.js (key, wheel and button mapping); it needs `$(go env GOROOT)/lib/wasm` in the `PATH`.

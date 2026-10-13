@@ -13,6 +13,7 @@ type recorder struct {
 	bufferUploads  map[Enum]int
 	draws          []recordedDraw
 	failCompile    bool
+	attributes     []string
 }
 
 type recordedDraw struct {
@@ -45,7 +46,10 @@ func (fake *recorder) CreateProgram() Program               { return Program(fak
 func (fake *recorder) AttachShader(Program, Shader)         {}
 func (fake *recorder) LinkProgram(Program)                  {}
 func (fake *recorder) ProgramLinked(Program) (bool, string) { return true, "" }
-func (fake *recorder) UseProgram(Program)                   {}
+func (fake *recorder) BindAttribLocation(_ Program, index uint32, name string) {
+	fake.attributes = append(fake.attributes, name)
+}
+func (fake *recorder) UseProgram(Program) {}
 func (fake *recorder) UniformLocation(_ Program, name string) Uniform {
 	location, known := fake.uniforms[name]
 	if !known {
@@ -59,12 +63,11 @@ func (fake *recorder) Uniform1f(Uniform, float32)                            {}
 func (fake *recorder) Uniform2f(Uniform, float32, float32)                   {}
 func (fake *recorder) Uniform3f(Uniform, float32, float32, float32)          {}
 func (fake *recorder) Uniform4f(Uniform, float32, float32, float32, float32) {}
+func (fake *recorder) UniformMatrix3(Uniform, [9]float32)                    {}
 func (fake *recorder) UniformMatrix4(Uniform, [16]float32)                   { fake.matrixUploads++ }
 func (fake *recorder) CreateBuffer() Buffer                                  { return Buffer(fake.handle()) }
 func (fake *recorder) BindBuffer(Enum, Buffer)                               {}
 func (fake *recorder) BufferData(target Enum, _ []byte, _ Enum)              { fake.bufferUploads[target]++ }
-func (fake *recorder) CreateVertexArray() VertexArray                        { return VertexArray(fake.handle()) }
-func (fake *recorder) BindVertexArray(VertexArray)                           {}
 func (fake *recorder) EnableVertexAttribArray(uint32)                        {}
 func (fake *recorder) VertexAttribPointer(uint32, int, Enum, bool, int, int) {}
 func (fake *recorder) CreateTexture() Texture                                { return Texture(fake.handle()) }

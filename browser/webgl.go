@@ -31,6 +31,8 @@ type WebGL struct {
 	scratchLength int
 	matrix        js.Value // a Float32Array of 16
 	matrixBytes   js.Value // the same memory, as bytes
+	matrix3       js.Value // a Float32Array of 9
+	matrix3Bytes  js.Value
 }
 
 // ErrNoWebGL2 is returned when the browser cannot give the canvas a WebGL2 context.
@@ -45,8 +47,10 @@ func newWebGL(canvas js.Value, antialias bool) (*WebGL, error) {
 		return nil, ErrNoWebGL2
 	}
 	matrix := js.Global().Get("Float32Array").New(16)
+	matrix3 := js.Global().Get("Float32Array").New(9)
 	return &WebGL{context: context, objects: map[uint32]js.Value{}, matrix: matrix,
-		matrixBytes: js.Global().Get("Uint8Array").New(matrix.Get("buffer"))}, nil
+		matrixBytes: js.Global().Get("Uint8Array").New(matrix.Get("buffer")), matrix3: matrix3,
+		matrix3Bytes: js.Global().Get("Uint8Array").New(matrix3.Get("buffer"))}, nil
 }
 
 func (webgl *WebGL) keep(object js.Value) uint32 {
@@ -125,6 +129,10 @@ func (webgl *WebGL) ProgramLinked(program gles.Program) (bool, string) {
 	return false, webgl.context.Call("getProgramInfoLog", object).String()
 }
 
+func (webgl *WebGL) BindAttribLocation(program gles.Program, index uint32, name string) {
+	webgl.context.Call("bindAttribLocation", webgl.object(uint32(program)), index, name)
+}
+
 func (webgl *WebGL) UseProgram(program gles.Program) {
 	webgl.context.Call("useProgram", webgl.object(uint32(program)))
 }
@@ -166,6 +174,14 @@ func (webgl *WebGL) Uniform4f(location gles.Uniform, first, second, third, fourt
 	webgl.context.Call("uniform4f", webgl.uniform(location), first, second, third, fourth)
 }
 
+func (webgl *WebGL) UniformMatrix3(location gles.Uniform, matrix [9]float32) {
+	if location < 0 {
+		return
+	}
+	js.CopyBytesToJS(webgl.matrix3Bytes, unsafe.Slice((*byte)(unsafe.Pointer(&matrix[0])), 36))
+	webgl.context.Call("uniformMatrix3fv", webgl.uniform(location), false, webgl.matrix3)
+}
+
 func (webgl *WebGL) UniformMatrix4(location gles.Uniform, matrix [16]float32) {
 	if location < 0 {
 		return
@@ -184,14 +200,6 @@ func (webgl *WebGL) BindBuffer(target gles.Enum, buffer gles.Buffer) {
 
 func (webgl *WebGL) BufferData(target gles.Enum, data []byte, usage gles.Enum) {
 	webgl.context.Call("bufferData", uint32(target), webgl.bytes(data), uint32(usage))
-}
-
-func (webgl *WebGL) CreateVertexArray() gles.VertexArray {
-	return gles.VertexArray(webgl.keep(webgl.context.Call("createVertexArray")))
-}
-
-func (webgl *WebGL) BindVertexArray(vertexArray gles.VertexArray) {
-	webgl.context.Call("bindVertexArray", webgl.object(uint32(vertexArray)))
 }
 
 func (webgl *WebGL) EnableVertexAttribArray(index uint32) {

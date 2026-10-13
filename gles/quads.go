@@ -16,13 +16,12 @@ const atlasTextureUnit = 0
 // atlas, in one draw call. It is the OpenGL overlay renderer's last steps, for OpenGL ES: the
 // painter that lays out the rectangles and rasterises the atlas is shared with every backend.
 //
-// OpenGL ES through golang.org/x/mobile/gl cannot draw instances, so each rectangle is two
-// triangles of six corners, as on the desktop's OpenGL path.
+// OpenGL ES 2 cannot draw instances, so each rectangle is two triangles of six corners, as on the
+// desktop's OpenGL path.
 type quadPass struct {
 	functions    Functions
 	painter      *overlay.Painter
 	program      *program
-	vertexArray  VertexArray
 	vertexBuffer Buffer
 	atlasTexture Texture
 	atlasVersion int // the version of the atlas on the GPU; -1 before the first upload
@@ -34,22 +33,20 @@ func newQuadPass(functions Functions) (*quadPass, error) {
 	if err != nil {
 		return nil, err
 	}
-	shaders, err := newProgram(functions, quadVertexShader, quadFragmentShader)
+	shaders, err := newProgram(functions, quadVertexShader, quadFragmentShader, quadAttributes)
 	if err != nil {
 		return nil, err
 	}
 	pass := &quadPass{functions: functions, painter: painter, program: shaders, atlasVersion: -1}
-	pass.vertexArray = functions.CreateVertexArray()
 	pass.vertexBuffer = functions.CreateBuffer()
 	pass.atlasTexture = functions.CreateTexture()
-	pass.describeVertexLayout()
 	return pass, nil
 }
 
+// describeVertexLayout tells where each attribute is in the bound vertex buffer. With no vertex
+// array objects in OpenGL ES 2, it is done before every draw.
 func (pass *quadPass) describeVertexLayout() {
 	functions := pass.functions
-	functions.BindVertexArray(pass.vertexArray)
-	functions.BindBuffer(ArrayBuffer, pass.vertexBuffer)
 	stride := floatsPerQuadVertex * 4
 	functions.EnableVertexAttribArray(0)
 	functions.VertexAttribPointer(0, 2, Float, false, stride, 0)
@@ -57,7 +54,6 @@ func (pass *quadPass) describeVertexLayout() {
 	functions.VertexAttribPointer(1, 2, Float, false, stride, 2*4)
 	functions.EnableVertexAttribArray(2)
 	functions.VertexAttribPointer(2, 4, Float, false, stride, 4*4)
-	functions.BindVertexArray(0)
 }
 
 // paintFlat paints an overlay with nothing in the world to anchor labels to: a flat interface.
@@ -111,7 +107,7 @@ func (pass *quadPass) uploadAtlas() {
 	}
 	size := atlas.Size()
 	functions.PixelStorei(UnpackAlignment, 1) // rows of a one-byte-per-pixel image are not padded
-	functions.TexImage2D(Texture2D, 0, R8, size, size, Red, UnsignedByte, atlas.Image.Pix)
+	functions.TexImage2D(Texture2D, 0, Luminance, size, size, Luminance, UnsignedByte, atlas.Image.Pix)
 	functions.PixelStorei(UnpackAlignment, 4)
 	functions.TexParameteri(Texture2D, TextureMinFilter, int32(Linear))
 	functions.TexParameteri(Texture2D, TextureMagFilter, int32(Linear))
@@ -155,9 +151,9 @@ func (pass *quadPass) drawVertices(width, height int) {
 	functions.DepthMask(false)
 	functions.Enable(Blend)
 	functions.BlendFuncSeparate(SourceAlpha, OneMinusSrcAlpha, One, OneMinusSrcAlpha)
-	functions.BindVertexArray(pass.vertexArray)
+	functions.BindBuffer(ArrayBuffer, pass.vertexBuffer)
+	pass.describeVertexLayout()
 	functions.DrawArrays(Triangles, 0, len(pass.vertices)/floatsPerQuadVertex)
-	functions.BindVertexArray(0)
 	functions.Disable(Blend)
 	functions.DepthMask(true)
 }

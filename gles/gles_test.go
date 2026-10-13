@@ -11,13 +11,18 @@ import (
 	"github.com/akrck02/go-renderer/scene/sample"
 )
 
-func TestShadersAreOpenGLESThree(t *testing.T) {
+func TestShadersAreOpenGLESTwo(t *testing.T) {
 	for name, source := range map[string]string{
 		"quad vertex": quadVertexShader, "quad fragment": quadFragmentShader,
 		"scene vertex": sceneVertexShader, "scene fragment": sceneFragmentShader,
 	} {
-		if !strings.HasPrefix(source, "#version 300 es\n") {
-			t.Errorf("%s shader does not start with the OpenGL ES 3.00 version line", name)
+		if !strings.HasPrefix(source, "#version 100\n") {
+			t.Errorf("%s shader does not start with the GLSL ES 1.00 version line", name)
+		}
+		for _, newer := range []string{"layout(", " in ", " out ", "texture(", "inverse("} {
+			if strings.Contains(source, newer) {
+				t.Errorf("%s shader uses %q, which OpenGL ES 2 does not have", name, strings.TrimSpace(newer))
+			}
 		}
 		if strings.Contains(name, "fragment") && !strings.Contains(source, "precision ") {
 			t.Errorf("%s shader has no default precision, which OpenGL ES requires", name)
@@ -176,5 +181,25 @@ func TestInstanceStoreRewritesInPlace(t *testing.T) {
 	batch := handle.(*instanceBatch)
 	if batch.packed[20] != 9 || len(batch.packed) != 40 {
 		t.Fatalf("second instance starts with %v (length %d), want 9 (40)", batch.packed[20], len(batch.packed))
+	}
+}
+
+func TestAttributesAreBoundBeforeLinking(t *testing.T) {
+	fake := newRecorder()
+	if _, err := NewSceneRenderer(fake); err != nil {
+		t.Fatal(err)
+	}
+	want := append(append([]string{}, sceneAttributes...), quadAttributes...)
+	if strings.Join(fake.attributes, ",") != strings.Join(want, ",") {
+		t.Fatalf("attributes bound = %v, want %v", fake.attributes, want)
+	}
+}
+
+func TestTheNormalMatrixUndoesAStretch(t *testing.T) {
+	stretch := graphics.Identity()
+	stretch[0] = 2 // twice as wide: normals lean the other way, so x is halved
+	matrix := normalMatrix(stretch)
+	if matrix[0] != 0.5 || matrix[4] != 1 || matrix[8] != 1 {
+		t.Fatalf("normal matrix diagonal = %v, %v, %v; want 0.5, 1, 1", matrix[0], matrix[4], matrix[8])
 	}
 }
