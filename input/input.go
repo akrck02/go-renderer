@@ -145,6 +145,7 @@ type State struct {
 	Now func() time.Time
 	// frameWanted is the earliest time a frame was asked for (RequestFrame); zero = none.
 	frameWanted time.Time
+	touches     []Touch // the fingers on the screen now (touch.go)
 }
 
 // pressRecord is the last mouse press, to recognise the next one as part of a double click.
@@ -331,6 +332,7 @@ func (state *State) KeyboardClaimed() bool { return state.keyboardClaimed }
 func (state *State) Unclaimed() State {
 	copied := *state
 	copied.characters = nil
+	copied.touches = append([]Touch(nil), state.touches...) // the copy may be changed apart
 	if state.mouseClaimed {
 		copied.buttonsHeld, copied.buttonsPressedNow, copied.buttonsReleasedNow = [mouseButtonCount]bool{}, [mouseButtonCount]bool{}, [mouseButtonCount]bool{}
 		copied.CursorDeltaX, copied.CursorDeltaY, copied.ScrollDelta, copied.ScrollDeltaX = 0, 0, 0, 0

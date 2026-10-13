@@ -22,6 +22,7 @@ type Canvas struct {
 	state     *input.State
 	listeners []js.Func
 	cursor    input.CursorShape
+	fingers   input.TouchPointer // a phone's or a tablet's fingers, as the pointer and as touches
 	// changed is called after every event, so the loop can schedule a frame.
 	changed func()
 }
@@ -62,7 +63,7 @@ func (canvas *Canvas) Attach(state *input.State) {
 	canvas.listen(canvas.element, "pointermove", canvas.pointerMoved)
 	canvas.listen(canvas.element, "pointerdown", canvas.pointerPressed)
 	canvas.listen(canvas.element, "pointerup", canvas.pointerReleased)
-	canvas.listen(canvas.element, "pointercancel", canvas.pointerReleased)
+	canvas.listen(canvas.element, "pointercancel", canvas.pointerCancelled)
 	canvas.listen(canvas.element, "wheel", canvas.wheelTurned)
 	canvas.listen(canvas.element, "contextmenu", func(event js.Value) { event.Call("preventDefault") })
 	canvas.listen(canvas.element, "keydown", canvas.keyPressed)
@@ -84,7 +85,20 @@ func (canvas *Canvas) listen(target js.Value, event string, handle func(event js
 	target.Call("addEventListener", event, function, map[string]any{"passive": false})
 }
 
+// isFinger tells a touch from a mouse or a pen: fingers can be several, and make gestures.
+func isFinger(event js.Value) bool { return event.Get("pointerType").String() == "touch" }
+
+// fingerOf is a pointer event's finger, with where it is in layout pixels.
+func fingerOf(event js.Value) (int64, float32, float32) {
+	return int64(event.Get("pointerId").Int()), float32(event.Get("offsetX").Float()), float32(event.Get("offsetY").Float())
+}
+
 func (canvas *Canvas) pointerMoved(event js.Value) {
+	if isFinger(event) {
+		finger, x, y := fingerOf(event)
+		canvas.fingers.Move(canvas.state, finger, x, y, 1)
+		return
+	}
 	canvas.state.MoveCursor(event.Get("offsetX").Float(), event.Get("offsetY").Float())
 }
 
@@ -92,18 +106,37 @@ func (canvas *Canvas) pointerPressed(event js.Value) {
 	canvas.element.Call("focus")
 	// keep receiving the pointer's events while it is held, even outside the canvas (a drag)
 	canvas.element.Call("setPointerCapture", event.Get("pointerId"))
+	event.Call("preventDefault")
+	if isFinger(event) {
+		finger, x, y := fingerOf(event)
+		canvas.fingers.Begin(canvas.state, finger, x, y, 1)
+		return
+	}
 	canvas.pointerMoved(event)
 	if button, known := mouseButtonFrom(event.Get("button").Int()); known {
 		canvas.state.SetButton(button, true)
 	}
-	event.Call("preventDefault")
 }
 
 func (canvas *Canvas) pointerReleased(event js.Value) {
+	if isFinger(event) {
+		finger, x, y := fingerOf(event)
+		canvas.fingers.End(canvas.state, finger, x, y, 1)
+		return
+	}
 	canvas.pointerMoved(event)
 	if button, known := mouseButtonFrom(event.Get("button").Int()); known {
 		canvas.state.SetButton(button, false)
 	}
+}
+
+// pointerCancelled lets everything go when the browser takes a gesture over.
+func (canvas *Canvas) pointerCancelled(event js.Value) {
+	if isFinger(event) {
+		canvas.fingers.Cancel(canvas.state)
+		return
+	}
+	canvas.pointerReleased(event)
 }
 
 func (canvas *Canvas) wheelTurned(event js.Value) {

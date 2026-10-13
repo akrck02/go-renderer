@@ -1,6 +1,9 @@
 package input
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestATapIsAClickWhereTheFingerWas(t *testing.T) {
 	state := NewState()
@@ -15,35 +18,69 @@ func TestATapIsAClickWhereTheFingerWas(t *testing.T) {
 	}
 }
 
-func TestASecondFingerIsIgnored(t *testing.T) {
+func TestASecondFingerLetsThePointerGo(t *testing.T) {
 	state := NewState()
 	var pointer TouchPointer
 	pointer.Begin(state, 1, 100, 100, 1)
 	pointer.Begin(state, 2, 500, 500, 1)
-	pointer.Move(state, 2, 600, 600, 1)
-	if state.CursorX != 100 || state.CursorY != 100 {
-		t.Fatalf("cursor at %v, %v; the second finger should not move it", state.CursorX, state.CursorY)
+	if state.Button(MouseLeft) {
+		t.Fatal("two fingers are a gesture: the pointer should not stay pressed")
 	}
-	pointer.End(state, 2, 600, 600, 1)
-	if !state.Button(MouseLeft) {
-		t.Fatal("lifting the second finger released the first one's press")
+	if len(state.Touches()) != 2 {
+		t.Fatalf("touches = %v, want both fingers", state.Touches())
 	}
+	pointer.End(state, 2, 500, 500, 1)
 	pointer.Move(state, 1, 140, 100, 1)
-	if state.CursorX != 140 {
-		t.Fatalf("cursor at %v; the first finger should still drag", state.CursorX)
+	if state.Button(MouseLeft) || state.CursorX != 100 {
+		t.Fatal("the first finger left alone should not drag: the pointer comes back with the next finger")
+	}
+	pointer.End(state, 1, 140, 100, 1)
+	pointer.Begin(state, 3, 50, 60, 1)
+	if !state.Button(MouseLeft) || state.CursorX != 50 {
+		t.Fatal("a new finger after all were lifted should press again")
 	}
 }
 
-func TestACancelledGestureReleasesThePointer(t *testing.T) {
+func TestACancelledGestureReleasesEverything(t *testing.T) {
 	state := NewState()
 	var pointer TouchPointer
 	pointer.Begin(state, 1, 100, 100, 1)
 	pointer.Cancel(state)
-	if state.Button(MouseLeft) {
-		t.Fatal("the button stays pressed after the system took the gesture")
+	if state.Button(MouseLeft) || len(state.Touches()) != 0 {
+		t.Fatal("the button or a finger stays after the system took the gesture")
 	}
-	pointer.Begin(state, 2, 50, 50, 1)
-	if !state.Button(MouseLeft) {
-		t.Fatal("a new finger after a cancel should press again")
+}
+
+func TestTwoFingersPinchTwistAndPan(t *testing.T) {
+	state := NewState()
+	var follower TwoFingers
+	state.SetTouch(1, 100, 100)
+	state.SetTouch(2, 200, 100)
+	if _, ok := follower.Step(state); ok {
+		t.Fatal("a gesture starts at the step after the fingers came down")
+	}
+	// apart to twice the distance, turned a quarter counterclockwise, the middle moved right by 10
+	state.SetTouch(1, 160, 200)
+	state.SetTouch(2, 160, 0)
+	gesture, ok := follower.Step(state)
+	if !ok {
+		t.Fatal("no gesture with two fingers")
+	}
+	if math.Abs(gesture.Spread-2) > 1e-9 || math.Abs(gesture.Turn-math.Pi/2) > 1e-9 || gesture.PanX != 10 || gesture.PanY != 0 {
+		t.Fatalf("gesture = %+v, want spread 2, a quarter turn, pan 10, 0", gesture)
+	}
+	state.LiftTouch(2)
+	if _, ok := follower.Step(state); ok {
+		t.Fatal("one finger is no gesture")
+	}
+}
+
+func TestTheUnclaimedCopyKeepsItsOwnTouches(t *testing.T) {
+	state := NewState()
+	state.SetTouch(1, 10, 10)
+	copied := state.Unclaimed()
+	copied.SetTouch(1, 99, 99)
+	if state.Touches()[0].X != 10 {
+		t.Fatal("changing the copy's touches changed the state's")
 	}
 }

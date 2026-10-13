@@ -144,7 +144,16 @@ the view can **claim** the mouse or the keyboard for a step (`ClaimMouse`, `Clai
 viewer gives its cameras and shortcuts `State.Unclaimed()`, a copy without what was claimed, so a
 slider being dragged does not turn the camera. `camera.Orbit`
 (drag, pan, zoom), `camera.Walk` (first person on the ground) and `camera.Plan` (a flat map, from
-above or isometric) turn it into a camera placement. A camera with an `OrthographicHeight` is
+above or isometric) turn it into a camera placement.
+
+On a touch screen the first finger is the pointer (`input.TouchPointer`): it moves the cursor and
+holds the left button, so a tap is a click and a drag turns the orbit. A second finger lets the
+button go, and every finger on the screen is in `State.Touches`. `input.TwoFingers` turns two
+fingers, from one step to the next, into a `Gesture`: how much they spread apart, how much they
+turned and how far their middle moved. `Orbit.Gesture` follows it (pinch to come closer, twist to
+turn, move both to pan); `Walk.Steer` walks as an on-screen stick says and `Walk.Turn` looks
+around by a finger's movement. The interface's copy (`Unclaimed`) keeps the touches, so a program
+can tell which finger is on its own control. A camera with an `OrthographicHeight` is
 drawn without perspective: it shows that many scene units from the bottom to the top of the
 window, and shadows and levels of detail follow that size instead of the distance to the camera.
 The `viewer` package puts it all together: cameras, sun, fog, shadows, vertical exaggeration,

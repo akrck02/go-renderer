@@ -80,7 +80,8 @@ island, a frame went from about 12.5 to 8.7 ms.
   times `devicePixelRatio`, so text is rasterised at its real pixel size. As on the desktop, the
   cursor is in layout pixels (`WindowWidth`) and drawing in device pixels (`FramebufferWidth`).
 - **Input.** Pointer events (mouse, pen and touch alike), the wheel and the keyboard fill an
-  `input.State`. Keys follow their place on the keyboard (`KeyboardEvent.code`), as GLFW's do;
+  `input.State`. A finger is also the pointer, as on Android (`input.TouchPointer`), and every
+  finger on the screen is listed in `State.Touches`, for gestures. Keys follow their place on the keyboard (`KeyboardEvent.code`), as GLFW's do;
   typed characters come from `KeyboardEvent.key`. The canvas takes the focus when pressed, and lets
   go of held keys when it loses it.
 - **Clipboard.** Copied text is kept by the page and offered to the system clipboard; pasting takes
