@@ -35,4 +35,7 @@ int bar_height(JNIEnv *env, const char *name);
 int night_mode(JNIEnv *env);
 int screen_density(void);
 
+// log_text writes a line to Android's log, under the tag Go.
+void log_text(int priority, const char *text);
+
 #endif
