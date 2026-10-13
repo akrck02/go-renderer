@@ -18,11 +18,11 @@ import (
 // page (its CSS size) and draws at the screen's density, so text stays sharp on high-density
 // screens.
 type Canvas struct {
-	element   js.Value
-	state     *input.State
-	listeners []js.Func
-	cursor    input.CursorShape
-	fingers   input.TouchPointer // a phone's or a tablet's fingers, as the pointer and as touches
+	element  js.Value
+	state    *input.State
+	detaches []func() // each listener and observer the canvas added, taken off again
+	cursor   input.CursorShape
+	fingers  input.TouchPointer // a phone's or a tablet's fingers, as the pointer and as touches
 	// changed is called after every event, so the loop can schedule a frame.
 	changed func()
 }
@@ -81,8 +81,21 @@ func (canvas *Canvas) listen(target js.Value, event string, handle func(event js
 		canvas.changed()
 		return nil
 	})
-	canvas.listeners = append(canvas.listeners, function)
-	target.Call("addEventListener", event, function, map[string]any{"passive": false})
+	options := map[string]any{"passive": false}
+	target.Call("addEventListener", event, function, options)
+	canvas.detaches = append(canvas.detaches, func() {
+		target.Call("removeEventListener", event, function, options)
+		function.Release()
+	})
+}
+
+// Detach takes off what Attach added: a program that stops, while the page goes on, leaves no
+// listener behind (the document's would call into a program that has exited).
+func (canvas *Canvas) Detach() {
+	for _, detach := range canvas.detaches {
+		detach()
+	}
+	canvas.detaches = nil
 }
 
 // isFinger tells a touch from a mouse or a pen: fingers can be several, and make gestures.
@@ -211,8 +224,12 @@ func (canvas *Canvas) observeSize() {
 		canvas.changed()
 		return nil
 	})
-	canvas.listeners = append(canvas.listeners, resized)
-	js.Global().Get("ResizeObserver").New(resized).Call("observe", canvas.element)
+	observer := js.Global().Get("ResizeObserver").New(resized)
+	observer.Call("observe", canvas.element)
+	canvas.detaches = append(canvas.detaches, func() {
+		observer.Call("disconnect")
+		resized.Release()
+	})
 }
 
 // updateSize sets the canvas's buffer to its size on screen in device pixels and tells the input:

@@ -44,6 +44,20 @@ func Run(canvas *Canvas, app *models.Application, drawFrame func() error) error 
 	return <-loop.done
 }
 
+// Stop ends the running program's loop after one more frame, so that Run returns: for a page that
+// takes the canvas away (an application of the page's own leaving the screen). Its listeners are
+// taken off the page. Safe from any goroutine.
+func Stop() {
+	running.Lock()
+	loop := current
+	running.Unlock()
+	if loop == nil {
+		return
+	}
+	loop.app.Stop = true
+	loop.request()
+}
+
 // Wake makes a canvas that draws on demand draw a frame now: for a program whose data changes on
 // another goroutine (a fetch finishing). Safe from any goroutine.
 func Wake() {
@@ -161,10 +175,19 @@ func (loop *frameLoop) requestAfter(delay time.Duration) {
 	loop.timer = js.Global().Call("setTimeout", loop.timerCallback, delay.Milliseconds())
 }
 
+// finish ends the loop, from inside its last frame (no other frame is asked for): it lets go of the
+// page, a timer still pending and its own callbacks.
 func (loop *frameLoop) finish(err error) {
 	loop.mutex.Lock()
 	loop.stopped = true
 	loop.mutex.Unlock()
+	if loop.timerPending {
+		js.Global().Call("clearTimeout", loop.timer)
+		loop.timerPending = false
+	}
+	loop.canvas.Detach()
+	loop.frameCallback.Release()
+	loop.timerCallback.Release()
 	running.Lock()
 	if current == loop {
 		current = nil
