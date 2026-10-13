@@ -25,7 +25,7 @@ go run ./cmd/visor -sample island         # a built-in made-up island
 ## Documentation
 
 Everything is in [docs/](docs/README.md): [architecture](docs/architecture.md),
-[the viewer](docs/viewer.md), [the overlay](docs/overlay.md), [Metal](docs/metal.md), [glTF extras](docs/gltf-extras.md),
+[the viewer](docs/viewer.md), [the overlay](docs/overlay.md), [in a web browser](docs/web.md), [Metal](docs/metal.md), [glTF extras](docs/gltf-extras.md),
 [optimization plan](docs/optimization-plan.md) and [roadmap](docs/roadmap.md).
 
 Simulations (moving things, weather, growing towns) live in the sibling project
@@ -46,7 +46,9 @@ I write most of my code by hand, so I want to be clear about where AI was used h
   scene renderers share (`sceneplan`), the sample island (`scene/sample`) and the Metal renderers
   in `metal/` (flat and 3D: `FlatWindow`, `FlatRenderer`, `SceneWindow`, `SceneRenderer`, the
   Objective-C files and the translated shaders), next to my hand-written `metal` stubs, which it
-  left as they were.
+  left as they were. It also wrote the first step towards browsers and phones: the OpenGL ES
+  renderers (`gles`), the browser canvas and loop (`browser`), the shared clock (`frameloop`) and
+  `cmd/web-island`.
 
 Commits made with AI carry a `Co-Authored-By: Claude` line.
 
