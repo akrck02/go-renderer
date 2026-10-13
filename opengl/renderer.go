@@ -230,8 +230,13 @@ func CompileShader(
 ) (uint32, error) {
 	shader := gl.CreateShader(shaderType)
 
-	csources, free := gl.Strs(source)
-	gl.ShaderSource(shader, 1, csources, nil)
+	// gl.Strs copies the source without a terminating zero, so the length is given explicitly:
+	// with a nil length the driver reads on until the first zero byte in memory and compiles
+	// whatever follows the copy. Some sources still end in a zero, which GLSL must not see.
+	text := strings.TrimRight(source, "\x00")
+	csources, free := gl.Strs(text)
+	length := int32(len(text))
+	gl.ShaderSource(shader, 1, csources, &length)
 	free()
 	gl.CompileShader(shader)
 
