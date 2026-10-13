@@ -268,7 +268,9 @@ func (current *window) paintWhenDue() error {
 	if err := current.clock.StepOnce(current.app); err != nil {
 		return err
 	}
-	if current.app.Unchanged == nil || !current.app.Unchanged(current.app) {
+	// a new surface (back from the background) is empty: it is painted even if the frame looks the
+	// same as the one shown before it was lost
+	if current.fresh || current.app.Unchanged == nil || !current.app.Unchanged(current.app) {
 		if err := current.paint(); err != nil {
 			return err
 		}
