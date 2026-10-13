@@ -23,7 +23,7 @@ Android                 NativeActivity loads the program, a shared library built
 | The drawing thread: waiting, the frame cap, steps and frames | `android/loop.go` |
 | Touches and a hardware keyboard | `android/input.go`; fingers as the pointer in `input.TouchPointer` |
 | OpenGL ES, called directly | `android/gl.go` |
-| The system's bars and theme, through JNI | `android/system.c` |
+| The system's bars and theme, and the wallpaper's palettes, through JNI | `android/system.c`, `android/palettes.go` |
 
 **Starting.** Android loads the library and calls `ANativeActivity_onCreate`. Go does not run
 `main.main` in a shared library by itself, so the first time the library finds it by name and calls
@@ -49,6 +49,11 @@ application's folder; `LastCrash` gives it to the next run, and `Graphics` names
 and GPU. A phone shows a person nothing when an application closes. What the program writes to its
 standard output and error (a `log.Fatal`, a panic) goes to Android's log a line at a time, under the
 tag `Go` (`adb logcat -s Go`), with a line when the runtime starts and one when it starts `main`.
+
+**The wallpaper's colours.** On Android 12 and later the phone makes five palettes from its
+wallpaper (`system_accent1_0` … `system_neutral2_1000`, the colours its own applications use).
+`SystemPalettes` returns them as last read: with the theme, when the activity comes back or its
+configuration changes, which is when they change. An older phone has none, and says so.
 
 **The window's news can come first.** Android may hand the activity its window before the drawing
 thread has its looper: telling it then wakes nothing. The thread wakes its own looper once as it
