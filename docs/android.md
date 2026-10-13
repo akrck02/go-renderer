@@ -113,7 +113,9 @@ with the NDK's call as a fallback. A finger coming down while typing asks again,
 put the keyboard away and touched the field to have it back. Every key, from either keyboard, is
 given the character Android's own `KeyEvent.getUnicodeChar` says it types: any layout's letters,
 accented ones, digits and symbols. A package whose activity has `windowSoftInputMode="adjustResize"`
-shrinks while the keyboard is up, so what is typed in stays in sight.
+shrinks while the keyboard is up, so what is typed in stays in sight. The window itself keeps its
+size; what changes is how much of its bottom the keyboard covers, which Android tells through
+`onContentRectChanged`: the insets are read again then, as the keyboard comes and goes.
 
 **A finger lifted leaves nothing under it.** After the frame where a finger is lifted
 (`input.TouchPointer`), the pointer goes off the window (`State.PointerLeaves`): with a mouse, the

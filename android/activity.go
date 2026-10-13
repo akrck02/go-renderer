@@ -39,6 +39,7 @@ const (
 	changeResumed       = 1
 	changeConfiguration = 5
 	changeRedrawNeeded  = 8
+	changeContent       = 9 // what the system covers changed: the on-screen keyboard came or went
 )
 
 // event is news from the activity for the drawing thread. done, when set, is closed once the
