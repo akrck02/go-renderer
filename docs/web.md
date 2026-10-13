@@ -60,10 +60,14 @@ function; WebGL2 accepts all of it. So the shaders are GLSL ES 1.00, there are n
 objects (each draw describes its vertices, a handful of calls), the atlas is a `LUMINANCE`
 texture, and the normal matrix is worked out on the processor (GLSL ES 1.00 has no `inverse`).
 
-Each rectangle of the overlay is six vertices and each instance its own draw call, because
-OpenGL ES 2 cannot draw instances. That is fine for scenes like the sample island (about a
-thousand calls a frame); large forests need instancing, which WebGL2 and OpenGL ES 3 have, as a
-later step behind the same interface.
+Each rectangle of the overlay is six vertices, and OpenGL ES 2 cannot draw instances either. A
+call per instance was the first try, and it was far too slow on a phone: the sample island's
+forest made about a thousand draw calls, eight thousand calls through the bindings, and a frame
+took half a second on the emulator. Now each batch of instances the planner hands over (a level
+of detail of a group of cells) becomes **one mesh on the processor**, every copy placed and
+tinted, made again only when the batch changes; the island is 16 draw calls a frame. True
+instancing, which WebGL2 and OpenGL ES 3 have, would save the memory of the copies, as a later
+step behind the same interface.
 
 ### `browser`: the canvas as a window
 
@@ -110,7 +114,7 @@ servers usually do on the fly. The fonts and icons are inside it, so the page lo
 - The full scene renderer in WebGL2: shadows, the sky dome with stars and clouds, waves and tides,
   patterns, wind and snow. It is a translation of the desktop shaders to GLSL ES, a larger piece of
   work.
-- Instanced drawing for big forests.
+- True instanced drawing, so that very large forests do not cost a copy of each mesh.
 - Loading `.glb` files in the page (`fetch`, then `loaders` on the bytes).
 - Locking the pointer for the walking camera, the on-screen keyboard, and the system clipboard
   at any time.

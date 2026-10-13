@@ -8,7 +8,9 @@ import (
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/opengl/overlay"
+	"github.com/akrck02/go-renderer/scene"
 	"github.com/akrck02/go-renderer/scene/sample"
+	"github.com/akrck02/go-renderer/sceneplan"
 )
 
 func TestShadersAreOpenGLESTwo(t *testing.T) {
@@ -127,9 +129,9 @@ func TestTheSceneRendererDrawsTheSampleIsland(t *testing.T) {
 	}
 	world := sample.Island()
 	renderer.Draw(world, islandCamera(), 1280, 800)
-	// the ground, the water and the other meshes, and one call per tree in sight (no instancing)
-	if len(fake.draws) < 100 {
-		t.Fatalf("draw calls = %d, want the meshes and the trees one by one", len(fake.draws))
+	// the ground, the water and the other meshes, and the forest in a few batches
+	if len(fake.draws) < 5 || len(fake.draws) > 60 {
+		t.Fatalf("draw calls = %d, want the meshes and a call per batch of trees", len(fake.draws))
 	}
 	if fake.bufferUploads[ElementArrayBuffer] == 0 {
 		t.Fatal("no index buffer was uploaded")
@@ -201,5 +203,41 @@ func TestTheNormalMatrixUndoesAStretch(t *testing.T) {
 	matrix := normalMatrix(stretch)
 	if matrix[0] != 0.5 || matrix[4] != 1 || matrix[8] != 1 {
 		t.Fatalf("normal matrix diagonal = %v, %v, %v; want 0.5, 1, 1", matrix[0], matrix[4], matrix[8])
+	}
+}
+
+func TestInstancesAreMergedIntoOneMesh(t *testing.T) {
+	triangle := &scene.Mesh{Positions: []float32{0, 0, 0, 1, 0, 0, 0, 1, 0}, Normals: []float32{0, 0, 1, 0, 0, 1, 0, 0, 1},
+		Indices: []uint32{0, 1, 2}}
+	packed := make([]float32, 2*sceneplan.FloatsPerInstance)
+	first, second := graphics.Identity(), graphics.Translate(graphics.Vec4{10, 0, 0, 0})
+	copy(packed[0:16], first[:])
+	copy(packed[16:20], []float32{1, 0, 0, 1}) // red
+	copy(packed[20:36], second[:])
+	copy(packed[36:40], []float32{0, 1, 0, 1}) // green
+	merged := &scene.Mesh{}
+	mergeInstances(merged, triangle, packed, 2)
+	if merged.VertexCount() != 6 || len(merged.Indices) != 6 || merged.Indices[3] != 3 {
+		t.Fatalf("vertices %d, indices %v: want two triangles, the second numbered after the first", merged.VertexCount(), merged.Indices)
+	}
+	if merged.Positions[9] != 10 || merged.Colors[0] != 1 || merged.Colors[13] != 1 {
+		t.Fatalf("second copy starts at x %v; colours %v: want it moved by 10, red then green", merged.Positions[9], merged.Colors)
+	}
+}
+
+func TestAMergedBatchIsMadeAgainOnlyWhenItChanges(t *testing.T) {
+	triangle := &scene.Mesh{Positions: []float32{0, 0, 0, 1, 0, 0, 0, 1, 0}}
+	identity := graphics.Identity()
+	packed := append(append([]float32{}, identity[:]...), 1, 1, 1, 1)
+	store := instanceStore{}
+	batch := store.FillBatch(nil, triangle, packed).(*instanceBatch)
+	merged := batch.mergedFor(triangle, 1)
+	merged.Dirty = false // as if uploaded
+	if batch.mergedFor(triangle, 1).Dirty {
+		t.Fatal("an unchanged batch was made again")
+	}
+	store.RewriteInstances(batch, 0, packed)
+	if !batch.mergedFor(triangle, 1).Dirty {
+		t.Fatal("a rewritten batch should be made and uploaded again")
 	}
 }
