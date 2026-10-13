@@ -173,23 +173,28 @@ func (renderer *SceneRenderer) drawMesh(mesh *scene.Mesh) {
 	functions.DrawArrays(Triangles, 0, buffers.count)
 }
 
-// meshBuffers is a mesh on the GPU.
+// meshBuffers is a mesh on the GPU, in the graphics context of the renderer that uploaded it.
 type meshBuffers struct {
+	// owner is the renderer that made the buffers. A phone destroys the graphics context when the
+	// application goes to the background, and the window makes a new renderer when it comes back:
+	// buffers of another renderer name nothing in its context, and are made again.
+	owner        *SceneRenderer
 	vertexBuffer Buffer
 	indexBuffer  Buffer
 	count        int
 	indexed      bool
 }
 
-// uploadMesh sends a mesh to the GPU the first time it is drawn, and again when it is Dirty.
+// uploadMesh sends a mesh to the GPU the first time this renderer draws it, and again when it is
+// Dirty.
 func (renderer *SceneRenderer) uploadMesh(mesh *scene.Mesh) *meshBuffers {
 	buffers, _ := mesh.GPU.(*meshBuffers)
-	if buffers != nil && !mesh.Dirty {
+	if buffers != nil && buffers.owner == renderer && !mesh.Dirty {
 		return buffers
 	}
 	functions := renderer.functions
-	if buffers == nil {
-		buffers = &meshBuffers{vertexBuffer: functions.CreateBuffer(), indexBuffer: functions.CreateBuffer()}
+	if buffers == nil || buffers.owner != renderer {
+		buffers = &meshBuffers{owner: renderer, vertexBuffer: functions.CreateBuffer(), indexBuffer: functions.CreateBuffer()}
 	}
 	functions.BindBuffer(ArrayBuffer, buffers.vertexBuffer)
 	functions.BufferData(ArrayBuffer, floatBytes(sceneplan.InterleaveVertices(mesh)), StaticDraw)
