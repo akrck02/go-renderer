@@ -158,3 +158,82 @@ int system_colours(JNIEnv *env, const char **palettes, int palette_count, const 
 	(*env)->DeleteLocalRef(env, resources);
 	return found;
 }
+
+// key_character is the character a key types with the keyboard's modifiers (Android's own
+// KeyEvent.getUnicodeChar), or 0 for a key that types none: every letter of any layout, accented
+// ones and symbols, which the key code alone does not tell.
+int key_character(JNIEnv *env, int action, int code, int meta) {
+	jclass class = (*env)->FindClass(env, "android/view/KeyEvent");
+	if (failed(env) || class == NULL) return 0;
+	jmethodID make = (*env)->GetMethodID(env, class, "<init>", "(JJIIII)V");
+	jmethodID character = (*env)->GetMethodID(env, class, "getUnicodeChar", "(I)I");
+	int result = 0;
+	if (!failed(env) && make != NULL && character != NULL) {
+		jobject event = (*env)->NewObject(env, class, make, (jlong)0, (jlong)0, action, code, 0, meta);
+		if (!failed(env) && event != NULL) {
+			result = (*env)->CallIntMethod(env, event, character, meta);
+			if (failed(env)) result = 0;
+			(*env)->DeleteLocalRef(env, event);
+		}
+	}
+	(*env)->DeleteLocalRef(env, class);
+	return result;
+}
+
+// soft_keyboard shows or hides the on-screen keyboard. NativeActivity's own call
+// (ANativeActivity_showSoftInput) does nothing on recent Androids, so the window's input method
+// manager is asked directly, for the window's view; the NDK's call stays as a fallback.
+void soft_keyboard(int show) {
+	JNIEnv *env = attach_thread();
+	int done = 0;
+	if (env != NULL) {
+		jobject activity = current_activity->clazz;
+		jobject window = call_object(env, activity, "getWindow", "()Landroid/view/Window;");
+		jobject decor = call_object(env, window, "getDecorView", "()Landroid/view/View;");
+		jclass activity_class = (*env)->GetObjectClass(env, activity);
+		jmethodID service = (*env)->GetMethodID(env, activity_class, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
+		(*env)->DeleteLocalRef(env, activity_class);
+		jobject manager = NULL;
+		if (!failed(env) && service != NULL) {
+			jstring name = (*env)->NewStringUTF(env, "input_method");
+			manager = (*env)->CallObjectMethod(env, activity, service, name);
+			(*env)->DeleteLocalRef(env, name);
+			if (failed(env)) manager = NULL;
+		}
+		if (manager != NULL && decor != NULL) {
+			jclass class = (*env)->GetObjectClass(env, manager);
+			if (show) {
+				jmethodID method = (*env)->GetMethodID(env, class, "showSoftInput", "(Landroid/view/View;I)Z");
+				if (!failed(env) && method != NULL) {
+					done = (*env)->CallBooleanMethod(env, manager, method, decor, 2); // SHOW_FORCED
+					if (failed(env)) done = 0;
+				}
+				if (!done) { // a view that is not an editor: the older way, which still works
+					jmethodID toggle = (*env)->GetMethodID(env, class, "toggleSoftInput", "(II)V");
+					if (!failed(env) && toggle != NULL) {
+						(*env)->CallVoidMethod(env, manager, toggle, 2, 0); // SHOW_FORCED
+						done = !failed(env);
+					}
+				}
+			} else {
+				jobject token = call_object(env, decor, "getWindowToken", "()Landroid/os/IBinder;");
+				jmethodID method = (*env)->GetMethodID(env, class, "hideSoftInputFromWindow", "(Landroid/os/IBinder;I)Z");
+				if (!failed(env) && method != NULL && token != NULL) {
+					done = (*env)->CallBooleanMethod(env, manager, method, token, 0);
+					if (failed(env)) done = 0;
+				}
+				if (token != NULL) (*env)->DeleteLocalRef(env, token);
+			}
+			(*env)->DeleteLocalRef(env, class);
+		}
+		if (manager != NULL) (*env)->DeleteLocalRef(env, manager);
+		if (decor != NULL) (*env)->DeleteLocalRef(env, decor);
+		if (window != NULL) (*env)->DeleteLocalRef(env, window);
+	}
+	if (done) return;
+	if (show) {
+		ANativeActivity_showSoftInput(current_activity, ANATIVEACTIVITY_SHOW_SOFT_INPUT_FORCED);
+	} else {
+		ANativeActivity_hideSoftInput(current_activity, 0);
+	}
+}

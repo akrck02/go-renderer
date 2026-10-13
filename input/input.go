@@ -131,6 +131,7 @@ type State struct {
 	ScrollDelta         float64 // vertical scroll since the previous frame
 	ScrollDeltaX        float64 // horizontal scroll since the previous frame (trackpads, tilting wheels)
 	hasCursorPosition   bool
+	leaving             bool // the pointer goes off the window when this frame ends (PointerLeaves)
 	cursorLockRequested bool
 	cursorShape         CursorShape
 	mouseClaimed        bool
@@ -240,7 +241,13 @@ func (state *State) MoveCursor(x, y float64) {
 		state.CursorDeltaY += y - state.CursorY
 	}
 	state.CursorX, state.CursorY, state.hasCursorPosition = x, y, true
+	state.leaving = false // a new position: the pointer is back
 }
+
+// PointerLeaves takes the pointer off the window once this frame ends: a finger lifted from a
+// touch screen leaves nothing under it, so no control stays lit as if a mouse rested on it. The
+// frame itself still has the pointer where the finger was, for the release to land there.
+func (state *State) PointerLeaves() { state.leaving = true }
 
 // AddScroll records scroll movement (called by the backend).
 func (state *State) AddScroll(delta float64) { state.ScrollDelta += delta }
@@ -393,4 +400,8 @@ func (state *State) EndFrame() {
 	state.buttonsReleasedNow = [mouseButtonCount]bool{}
 	state.characters = state.characters[:0]
 	state.mouseClaimed, state.keyboardClaimed = false, false
+	if state.leaving {
+		// far outside the window, with no movement from there to the next touch
+		state.CursorX, state.CursorY, state.hasCursorPosition, state.leaving = -1e6, -1e6, false, false
+	}
 }

@@ -105,10 +105,14 @@ func Run(app *models.Application, options Options, draw func(gl GL, fresh bool) 
 	current := &window{app: app, draw: draw, clock: frameloop.NewClock(app.FixedStep), asked: true,
 		interval: time.Second / time.Duration(rate)}
 	current.reader.state = app.Input
+	drawing = current
 	done := make(chan error, 1)
 	go func() { done <- current.run() }()
 	return <-done
 }
+
+// drawing is the window being run: the program's steps, which run on its thread, reach it.
+var drawing *window
 
 // run is the drawing thread: it waits on its looper for touches and news, and draws.
 func (current *window) run() error {
@@ -123,6 +127,7 @@ func (current *window) run() error {
 	waking.Unlock()
 	running.Store(true)
 	current.env = C.attach_thread()
+	current.reader.env = current.env
 	current.readSystem()
 	for !current.app.Stop {
 		C.ALooper_pollOnce(current.timeout(), nil, nil, nil)
@@ -235,7 +240,8 @@ func (current *window) readSystem() {
 // readInsets reads what the system's bars cover until the window's own insets are known; before the
 // window is shown Android only knows the bars' standard heights.
 func (current *window) readInsets() {
-	if current.insetsOK || current.env == nil {
+	// while typing, the on-screen keyboard comes and goes over the bottom of the window
+	if (current.insetsOK && !keyboardShown) || current.env == nil {
 		return
 	}
 	var top, bottom, left, right C.int

@@ -84,3 +84,26 @@ func TestTheUnclaimedCopyKeepsItsOwnTouches(t *testing.T) {
 		t.Fatal("changing the copy's touches changed the state's")
 	}
 }
+
+func TestALiftedFingerLeavesNothingUnderIt(t *testing.T) {
+	state := NewState()
+	var pointer TouchPointer
+	pointer.Begin(state, 1, 100, 200, 1)
+	state.EndFrame()
+	pointer.End(state, 1, 100, 200, 1)
+	if state.CursorX != 100 || !state.ButtonReleased(MouseLeft) {
+		t.Fatal("the release does not land where the finger was")
+	}
+	state.EndFrame()
+	if state.CursorX > -1000 {
+		t.Fatalf("cursor still at %v after the frame: a control there would stay lit", state.CursorX)
+	}
+	pointer.Begin(state, 2, 50, 60, 1)
+	if state.CursorX != 50 || state.CursorDeltaX != 0 {
+		t.Fatalf("next touch at %v with a movement of %v: want it there, with no jump", state.CursorX, state.CursorDeltaX)
+	}
+	state.EndFrame()
+	if state.CursorX != 50 {
+		t.Fatal("a finger down was taken off the window")
+	}
+}

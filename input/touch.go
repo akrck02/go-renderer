@@ -80,6 +80,7 @@ func (pointer *TouchPointer) End(state *State, finger int64, x, y, scale float32
 	pointer.down = false
 	state.MoveCursor(float64(x/scale), float64(y/scale))
 	state.SetButton(MouseLeft, false)
+	state.PointerLeaves()
 }
 
 // Cancel lets go of every finger, when the system takes the gesture over (a swipe from the
@@ -96,6 +97,7 @@ func (pointer *TouchPointer) letGo(state *State) {
 	}
 	pointer.down = false
 	state.SetButton(MouseLeft, false)
+	state.PointerLeaves()
 }
 
 // TwoFingers follows a gesture of two fingers from one step to the next: how much they spread

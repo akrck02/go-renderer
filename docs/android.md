@@ -104,9 +104,31 @@ A package then holds `lib/arm64-v8a/libprogram.so` and a manifest whose activity
 go-ui's `cmd/mobile/build-apk.sh` does it all with the Android SDK's tools. The 16 KB alignment is what
 phones with 16 KB memory pages (Android 15 and later) need.
 
+## Typing and notifications
+
+**The on-screen keyboard.** `ShowKeyboard(typing)` brings the keyboard up while a text field is typed
+in and puts it away after (go-ui's window calls it with `Context.Typing`). NativeActivity's own call
+for it does nothing on recent Androids, so the window's `InputMethodManager` is asked through JNI,
+with the NDK's call as a fallback. A finger coming down while typing asks again, for a person who
+put the keyboard away and touched the field to have it back. Every key, from either keyboard, is
+given the character Android's own `KeyEvent.getUnicodeChar` says it types: any layout's letters,
+accented ones, digits and symbols. A package whose activity has `windowSoftInputMode="adjustResize"`
+shrinks while the keyboard is up, so what is typed in stays in sight.
+
+**A finger lifted leaves nothing under it.** After the frame where a finger is lifted
+(`input.TouchPointer`), the pointer goes off the window (`State.PointerLeaves`): with a mouse, the
+control under the pointer is lit, and on a touch screen the last control touched stayed so.
+
+**Notifications.** `Notify(id, title, text)` puts a notification in the phone's shade, as other
+applications' are, on a channel of the program's (`Channel`, which the application's settings
+list): touching it opens the program. Android 13 and later show them only once the person allows
+it: `NotificationsAllowed` tells, and `AskForNotifications` shows Android's question (the package
+names `android.permission.POST_NOTIFICATIONS`). Tried on a OnePlus 7 Pro (Android 10).
+
 ## Not yet
 
-- The on-screen keyboard, and the characters of keys other than letters, digits and space (a key's
-  character needs a call into Java).
+- Characters a keyboard sends whole rather than key by key (some keyboards' suggestions, emoji):
+  Android hands them as one event whose text needs the Java event, which a NativeActivity does not
+  get.
 - Long presses, and the back gesture inside the program (it closes the activity today).
 - Instanced drawing with OpenGL ES 3, and the full scene renderer (shadows, sky, waves) on phones.
