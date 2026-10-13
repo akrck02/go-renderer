@@ -132,6 +132,9 @@ type State struct {
 	ScrollDeltaX        float64 // horizontal scroll since the previous frame (trackpads, tilting wheels)
 	hasCursorPosition   bool
 	leaving             bool // the pointer goes off the window when this frame ends (PointerLeaves)
+	backPressed         bool // the system's back, this step (PressBack)
+	backTaken           bool // a part of the program answered it (TakeBack)
+	backUnanswered      bool // the last step had a back nobody answered (BackUnanswered)
 	cursorLockRequested bool
 	cursorShape         CursorShape
 	mouseClaimed        bool
@@ -242,6 +245,29 @@ func (state *State) MoveCursor(x, y float64) {
 	}
 	state.CursorX, state.CursorY, state.hasCursorPosition = x, y, true
 	state.leaving = false // a new position: the pointer is back
+}
+
+// PressBack records the system's back: a phone's back gesture or button (called by the backend).
+func (state *State) PressBack() { state.backPressed = true }
+
+// TakeBack answers the system's back in this step, and tells whether there was one to answer: the
+// part of the program the person is in goes back (a dialog closes, a screen returns to the one
+// before) and returns true; any other part asking after it gets false. A back nobody takes leaves
+// the program, as a phone's own applications do at their first screen.
+func (state *State) TakeBack() bool {
+	if !state.backPressed || state.backTaken {
+		return false
+	}
+	state.backTaken = true
+	return true
+}
+
+// BackUnanswered tells whether the last step had a back that nobody took, once, for the backend to
+// leave the program.
+func (state *State) BackUnanswered() bool {
+	unanswered := state.backUnanswered
+	state.backUnanswered = false
+	return unanswered
 }
 
 // PointerLeaves takes the pointer off the window once this frame ends: a finger lifted from a
@@ -400,6 +426,8 @@ func (state *State) EndFrame() {
 	state.buttonsReleasedNow = [mouseButtonCount]bool{}
 	state.characters = state.characters[:0]
 	state.mouseClaimed, state.keyboardClaimed = false, false
+	state.backUnanswered = state.backUnanswered || (state.backPressed && !state.backTaken)
+	state.backPressed, state.backTaken = false, false
 	if state.leaving {
 		// far outside the window, with no movement from there to the next touch
 		state.CursorX, state.CursorY, state.hasCursorPosition, state.leaving = -1e6, -1e6, false, false

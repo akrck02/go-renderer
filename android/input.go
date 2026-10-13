@@ -46,7 +46,7 @@ func boolInt(value bool) C.int {
 	return 0
 }
 
-// handle passes one event on; false leaves it to Android (the back key closes the activity).
+// handle passes one event on; false leaves it to Android.
 func (reader *touches) handle(event *C.AInputEvent) bool {
 	switch C.AInputEvent_getType(event) {
 	case C.AINPUT_EVENT_TYPE_MOTION:
@@ -86,7 +86,11 @@ func (reader *touches) motion(event *C.AInputEvent) {
 func (reader *touches) key(event *C.AInputEvent) bool {
 	code := C.AKeyEvent_getKeyCode(event)
 	if code == C.AKEYCODE_BACK {
-		return false
+		// the program answers it (a dialog closes); one it leaves unanswered leaves the program
+		if C.AKeyEvent_getAction(event) == C.AKEY_EVENT_ACTION_DOWN && C.AKeyEvent_getRepeatCount(event) == 0 {
+			reader.state.PressBack()
+		}
+		return true
 	}
 	action, meta := C.AKeyEvent_getAction(event), C.AKeyEvent_getMetaState(event)
 	pressed := action == C.AKEY_EVENT_ACTION_DOWN

@@ -37,6 +37,7 @@ int bar_height(JNIEnv *env, const char *name);
 int night_mode(JNIEnv *env);
 int key_character(JNIEnv *env, int action, int code, int meta);
 void soft_keyboard(int show);
+void leave_program(void);
 
 // Notifications (notify.c): safe from any thread, which they attach to Java.
 int notifications_allowed(void);

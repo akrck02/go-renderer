@@ -237,3 +237,20 @@ void soft_keyboard(int show) {
 		ANativeActivity_hideSoftInput(current_activity, 0);
 	}
 }
+
+// leave_program sends the program to the background, as a phone's back does at an application's
+// first screen: it keeps running, and comes back as it was.
+void leave_program(void) {
+	JNIEnv *env = attach_thread();
+	if (env == NULL) return;
+	jobject activity = current_activity->clazz;
+	jclass class = (*env)->GetObjectClass(env, activity);
+	jmethodID method = (*env)->GetMethodID(env, class, "moveTaskToBack", "(Z)Z");
+	(*env)->DeleteLocalRef(env, class);
+	if (failed(env) || method == NULL) {
+		ANativeActivity_finish(current_activity);
+		return;
+	}
+	(*env)->CallBooleanMethod(env, activity, method, JNI_TRUE);
+	if (failed(env)) ANativeActivity_finish(current_activity);
+}
