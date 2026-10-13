@@ -45,6 +45,7 @@ void ANativeActivity_onCreate(ANativeActivity *activity, void *saved_state, size
 			abort();
 		}
 		main_started = 1;
+		__android_log_print(ANDROID_LOG_INFO, "Go", "the library is loaded; starting the Go runtime");
 		// the program's own folder becomes os.TempDir: crash reports go there
 		goStartMain(main_code, (char *)activity->internalDataPath);
 	}
@@ -64,6 +65,8 @@ void ANativeActivity_onCreate(ANativeActivity *activity, void *saved_state, size
 	activity->callbacks->onInputQueueCreated = on_input_queue_created;
 	activity->callbacks->onInputQueueDestroyed = on_input_queue_destroyed;
 }
+
+void log_text(int priority, const char *text) { __android_log_write(priority, "Go", text); }
 
 // surface_open makes an OpenGL ES context drawing into the window: version 3 when the phone has
 // it, else 2. The renderers need only 2; 3 is for later (instancing). Returns 0 when it cannot.

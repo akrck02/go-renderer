@@ -66,6 +66,8 @@ func goStartMain(code C.uintptr_t, folder *C.char) {
 	if folder != nil {
 		_ = os.Setenv("TMPDIR", C.GoString(folder))
 	}
+	sendStandardErrorToLog()
+	logInfo("the Go runtime runs; starting main")
 	go callmain.Call(uintptr(code))
 }
 

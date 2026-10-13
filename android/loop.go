@@ -117,6 +117,9 @@ func (current *window) run() error {
 	// the input queue is attached with no callback: the looper must accept that, and pollOnce then
 	// returns when it has events
 	looper = C.ALooper_prepare(C.ALOOPER_PREPARE_ALLOW_NON_CALLBACKS)
+	// the activity's news (its window, above all) may have come before there was a looper to wake:
+	// the first wait must not sleep on it
+	C.ALooper_wake(looper)
 	waking.Unlock()
 	running.Store(true)
 	current.env = C.attach_thread()
@@ -201,6 +204,7 @@ func (current *window) openSurface(native *C.ANativeWindow) {
 	if C.surface_open(native, &current.surface) == 0 {
 		failure := "could not make an OpenGL ES context for the window"
 		graphics.Store(&failure)
+		logError(failure)
 		return
 	}
 	current.open, current.fresh, current.asked, current.insetsOK = true, true, true, false

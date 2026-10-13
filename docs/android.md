@@ -46,8 +46,14 @@ function is told, and makes its renderers again.
 
 **When it closes.** The Go runtime writes a crash's report (with the failing goroutine's stack) to the
 application's folder; `LastCrash` gives it to the next run, and `Graphics` names the phone's OpenGL ES
-and GPU. A phone shows a person nothing when an application closes. Note that without x/mobile the
-program's standard error no longer goes to Android's log.
+and GPU. A phone shows a person nothing when an application closes. What the program writes to its
+standard output and error (a `log.Fatal`, a panic) goes to Android's log a line at a time, under the
+tag `Go` (`adb logcat -s Go`), with a line when the runtime starts and one when it starts `main`.
+
+**The window's news can come first.** Android may hand the activity its window before the drawing
+thread has its looper: telling it then wakes nothing. The thread wakes its own looper once as it
+makes it, so the first wait reads what is already there. Without that, a OnePlus 7 Pro (Android 10)
+stayed on a blank window, its drawing thread asleep with the window's news unread.
 
 ## Why its own activity
 
