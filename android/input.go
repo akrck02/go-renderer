@@ -5,6 +5,7 @@ package android
 /*
 #include <android/input.h>
 #include <android/keycodes.h>
+#include "activity.h"
 */
 import "C"
 
@@ -15,7 +16,9 @@ import "github.com/akrck02/go-renderer/input"
 type touches struct {
 	state   *input.State
 	pointer input.TouchPointer
-	scale   float32 // screen pixels per layout pixel
+	scale   float32   // screen pixels per layout pixel
+	env     *C.JNIEnv // the drawing thread's, to ask Android what a key types
+	touched bool      // a finger came down since the on-screen keyboard was last asked for
 }
 
 // readQueue takes every waiting event from the queue, and tells whether any reached the program.
@@ -65,6 +68,7 @@ func (reader *touches) motion(event *C.AInputEvent) {
 	switch kind {
 	case C.AMOTION_EVENT_ACTION_DOWN, C.AMOTION_EVENT_ACTION_POINTER_DOWN:
 		reader.pointer.Begin(reader.state, finger, x, y, reader.scale)
+		reader.touched = true
 	case C.AMOTION_EVENT_ACTION_UP, C.AMOTION_EVENT_ACTION_POINTER_UP:
 		reader.pointer.End(reader.state, finger, x, y, reader.scale)
 	case C.AMOTION_EVENT_ACTION_CANCEL:
@@ -78,14 +82,18 @@ func (reader *touches) motion(event *C.AInputEvent) {
 	}
 }
 
-// key passes a hardware keyboard's key on, with the letter or digit it types.
+// key passes a key on, from a hardware keyboard or the on-screen one, with the character it types.
 func (reader *touches) key(event *C.AInputEvent) bool {
 	code := C.AKeyEvent_getKeyCode(event)
 	if code == C.AKEYCODE_BACK {
 		return false
 	}
-	pressed := C.AKeyEvent_getAction(event) == C.AKEY_EVENT_ACTION_DOWN
-	key, character := keyFromCode(int(code), C.AKeyEvent_getMetaState(event)&C.AMETA_SHIFT_ON != 0)
+	action, meta := C.AKeyEvent_getAction(event), C.AKeyEvent_getMetaState(event)
+	pressed := action == C.AKEY_EVENT_ACTION_DOWN
+	key, character := keyFromCode(int(code), meta&C.AMETA_SHIFT_ON != 0)
+	if pressed {
+		character = reader.characterOf(action, code, meta, character)
+	}
 	if key != input.KeyUnknown {
 		if pressed && C.AKeyEvent_getRepeatCount(event) > 0 {
 			reader.state.RepeatKey(key)
@@ -97,6 +105,19 @@ func (reader *touches) key(event *C.AInputEvent) bool {
 		reader.state.AddCharacter(character)
 	}
 	return key != input.KeyUnknown || character != 0
+}
+
+// characterOf asks Android what a key types, which knows every layout; what the key code tells is
+// kept when it cannot be asked. Control characters (Enter's new line, Tab) are keys, not text.
+func (reader *touches) characterOf(action, code, meta C.int32_t, known rune) rune {
+	if reader.env == nil {
+		return known
+	}
+	character := rune(C.key_character(reader.env, C.int(action), C.int(code), C.int(meta)))
+	if character < ' ' || character == 0x7f {
+		return known
+	}
+	return character
 }
 
 // keyFromCode maps an Android key code to an input key and the character it types (letters and

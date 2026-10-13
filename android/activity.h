@@ -35,6 +35,13 @@ JNIEnv *attach_thread(void);
 int window_insets(JNIEnv *env, int *top, int *bottom, int *left, int *right);
 int bar_height(JNIEnv *env, const char *name);
 int night_mode(JNIEnv *env);
+int key_character(JNIEnv *env, int action, int code, int meta);
+void soft_keyboard(int show);
+
+// Notifications (notify.c): safe from any thread, which they attach to Java.
+int notifications_allowed(void);
+void ask_for_notifications(void);
+int post_notification(int id, const char *channel_id, const char *channel_label, const char *title, const char *text);
 int system_colours(JNIEnv *env, const char **palettes, int palette_count, const int *tones, int tone_count, unsigned int *colours);
 int screen_density(void);
 
