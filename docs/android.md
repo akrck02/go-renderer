@@ -72,7 +72,7 @@ With direct calls, on a Pixel 6 Pro:
 | | With x/mobile | Its own activity |
 |---|---|---|
 | Dragging the sample island for 10 s (go-ui's example) | 82 % of a core | **41 %** |
-| A recorded shift playing over a 3D plant | 84 % | **31 %** |
+| A 3D scene of a few hundred moving models, playing | 84 % | **31 %** |
 | Idle | 0 | 0 |
 
 The package asks for an OpenGL ES 3 context when the phone has one (both phones tried give 3.x), so

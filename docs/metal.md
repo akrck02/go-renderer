@@ -94,7 +94,7 @@ Built after the flat path, in the same way:
   opens a built-in sample island (`-sample island`) and draws at a fixed time (`-time`) for captures
   that can be compared.
 
-Measured with the sample island and a factory floor scene, 1280 × 800 on a high-density screen,
+Measured with the sample island and an indoor scene of many models, 1280 × 800 on a high-density screen,
 drawing every frame:
 
 | | OpenGL | Metal |

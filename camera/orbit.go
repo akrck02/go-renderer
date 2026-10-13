@@ -57,7 +57,7 @@ func (orbit *Orbit) Gesture(gesture input.Gesture, windowWidth, windowHeight int
 	beforeX, beforeY := gesture.CenterX-gesture.PanX-halfWidth, gesture.CenterY-gesture.PanY-halfHeight
 	underX, underZ := orbit.groundOffset(beforeX, beforeY, windowHeight)
 	anchorX, anchorZ := float64(orbit.Target[0])+underX, float64(orbit.Target[2])+underZ
-	// turning the fingers counterclockwise turns the plant counterclockwise on screen, which is the
+	// turning the fingers counterclockwise turns the ground counterclockwise on screen, which is the
 	// camera going round the other way
 	orbit.Yaw -= gesture.Turn
 	if gesture.Spread > 0 {
