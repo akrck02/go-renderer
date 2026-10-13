@@ -96,6 +96,9 @@ attributes (`KHR_mesh_quantization`: integer positions, normals, colours and ind
 [extras](gltf-extras.md): environment, sky, water, material kinds, levels of detail and walkable
 ground.
 
+`loaders.ParseSceneGLB` reads the same from the bytes of a `.glb`, for programs with no file system
+(a web page) or that carry their scene inside them.
+
 ## The scene renderers
 
 There are two, which draw the same frame: `opengl.SceneRenderer` and, on macOS, `metal.SceneRenderer`
