@@ -23,6 +23,9 @@ type quadPass struct {
 	painter      *overlay.Painter
 	program      *program
 	vertexBuffer Buffer
+	// attributesOn is whether the vertex attributes were switched on: they stay on in the
+	// context, and both programs read the same three
+	attributesOn bool
 	atlasTexture Texture
 	atlasVersion int // the version of the atlas on the GPU; -1 before the first upload
 	vertices     []float32
@@ -47,13 +50,21 @@ func newQuadPass(functions Functions) (*quadPass, error) {
 // array objects in OpenGL ES 2, it is done before every draw.
 func (pass *quadPass) describeVertexLayout() {
 	functions := pass.functions
+	if !pass.attributesOn {
+		switchAttributesOn(functions)
+		pass.attributesOn = true
+	}
 	stride := floatsPerQuadVertex * 4
-	functions.EnableVertexAttribArray(0)
 	functions.VertexAttribPointer(0, 2, Float, false, stride, 0)
-	functions.EnableVertexAttribArray(1)
 	functions.VertexAttribPointer(1, 2, Float, false, stride, 2*4)
-	functions.EnableVertexAttribArray(2)
 	functions.VertexAttribPointer(2, 4, Float, false, stride, 4*4)
+}
+
+// switchAttributesOn turns on the three vertex attributes both programs read; they stay on.
+func switchAttributesOn(functions Functions) {
+	for index := range uint32(3) {
+		functions.EnableVertexAttribArray(index)
+	}
 }
 
 // paintFlat paints an overlay with nothing in the world to anchor labels to: a flat interface.
