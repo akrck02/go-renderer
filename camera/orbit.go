@@ -48,15 +48,22 @@ func (orbit *Orbit) Update(state *input.State, seconds float64, camera *models.C
 	camera.Up = graphics.Vec4{0, 1, 0, 0}
 }
 
-// Gesture applies what two fingers did (input.TwoFingers): spreading them comes closer, turning
-// them turns the view, moving them together moves the target with them, as a map does. Call it
-// before Update, which places the camera.
-func (orbit *Orbit) Gesture(gesture input.Gesture, windowHeight int) {
-	if gesture.Spread > 0 {
-		orbit.Distance /= gesture.Spread
-	}
+// Gesture applies what two fingers did (input.TwoFingers): spreading them comes closer to what is
+// between them, turning them turns the view, moving them together moves the target with them, as
+// a map does. Call it before Update, which places the camera.
+func (orbit *Orbit) Gesture(gesture input.Gesture, windowWidth, windowHeight int) {
 	orbit.Yaw += gesture.Turn
 	orbit.pan(gesture.PanX, gesture.PanY, windowHeight)
+	if gesture.Spread <= 0 || gesture.Spread == 1 {
+		return
+	}
+	orbit.Distance /= gesture.Spread
+	// coming closer to the window's middle would slide what is under the fingers away from them:
+	// the target moves so that it stays (exact across the screen, close enough up and down, where
+	// perspective stretches the ground)
+	offsetX := gesture.CenterX - float64(windowWidth)/2
+	offsetY := gesture.CenterY - float64(windowHeight)/2
+	orbit.pan(-offsetX*(gesture.Spread-1), -offsetY*(gesture.Spread-1), windowHeight)
 }
 
 func isPanning(state *input.State) bool {
