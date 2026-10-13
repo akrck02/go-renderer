@@ -107,3 +107,23 @@ func TestALiftedFingerLeavesNothingUnderIt(t *testing.T) {
 		t.Fatal("a finger down was taken off the window")
 	}
 }
+
+func TestTheBackIsAnsweredOnceOrLeftUnanswered(t *testing.T) {
+	state := NewState()
+	state.PressBack()
+	if !state.TakeBack() || state.TakeBack() {
+		t.Fatal("a back is taken once, by the first part of the program that asks")
+	}
+	state.EndFrame()
+	if state.BackUnanswered() {
+		t.Fatal("a taken back was left unanswered")
+	}
+	state.PressBack()
+	state.EndFrame()
+	if !state.BackUnanswered() || state.BackUnanswered() {
+		t.Fatal("a back nobody took is told once")
+	}
+	if state.TakeBack() {
+		t.Fatal("a back is answered in its own step only")
+	}
+}

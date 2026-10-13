@@ -274,6 +274,9 @@ func (current *window) paintWhenDue() error {
 	if err := current.clock.StepOnce(current.app); err != nil {
 		return err
 	}
+	if state.BackUnanswered() {
+		C.leave_program() // nothing in the program went back: it leaves, as phones' own do
+	}
 	// a new surface (back from the background) is empty, and a surface behind its window's new size
 	// (a rotation) takes that size only once a frame is shown: both are painted even if the frame
 	// looks the same as the one shown before
