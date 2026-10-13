@@ -140,6 +140,25 @@ func LoadScene(path string) (*scene.Scene, error) {
 	return file.buildScene()
 }
 
+// ParseSceneGLB reads a scene from the bytes of a .glb file, as LoadScene does from its path: for
+// programs with no file system (a web page) or that carry their scene inside them. Its buffers
+// must be in the file, as a .glb's are.
+func ParseSceneGLB(content []byte) (*scene.Scene, error) {
+	if !isGLBContainer(content) {
+		return nil, fmt.Errorf("not a .glb file")
+	}
+	file := &gltfFile{}
+	if err := file.parseGLBContainer(content); err != nil {
+		return nil, err
+	}
+	for _, buffer := range file.document.Buffers {
+		if buffer.URI != "" {
+			return nil, fmt.Errorf("the .glb names an external buffer (%s), which needs its folder: use LoadScene", buffer.URI)
+		}
+	}
+	return file.buildScene()
+}
+
 func readGLTFFile(path string) (*gltfFile, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
