@@ -21,7 +21,7 @@ scene, and it shows the result.
 | `software`, `opengl`, `vulkan`, `metal`, `webgpu` | Backends behind the contract; OpenGL is the complete one. `metal` also has `FlatWindow` and `FlatRenderer`, which draw a flat interface through Metal on macOS ([design](metal.md)) |
 | `sceneplan` | Decides what a frame of a scene draws, for any backend: the draw commands in order, culling and levels of detail, instance batches, where the shadow and seabed maps look |
 | `scene/sample` | A made-up island that uses every feature the renderers draw, for tests and comparisons |
-| `gles` | Renderers written once for OpenGL ES 3 (WebGL2 in browsers, Android): a flat `FlatRenderer` and a simple `SceneRenderer`, over a small interface each platform implements ([in a browser](web.md)) |
+| `gles` | Renderers written once for OpenGL ES (WebGL2 in browsers, Android): a flat `FlatRenderer` and a simple `SceneRenderer`, over a small interface each platform implements ([in a browser](web.md)) |
 | `browser` | Built only for WebAssembly: a canvas as the window, its events as input, WebGL2, and the loop over `requestAnimationFrame` |
 | `frameloop` | The fixed-step clock and update step that the desktop and browser loops share |
 | `windowloop` | The window loop both OpenGL and Metal use: GLFW events and input, drawing on demand, the fixed-step clock, redrawing while resizing, the pointer's shape and lock |

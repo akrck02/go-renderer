@@ -15,8 +15,8 @@ import (
 // sceneplan, like on the desktop.
 //
 // It is a first step, not the desktop renderer: there are no shadows, sky dome, procedural
-// patterns, waves, wind or snow, and instances are drawn one call each, since OpenGL ES through
-// golang.org/x/mobile/gl cannot draw instances. Fine for small scenes.
+// patterns, waves, wind or snow, and instances are drawn one call each, since OpenGL ES 2 cannot
+// draw instances. Fine for small scenes.
 type SceneRenderer struct {
 	// OverlayScale is framebuffer pixels per layout pixel, so labels and interfaces keep their
 	// size on a high-density screen (0 = 1).
@@ -30,7 +30,7 @@ type SceneRenderer struct {
 
 // NewSceneRenderer compiles the shaders and prepares the overlay's atlas.
 func NewSceneRenderer(functions Functions) (*SceneRenderer, error) {
-	shaders, err := newProgram(functions, sceneVertexShader, sceneFragmentShader)
+	shaders, err := newProgram(functions, sceneVertexShader, sceneFragmentShader, sceneAttributes)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,6 @@ func (renderer *SceneRenderer) drawCommands(commands []sceneplan.Command, view s
 		functions.DepthMask(true)
 		functions.Disable(Blend)
 	}
-	functions.BindVertexArray(0)
 }
 
 func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view sceneplan.Viewpoint) {
@@ -119,7 +118,7 @@ func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view scene
 	if !visible {
 		return
 	}
-	program.setMatrix("model", command.World)
+	renderer.setModel(command.World)
 	program.setVector4("tint", graphics.Vec4{1, 1, 1, 1})
 	renderer.drawMesh(mesh)
 	renderer.planner.Count(sceneplan.MainPass, mesh, 0)
@@ -135,7 +134,7 @@ func (renderer *SceneRenderer) drawInstances(command sceneplan.Command, view sce
 		}
 		for instance := range batch.Count {
 			packed := instances.packed[instance*sceneplan.FloatsPerInstance:]
-			renderer.program.setMatrix("model", command.World.Multiply(graphics.Mat4(packed[0:16])))
+			renderer.setModel(command.World.Multiply(graphics.Mat4(packed[0:16])))
 			renderer.program.setVector4("tint", graphics.Vec4(packed[16:20]))
 			renderer.drawMesh(batch.Mesh)
 		}
@@ -143,11 +142,34 @@ func (renderer *SceneRenderer) drawInstances(command sceneplan.Command, view sce
 	}
 }
 
+// setModel sets the model matrix and the normal matrix that goes with it.
+func (renderer *SceneRenderer) setModel(model graphics.Mat4) {
+	renderer.program.setMatrix("model", model)
+	renderer.program.setMatrix3("normalMatrix", normalMatrix(model))
+}
+
+// normalMatrix is the inverse transpose of a model matrix's rotation and scale: what turns normals
+// so they stay perpendicular to surfaces scaled differently along each axis.
+func normalMatrix(model graphics.Mat4) [9]float32 {
+	inverse, invertible := model.Inverse()
+	if !invertible {
+		inverse = graphics.Identity()
+	}
+	// the transpose of the inverse's upper 3 × 3, column by column
+	return [9]float32{
+		inverse[0], inverse[4], inverse[8],
+		inverse[1], inverse[5], inverse[9],
+		inverse[2], inverse[6], inverse[10],
+	}
+}
+
 func (renderer *SceneRenderer) drawMesh(mesh *scene.Mesh) {
 	buffers := renderer.uploadMesh(mesh)
 	functions := renderer.functions
-	functions.BindVertexArray(buffers.vertexArray)
+	functions.BindBuffer(ArrayBuffer, buffers.vertexBuffer)
+	describeSceneVertexLayout(functions)
 	if buffers.indexed {
+		functions.BindBuffer(ElementArrayBuffer, buffers.indexBuffer)
 		functions.DrawElements(Triangles, buffers.count, UnsignedInt, 0)
 		return
 	}
@@ -156,7 +178,6 @@ func (renderer *SceneRenderer) drawMesh(mesh *scene.Mesh) {
 
 // meshBuffers is a mesh on the GPU.
 type meshBuffers struct {
-	vertexArray  VertexArray
 	vertexBuffer Buffer
 	indexBuffer  Buffer
 	count        int
@@ -171,26 +192,22 @@ func (renderer *SceneRenderer) uploadMesh(mesh *scene.Mesh) *meshBuffers {
 	}
 	functions := renderer.functions
 	if buffers == nil {
-		buffers = &meshBuffers{vertexArray: functions.CreateVertexArray(), vertexBuffer: functions.CreateBuffer(),
-			indexBuffer: functions.CreateBuffer()}
+		buffers = &meshBuffers{vertexBuffer: functions.CreateBuffer(), indexBuffer: functions.CreateBuffer()}
 	}
-	functions.BindVertexArray(buffers.vertexArray)
 	functions.BindBuffer(ArrayBuffer, buffers.vertexBuffer)
 	functions.BufferData(ArrayBuffer, floatBytes(sceneplan.InterleaveVertices(mesh)), StaticDraw)
-	describeSceneVertexLayout(functions)
 	buffers.indexed = len(mesh.Indices) > 0
 	buffers.count = sceneplan.ElementCount(mesh)
 	if buffers.indexed {
 		functions.BindBuffer(ElementArrayBuffer, buffers.indexBuffer)
 		functions.BufferData(ElementArrayBuffer, indexBytes(mesh.Indices), StaticDraw)
 	}
-	functions.BindVertexArray(0)
 	mesh.GPU, mesh.Dirty = buffers, false
 	return buffers
 }
 
-// describeSceneVertexLayout tells the bound vertex array where position, normal and colour are in
-// sceneplan's interleaved vertices.
+// describeSceneVertexLayout tells where position, normal and colour are in sceneplan's interleaved
+// vertices, in the bound vertex buffer; with no vertex array objects, before every draw.
 func describeSceneVertexLayout(functions Functions) {
 	stride := sceneplan.FloatsPerVertex * 4
 	functions.EnableVertexAttribArray(0)

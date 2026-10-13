@@ -14,8 +14,9 @@ type program struct {
 	uniforms  map[string]Uniform
 }
 
-// newProgram compiles and links a vertex and a fragment shader.
-func newProgram(functions Functions, vertexSource, fragmentSource string) (*program, error) {
+// newProgram compiles and links a vertex and a fragment shader, giving the attributes the indices
+// of their place in attributes.
+func newProgram(functions Functions, vertexSource, fragmentSource string, attributes []string) (*program, error) {
 	vertex, err := compileShader(functions, VertexShader, vertexSource)
 	if err != nil {
 		return nil, err
@@ -29,6 +30,9 @@ func newProgram(functions Functions, vertexSource, fragmentSource string) (*prog
 	handle := functions.CreateProgram()
 	functions.AttachShader(handle, vertex)
 	functions.AttachShader(handle, fragment)
+	for index, name := range attributes {
+		functions.BindAttribLocation(handle, uint32(index), name)
+	}
 	functions.LinkProgram(handle)
 	if linked, log := functions.ProgramLinked(handle); !linked {
 		return nil, fmt.Errorf("gles: linking a program: %s", log)
@@ -76,6 +80,10 @@ func (program *program) setVector3(name string, vector graphics.Vec4) {
 
 func (program *program) setVector4(name string, vector graphics.Vec4) {
 	program.functions.Uniform4f(program.location(name), vector[0], vector[1], vector[2], vector[3])
+}
+
+func (program *program) setMatrix3(name string, matrix [9]float32) {
+	program.functions.UniformMatrix3(program.location(name), matrix)
 }
 
 func (program *program) setMatrix(name string, matrix graphics.Mat4) {

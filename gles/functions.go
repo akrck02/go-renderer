@@ -1,8 +1,13 @@
-// Package gles draws go-renderer's flat interfaces and a simple 3D scene through OpenGL ES 3.0, the
+// Package gles draws go-renderer's flat interfaces and a simple 3D scene through OpenGL ES, the
 // graphics interface both browsers (as WebGL2) and Android phones offer. It makes no graphics
 // calls of its own: it talks to a small interface, Functions, that each platform implements (the
 // browser package through syscall/js, an Android window through golang.org/x/mobile/gl). So the
 // renderers are written once, in plain Go with no cgo, and tested on any computer with a fake.
+//
+// It uses only what OpenGL ES 2.0 has, plus 32-bit indices (an extension every current phone
+// has): golang.org/x/mobile/gl knows nothing newer on Android, and WebGL2 accepts it all. So the
+// shaders are GLSL ES 1.00, there are no vertex array objects (each draw describes its vertices)
+// and the atlas is a LUMINANCE texture.
 //
 // Desktop programs keep using the opengl and metal packages; nothing here replaces them.
 package gles
@@ -47,25 +52,23 @@ const (
 	TextureWrapT     Enum = 0x2803
 	Linear           Enum = 0x2601
 	ClampToEdge      Enum = 0x812F
-	Red              Enum = 0x1903
-	R8               Enum = 0x8229
+	Luminance        Enum = 0x1909
 	UnpackAlignment  Enum = 0x0CF5
 )
 
 // Handles name objects the graphics driver keeps. 0 is never a valid one.
 type (
-	Shader      uint32
-	Program     uint32
-	Buffer      uint32
-	Texture     uint32
-	VertexArray uint32
+	Shader  uint32
+	Program uint32
+	Buffer  uint32
+	Texture uint32
 )
 
 // Uniform is where a program reads a uniform value; -1 when the program has none of that name
 // (the compiler drops uniforms it does not use).
 type Uniform int32
 
-// Functions is the part of OpenGL ES 3.0 the renderers need. An implementation must be used from
+// Functions is the part of OpenGL ES 2.0 the renderers need. An implementation must be used from
 // the goroutine (and thread) that owns the graphics context.
 type Functions interface {
 	CreateShader(stage Enum) Shader
@@ -80,6 +83,8 @@ type Functions interface {
 	LinkProgram(program Program)
 	// ProgramLinked reports whether the last link worked, and the linker's log.
 	ProgramLinked(program Program) (bool, string)
+	// BindAttribLocation gives an attribute its index; it takes effect at the next link.
+	BindAttribLocation(program Program, index uint32, name string)
 	UseProgram(program Program)
 	UniformLocation(program Program, name string) Uniform
 
@@ -88,6 +93,7 @@ type Functions interface {
 	Uniform2f(location Uniform, first, second float32)
 	Uniform3f(location Uniform, first, second, third float32)
 	Uniform4f(location Uniform, first, second, third, fourth float32)
+	UniformMatrix3(location Uniform, matrix [9]float32)
 	UniformMatrix4(location Uniform, matrix [16]float32)
 
 	CreateBuffer() Buffer
@@ -95,8 +101,6 @@ type Functions interface {
 	// BufferData replaces a buffer's contents with these bytes.
 	BufferData(target Enum, data []byte, usage Enum)
 
-	CreateVertexArray() VertexArray
-	BindVertexArray(vertexArray VertexArray)
 	EnableVertexAttribArray(index uint32)
 	// VertexAttribPointer describes attribute index in the bound array buffer: size values of
 	// type kind each, stride bytes apart, the first offset bytes in.
