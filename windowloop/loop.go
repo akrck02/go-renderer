@@ -6,9 +6,9 @@ package windowloop
 
 import (
 	"fmt"
-	"math"
 	"time"
 
+	"github.com/akrck02/go-renderer/frameloop"
 	"github.com/akrck02/go-renderer/input"
 	"github.com/akrck02/go-renderer/models"
 	"github.com/go-gl/glfw/v3.4/glfw"
@@ -35,15 +35,15 @@ func Run(window *glfw.Window, app *models.Application, clock *Clock, drawFrame f
 		if failure != nil {
 			return failure
 		}
-		stepsBefore := clock.steps
+		stepsBefore := clock.Steps()
 		if err := resize.advance(); err != nil {
 			return err
 		}
-		if !onDemand && clock.steps == stepsBefore {
+		if !onDemand && clock.Steps() == stepsBefore {
 			// nothing was updated, so the frame would repeat the last one: wait for the next
 			// step instead (the display may run faster than the updates, and vsync alone does
 			// not hold the loop back on every system)
-			clock.sleepUntilNextStep()
+			clock.SleepUntilNextStep()
 			continue
 		}
 
@@ -64,61 +64,16 @@ func Run(window *glfw.Window, app *models.Application, clock *Clock, drawFrame f
 	return nil
 }
 
-// Clock runs Application.Update at a fixed time step, independent of the frame rate, so that
-// simulations advance the same way on fast and slow machines.
-type Clock struct {
-	step        float64
-	previous    time.Time
-	accumulated float64
-	steps       int // update steps run so far
-}
+// Clock runs Application.Update at a fixed time step; it lives in frameloop, which the browser
+// loop shares.
+type Clock = frameloop.Clock
 
 // NewClock makes a clock of step seconds (1/60 when 0).
-func NewClock(step float64) *Clock {
-	if step <= 0 {
-		step = 1.0 / 60
-	}
-	return &Clock{step: step, previous: time.Now()}
-}
-
-// Step is the clock's time step in seconds.
-func (clock *Clock) Step() float64 { return clock.step }
-
-// advance runs as many update steps as the elapsed time requires (at most a quarter of a second
-// worth, so a stall does not trigger a long catch-up).
-func (clock *Clock) advance(app *models.Application) error {
-	elapsed := time.Since(clock.previous).Seconds()
-	clock.previous = time.Now()
-	clock.accumulated += math.Min(elapsed, 0.25)
-	for clock.accumulated >= clock.step {
-		if err := RunUpdateStep(app, clock.step); err != nil {
-			return err
-		}
-		clock.accumulated -= clock.step
-		clock.steps++
-	}
-	return nil
-}
-
-// sleepUntilNextStep waits until the next update step is due.
-func (clock *Clock) sleepUntilNextStep() {
-	elapsed := time.Since(clock.previous).Seconds()
-	if wait := clock.step - clock.accumulated - elapsed; wait > 0 {
-		time.Sleep(time.Duration(wait * float64(time.Second)))
-	}
-}
+func NewClock(step float64) *Clock { return frameloop.NewClock(step) }
 
 // RunUpdateStep calls the application update once and clears the per-step input deltas.
 func RunUpdateStep(app *models.Application, step float64) error {
-	if app.Update != nil {
-		if err := app.Update(app, step); err != nil {
-			return err
-		}
-	}
-	if app.Input != nil {
-		app.Input.EndFrame()
-	}
-	return nil
+	return frameloop.RunUpdateStep(app, step)
 }
 
 // resizeFollower keeps a window's content in step with its size. While a window is being resized,
@@ -159,22 +114,18 @@ func (follower *resizeFollower) advance() error {
 		UpdateSizes(follower.window, follower.app.Input)
 	}
 	if follower.app.DrawOnDemand && follower.app.Input != nil {
-		// one step per frame: after a long sleep the clock would otherwise catch up in a burst
-		follower.clock.previous, follower.clock.accumulated = time.Now(), 0
-		follower.clock.steps++
 		follower.width, follower.height = width, height
-		return RunUpdateStep(follower.app, follower.clock.step)
+		return follower.clock.StepOnce(follower.app)
 	}
-	before := follower.clock.steps
-	if err := follower.clock.advance(follower.app); err != nil {
+	before := follower.clock.Steps()
+	if err := follower.clock.Advance(follower.app); err != nil {
 		return err
 	}
-	stepped := follower.clock.steps > before
+	stepped := follower.clock.Steps() > before
 	if !stepped && (width != follower.width || height != follower.height) {
-		if err := RunUpdateStep(follower.app, follower.clock.step); err != nil {
+		if err := follower.clock.BorrowStep(follower.app); err != nil {
 			return err
 		}
-		follower.clock.accumulated -= follower.clock.step
 	}
 	follower.width, follower.height = width, height
 	return nil
