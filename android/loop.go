@@ -268,15 +268,20 @@ func (current *window) paintWhenDue() error {
 	if err := current.clock.StepOnce(current.app); err != nil {
 		return err
 	}
-	// a new surface (back from the background) is empty: it is painted even if the frame looks the
-	// same as the one shown before it was lost
-	if current.fresh || current.app.Unchanged == nil || !current.app.Unchanged(current.app) {
+	// a new surface (back from the background) is empty, and a surface behind its window's new size
+	// (a rotation) takes that size only once a frame is shown: both are painted even if the frame
+	// looks the same as the one shown before
+	behind := C.surface_behind(&current.surface) != 0
+	if current.fresh || behind || current.app.Unchanged == nil || !current.app.Unchanged(current.app) {
 		if err := current.paint(); err != nil {
 			return err
 		}
 		current.lastDraw = started
 	}
 	current.asked = !current.app.DrawOnDemand || hadInput // a frame with input is followed by one more
+	if behind {
+		current.asked = true // drawn at the size before a rotation: again, now the surface has the new one
+	}
 	if delay, wantedFrame := state.TakeFrameRequest(); wantedFrame {
 		at := time.Now().Add(delay)
 		if current.frameAt.IsZero() || at.Before(current.frameAt) {
