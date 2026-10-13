@@ -1,7 +1,7 @@
 # On Android
 
-**Status:** a first step (October 2026). go-ui's interfaces open and draw on an Android
-emulator through this repository's `gles.FlatRenderer`; the Android window itself lives in go-ui
+**Status:** a first step (October 2026). go-ui's interfaces, and the 3D scene under them, draw on
+an Android emulator through this repository's `gles` renderers; the Android window itself lives in go-ui
 (its `docs/android.md` has the screenshots, the build and what was tested). This page is about
 go-renderer's part, and about the choices behind it.
 
@@ -39,6 +39,8 @@ not there. Rather than fork x/mobile, the renderers were narrowed to what OpenGL
 
 ## Not yet
 
-- The 3D scene on a phone: `gles.SceneRenderer` should work as it does in the browser, but it has
-  not been tried on Android.
 - OpenGL ES 3 and instancing, which need a native activity of our own (see above).
+- Shadows, the sky dome and waves, on phones as in browsers (see [in a web browser](web.md#not-yet)).
+
+The 3D scene does draw on Android: go-ui's example shows the sample island under its interface, at
+any time of day, on the emulator.
