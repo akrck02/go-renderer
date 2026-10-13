@@ -30,6 +30,8 @@ static void on_window_created(ANativeActivity *activity, ANativeWindow *window) 
 static void on_window_destroyed(ANativeActivity *activity, ANativeWindow *window) { goWindowDestroyed(window); }
 static void on_window_redraw_needed(ANativeActivity *activity, ANativeWindow *window) { goActivityChanged(8); }
 static void on_window_resized(ANativeActivity *activity, ANativeWindow *window) { goActivityChanged(8); }
+// the part of the window not covered by the system changed: the on-screen keyboard came or went
+static void on_content_rect_changed(ANativeActivity *activity, const ARect *rect) { goActivityChanged(9); }
 static void on_input_queue_created(ANativeActivity *activity, AInputQueue *queue) { goInputQueueCreated(queue); }
 static void on_input_queue_destroyed(ANativeActivity *activity, AInputQueue *queue) { goInputQueueDestroyed(queue); }
 
@@ -62,6 +64,7 @@ void ANativeActivity_onCreate(ANativeActivity *activity, void *saved_state, size
 	activity->callbacks->onNativeWindowDestroyed = on_window_destroyed;
 	activity->callbacks->onNativeWindowRedrawNeeded = on_window_redraw_needed;
 	activity->callbacks->onNativeWindowResized = on_window_resized;
+	activity->callbacks->onContentRectChanged = on_content_rect_changed;
 	activity->callbacks->onInputQueueCreated = on_input_queue_created;
 	activity->callbacks->onInputQueueDestroyed = on_input_queue_destroyed;
 }

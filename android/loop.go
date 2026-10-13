@@ -201,6 +201,9 @@ func (current *window) act(news event) {
 		if news.change == changeConfiguration || news.change == changeResumed {
 			current.readSystem() // the theme, the density or the bars may have changed
 		}
+		if news.change == changeContent {
+			current.insetsOK = false // the keyboard came or went: what covers the window's bottom changed
+		}
 		current.asked = true
 	}
 }
