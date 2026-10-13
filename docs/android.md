@@ -40,7 +40,14 @@ callback waits until the drawing thread has let it go, as Android requires.
 
 **Frames.** Like the desktop and the browser, it draws only when something happens, and a frame that
 would look like the one shown is not drawn, except on a new surface (back from the background),
-which is empty until painted: a screen with no scene stayed black there. It draws at most `Options.MaxFramesPerSecond` a second,
+which is empty until painted: a screen with no scene stayed black there. After a rotation, EGL's
+surface keeps the old size until a frame has been shown, so the window paints at once and once more
+at the new size; before, a rotated screen kept the old frame, laid out for the other way round.
+
+**The bars and the cutout.** `CurrentInsets` gives what the status bar, the gesture or navigation
+bar and a camera's cutout cover, on every side: a phone on its side has its cutout at the left or the
+right. A package whose theme sets `windowLayoutInDisplayCutoutMode` to `shortEdges` paints beside the
+cutout too, and keeps its controls clear of it with those insets. It draws at most `Options.MaxFramesPerSecond` a second,
 60 by default: a phone refreshes at 90 or 120 Hz, and a finger dragging a 3D view sends touch events
 far more often. When the context is new (the first frame, or back from the background), the drawing
 function is told, and makes its renderers again.

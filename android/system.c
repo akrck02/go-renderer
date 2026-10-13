@@ -63,6 +63,16 @@ int window_insets(JNIEnv *env, int *top, int *bottom, int *left, int *right) {
 		*bottom = call_int(env, insets, "getSystemWindowInsetBottom");
 		*left = call_int(env, insets, "getSystemWindowInsetLeft");
 		*right = call_int(env, insets, "getSystemWindowInsetRight");
+		// a camera's cutout: on its side of the screen when the phone lies on its side (Android 9+)
+		jobject cutout = call_object(env, insets, "getDisplayCutout", "()Landroid/view/DisplayCutout;");
+		if (cutout != NULL) {
+			int safe;
+			if ((safe = call_int(env, cutout, "getSafeInsetTop")) > *top) *top = safe;
+			if ((safe = call_int(env, cutout, "getSafeInsetBottom")) > *bottom) *bottom = safe;
+			if ((safe = call_int(env, cutout, "getSafeInsetLeft")) > *left) *left = safe;
+			if ((safe = call_int(env, cutout, "getSafeInsetRight")) > *right) *right = safe;
+			(*env)->DeleteLocalRef(env, cutout);
+		}
 		(*env)->DeleteLocalRef(env, insets);
 	}
 	if (decor != NULL) (*env)->DeleteLocalRef(env, decor);

@@ -71,6 +71,7 @@ void log_text(int priority, const char *text) { __android_log_write(priority, "G
 // surface_open makes an OpenGL ES context drawing into the window: version 3 when the phone has
 // it, else 2. The renderers need only 2; 3 is for later (instancing). Returns 0 when it cannot.
 int surface_open(ANativeWindow *window, surface *opened) {
+	opened->window = window;
 	opened->display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
 	if (opened->display == EGL_NO_DISPLAY || !eglInitialize(opened->display, NULL, NULL)) {
 		return 0;
@@ -127,10 +128,12 @@ void surface_close(surface *opened) {
 	}
 	opened->context = EGL_NO_CONTEXT;
 	opened->surface = EGL_NO_SURFACE;
+	opened->window = NULL; // Android takes it away after this
 }
 
 int surface_present(surface *opened) { return eglSwapBuffers(opened->display, opened->surface); }
 
+// surface_size is the size of what is drawn into, in pixels.
 void surface_size(surface *opened, int *width, int *height) {
 	EGLint value = 0;
 	eglQuerySurface(opened->display, opened->surface, EGL_WIDTH, &value);
@@ -146,4 +149,14 @@ int screen_density(void) {
 	int density = AConfiguration_getDensity(configuration);
 	AConfiguration_delete(configuration);
 	return density;
+}
+
+// surface_behind tells whether the window has changed size (a rotation) and the surface not yet:
+// EGL's surface takes the window's new size only once a frame has been shown, so one more frame is
+// needed, at the new size.
+int surface_behind(surface *opened) {
+	if (opened->window == NULL) return 0;
+	int width, height;
+	surface_size(opened, &width, &height);
+	return width != ANativeWindow_getWidth(opened->window) || height != ANativeWindow_getHeight(opened->window);
 }

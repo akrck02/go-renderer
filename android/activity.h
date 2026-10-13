@@ -20,6 +20,7 @@ typedef struct {
 	EGLDisplay display;
 	EGLSurface surface;
 	EGLContext context;
+	ANativeWindow *window; // what it draws into: its size is the one to draw at
 	int version; // the OpenGL ES major version the context speaks (3 or 2)
 } surface;
 
@@ -27,6 +28,7 @@ int surface_open(ANativeWindow *window, surface *opened);
 void surface_close(surface *opened);
 int surface_present(surface *opened);
 void surface_size(surface *opened, int *width, int *height);
+int surface_behind(surface *opened);
 
 // Called on the drawing thread, with the JNI environment of that thread.
 JNIEnv *attach_thread(void);
