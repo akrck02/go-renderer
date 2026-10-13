@@ -45,7 +45,7 @@ to make shaders, buffers and textures and to draw. Each platform implements it:
 | Platform | Implementation |
 |---|---|
 | Browser | `browser.WebGL`, over the canvas's `WebGL2RenderingContext` through `syscall/js` |
-| Android | over `golang.org/x/mobile/gl`, in go-ui's window (so go-renderer gains no dependency) |
+| Android | `android.GL`, direct calls into the phone's OpenGL ES ([on Android](android.md)) |
 | Tests | a fake that records the calls, so the renderers are tested on any computer, without a display |
 
 `gles.FlatRenderer` paints a `draw2d.List` on a plain background, like `opengl.FlatRenderer`: the
@@ -55,8 +55,8 @@ translucent water and, over everything, the overlay. What a frame draws is still
 `sceneplan`, so culling and levels of detail work as on the desktop.
 
 They use **only what OpenGL ES 2.0 has** (plus 32-bit indices, which every current phone has),
-because on Android `golang.org/x/mobile/gl` asks for an OpenGL ES 2 context and knows no newer
-function; WebGL2 accepts all of it. So the shaders are GLSL ES 1.00, there are no vertex array
+because the first Android step went through `golang.org/x/mobile/gl`, which knows no newer
+function, and some phones may still give only that; WebGL2 accepts all of it. So the shaders are GLSL ES 1.00, there are no vertex array
 objects (each draw describes its vertices, a handful of calls), the atlas is a `LUMINANCE`
 texture, and the normal matrix is worked out on the processor (GLSL ES 1.00 has no `inverse`).
 
@@ -69,8 +69,8 @@ tinted, made again only when the batch changes; the island is 16 draw calls a fr
 instancing, which WebGL2 and OpenGL ES 3 have, would save the memory of the copies, as a later
 step behind the same interface.
 
-Each call is costly too: x/mobile's bindings cross to their own thread every three calls, and a
-browser crosses into JavaScript at each. So a program remembers what each uniform holds and sends
+Each call is costly too: a browser crosses into JavaScript at each, and x/mobile's bindings crossed
+to their own thread every three calls (go-renderer's own `android` package calls OpenGL ES directly). So a program remembers what each uniform holds and sends
 only values that changed, and the vertex attributes are switched on once. On a phone dragging the
 island, a frame went from about 12.5 to 8.7 ms.
 

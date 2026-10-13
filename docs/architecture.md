@@ -23,6 +23,7 @@ scene, and it shows the result.
 | `scene/sample` | A made-up island that uses every feature the renderers draw, for tests and comparisons |
 | `gles` | Renderers written once for OpenGL ES (WebGL2 in browsers, Android): a flat `FlatRenderer` and a simple `SceneRenderer`, over a small interface each platform implements ([in a browser](web.md)) |
 | `browser` | Built only for WebAssembly: a canvas as the window, its events as input, WebGL2, and the loop over `requestAnimationFrame` |
+| `android` | Built only for Android: the program as a NativeActivity's shared library, its window, touches and drawing thread, direct OpenGL ES calls ([on Android](android.md)) |
 | `frameloop` | The fixed-step clock and update step that the desktop and browser loops share |
 | `windowloop` | The window loop both OpenGL and Metal use: GLFW events and input, drawing on demand, the fixed-step clock, redrawing while resizing, the pointer's shape and lock |
 | `scene` | The retained, backend-independent scene, with its overlay (labels, header, notices) |
