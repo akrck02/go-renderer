@@ -33,6 +33,7 @@ JNIEnv *attach_thread(void);
 int window_insets(JNIEnv *env, int *top, int *bottom, int *left, int *right);
 int bar_height(JNIEnv *env, const char *name);
 int night_mode(JNIEnv *env);
+int system_colours(JNIEnv *env, const char **palettes, int palette_count, const int *tones, int tone_count, unsigned int *colours);
 int screen_density(void);
 
 // log_text writes a line to Android's log, under the tag Go.

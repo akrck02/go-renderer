@@ -1,10 +1,11 @@
 //go:build android
 
-// What the window asks Android through JNI: how much of the screen the system's bars cover, and
-// whether the phone is in its dark theme. Every call checks for a Java exception and gives up
+// What the window asks Android through JNI: how much of the screen the system's bars cover,
+// whether the phone is in its dark theme, and the colours it took from the wallpaper. Every call checks for a Java exception and gives up
 // quietly: the window then works with no insets and the light theme.
 
 #include <stddef.h>
+#include <stdio.h>
 #include "activity.h"
 
 JNIEnv *attach_thread(void) {
@@ -112,4 +113,38 @@ int night_mode(JNIEnv *env) {
 	}
 	if (resources != NULL) (*env)->DeleteLocalRef(env, resources);
 	return night;
+}
+
+// system_colours reads Android's own palettes, made from the wallpaper (Android 12 and later): the
+// colours named system_<palette>_<tone> for each palette and tone given, as ARGB, into colours. It
+// returns 0 when the phone has no such colours (an older Android), and reads nothing then.
+int system_colours(JNIEnv *env, const char **palettes, int palette_count, const int *tones, int tone_count, unsigned int *colours) {
+	jobject resources = call_object(env, current_activity->clazz, "getResources", "()Landroid/content/res/Resources;");
+	if (resources == NULL) return 0;
+	jclass class = (*env)->GetObjectClass(env, resources);
+	jmethodID identifier = (*env)->GetMethodID(env, class, "getIdentifier", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)I");
+	jmethodID colour = (*env)->GetMethodID(env, class, "getColor", "(ILandroid/content/res/Resources$Theme;)I");
+	(*env)->DeleteLocalRef(env, class);
+	int found = !failed(env) && identifier != NULL && colour != NULL;
+	jstring kind = (*env)->NewStringUTF(env, "color");
+	jstring package = (*env)->NewStringUTF(env, "android");
+	char name[48];
+	for (int palette = 0; found && palette < palette_count; palette++) {
+		for (int tone = 0; found && tone < tone_count; tone++) {
+			snprintf(name, sizeof name, "system_%s_%d", palettes[palette], tones[tone]);
+			jstring resource_name = (*env)->NewStringUTF(env, name);
+			int id = (*env)->CallIntMethod(env, resources, identifier, resource_name, kind, package);
+			(*env)->DeleteLocalRef(env, resource_name);
+			if (failed(env) || id == 0) {
+				found = 0;
+				break;
+			}
+			colours[palette * tone_count + tone] = (unsigned int)(*env)->CallIntMethod(env, resources, colour, id, NULL);
+			if (failed(env)) found = 0;
+		}
+	}
+	(*env)->DeleteLocalRef(env, kind);
+	(*env)->DeleteLocalRef(env, package);
+	(*env)->DeleteLocalRef(env, resources);
+	return found;
 }

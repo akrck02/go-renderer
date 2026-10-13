@@ -218,7 +218,7 @@ func (current *window) closeSurface() {
 	current.open = false
 }
 
-// readSystem reads the screen's density and the phone's theme.
+// readSystem reads the screen's density, the phone's theme and the colours of its wallpaper.
 func (current *window) readSystem() {
 	density := float32(C.screen_density())
 	current.reader.scale = 1
@@ -227,6 +227,7 @@ func (current *window) readSystem() {
 	}
 	if current.env != nil {
 		systemDark.Store(C.night_mode(current.env) != 0)
+		readPalettes(current.env)
 	}
 	current.insetsOK = false
 }
