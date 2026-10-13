@@ -45,7 +45,7 @@ func TestPinchingComesCloserToWhatIsBetweenTheFingers(t *testing.T) {
 
 // Fingers turning a quarter counterclockwise around the window's middle: what was on its right
 // is now above it, as when turning a paper map.
-func TestTurningTwoFingersTurnsThePlantWithThem(t *testing.T) {
+func TestTurningTwoFingersTurnsTheGroundWithThem(t *testing.T) {
 	orbit := NewOrbit(graphics.Vec4{0, 0, 0, 1}, 100)
 	rightX, rightZ := orbit.groundOffset(100, 0, 600)
 	orbit.Gesture(input.Gesture{Spread: 1, Turn: math.Pi / 2, CenterX: 400, CenterY: 300}, 800, 600)
