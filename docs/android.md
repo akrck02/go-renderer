@@ -39,7 +39,8 @@ and for `Wake`; in between it sleeps. When Android takes a window or an input qu
 callback waits until the drawing thread has let it go, as Android requires.
 
 **Frames.** Like the desktop and the browser, it draws only when something happens, and a frame that
-would look like the one shown is not drawn. It draws at most `Options.MaxFramesPerSecond` a second,
+would look like the one shown is not drawn, except on a new surface (back from the background),
+which is empty until painted: a screen with no scene stayed black there. It draws at most `Options.MaxFramesPerSecond` a second,
 60 by default: a phone refreshes at 90 or 120 Hz, and a finger dragging a 3D view sends touch events
 far more often. When the context is new (the first frame, or back from the background), the drawing
 function is told, and makes its renderers again.
