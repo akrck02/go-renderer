@@ -69,6 +69,11 @@ tinted, made again only when the batch changes; the island is 16 draw calls a fr
 instancing, which WebGL2 and OpenGL ES 3 have, would save the memory of the copies, as a later
 step behind the same interface.
 
+Each call is costly too: x/mobile's bindings cross to their own thread every three calls, and a
+browser crosses into JavaScript at each. So a program remembers what each uniform holds and sends
+only values that changed, and the vertex attributes are switched on once. On a phone dragging the
+island, a frame went from about 12.5 to 8.7 ms.
+
 ### `browser`: the canvas as a window
 
 - **Size and density.** The canvas fills its place in the page; its drawing buffer is that size

@@ -6,12 +6,15 @@ import (
 	"github.com/akrck02/go-renderer/graphics"
 )
 
-// program is a linked shader program with its uniform locations remembered, so a frame does not
-// ask the driver for them again (in a browser each question is a call into JavaScript).
+// program is a linked shader program with its uniform locations and values remembered: a frame
+// does not ask the driver for a location again, nor send a value the uniform already holds. Each
+// call is costly where the bindings cross to another thread (golang.org/x/mobile/gl, a few calls at
+// a time) or into JavaScript.
 type program struct {
 	functions Functions
 	handle    Program
 	uniforms  map[string]Uniform
+	values    map[Uniform][16]float32 // what each uniform holds, padded with zeros
 }
 
 // newProgram compiles and links a vertex and a fragment shader, giving the attributes the indices
@@ -37,7 +40,7 @@ func newProgram(functions Functions, vertexSource, fragmentSource string, attrib
 	if linked, log := functions.ProgramLinked(handle); !linked {
 		return nil, fmt.Errorf("gles: linking a program: %s", log)
 	}
-	return &program{functions: functions, handle: handle, uniforms: map[string]Uniform{}}, nil
+	return &program{functions: functions, handle: handle, uniforms: map[string]Uniform{}, values: map[Uniform][16]float32{}}, nil
 }
 
 func compileShader(functions Functions, stage Enum, source string) (Shader, error) {
@@ -62,30 +65,60 @@ func (program *program) location(name string) Uniform {
 	return location
 }
 
+// changed tells whether a uniform must be sent: it does not hold this value yet (or the program
+// does not use it, location -1, and nothing need be sent). It remembers the value as sent.
+func (program *program) changed(name string, values ...float32) (Uniform, bool) {
+	location := program.location(name)
+	if location < 0 {
+		return location, false
+	}
+	var padded [16]float32
+	copy(padded[:], values)
+	if held, known := program.values[location]; known && held == padded {
+		return location, false
+	}
+	program.values[location] = padded
+	return location, true
+}
+
 func (program *program) setInteger(name string, value int32) {
-	program.functions.Uniform1i(program.location(name), value)
+	if location, send := program.changed(name, float32(value)); send {
+		program.functions.Uniform1i(location, value)
+	}
 }
 
 func (program *program) setFloat(name string, value float32) {
-	program.functions.Uniform1f(program.location(name), value)
+	if location, send := program.changed(name, value); send {
+		program.functions.Uniform1f(location, value)
+	}
 }
 
 func (program *program) setVector2(name string, first, second float32) {
-	program.functions.Uniform2f(program.location(name), first, second)
+	if location, send := program.changed(name, first, second); send {
+		program.functions.Uniform2f(location, first, second)
+	}
 }
 
 func (program *program) setVector3(name string, vector graphics.Vec4) {
-	program.functions.Uniform3f(program.location(name), vector[0], vector[1], vector[2])
+	if location, send := program.changed(name, vector[0], vector[1], vector[2]); send {
+		program.functions.Uniform3f(location, vector[0], vector[1], vector[2])
+	}
 }
 
 func (program *program) setVector4(name string, vector graphics.Vec4) {
-	program.functions.Uniform4f(program.location(name), vector[0], vector[1], vector[2], vector[3])
+	if location, send := program.changed(name, vector[:]...); send {
+		program.functions.Uniform4f(location, vector[0], vector[1], vector[2], vector[3])
+	}
 }
 
 func (program *program) setMatrix3(name string, matrix [9]float32) {
-	program.functions.UniformMatrix3(program.location(name), matrix)
+	if location, send := program.changed(name, matrix[:]...); send {
+		program.functions.UniformMatrix3(location, matrix)
+	}
 }
 
 func (program *program) setMatrix(name string, matrix graphics.Mat4) {
-	program.functions.UniformMatrix4(program.location(name), matrix)
+	if location, send := program.changed(name, matrix[:]...); send {
+		program.functions.UniformMatrix4(location, matrix)
+	}
 }

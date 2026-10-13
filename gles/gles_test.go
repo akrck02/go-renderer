@@ -260,3 +260,24 @@ func TestANewRendererUploadsTheMeshesAgain(t *testing.T) {
 		t.Fatal("the new renderer drew the ground with the old context's buffers")
 	}
 }
+
+func TestASecondFrameSendsOnlyWhatChanged(t *testing.T) {
+	fake := newRecorder()
+	renderer, err := NewSceneRenderer(fake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	world := sample.Island()
+	renderer.Draw(world, islandCamera(), 1280, 800)
+	firstValues := fake.uniformValues
+	fake.forget()
+	renderer.Draw(world, islandCamera(), 1280, 800)
+	// every call is a trip through the bindings: x/mobile's crosses threads every three calls. What
+	// is left changes from one draw to the next (a material's colour and kind)
+	if fake.uniformValues >= firstValues {
+		t.Fatalf("uniform values sent: %d on the first frame, %d on the same frame again; want fewer", firstValues, fake.uniformValues)
+	}
+	if fake.enables != 0 {
+		t.Fatalf("vertex attributes switched on %d times again; they stay on", fake.enables)
+	}
+}

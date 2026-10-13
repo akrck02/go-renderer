@@ -22,10 +22,11 @@ type SceneRenderer struct {
 	// size on a high-density screen (0 = 1).
 	OverlayScale float32
 
-	functions Functions
-	program   *program
-	quads     *quadPass
-	planner   *sceneplan.Planner
+	functions    Functions
+	program      *program
+	quads        *quadPass
+	planner      *sceneplan.Planner
+	attributesOn bool // the vertex attributes were switched on in the context
 }
 
 // NewSceneRenderer compiles the shaders and prepares the overlay's atlas.
@@ -163,6 +164,10 @@ func normalMatrix(model graphics.Mat4) [9]float32 {
 func (renderer *SceneRenderer) drawMesh(mesh *scene.Mesh) {
 	buffers := renderer.uploadMesh(mesh)
 	functions := renderer.functions
+	if !renderer.attributesOn {
+		switchAttributesOn(functions)
+		renderer.attributesOn = true
+	}
 	functions.BindBuffer(ArrayBuffer, buffers.vertexBuffer)
 	describeSceneVertexLayout(functions)
 	if buffers.indexed {
@@ -212,11 +217,8 @@ func (renderer *SceneRenderer) uploadMesh(mesh *scene.Mesh) *meshBuffers {
 // vertices, in the bound vertex buffer; with no vertex array objects, before every draw.
 func describeSceneVertexLayout(functions Functions) {
 	stride := sceneplan.FloatsPerVertex * 4
-	functions.EnableVertexAttribArray(0)
 	functions.VertexAttribPointer(0, 3, Float, false, stride, 0)
-	functions.EnableVertexAttribArray(1)
 	functions.VertexAttribPointer(1, 3, Float, false, stride, 3*4)
-	functions.EnableVertexAttribArray(2)
 	functions.VertexAttribPointer(2, 4, Float, false, stride, 6*4)
 }
 

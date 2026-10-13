@@ -14,6 +14,8 @@ type recorder struct {
 	draws          []recordedDraw
 	failCompile    bool
 	attributes     []string
+	uniformValues  int
+	enables        int
 }
 
 type recordedDraw struct {
@@ -58,17 +60,17 @@ func (fake *recorder) UniformLocation(_ Program, name string) Uniform {
 	}
 	return location
 }
-func (fake *recorder) Uniform1i(Uniform, int32)                              {}
-func (fake *recorder) Uniform1f(Uniform, float32)                            {}
-func (fake *recorder) Uniform2f(Uniform, float32, float32)                   {}
-func (fake *recorder) Uniform3f(Uniform, float32, float32, float32)          {}
-func (fake *recorder) Uniform4f(Uniform, float32, float32, float32, float32) {}
+func (fake *recorder) Uniform1i(Uniform, int32)                              { fake.uniformValues++ }
+func (fake *recorder) Uniform1f(Uniform, float32)                            { fake.uniformValues++ }
+func (fake *recorder) Uniform2f(Uniform, float32, float32)                   { fake.uniformValues++ }
+func (fake *recorder) Uniform3f(Uniform, float32, float32, float32)          { fake.uniformValues++ }
+func (fake *recorder) Uniform4f(Uniform, float32, float32, float32, float32) { fake.uniformValues++ }
 func (fake *recorder) UniformMatrix3(Uniform, [9]float32)                    {}
 func (fake *recorder) UniformMatrix4(Uniform, [16]float32)                   { fake.matrixUploads++ }
 func (fake *recorder) CreateBuffer() Buffer                                  { return Buffer(fake.handle()) }
 func (fake *recorder) BindBuffer(Enum, Buffer)                               {}
 func (fake *recorder) BufferData(target Enum, _ []byte, _ Enum)              { fake.bufferUploads[target]++ }
-func (fake *recorder) EnableVertexAttribArray(uint32)                        {}
+func (fake *recorder) EnableVertexAttribArray(uint32)                        { fake.enables++ }
 func (fake *recorder) VertexAttribPointer(uint32, int, Enum, bool, int, int) {}
 func (fake *recorder) CreateTexture() Texture                                { return Texture(fake.handle()) }
 func (fake *recorder) ActiveTexture(Enum)                                    {}
@@ -96,7 +98,7 @@ func (fake *recorder) DrawElements(_ Enum, count int, _ Enum, _ int) {
 // forget clears what the last frame recorded.
 func (fake *recorder) forget() {
 	fake.draws = nil
-	fake.textureUploads, fake.matrixUploads = 0, 0
+	fake.textureUploads, fake.matrixUploads, fake.uniformValues, fake.enables = 0, 0, 0, 0
 	fake.bufferUploads = map[Enum]int{}
 }
 
