@@ -92,6 +92,12 @@ island, a frame went from about 12.5 to 8.7 ms.
   when something happens (an event, a size change, `RequestFrame`, `browser.Wake`), so a page left
   alone does nothing at all: measured, no frames in two seconds of idling, and two after moving
   the pointer once (the frame and its follow-up).
+- **Inside a page's own application.** A program can be one screen of a larger web application,
+  drawing in a canvas the page gives it (`Options.Canvas` in go-ui). When the page takes that screen
+  away, it asks the program to stop (`browser.Stop`): `Run` returns after one more frame, and every
+  listener the canvas added (the document's paste among them) and its size observer come off the
+  page, so nothing calls into a program that has exited. Opening the screen again starts the
+  program again.
 
 ## Why this route
 
