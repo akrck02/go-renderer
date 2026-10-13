@@ -150,8 +150,8 @@ On a touch screen the first finger is the pointer (`input.TouchPointer`): it mov
 holds the left button, so a tap is a click and a drag turns the orbit. A second finger lets the
 button go, and every finger on the screen is in `State.Touches`. `input.TwoFingers` turns two
 fingers, from one step to the next, into a `Gesture`: how much they spread apart, how much they
-turned and how far their middle moved. `Orbit.Gesture` follows it (pinch to come closer, twist to
-turn, move both to pan); `Walk.Steer` walks as an on-screen stick says and `Walk.Turn` looks
+turned and how far their middle moved. `Orbit.Gesture` follows it (pinch to come closer to what is
+between the fingers, twist to turn, move both to pan); `Walk.Steer` walks as an on-screen stick says and `Walk.Turn` looks
 around by a finger's movement. The interface's copy (`Unclaimed`) keeps the touches, so a program
 can tell which finger is on its own control. A camera with an `OrthographicHeight` is
 drawn without perspective: it shows that many scene units from the bottom to the top of the

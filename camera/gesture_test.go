@@ -11,19 +11,41 @@ import (
 func TestSpreadingTwoFingersComesCloser(t *testing.T) {
 	orbit := NewOrbit(graphics.Vec4{0, 0, 0, 1}, 100)
 	before := orbit.Distance
-	orbit.Gesture(input.Gesture{Spread: 2}, 800)
+	orbit.Gesture(input.Gesture{Spread: 2, CenterX: 400, CenterY: 400}, 800, 800)
 	if orbit.Distance != before/2 {
 		t.Fatalf("distance = %v, want half of %v", orbit.Distance, before)
 	}
-	orbit.Gesture(input.Gesture{Spread: 1, Turn: 0.5}, 800)
+	orbit.Gesture(input.Gesture{Spread: 1, Turn: 0.5}, 800, 800)
 	if math.Abs(orbit.Yaw-0.9) > 1e-9 {
 		t.Fatalf("yaw = %v, want 0.4 + 0.5", orbit.Yaw)
 	}
 }
 
+func TestPinchingInTheMiddleKeepsTheTarget(t *testing.T) {
+	orbit := NewOrbit(graphics.Vec4{0, 0, 0, 1}, 100)
+	orbit.Gesture(input.Gesture{Spread: 2, CenterX: 400, CenterY: 300}, 800, 600)
+	if orbit.Target[0] != 0 || orbit.Target[2] != 0 {
+		t.Fatalf("target moved to %v pinching at the window's middle", orbit.Target)
+	}
+}
+
+// What is under the fingers stays under them: pinching on the right comes closer to the right.
+func TestPinchingComesCloserToWhatIsBetweenTheFingers(t *testing.T) {
+	orbit := NewOrbit(graphics.Vec4{0, 0, 0, 1}, 100)
+	orbit.Yaw = 0 // the screen's right is +X
+	const width, height, fingersRight = 800, 600, 200.0
+	worldPerPixel := func() float64 { return orbit.Distance / height * 0.9 }
+	underFingersBefore := fingersRight * worldPerPixel()
+	orbit.Gesture(input.Gesture{Spread: 2, CenterX: width/2 + fingersRight, CenterY: height / 2}, width, height)
+	underFingersAfter := float64(orbit.Target[0]) + fingersRight*worldPerPixel()
+	if math.Abs(underFingersAfter-underFingersBefore) > 1e-3 {
+		t.Fatalf("under the fingers: x %v before, %v after; want the same point", underFingersBefore, underFingersAfter)
+	}
+}
+
 func TestMovingTwoFingersMovesTheTarget(t *testing.T) {
 	orbit := NewOrbit(graphics.Vec4{0, 0, 0, 1}, 100)
-	orbit.Gesture(input.Gesture{Spread: 1, PanX: 40}, 800)
+	orbit.Gesture(input.Gesture{Spread: 1, PanX: 40}, 800, 800)
 	if orbit.Target[0] == 0 && orbit.Target[2] == 0 {
 		t.Fatal("the target did not move with the fingers")
 	}

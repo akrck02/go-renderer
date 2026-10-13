@@ -111,6 +111,9 @@ type Gesture struct {
 	Turn   float64 // radians they turned around their middle, counterclockwise on screen
 	PanX   float64 // how far their middle moved, in layout pixels
 	PanY   float64
+	// CenterX and CenterY are where their middle is now, in layout pixels: what a pinch comes
+	// closer to
+	CenterX, CenterY float64
 }
 
 // Step reads the state's touches and returns the gesture since the last step; false when there
@@ -141,6 +144,7 @@ func gestureBetween(before, after [2]Touch) Gesture {
 	gesture.Turn = math.Atan2(math.Sin(turn), math.Cos(turn)) // within half a turn either way
 	gesture.PanX = (after[0].X + after[1].X - before[0].X - before[1].X) / 2
 	gesture.PanY = (after[0].Y + after[1].Y - before[0].Y - before[1].Y) / 2
+	gesture.CenterX, gesture.CenterY = (after[0].X+after[1].X)/2, (after[0].Y+after[1].Y)/2
 	return gesture
 }
 
