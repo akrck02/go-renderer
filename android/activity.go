@@ -37,6 +37,7 @@ const (
 // The activity's changes, as activity.c numbers them.
 const (
 	changeResumed       = 1
+	changePaused        = 2
 	changeConfiguration = 5
 	changeRedrawNeeded  = 8
 	changeContent       = 9 // what the system covers changed: the on-screen keyboard came or went
