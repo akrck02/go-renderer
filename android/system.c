@@ -254,3 +254,24 @@ void leave_program(void) {
 	(*env)->CallBooleanMethod(env, activity, method, JNI_TRUE);
 	if (failed(env)) ANativeActivity_finish(current_activity);
 }
+
+// feel_long_press gives the short buzz Android's own views give when a touch becomes a long press
+// (View.performHapticFeedback with LONG_PRESS): it follows the person's setting for touch feedback
+// and needs no permission. Safe from any thread, which it attaches to Java.
+void feel_long_press(void) {
+	JNIEnv *env = attach_thread();
+	if (env == NULL) return;
+	jobject window = call_object(env, current_activity->clazz, "getWindow", "()Landroid/view/Window;");
+	jobject decor = call_object(env, window, "getDecorView", "()Landroid/view/View;");
+	if (decor != NULL) {
+		jclass class = (*env)->GetObjectClass(env, decor);
+		jmethodID perform = (*env)->GetMethodID(env, class, "performHapticFeedback", "(I)Z");
+		(*env)->DeleteLocalRef(env, class);
+		if (!failed(env) && perform != NULL) {
+			(*env)->CallBooleanMethod(env, decor, perform, 0); // HapticFeedbackConstants.LONG_PRESS
+			failed(env);
+		}
+		(*env)->DeleteLocalRef(env, decor);
+	}
+	if (window != NULL) (*env)->DeleteLocalRef(env, window);
+}

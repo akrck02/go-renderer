@@ -46,6 +46,9 @@ int post_notification(int id, const char *channel_id, const char *channel_label,
 int system_colours(JNIEnv *env, const char **palettes, int palette_count, const int *tones, int tone_count, unsigned int *colours);
 int screen_density(void);
 
+// The buzz of a long press (system.c): safe from any thread.
+void feel_long_press(void);
+
 // log_text writes a line to Android's log, under the tag Go.
 void log_text(int priority, const char *text);
 
