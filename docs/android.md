@@ -131,6 +131,17 @@ names `android.permission.POST_NOTIFICATIONS`). Tried on a OnePlus 7 Pro (Androi
 touch becomes a long press (`View.performHapticFeedback` on the window's view): it follows the
 person's setting for touch feedback and needs no permission.
 
+**Films.** `OpenVideo(path)` decodes a film's pictures with the phone's own decoders (the NDK's
+`MediaCodec`: MP4 and WebM, H.264, H.265, VP8, VP9, AV1), a step at a time from the goroutine that
+draws: `Advance(until, pixels)` decodes up to a moment and copies the picture due by then. The
+pictures come out in the decoder's own buffers, laid out as its output format says: the three
+planes one after another (I420, from software decoders such as the emulator's) or the luma then the
+chroma interleaved (NV12, from most hardware decoders), with rows padded to the decoder's liking.
+`YUVPlanes.ToRGBA` turns them into colours, in video's limited range, with the high-definition
+standard's weights from 720 lines up. Drawing into an `AImageReader` looked simpler but, on a
+OnePlus 7 Pro, the decoder then wrote its pictures compressed in its maker's own layout, which no
+processor reads: green noise. The sound is not played yet.
+
 **The back gesture.** Android's back (the gesture from a side, or the button) is the program's:
 the window records it (`State.PressBack`), and the part of the program the person is in answers it
 (`State.TakeBack`, go-ui's `Context.Back`): a dialog closes, a screen goes back to the one before.
