@@ -1,8 +1,8 @@
 //go:build android
 
-// Package android runs go-renderer programs as Android applications, with no Java and no
-// golang.org/x/mobile: the program is a shared library (-buildmode=c-shared) that Android's own
-// NativeActivity loads. A little C (activity.c) receives the activity's callbacks and starts
+// Package android runs go-renderer programs as Android applications, with no golang.org/x/mobile
+// and no Java but one class for screen readers (package java): the program is a shared library
+// (-buildmode=c-shared) that Android's own NativeActivity loads. A little C (activity.c) receives the activity's callbacks and starts
 // main; a thread of the program's own holds the OpenGL ES context, waits on an Android looper for
 // touches and the activity's news, and draws only when something happens. Its OpenGL ES calls are
 // direct (gl.go), which matters: going through x/mobile's bindings, which cross to another thread

@@ -2,8 +2,8 @@
 
 **Status:** a first step (October 2026). Package `android` runs a go-renderer program as an Android
 application: go-ui's interfaces, and the 3D scene under them, draw on an Android 16 emulator and on a
-Pixel 6 Pro. There is no Java and no golang.org/x/mobile: the program is a shared library that
-Android's own `NativeActivity` loads. go-ui's `docs/android.md` has the screenshots, the build and
+Pixel 6 Pro. There is no golang.org/x/mobile, and no Java but one small class for screen readers:
+the program is a shared library that Android's own `NativeActivity` loads. go-ui's `docs/android.md` has the screenshots, the build and
 what was tested.
 
 ## How it fits together
@@ -24,6 +24,7 @@ Android                 NativeActivity loads the program, a shared library built
 | Touches and a hardware keyboard | `android/input.go`; fingers as the pointer in `input.TouchPointer` |
 | OpenGL ES, called directly | `android/gl.go` |
 | The system's bars and theme, and the wallpaper's palettes, through JNI | `android/system.c`, `android/palettes.go` |
+| What a screen reader (TalkBack) reads, and what it asks | `android/screenreader.go`, `screenreader.c`, `android/java/ScreenReader.java` |
 
 **Starting.** Android loads the library and calls `ANativeActivity_onCreate`. Go does not run
 `main.main` in a shared library by itself, so the first time the library finds it by name and calls
@@ -100,8 +101,10 @@ go build -buildmode=c-shared -ldflags=-extldflags=-Wl,-z,max-page-size=16384 -o 
 ```
 
 A package then holds `lib/arm64-v8a/libprogram.so` and a manifest whose activity is
-`android.app.NativeActivity`, with `android.app.lib_name` set to `program` and `android:hasCode="false"`.
-go-ui's `cmd/mobile/build-apk.sh` does it all with the Android SDK's tools. The 16 KB alignment is what
+`android.app.NativeActivity`, with `android.app.lib_name` set to `program`. For a screen reader it
+also holds `classes.dex`, compiled from `android/java/ScreenReader.java` (`javac`, then the build
+tools' `d8`), and says `android:hasCode="true"`; without it, the program runs with no screen reader.
+go-ui-android's `go-ui-apk` does it all with the Android SDK's tools. The 16 KB alignment is what
 phones with 16 KB memory pages (Android 15 and later) need.
 
 ## Typing and notifications
@@ -161,6 +164,36 @@ the window records it (`State.PressBack`), and the part of the program the perso
 A back nobody answers sends the program to the background (`moveTaskToBack`), as a phone's own
 applications do at their first screen; it comes back as it was. When the on-screen keyboard is up,
 the back puts it away first, as everywhere on Android.
+
+## Screen readers
+
+A screen reader (TalkBack, or any accessibility service) reads what a view holds through the
+view's `AccessibilityNodeProvider`, an abstract Java class: JNI can call Java, but cannot make a
+subclass, and a proxy only stands in for interfaces. So the package carries one class,
+`ScreenReader.java`, embedded in package `android/java` for the tool that compiles it. Everything
+else stays in Go and C.
+
+```text
+the program's interface   the nodes of a frame: what each is, where, its state (go-ui makes them)
+android (Go)              ShowAccessibleNodes: sent only when they change, in screen pixels, text as UTF-16
+screenreader.c            the Java arrays, and the class's native methods
+ScreenReader.java         a virtual view per node, answering TalkBack; its focus and actions back to Go
+```
+
+- **Installing.** Each time Android makes the activity (a rotation too), `ANativeActivity_onCreate`
+  loads the class through the activity's class loader and puts a provider on the view NativeActivity
+  shows. It listens for accessibility turning on and off: `ScreenReaderOn` tells, and while it is
+  off the program makes no nodes at all.
+- **A finger exploring the screen.** While TalkBack is on, Android turns a finger into hover events,
+  which reach the input queue like touches. They go to Java, which finds the smallest node under the
+  finger and tells TalkBack it came onto it; TalkBack reads it and puts its focus there.
+- **What TalkBack asks.** A double tap is a click on the node it is on, a double tap held a long
+  click, a swipe with two fingers or the volume keys on a slider a scroll. Java passes them on
+  (`TakeReaderActions`) and wakes the drawing thread; the interface does them in the next frame. Where
+  TalkBack's focus is (`ScreenReaderFocus`) comes the same way, for the program to ring it: the
+  window is a native surface, where Android draws no ring of its own.
+- **Text as UTF-16.** JNI's own UTF-8 is not quite UTF-8: an emoji in a label sent that way stops a
+  program. Labels cross as Java keeps them.
 
 ## Not yet
 
