@@ -5,17 +5,18 @@ import "strings"
 // recorder is a fake graphics context: it hands out handles and remembers the calls the tests
 // look at, so the renderers can be checked on any computer, with no display.
 type recorder struct {
-	nextHandle     uint32
-	sources        []string
-	uniforms       map[string]Uniform
-	matrixUploads  int
-	textureUploads int
-	bufferUploads  map[Enum]int
-	draws          []recordedDraw
-	failCompile    bool
-	attributes     []string
-	uniformValues  int
-	enables        int
+	nextHandle         uint32
+	sources            []string
+	uniforms           map[string]Uniform
+	matrixUploads      int
+	textureUploads     int
+	textureAreaUploads int
+	bufferUploads      map[Enum]int
+	draws              []recordedDraw
+	failCompile        bool
+	attributes         []string
+	uniformValues      int
+	enables            int
 }
 
 type recordedDraw struct {
@@ -71,6 +72,7 @@ func (fake *recorder) CreateBuffer() Buffer                                  { r
 func (fake *recorder) BindBuffer(Enum, Buffer)                               {}
 func (fake *recorder) BufferData(target Enum, _ []byte, _ Enum)              { fake.bufferUploads[target]++ }
 func (fake *recorder) EnableVertexAttribArray(uint32)                        { fake.enables++ }
+func (fake *recorder) DisableVertexAttribArray(uint32)                       {}
 func (fake *recorder) VertexAttribPointer(uint32, int, Enum, bool, int, int) {}
 func (fake *recorder) CreateTexture() Texture                                { return Texture(fake.handle()) }
 func (fake *recorder) ActiveTexture(Enum)                                    {}
@@ -79,6 +81,9 @@ func (fake *recorder) TexParameteri(Enum, Enum, int32)                       {}
 func (fake *recorder) PixelStorei(Enum, int32)                               {}
 func (fake *recorder) TexImage2D(Enum, int, Enum, int, int, Enum, Enum, []byte) {
 	fake.textureUploads++
+}
+func (fake *recorder) TexSubImage2D(Enum, int, int, int, int, int, Enum, Enum, []byte) {
+	fake.textureAreaUploads++
 }
 func (fake *recorder) Viewport(int, int, int, int)                   {}
 func (fake *recorder) ClearColor(float32, float32, float32, float32) {}
@@ -98,7 +103,7 @@ func (fake *recorder) DrawElements(_ Enum, count int, _ Enum, _ int) {
 // forget clears what the last frame recorded.
 func (fake *recorder) forget() {
 	fake.draws = nil
-	fake.textureUploads, fake.matrixUploads, fake.uniformValues, fake.enables = 0, 0, 0, 0
+	fake.textureUploads, fake.textureAreaUploads, fake.matrixUploads, fake.uniformValues, fake.enables = 0, 0, 0, 0, 0
 	fake.bufferUploads = map[Enum]int{}
 }
 

@@ -206,6 +206,10 @@ func (webgl *WebGL) EnableVertexAttribArray(index uint32) {
 	webgl.context.Call("enableVertexAttribArray", index)
 }
 
+func (webgl *WebGL) DisableVertexAttribArray(index uint32) {
+	webgl.context.Call("disableVertexAttribArray", index)
+}
+
 func (webgl *WebGL) VertexAttribPointer(index uint32, size int, kind gles.Enum, normalized bool, stride, offset int) {
 	webgl.context.Call("vertexAttribPointer", index, size, uint32(kind), normalized, stride, offset)
 }
@@ -232,6 +236,11 @@ func (webgl *WebGL) PixelStorei(name gles.Enum, value int32) {
 
 func (webgl *WebGL) TexImage2D(target gles.Enum, level int, internalFormat gles.Enum, width, height int, format, kind gles.Enum, pixels []byte) {
 	webgl.context.Call("texImage2D", uint32(target), level, uint32(internalFormat), width, height, 0,
+		uint32(format), uint32(kind), webgl.bytes(pixels))
+}
+
+func (webgl *WebGL) TexSubImage2D(target gles.Enum, level, x, y, width, height int, format, kind gles.Enum, pixels []byte) {
+	webgl.context.Call("texSubImage2D", uint32(target), level, x, y, width, height,
 		uint32(format), uint32(kind), webgl.bytes(pixels))
 }
 

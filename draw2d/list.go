@@ -14,6 +14,7 @@ const (
 	ShadowKind                // a soft shadow under a rounded rectangle
 	TextKind                  // one line of text
 	IconKind                  // one icon
+	ImageKind                 // a picture covering a rounded rectangle
 )
 
 // Command is one shape of the list. Only the fields of its kind are used; keeping every kind in
@@ -35,6 +36,8 @@ type Command struct {
 	Size     float32 // text and icon: size in layout pixels (the font's em square)
 	Weight   Weight  // text
 	Baseline float32 // text: y of the baseline; the line starts at Area.X
+
+	Picture *Image // image: what it shows; Fill tints it (white shows it as it is)
 }
 
 // List collects the commands of a frame. The zero value is an empty list ready to use.
@@ -125,6 +128,12 @@ func (list *List) Fingerprint(seed maphash.Seed) uint64 {
 		hash.Write(buffer[:len(values)*4])
 		hash.WriteString(command.Text)
 		hash.WriteByte(0) // so "ab"+"c" and "a"+"bc" differ
+		if command.Picture != nil {
+			// the picture and its version: a video's next frame is a new picture to draw
+			binary.LittleEndian.PutUint64(buffer[0:], command.Picture.id)
+			binary.LittleEndian.PutUint64(buffer[8:], command.Picture.version)
+			hash.Write(buffer[:16])
+		}
 	}
 	return hash.Sum64()
 }
@@ -172,4 +181,17 @@ func (list *List) Icon(name string, x, y, size float32, color Color) {
 		return
 	}
 	list.add(Command{Kind: IconKind, Text: name, Area: Rect{X: x, Y: y, Width: size, Height: size}, Size: size, Fill: color})
+}
+
+// Image draws a picture covering a rounded rectangle: scaled to fill it, and cropped evenly at the
+// sides or at the top and bottom when their shapes differ, as photos fill cards and avatars. tint
+// multiplies its colours; white draws it as it is, and a lower opacity fades it.
+func (list *List) Image(picture *Image, area Rect, radius float32, tint Color) {
+	if picture == nil || picture.Pixels == nil || area.IsEmpty() || !tint.IsVisible() {
+		return
+	}
+	if width, height := picture.Size(); width == 0 || height == 0 {
+		return
+	}
+	list.add(Command{Kind: ImageKind, Picture: picture, Area: area, Radius: radius, Fill: tint})
 }

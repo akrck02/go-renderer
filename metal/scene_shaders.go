@@ -148,15 +148,18 @@ static_assert(sizeof(ConstellationUniforms) == 176, "ConstellationUniforms must 
 struct OverlaySizes {
     float2 screen;
     float2 atlas;
+    float2 pictures;
+    float2 unused;
 };
-static_assert(sizeof(OverlaySizes) == 16, "OverlaySizes must be 16 bytes, as the Go side writes it");
+static_assert(sizeof(OverlaySizes) == 32, "OverlaySizes must be 32 bytes, as the Go side writes it");
 
 struct OverlayInstance {
     packed_float4 screen;
     packed_float4 atlas;
+    packed_float4 picture; // -1 for a quad that shows no picture
     uchar4 color;
 };
-static_assert(sizeof(OverlayInstance) == 36, "OverlayInstance must be 36 bytes, as the Go side writes it");
+static_assert(sizeof(OverlayInstance) == 52, "OverlayInstance must be 52 bytes, as the Go side writes it");
 
 // ---------------------------------------------------------------------------------------------
 // Samplers. OpenGL keeps them in the texture objects; here they live in the shader.
@@ -807,6 +810,7 @@ fragment float4 constellationPointFragment(float2 pointCoordinate [[point_coord]
 struct OverlayVaryings {
     float4 position [[position]];
     float2 atlasCoordinate;
+    float2 pictureCoordinate;
     float4 color;
 };
 
@@ -822,15 +826,22 @@ vertex OverlayVaryings overlayVertex(uint corner [[vertex_id]],
     OverlayVaryings output;
     output.position = float4(normalized.x * 2.0 - 1.0, 1.0 - normalized.y * 2.0, 0.0, 1.0);
     output.atlasCoordinate = atlas / sizes.atlas;
+    float2 picture = mix(float2(quad.picture[0], quad.picture[1]), float2(quad.picture[2], quad.picture[3]), along);
+    output.pictureCoordinate = quad.picture[0] < 0.0 ? float2(-1.0) : picture / sizes.pictures;
     output.color = float4(quad.color) / 255.0;
     return output;
 }
 
 // overlayFragment's colours are already the ones shown on screen, so they are not gamma-corrected
-// like the lit scene.
+// like the lit scene. An image's quads take their colours from the pictures, tinted by theirs.
 fragment float4 overlayFragment(OverlayVaryings input [[stage_in]],
-                                texture2d<float> atlas [[texture(0)]]) {
+                                texture2d<float> atlas [[texture(0)]],
+                                texture2d<float> pictures [[texture(1)]]) {
     float coverage = atlas.sample(atlasSampler, input.atlasCoordinate).r;
-    return float4(input.color.rgb, input.color.a * coverage);
+    float4 painted = input.color;
+    if (input.pictureCoordinate.x >= 0.0) {
+        painted *= pictures.sample(atlasSampler, input.pictureCoordinate);
+    }
+    return float4(painted.rgb, painted.a * coverage);
 }
 `

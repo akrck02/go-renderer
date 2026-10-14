@@ -1,6 +1,7 @@
 package overlay
 
 import (
+	"image"
 	"math"
 	"sort"
 
@@ -18,6 +19,7 @@ func (painter *Painter) paintDrawing(list *draw2d.List, scale float32) {
 	if list.IsEmpty() {
 		return
 	}
+	painter.preparePictures(list)
 	for _, index := range painter.drawingOrder(list) {
 		command := &list.Commands[index]
 		first := len(painter.quads)
@@ -51,7 +53,72 @@ func (painter *Painter) paintCommand(command *draw2d.Command, scale float32) {
 		painter.paintText(command, scale)
 	case draw2d.IconKind:
 		painter.paintIcon(command, scale)
+	case draw2d.ImageKind:
+		painter.paintImage(command, scale)
 	}
+}
+
+// preparePictures puts the pictures the list shows in the picture atlas before anything is laid
+// out, so none moves while the frame's quads point at it.
+func (painter *Painter) preparePictures(list *draw2d.List) {
+	shown := painter.shown[:0]
+	for index := range list.Commands {
+		if command := &list.Commands[index]; command.Kind == draw2d.ImageKind && command.Picture != nil {
+			shown = append(shown, command.Picture)
+		}
+	}
+	painter.shown = shown
+	if len(shown) > 0 {
+		painter.pictures.prepare(shown)
+	}
+}
+
+// paintImage fills a rounded rectangle with a picture: the corners' coverage from the grey atlas
+// as for any fill, the colours from the picture atlas, cropped to cover the rectangle.
+func (painter *Painter) paintImage(command *draw2d.Command, scale float32) {
+	area := screenArea(command.Area, scale)
+	if area.width() <= 0 || area.height() <= 0 {
+		return
+	}
+	bounds, found := painter.pictures.bounds(command.Picture)
+	if !found {
+		return
+	}
+	first := len(painter.quads)
+	painter.paintFill(area, cornerPixels(command.Radius, area, scale), colourOf(command.Fill))
+	source := coverCrop(bounds, area)
+	for index := first; index < len(painter.quads); index++ {
+		quad := &painter.quads[index]
+		for axis := range 2 {
+			start, length := float32(area.left), float32(area.width())
+			if axis == 1 {
+				start, length = float32(area.top), float32(area.height())
+			}
+			for _, edge := range [2]int{axis, axis + 2} {
+				along := (quad.Screen[edge] - start) / length
+				quad.Picture[edge] = source[axis] + along*(source[axis+2]-source[axis])
+			}
+		}
+		quad.Pictured = true
+	}
+}
+
+// coverCrop is the part of a picture that covers an area of another shape: all of it along one
+// axis, the middle of it along the other.
+func coverCrop(bounds image.Rectangle, area rectangle) [4]float32 {
+	left, top := float32(bounds.Min.X), float32(bounds.Min.Y)
+	width, height := float32(bounds.Dx()), float32(bounds.Dy())
+	areaShape := float32(area.width()) / float32(area.height())
+	if width/height > areaShape {
+		kept := height * areaShape
+		left += (width - kept) / 2
+		width = kept
+	} else {
+		kept := width / areaShape
+		top += (height - kept) / 2
+		height = kept
+	}
+	return [4]float32{left, top, left + width, top + height}
 }
 
 // screenArea turns a rectangle in layout pixels into whole screen pixels.
@@ -158,12 +225,15 @@ func clipQuad(quad Quad, clip rectangle) (Quad, bool) {
 			return quad, false
 		}
 		atlasPerPixel := (quad.Atlas[high] - quad.Atlas[low]) / (end - start)
+		picturePerPixel := (quad.Picture[high] - quad.Picture[low]) / (end - start)
 		if start < limits[low] {
 			quad.Atlas[low] += (limits[low] - start) * atlasPerPixel
+			quad.Picture[low] += (limits[low] - start) * picturePerPixel
 			quad.Screen[low] = limits[low]
 		}
 		if end > limits[high] {
 			quad.Atlas[high] -= (end - limits[high]) * atlasPerPixel
+			quad.Picture[high] -= (end - limits[high]) * picturePerPixel
 			quad.Screen[high] = limits[high]
 		}
 	}

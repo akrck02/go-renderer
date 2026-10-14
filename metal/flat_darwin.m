@@ -18,9 +18,9 @@
 static NSString *const shaderSource = @
 	"#include <metal_stdlib>\n"
 	"using namespace metal;\n"
-	"struct Instance { packed_float4 screen; packed_float4 atlas; uchar4 color; };\n"
-	"struct Sizes { float2 screen; float2 atlas; };\n"
-	"struct Fragment { float4 position [[position]]; float2 atlasCoordinate; float4 color; };\n"
+	"struct Instance { packed_float4 screen; packed_float4 atlas; packed_float4 picture; uchar4 color; };\n"
+	"struct Sizes { float2 screen; float2 atlas; float2 pictures; float2 unused; };\n"
+	"struct Fragment { float4 position [[position]]; float2 atlasCoordinate; float2 pictureCoordinate; float4 color; };\n"
 	"vertex Fragment placeQuad(uint corner [[vertex_id]], uint index [[instance_id]],\n"
 	"                          const device Instance *instances [[buffer(0)]], constant Sizes &sizes [[buffer(1)]]) {\n"
 	"    Instance quad = instances[index];\n"
@@ -31,12 +31,19 @@ static NSString *const shaderSource = @
 	"    Fragment out;\n"
 	"    out.position = float4(normalized.x * 2.0 - 1.0, 1.0 - normalized.y * 2.0, 0.0, 1.0);\n"
 	"    out.atlasCoordinate = atlas / sizes.atlas;\n"
+	"    float2 picture = mix(float2(quad.picture[0], quad.picture[1]), float2(quad.picture[2], quad.picture[3]), along);\n"
+	"    out.pictureCoordinate = quad.picture[0] < 0.0 ? float2(-1.0) : picture / sizes.pictures;\n"
 	"    out.color = float4(quad.color) / 255.0;\n"
 	"    return out;\n"
 	"}\n"
-	"fragment float4 paintQuad(Fragment in [[stage_in]], texture2d<float> atlas [[texture(0)]], sampler smooth [[sampler(0)]]) {\n"
+	"fragment float4 paintQuad(Fragment in [[stage_in]], texture2d<float> atlas [[texture(0)]],\n"
+	"                          texture2d<float> pictures [[texture(1)]], sampler smooth [[sampler(0)]]) {\n"
 	"    float coverage = atlas.sample(smooth, in.atlasCoordinate).r;\n"
-	"    return float4(in.color.rgb, in.color.a * coverage);\n"
+	"    float4 painted = in.color;\n"
+	"    if (in.pictureCoordinate.x >= 0.0) {\n"
+	"        painted *= pictures.sample(smooth, in.pictureCoordinate);\n"
+	"    }\n"
+	"    return float4(painted.rgb, painted.a * coverage);\n"
 	"}\n";
 
 @interface FlatRenderer : NSObject
@@ -47,6 +54,7 @@ static NSString *const shaderSource = @
 @property(nonatomic, strong) id<MTLRenderPipelineState> pipeline;
 @property(nonatomic, strong) id<MTLSamplerState> sampler;
 @property(nonatomic, strong) id<MTLTexture> atlas;
+@property(nonatomic, strong) id<MTLTexture> pictures;
 @property(nonatomic, strong) NSMutableArray<id<MTLBuffer>> *instanceBuffers;
 @property(nonatomic, strong) dispatch_semaphore_t inFlight;
 @property(nonatomic) NSUInteger nextBuffer;
@@ -160,6 +168,27 @@ void flatRendererUploadAtlas(void *handle, const uint8_t *pixels, int size) {
 	renderer.atlas = atlas;
 }
 
+void flatRendererUploadPictures(void *handle, const uint8_t *pixels, int size, int whole, int x, int y, int width,
+                                int height) {
+	FlatRenderer *renderer = (__bridge FlatRenderer *)handle;
+	NSUInteger bytesPerRow = (NSUInteger)size * 4;
+	if (whole || renderer.pictures == nil || renderer.pictures.width != (NSUInteger)size) {
+		// a new texture, so a frame still being drawn keeps reading the old one
+		MTLTextureDescriptor *descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA8Unorm
+		                                                                                      width:size
+		                                                                                     height:size
+		                                                                                  mipmapped:NO];
+		descriptor.usage = MTLTextureUsageShaderRead;
+		id<MTLTexture> pictures = [renderer.device newTextureWithDescriptor:descriptor];
+		[pictures replaceRegion:MTLRegionMake2D(0, 0, size, size) mipmapLevel:0 withBytes:pixels bytesPerRow:bytesPerRow];
+		renderer.pictures = pictures;
+		return;
+	}
+	// an area of the current texture: a video's next frame, a picture added
+	const uint8_t *start = pixels + (NSUInteger)y * bytesPerRow + (NSUInteger)x * 4;
+	[renderer.pictures replaceRegion:MTLRegionMake2D(x, y, width, height) mipmapLevel:0 withBytes:start bytesPerRow:bytesPerRow];
+}
+
 // instanceBuffer copies the instances into the buffer of this frame, growing it when they do not fit.
 static id<MTLBuffer> instanceBuffer(FlatRenderer *renderer, const flatInstance *instances, int count) {
 	NSUInteger index = renderer.nextBuffer;
@@ -194,11 +223,14 @@ static void encodeFrame(FlatRenderer *renderer, id<MTLCommandBuffer> commands, i
 	pass.colorAttachments[0].clearColor = MTLClearColorMake(background[0], background[1], background[2], 1);
 	id<MTLRenderCommandEncoder> encoder = [commands renderCommandEncoderWithDescriptor:pass];
 	if (count > 0 && renderer.atlas != nil) {
-		float sizes[4] = {(float)width, (float)height, (float)renderer.atlas.width, (float)renderer.atlas.height};
+		id<MTLTexture> pictures = renderer.pictures != nil ? renderer.pictures : renderer.atlas; // read by no quad without any
+		float sizes[8] = {(float)width, (float)height, (float)renderer.atlas.width, (float)renderer.atlas.height,
+		                  (float)pictures.width, (float)pictures.height, 0, 0};
 		[encoder setRenderPipelineState:renderer.pipeline];
 		[encoder setVertexBuffer:buffer offset:0 atIndex:0];
 		[encoder setVertexBytes:sizes length:sizeof(sizes) atIndex:1];
 		[encoder setFragmentTexture:renderer.atlas atIndex:0];
+		[encoder setFragmentTexture:pictures atIndex:1];
 		[encoder setFragmentSamplerState:renderer.sampler atIndex:0];
 		[encoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4 instanceCount:count];
 	}

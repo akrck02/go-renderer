@@ -8,40 +8,51 @@ package gles
 
 // The attributes both programs read, by index.
 var (
-	quadAttributes  = []string{"screenPosition", "atlasPosition", "vertexColor"}
+	quadAttributes  = []string{"screenPosition", "atlasPosition", "vertexColor", "picturePosition"}
 	sceneAttributes = []string{"vertexPosition", "vertexNormal", "vertexColor"}
 )
 
 // quadVertexShader places the overlay's rectangles, given in screen pixels from the top-left
-// corner, and passes on where they read the atlas (in atlas pixels) and their colour.
+// corner, and passes on where they read the atlas and the pictures (in their pixels; a picture
+// position below zero reads no picture) and their colour.
 const quadVertexShader = `#version 100
 attribute vec2 screenPosition;
 attribute vec2 atlasPosition;
 attribute vec4 vertexColor;
+attribute vec2 picturePosition;
 uniform vec2 screenSize;
 uniform vec2 atlasSize;
+uniform vec2 picturesSize;
 varying vec2 atlasCoordinate;
+varying vec2 pictureCoordinate;
 varying vec4 color;
 
 void main() {
     vec2 normalized = screenPosition / screenSize;
     gl_Position = vec4(normalized.x * 2.0 - 1.0, 1.0 - normalized.y * 2.0, 0.0, 1.0);
     atlasCoordinate = atlasPosition / atlasSize;
+    pictureCoordinate = picturePosition.x < 0.0 ? vec2(-1.0) : picturePosition / picturesSize;
     color = vertexColor;
 }
 `
 
 // quadFragmentShader paints the colour where the atlas (a grey coverage mask: glyphs, icons,
-// rounded corners) covers.
+// rounded corners) covers; an image's quads take their colours from the pictures, tinted by it.
 const quadFragmentShader = `#version 100
 precision mediump float;
 varying vec2 atlasCoordinate;
+varying vec2 pictureCoordinate;
 varying vec4 color;
 uniform sampler2D atlas;
+uniform sampler2D pictures;
 
 void main() {
     float coverage = texture2D(atlas, atlasCoordinate).r;
-    gl_FragColor = vec4(color.rgb, color.a * coverage);
+    vec4 painted = color;
+    if (pictureCoordinate.x >= 0.0) {
+        painted *= texture2D(pictures, pictureCoordinate);
+    }
+    gl_FragColor = vec4(painted.rgb, painted.a * coverage);
 }
 `
 

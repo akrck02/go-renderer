@@ -129,6 +129,7 @@ drawing.Text("The lamp is lit", 64, 61, 13, draw2d.Regular, draw2d.Hex("#14202f"
 | `Shadow(area, radius, blur, drop, colour)` | A soft shadow for a rectangle, fading out over `blur` pixels and falling `drop` pixels |
 | `Text(text, x, baseline, size, weight, colour)` | One line of text in Go Regular, Medium or Bold |
 | `Icon(name, x, y, size, colour)` | A Lucide icon in a square |
+| `Image(picture, area, radius, tint)` | A picture covering a rounded rectangle, cropped evenly where their shapes differ; white tints nothing |
 | `PushClip(area)` / `PopClip()` | Cuts what follows to a rectangle (nested clips intersect) |
 | `SetLayer(layer)` | Higher layers cover lower ones, whatever order they were added in |
 
@@ -146,6 +147,21 @@ is done on the processor: each rectangle is cut, and its atlas coordinates with 
 To lay text out before drawing it, `overlay.NewMeasurer()` measures a line exactly as it will be
 painted (`MeasureText(text, size, weight, scale)`); it needs no graphics context. Interface
 libraries such as [go-ui](https://github.com/akrck02/go-ui) build on these two pieces.
+
+### Pictures
+
+A picture is a `draw2d.Image`: `draw2d.DecodeImage(reader)` reads a PNG, JPEG or GIF (a file the
+program embeds), `draw2d.NewImage(picture)` takes an `image.Image`, and `draw2d.NewBlankImage`
+makes one whose pixels the program writes itself. Keep it between frames: its pixels are uploaded
+once. To show other pixels in it (a video's next frame), write them into `Pixels` and call
+`Changed`; only its own area is uploaded again.
+
+Pictures sit side by side in a second atlas, of colours (`overlay.Pictures`, RGBA, made with the
+first picture). A picture's quads read their colours there and their coverage in the grey atlas,
+as any rounded rectangle does, so corners and clips work as for every other shape and the whole
+interface stays one draw call. Photos larger than 2048 pixels are scaled down to it as they are
+copied in; the atlas grows to 4096 pixels, and when even that is full it is emptied and holds only
+the pictures of the frame being drawn.
 
 A program that is only an interface, with no scene, uses `opengl.FlatRenderer`: it clears the
 window to a background colour and paints a draw list, with the same atlas and one draw call.

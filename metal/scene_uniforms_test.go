@@ -14,7 +14,7 @@ func TestUniformBlocksHaveTheShadersSizes(t *testing.T) {
 		"DrawUniforms":          {unsafe.Sizeof(drawUniforms{}), 128},
 		"SkyUniforms":           {unsafe.Sizeof(skyUniforms{}), 352},
 		"ConstellationUniforms": {unsafe.Sizeof(constellationUniforms{}), 176},
-		"OverlaySizes":          {unsafe.Sizeof(overlaySizes{}), 16},
+		"OverlaySizes":          {unsafe.Sizeof(overlaySizes{}), 32},
 	}
 	for name, size := range sizes {
 		if size[0] != size[1] {

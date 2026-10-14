@@ -107,7 +107,7 @@ type constellationUniforms struct {
 }
 
 type overlaySizes struct {
-	screen, atlas [2]float32
+	screen, atlas, pictures, unused [2]float32
 }
 
 // metalClipSpace turns an OpenGL projection (depth from -1 to 1) into Metal's (depth from 0 to

@@ -184,6 +184,8 @@ static MTLPixelFormat pixelFormat(int format) {
 		return MTLPixelFormatRGBA8Unorm_sRGB;
 	case sceneFormatDepth32:
 		return MTLPixelFormatDepth32Float;
+	case sceneFormatRGBA8:
+		return MTLPixelFormatRGBA8Unorm;
 	default:
 		return MTLPixelFormatBGRA8Unorm;
 	}
@@ -218,6 +220,11 @@ void sceneTextureWrite(void *handle, int slice, int width, int height, const voi
 	             withBytes:bytes
 	           bytesPerRow:bytesPerRow
 	         bytesPerImage:0];
+}
+
+void sceneTextureWriteArea(void *handle, int x, int y, int width, int height, const void *bytes, long bytesPerRow) {
+	id<MTLTexture> texture = (__bridge id<MTLTexture>)handle;
+	[texture replaceRegion:MTLRegionMake2D(x, y, width, height) mipmapLevel:0 withBytes:bytes bytesPerRow:bytesPerRow];
 }
 
 void sceneTextureGenerateMipmaps(void *handle, void *textureHandle) {

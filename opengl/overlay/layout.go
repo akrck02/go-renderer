@@ -11,17 +11,23 @@ import (
 	"math"
 	"sort"
 
+	"github.com/akrck02/go-renderer/draw2d"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/opengl/overlay/lucide"
 	"github.com/akrck02/go-renderer/scene"
 )
 
 // Quad is a rectangle of the atlas drawn on screen with a colour: the atlas gives the coverage,
-// the colour the paint. Coordinates are pixels, with the origin at the top-left corner.
+// the colour the paint. A quad of an image also reads its colours in the Pictures, which the
+// colour then tints. Coordinates are pixels, with the origin at the top-left corner.
 type Quad struct {
 	Screen [4]float32 // left, top, right, bottom on screen
 	Atlas  [4]float32 // left, top, right, bottom in the atlas
 	Color  [4]float32 // straight RGBA; its alpha multiplies the coverage
+	// Picture is where the quad reads its colours in the Pictures (left, top, right, bottom), when
+	// Pictured.
+	Picture  [4]float32
+	Pictured bool
 }
 
 // Frame is what the layout needs to know about the frame being drawn.
@@ -36,6 +42,7 @@ type Frame struct {
 // It is used from one goroutine, the one that draws.
 type Painter struct {
 	atlas    *Atlas
+	pictures *Pictures
 	fonts    *fonts
 	prebuilt map[faceKey]bool
 	warned   map[string]bool
@@ -45,6 +52,7 @@ type Painter struct {
 	quads    []Quad
 	occupied []rectangle
 	order    []int // the drawing's commands sorted by layer, reused every frame
+	shown    []*draw2d.Image
 }
 
 // NewPainter parses the embedded fonts and prepares an empty atlas.
@@ -53,11 +61,14 @@ func NewPainter() (*Painter, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Painter{atlas: NewAtlas(), fonts: loaded, prebuilt: map[faceKey]bool{}, warned: map[string]bool{}}, nil
+	return &Painter{atlas: NewAtlas(), pictures: NewPictures(), fonts: loaded, prebuilt: map[faceKey]bool{}, warned: map[string]bool{}}, nil
 }
 
 // Atlas returns the image the quads point into.
 func (painter *Painter) Atlas() *Atlas { return painter.atlas }
+
+// Pictures returns the image pictured quads read their colours from.
+func (painter *Painter) Pictures() *Pictures { return painter.pictures }
 
 // Paint lays out the whole overlay for a frame. anchors holds the world transform of the nodes
 // labels are anchored to (scene.WorldTransforms); labels whose node is missing are not drawn.
