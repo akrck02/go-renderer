@@ -73,6 +73,10 @@ func (reader *touches) motion(event *C.AInputEvent) {
 		reader.pointer.End(reader.state, finger, x, y, reader.scale)
 	case C.AMOTION_EVENT_ACTION_CANCEL:
 		reader.pointer.Cancel(reader.state)
+	case C.AMOTION_EVENT_ACTION_HOVER_ENTER, C.AMOTION_EVENT_ACTION_HOVER_MOVE, C.AMOTION_EVENT_ACTION_HOVER_EXIT:
+		// a finger exploring the screen while a screen reader is on: it reads what is under it, and
+		// a double tap then presses it (screenreader.go)
+		hoverForReader(kind, x, y)
 	case C.AMOTION_EVENT_ACTION_MOVE:
 		// a move event carries every finger: the pointer follows its own
 		for each := C.size_t(0); each < C.AMotionEvent_getPointerCount(event); each++ {

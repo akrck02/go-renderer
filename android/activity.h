@@ -57,6 +57,13 @@ int set_clipboard_text(const char *text);
 int open_link(const char *link);
 int share_text(const char *title, const char *text);
 
+// The screen reader (screenreader.c, with ScreenReader.java): install runs on the interface thread
+// when Android makes the activity; the others are safe from any thread.
+void screen_reader_install(JNIEnv *env, jobject activity);
+void screen_reader_update(int count, const int *ids, const int *parents, const int *flags, const float *bounds,
+	const float *ranges, const jchar *characters, const int *offsets);
+void screen_reader_hover(int action, float x, float y);
+
 // log_text writes a line to Android's log, under the tag Go.
 void log_text(int priority, const char *text);
 

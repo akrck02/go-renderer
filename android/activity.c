@@ -40,6 +40,8 @@ static void on_input_queue_destroyed(ANativeActivity *activity, AInputQueue *que
 // program's main, which the Go runtime does not run by itself in a shared library.
 void ANativeActivity_onCreate(ANativeActivity *activity, void *saved_state, size_t saved_state_size) {
 	current_activity = activity;
+	// what a screen reader reads of the window, on this activity's view (a rotation makes another)
+	screen_reader_install(activity->env, activity->clazz);
 	if (!main_started) {
 		uintptr_t main_code = (uintptr_t)dlsym(RTLD_DEFAULT, "main.main");
 		if (main_code == 0) {
