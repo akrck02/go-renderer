@@ -131,6 +131,14 @@ names `android.permission.POST_NOTIFICATIONS`). Tried on a OnePlus 7 Pro (Androi
 touch becomes a long press (`View.performHapticFeedback` on the window's view): it follows the
 person's setting for touch feedback and needs no permission.
 
+**The phone's services.** `TextScale()` is the person's text size (Settings › Display › Font
+size), read with the theme. The input state's clipboard is Android's own `ClipboardManager`, so text
+fields copy and paste with other applications. `OpenLink(link)` opens a link in the application
+that shows it (an `ACTION_VIEW` intent: a web page, `mailto:`, `tel:`, `geo:`), and `Share(title,
+text)` offers a text through the system's sheet (`ACTION_SEND` in a chooser). `Options.Hidden` is
+called on the drawing thread when the activity pauses: Android may end the program after that
+without a word, so it is the moment to keep what must survive.
+
 **Films.** `OpenVideo(path)` decodes a film's pictures with the phone's own decoders (the NDK's
 `MediaCodec`: MP4 and WebM, H.264, H.265, VP8, VP9, AV1), a step at a time from the goroutine that
 draws: `Advance(until, pixels)` decodes up to a moment and copies the picture due by then. The

@@ -49,6 +49,14 @@ int screen_density(void);
 // The buzz of a long press (system.c): safe from any thread.
 void feel_long_press(void);
 
+// The phone's services (services.c). font_scale runs on the drawing thread with its JNI
+// environment; the others are safe from any thread, which they attach to Java.
+float font_scale(JNIEnv *env);
+char *clipboard_text(void);
+int set_clipboard_text(const char *text);
+int open_link(const char *link);
+int share_text(const char *title, const char *text);
+
 // log_text writes a line to Android's log, under the tag Go.
 void log_text(int priority, const char *text);
 

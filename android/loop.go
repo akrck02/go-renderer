@@ -29,6 +29,10 @@ type Options struct {
 	// MaxFramesPerSecond caps how often it draws; 0 = 60. Phones refresh at 90 or 120 Hz, and a
 	// finger dragging a 3D view would otherwise ask for a frame at every touch event.
 	MaxFramesPerSecond int
+	// Hidden is called on the drawing goroutine when the program leaves the screen (another
+	// application comes up, the phone locks): Android may end it after that without a word, so it
+	// is the moment to keep what must survive.
+	Hidden func()
 }
 
 // Insets are what the system's bars cover of each edge, in layout pixels.
@@ -75,6 +79,7 @@ func Wake() {
 type window struct {
 	app      *models.Application
 	draw     func(gl GL, fresh bool) error
+	hidden   func() // the program's, when it leaves the screen (Options.Hidden)
 	clock    *frameloop.Clock
 	reader   touches
 	surface  C.surface
@@ -102,8 +107,11 @@ func Run(app *models.Application, options Options, draw func(gl GL, fresh bool) 
 	if rate <= 0 {
 		rate = 60
 	}
+	if app.Input.Clipboard == nil {
+		app.Input.Clipboard = systemClipboard{}
+	}
 	current := &window{app: app, draw: draw, clock: frameloop.NewClock(app.FixedStep), asked: true,
-		interval: time.Second / time.Duration(rate)}
+		interval: time.Second / time.Duration(rate), hidden: options.Hidden}
 	current.reader.state = app.Input
 	drawing = current
 	done := make(chan error, 1)
@@ -201,6 +209,9 @@ func (current *window) act(news event) {
 		if news.change == changeConfiguration || news.change == changeResumed {
 			current.readSystem() // the theme, the density or the bars may have changed
 		}
+		if news.change == changePaused && current.hidden != nil {
+			current.hidden()
+		}
 		if news.change == changeContent {
 			current.insetsOK = false // the keyboard came or went: what covers the window's bottom changed
 		}
@@ -235,6 +246,7 @@ func (current *window) readSystem() {
 	}
 	if current.env != nil {
 		systemDark.Store(C.night_mode(current.env) != 0)
+		textScale.Store(float32(C.font_scale(current.env)))
 		readPalettes(current.env)
 	}
 	current.insetsOK = false
