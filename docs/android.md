@@ -131,6 +131,11 @@ names `android.permission.POST_NOTIFICATIONS`). Tried on a OnePlus 7 Pro (Androi
 touch becomes a long press (`View.performHapticFeedback` on the window's view): it follows the
 person's setting for touch feedback and needs no permission.
 
+**No black before the first frame.** Android takes its starting screen away as soon as the window
+is there, while the program's first frame may still be on its way (the Go runtime starting, fonts
+read). The window is cleared to the theme's plain white or black the moment its surface opens, so
+the starting screen gives way to a plain background, never to black.
+
 **The phone's services.** `TextScale()` is the person's text size (Settings › Display › Font
 size), read with the theme. The input state's clipboard is Android's own `ClipboardManager`, so text
 fields copy and paste with other applications. `OpenLink(link)` opens a link in the application

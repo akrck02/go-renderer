@@ -20,6 +20,7 @@ import (
 	"unsafe"
 
 	"github.com/akrck02/go-renderer/frameloop"
+	"github.com/akrck02/go-renderer/gles"
 	"github.com/akrck02/go-renderer/input"
 	"github.com/akrck02/go-renderer/models"
 )
@@ -227,6 +228,20 @@ func (current *window) openSurface(native *C.ANativeWindow) {
 		return
 	}
 	current.open, current.fresh, current.asked, current.insetsOK = true, true, true, false
+	current.showPlainBackground()
+}
+
+// showPlainBackground shows the theme's plain white or black at once: the program's first frame
+// may take a moment (the Go runtime starting, fonts read), and Android takes its starting screen
+// away as soon as the window is there, which would otherwise be black until then.
+func (current *window) showPlainBackground() {
+	shade := float32(1)
+	if systemDark.Load() {
+		shade = 0
+	}
+	GL{}.ClearColor(shade, shade, shade, 1)
+	GL{}.Clear(gles.ColorBufferBit)
+	C.surface_present(&current.surface)
 }
 
 func (current *window) closeSurface() {
