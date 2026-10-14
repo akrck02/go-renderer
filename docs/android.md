@@ -127,6 +127,10 @@ list): touching it opens the program. Android 13 and later show them only once t
 it: `NotificationsAllowed` tells, and `AskForNotifications` shows Android's question (the package
 names `android.permission.POST_NOTIFICATIONS`). Tried on a OnePlus 7 Pro (Android 10).
 
+**The buzz of a long press.** `FeelLongPress()` gives the short buzz Android's own views give when a
+touch becomes a long press (`View.performHapticFeedback` on the window's view): it follows the
+person's setting for touch feedback and needs no permission.
+
 **The back gesture.** Android's back (the gesture from a side, or the button) is the program's:
 the window records it (`State.PressBack`), and the part of the program the person is in answers it
 (`State.TakeBack`, go-ui's `Context.Back`): a dialog closes, a screen goes back to the one before.
