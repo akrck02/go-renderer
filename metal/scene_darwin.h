@@ -11,6 +11,7 @@ enum {
 	sceneFormatRG32Float = 3, // the water level variation (two harmonics)
 	sceneFormatRGBA8sRGB = 4, // sky images, read as linear colours
 	sceneFormatDepth32 = 5,   // shadow and seabed maps
+	sceneFormatRGBA8 = 6,     // the overlay's pictures, read as they are
 };
 
 // Blending of a pipeline.
@@ -53,6 +54,8 @@ void sceneBufferWrite(void *buffer, long offset, const void *bytes, long length)
 void *sceneTextureCreate(void *device, int format, int width, int height, int cube, int mipmapped, int renderTarget);
 // sceneTextureWrite fills one slice (a cube face, or 0) of the top level of a texture.
 void sceneTextureWrite(void *texture, int slice, int width, int height, const void *bytes, long bytesPerRow);
+// sceneTextureWriteArea fills an area of the top level of a 2D texture; bytes is its top-left pixel.
+void sceneTextureWriteArea(void *texture, int x, int y, int width, int height, const void *bytes, long bytesPerRow);
 void sceneTextureGenerateMipmaps(void *device, void *texture);
 
 // sceneFrameBegin starts a frame of width × height pixels: into the window, or into an off-screen

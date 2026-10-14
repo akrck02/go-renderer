@@ -1,16 +1,27 @@
 package gles
 
 import (
+	"image"
+
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
 )
 
-// floatsPerQuadVertex is a corner of a rectangle: screen position 2, atlas position 2, colour 4.
-const floatsPerQuadVertex = 8
+// floatsPerQuadVertex is a corner of a rectangle: screen position 2, atlas position 2, colour 4,
+// picture position 2.
+const floatsPerQuadVertex = 10
 
-// atlasTextureUnit is where the overlay's atlas is bound; the scene uses no textures.
-const atlasTextureUnit = 0
+// atlasTextureUnit and picturesTextureUnit are where the overlay's two atlases are bound; the
+// scene uses no textures.
+const (
+	atlasTextureUnit    = 0
+	picturesTextureUnit = 1
+)
+
+// pictureAttribute is the attribute only the quads read: it is on while they draw, and off for
+// the scene's program, which reads three.
+const pictureAttribute = 3
 
 // quadPass paints the overlay (labels, header, notices and a draw2d list) as rectangles of one
 // atlas, in one draw call. It is the OpenGL overlay renderer's last steps, for OpenGL ES: the
@@ -28,7 +39,11 @@ type quadPass struct {
 	attributesOn bool
 	atlasTexture Texture
 	atlasVersion int // the version of the atlas on the GPU; -1 before the first upload
-	vertices     []float32
+	// picturesTexture holds the images' colours; picturesSize is its side on the GPU
+	picturesTexture Texture
+	picturesSize    int
+	areaPixels      []byte // a changed area's rows, one after another, for uploading
+	vertices        []float32
 }
 
 func newQuadPass(functions Functions) (*quadPass, error) {
@@ -43,6 +58,7 @@ func newQuadPass(functions Functions) (*quadPass, error) {
 	pass := &quadPass{functions: functions, painter: painter, program: shaders, atlasVersion: -1}
 	pass.vertexBuffer = functions.CreateBuffer()
 	pass.atlasTexture = functions.CreateTexture()
+	pass.picturesTexture = functions.CreateTexture()
 	return pass, nil
 }
 
@@ -58,6 +74,8 @@ func (pass *quadPass) describeVertexLayout() {
 	functions.VertexAttribPointer(0, 2, Float, false, stride, 0)
 	functions.VertexAttribPointer(1, 2, Float, false, stride, 2*4)
 	functions.VertexAttribPointer(2, 4, Float, false, stride, 4*4)
+	functions.EnableVertexAttribArray(pictureAttribute)
+	functions.VertexAttribPointer(pictureAttribute, 2, Float, false, stride, 8*4)
 }
 
 // switchAttributesOn turns on the three vertex attributes both programs read; they stay on.
@@ -103,6 +121,7 @@ func (pass *quadPass) drawQuads(quads []overlay.Quad, width, height int) {
 		return
 	}
 	pass.uploadAtlas()
+	pass.uploadPictures()
 	pass.fillVertices(quads)
 	pass.drawVertices(width, height)
 }
@@ -127,6 +146,45 @@ func (pass *quadPass) uploadAtlas() {
 	pass.atlasVersion = atlas.Version
 }
 
+// uploadPictures sends the images' colours to the GPU: the whole picture atlas when it is new,
+// grew or was emptied, else only the areas pictures were copied into since the last frame.
+func (pass *quadPass) uploadPictures() {
+	functions := pass.functions
+	pictures := pass.painter.Pictures()
+	if pictures.Size() == 0 {
+		return // no picture drawn yet
+	}
+	functions.ActiveTexture(Texture0 + picturesTextureUnit)
+	functions.BindTexture(Texture2D, pass.picturesTexture)
+	whole, areas := pictures.Pending()
+	size := pictures.Size()
+	if whole || size != pass.picturesSize {
+		functions.TexImage2D(Texture2D, 0, RGBA, size, size, RGBA, UnsignedByte, pictures.Image.Pix)
+		functions.TexParameteri(Texture2D, TextureMinFilter, int32(Linear))
+		functions.TexParameteri(Texture2D, TextureMagFilter, int32(Linear))
+		functions.TexParameteri(Texture2D, TextureWrapS, int32(ClampToEdge))
+		functions.TexParameteri(Texture2D, TextureWrapT, int32(ClampToEdge))
+		pass.picturesSize = size
+	} else {
+		for _, area := range areas {
+			pass.areaPixels = areaRows(pass.areaPixels[:0], pictures.Image, area)
+			functions.TexSubImage2D(Texture2D, 0, area.Min.X, area.Min.Y, area.Dx(), area.Dy(), RGBA, UnsignedByte, pass.areaPixels)
+		}
+	}
+	pictures.Uploaded()
+	functions.ActiveTexture(Texture0 + atlasTextureUnit)
+}
+
+// areaRows copies an area of an image's pixels row after row, as OpenGL ES 2 reads them (it
+// cannot skip the rest of each row).
+func areaRows(into []byte, picture *image.NRGBA, area image.Rectangle) []byte {
+	for y := area.Min.Y; y < area.Max.Y; y++ {
+		start := picture.PixOffset(area.Min.X, y)
+		into = append(into, picture.Pix[start:start+area.Dx()*4]...)
+	}
+	return into
+}
+
 // fillVertices turns every rectangle into two triangles and sends them to the GPU.
 func (pass *quadPass) fillVertices(quads []overlay.Quad) {
 	pass.vertices = appendQuadVertices(pass.vertices[:0], quads)
@@ -134,22 +192,26 @@ func (pass *quadPass) fillVertices(quads []overlay.Quad) {
 	pass.functions.BufferData(ArrayBuffer, floatBytes(pass.vertices), StreamDraw)
 }
 
-// appendQuadVertices writes six corners per rectangle: position, atlas position and colour.
+// appendQuadVertices writes six corners per rectangle: position, atlas position, colour and
+// picture position (-1 for a quad that shows no picture).
 func appendQuadVertices(vertices []float32, quads []overlay.Quad) []float32 {
 	for _, quad := range quads {
-		left, top, right, bottom := quad.Screen[0], quad.Screen[1], quad.Screen[2], quad.Screen[3]
-		atlasLeft, atlasTop, atlasRight, atlasBottom := quad.Atlas[0], quad.Atlas[1], quad.Atlas[2], quad.Atlas[3]
-		corners := [6][4]float32{
-			{left, top, atlasLeft, atlasTop}, {left, bottom, atlasLeft, atlasBottom}, {right, bottom, atlasRight, atlasBottom},
-			{left, top, atlasLeft, atlasTop}, {right, bottom, atlasRight, atlasBottom}, {right, top, atlasRight, atlasTop},
+		picture := [4]float32{-1, -1, -1, -1}
+		if quad.Pictured {
+			picture = quad.Picture
 		}
-		for _, corner := range corners {
-			vertices = append(vertices, corner[0], corner[1], corner[2], corner[3],
-				quad.Color[0], quad.Color[1], quad.Color[2], quad.Color[3])
+		for _, corner := range quadCorners {
+			x, y := corner[0], corner[1] // 0 for the left or top edge, 2 for the right or bottom
+			vertices = append(vertices, quad.Screen[x], quad.Screen[y+1], quad.Atlas[x], quad.Atlas[y+1],
+				quad.Color[0], quad.Color[1], quad.Color[2], quad.Color[3], picture[x], picture[y+1])
 		}
 	}
 	return vertices
 }
+
+// quadCorners are a rectangle's two triangles: for each corner, which edges it is on (0 left or
+// top, 2 right or bottom), into a quad's left, top, right, bottom.
+var quadCorners = [6][2]int{{0, 0}, {0, 2}, {2, 2}, {0, 0}, {2, 2}, {2, 0}}
 
 func (pass *quadPass) drawVertices(width, height int) {
 	functions := pass.functions
@@ -158,6 +220,8 @@ func (pass *quadPass) drawVertices(width, height int) {
 	size := float32(pass.painter.Atlas().Size())
 	pass.program.setVector2("atlasSize", size, size)
 	pass.program.setInteger("atlas", atlasTextureUnit)
+	pass.program.setVector2("picturesSize", float32(pass.picturesSize), float32(pass.picturesSize))
+	pass.program.setInteger("pictures", picturesTextureUnit)
 	functions.Disable(DepthTest)
 	functions.DepthMask(false)
 	functions.Enable(Blend)
@@ -165,6 +229,7 @@ func (pass *quadPass) drawVertices(width, height int) {
 	functions.BindBuffer(ArrayBuffer, pass.vertexBuffer)
 	pass.describeVertexLayout()
 	functions.DrawArrays(Triangles, 0, len(pass.vertices)/floatsPerQuadVertex)
+	functions.DisableVertexAttribArray(pictureAttribute)
 	functions.Disable(Blend)
 	functions.DepthMask(true)
 }

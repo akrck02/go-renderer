@@ -19,6 +19,8 @@ type overlayLayer struct {
 	painter      *overlay.Painter
 	atlas        unsafe.Pointer
 	atlasVersion int
+	pictures     unsafe.Pointer // the images' colours; nil before any picture
+	picturesSize int
 	buffer       unsafe.Pointer
 	capacity     int // instances the buffer holds
 	instances    []instance
@@ -38,15 +40,23 @@ func (renderer *SceneRenderer) drawOverlay(encoder unsafe.Pointer, world *scene.
 		return
 	}
 	renderer.uploadAtlas()
+	renderer.uploadPictures()
 	layer.instances = packInstances(quads, layer.instances)
 	renderer.uploadOverlayInstances()
 	size := float32(layer.painter.Atlas().Size())
-	sizes := overlaySizes{screen: [2]float32{float32(width), float32(height)}, atlas: [2]float32{size, size}}
+	picturesSize := float32(layer.picturesSize)
+	sizes := overlaySizes{screen: [2]float32{float32(width), float32(height)}, atlas: [2]float32{size, size},
+		pictures: [2]float32{picturesSize, picturesSize}}
 	C.sceneEncoderSetPipeline(encoder, renderer.pipelines.overlay)
 	C.sceneEncoderSetDepthState(encoder, renderer.depthStates.overlay)
 	C.sceneEncoderSetVertexBuffer(encoder, layer.buffer, 0)
 	C.sceneEncoderSetVertexBytes(encoder, unsafe.Pointer(&sizes), C.long(unsafe.Sizeof(sizes)), 1)
 	C.sceneEncoderSetFragmentTexture(encoder, layer.atlas, 0)
+	pictures := layer.pictures
+	if pictures == nil {
+		pictures = layer.atlas // read by no quad until there is a picture
+	}
+	C.sceneEncoderSetFragmentTexture(encoder, pictures, 1)
 	C.sceneEncoderDraw(encoder, C.scenePrimitiveTriangleStrip, 0, 4, C.int(len(layer.instances)))
 }
 
@@ -62,6 +72,31 @@ func (renderer *SceneRenderer) uploadAtlas() {
 	layer.atlas = renderer.newTexture(C.sceneFormatR8, size, size, false, false)
 	C.sceneTextureWrite(layer.atlas, 0, C.int(size), C.int(size), unsafe.Pointer(&atlas.Image.Pix[0]), C.long(atlas.Image.Stride))
 	layer.atlasVersion = atlas.Version
+}
+
+// uploadPictures sends the images' colours: all of them in a new texture when the picture atlas
+// is new, grew or was emptied, else the areas pictures were copied into.
+func (renderer *SceneRenderer) uploadPictures() {
+	layer := &renderer.overlay
+	pictures := layer.painter.Pictures()
+	size := pictures.Size()
+	if size == 0 {
+		return
+	}
+	whole, areas := pictures.Pending()
+	stride := C.long(pictures.Image.Stride)
+	if whole || layer.pictures == nil || size != layer.picturesSize {
+		C.sceneRelease(layer.pictures)
+		layer.pictures = renderer.newTexture(C.sceneFormatRGBA8, size, size, false, false)
+		C.sceneTextureWrite(layer.pictures, 0, C.int(size), C.int(size), unsafe.Pointer(&pictures.Image.Pix[0]), stride)
+		layer.picturesSize = size
+	} else {
+		for _, area := range areas {
+			start := unsafe.Pointer(&pictures.Image.Pix[pictures.Image.PixOffset(area.Min.X, area.Min.Y)])
+			C.sceneTextureWriteArea(layer.pictures, C.int(area.Min.X), C.int(area.Min.Y), C.int(area.Dx()), C.int(area.Dy()), start, stride)
+		}
+	}
+	pictures.Uploaded()
 }
 
 // uploadOverlayInstances writes this frame's quads, in a larger buffer when they do not fit.

@@ -53,6 +53,7 @@ const (
 	Linear           Enum = 0x2601
 	ClampToEdge      Enum = 0x812F
 	Luminance        Enum = 0x1909
+	RGBA             Enum = 0x1908
 	UnpackAlignment  Enum = 0x0CF5
 )
 
@@ -102,6 +103,7 @@ type Functions interface {
 	BufferData(target Enum, data []byte, usage Enum)
 
 	EnableVertexAttribArray(index uint32)
+	DisableVertexAttribArray(index uint32)
 	// VertexAttribPointer describes attribute index in the bound array buffer: size values of
 	// type kind each, stride bytes apart, the first offset bytes in.
 	VertexAttribPointer(index uint32, size int, kind Enum, normalized bool, stride, offset int)
@@ -112,6 +114,8 @@ type Functions interface {
 	TexParameteri(target, name Enum, value int32)
 	PixelStorei(name Enum, value int32)
 	TexImage2D(target Enum, level int, internalFormat Enum, width, height int, format, kind Enum, pixels []byte)
+	// TexSubImage2D replaces a rectangle of the bound texture's pixels, given row after row.
+	TexSubImage2D(target Enum, level, x, y, width, height int, format, kind Enum, pixels []byte)
 
 	Viewport(x, y, width, height int)
 	ClearColor(red, green, blue, alpha float32)

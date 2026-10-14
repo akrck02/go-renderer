@@ -29,7 +29,7 @@ scene, and it shows the result.
 | `scene` | The retained, backend-independent scene, with its overlay (labels, header, notices) |
 | `loaders` | glTF 2.0 loading, including the renderer's extras |
 | `opengl/overlay` | Lays out the overlay as rectangles of one atlas of glyphs, icons and rounded corners (no graphics context needed) |
-| `draw2d` | A list of flat shapes (rounded rectangles, shadows, text, icons, clips, layers) to paint over the view, filled by a program or an interface library |
+| `draw2d` | A list of flat shapes (rounded rectangles, shadows, text, icons, pictures, clips, layers) to paint over the view, filled by a program or an interface library |
 | `input` | A backend-independent snapshot of keyboard and mouse state: held keys and buttons, presses and releases, double clicks, typed characters, clipboard, pointer shape, and what an interface claimed |
 | `camera` | Camera controllers: orbit, walk and map; the ray through a point of the window (`RayThrough`) and where it meets a plane or the ground |
 | `viewer` | The interactive explorer behind `cmd/visor` |

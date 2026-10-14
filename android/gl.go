@@ -151,6 +151,8 @@ func bytesOf(data []byte) unsafe.Pointer {
 
 func (GL) EnableVertexAttribArray(index uint32) { C.glEnableVertexAttribArray(C.GLuint(index)) }
 
+func (GL) DisableVertexAttribArray(index uint32) { C.glDisableVertexAttribArray(C.GLuint(index)) }
+
 func (GL) VertexAttribPointer(index uint32, size int, kind gles.Enum, normalized bool, stride, offset int) {
 	flag := C.GLboolean(C.GL_FALSE)
 	if normalized {
@@ -175,6 +177,11 @@ func (GL) PixelStorei(name gles.Enum, value int32) { C.glPixelStorei(C.GLenum(na
 
 func (GL) TexImage2D(target gles.Enum, level int, internalFormat gles.Enum, width, height int, format, kind gles.Enum, pixels []byte) {
 	C.glTexImage2D(C.GLenum(target), C.GLint(level), C.GLint(internalFormat), C.GLsizei(width), C.GLsizei(height), 0,
+		C.GLenum(format), C.GLenum(kind), bytesOf(pixels))
+}
+
+func (GL) TexSubImage2D(target gles.Enum, level, x, y, width, height int, format, kind gles.Enum, pixels []byte) {
+	C.glTexSubImage2D(C.GLenum(target), C.GLint(level), C.GLint(x), C.GLint(y), C.GLsizei(width), C.GLsizei(height),
 		C.GLenum(format), C.GLenum(kind), bytesOf(pixels))
 }
 

@@ -7,9 +7,17 @@ import (
 	"github.com/akrck02/go-renderer/opengl/overlay"
 )
 
-func TestAnInstanceIsThirtySixBytes(t *testing.T) {
-	if size := unsafe.Sizeof(instance{}); size != 36 {
-		t.Fatalf("an instance is %d bytes, the shader reads 36", size)
+func TestAnInstanceIsFiftyTwoBytes(t *testing.T) {
+	if size := unsafe.Sizeof(instance{}); size != 52 {
+		t.Fatalf("an instance is %d bytes, the shader reads 52", size)
+	}
+}
+
+func TestOnlyAPicturedQuadReadsThePictures(t *testing.T) {
+	quads := []overlay.Quad{{}, {Picture: [4]float32{1, 2, 3, 4}, Pictured: true}}
+	packed := packInstances(quads, nil)
+	if packed[0].picture != noPicture || packed[1].picture != [4]float32{1, 2, 3, 4} {
+		t.Fatalf("pictures %v and %v; want none for a plain quad, its place for a pictured one", packed[0].picture, packed[1].picture)
 	}
 }
 

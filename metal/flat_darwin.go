@@ -61,6 +61,7 @@ func (renderer *FlatRenderer) Draw(list *draw2d.List, background draw2d.Color, w
 	renderer.layer.Drawing = list
 	quads := renderer.painter.Paint(&renderer.layer, nil, overlay.Frame{Width: width, Height: height, Scale: scale})
 	renderer.uploadAtlas()
+	renderer.uploadPictures()
 	renderer.instances = packInstances(quads, renderer.instances)
 	colour := [4]C.float{C.float(background[0]), C.float(background[1]), C.float(background[2]), 1}
 	if renderer.capturing {
@@ -86,6 +87,26 @@ func (renderer *FlatRenderer) uploadAtlas() {
 	}
 	C.flatRendererUploadAtlas(renderer.handle, (*C.uint8_t)(unsafe.Pointer(&atlas.Image.Pix[0])), C.int(atlas.Size()))
 	renderer.atlasVersion = atlas.Version
+}
+
+// uploadPictures sends the images' colours: all of them when the picture atlas is new, grew or
+// was emptied, else the areas pictures were copied into.
+func (renderer *FlatRenderer) uploadPictures() {
+	pictures := renderer.painter.Pictures()
+	size := pictures.Size()
+	if size == 0 {
+		return // no picture drawn yet
+	}
+	pixels := (*C.uint8_t)(unsafe.Pointer(&pictures.Image.Pix[0]))
+	whole, areas := pictures.Pending()
+	if whole {
+		C.flatRendererUploadPictures(renderer.handle, pixels, C.int(size), 1, 0, 0, C.int(size), C.int(size))
+	}
+	for _, area := range areas {
+		C.flatRendererUploadPictures(renderer.handle, pixels, C.int(size), 0,
+			C.int(area.Min.X), C.int(area.Min.Y), C.int(area.Dx()), C.int(area.Dy()))
+	}
+	pictures.Uploaded()
 }
 
 func (renderer *FlatRenderer) instancePointer() *C.flatInstance {

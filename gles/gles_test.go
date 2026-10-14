@@ -277,7 +277,33 @@ func TestASecondFrameSendsOnlyWhatChanged(t *testing.T) {
 	if fake.uniformValues >= firstValues {
 		t.Fatalf("uniform values sent: %d on the first frame, %d on the same frame again; want fewer", firstValues, fake.uniformValues)
 	}
-	if fake.enables != 0 {
-		t.Fatalf("vertex attributes switched on %d times again; they stay on", fake.enables)
+	// the three both programs read stay on; the pictures' one goes on for the overlay and off after
+	if fake.enables > 1 {
+		t.Fatalf("vertex attributes switched on %d times again; want only the pictures' one", fake.enables)
+	}
+}
+
+func TestAnImageIsDrawnInTheSameCallAndOnlyItsChangesAreSent(t *testing.T) {
+	fake := newRecorder()
+	renderer, err := NewFlatRenderer(fake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	photo := draw2d.NewBlankImage(64, 48)
+	list := card()
+	list.Image(photo, draw2d.Rect{X: 20, Y: 100, Width: 120, Height: 90}, 12, draw2d.Hex("#ffffff"))
+	renderer.Draw(list, draw2d.Hex("#eef1f5"), 640, 480, 1)
+	if len(fake.draws) != 1 {
+		t.Fatalf("draw calls = %d with an image, want still 1", len(fake.draws))
+	}
+	if fake.textureUploads != 2 {
+		t.Fatalf("whole uploads = %d on the first frame, want the atlas and the pictures", fake.textureUploads)
+	}
+	fake.forget()
+	photo.Changed()
+	renderer.Draw(list, draw2d.Hex("#eef1f5"), 640, 480, 1)
+	if fake.textureUploads != 0 || fake.textureAreaUploads != 1 {
+		t.Fatalf("whole uploads %d, area uploads %d after the picture changed; want only its area",
+			fake.textureUploads, fake.textureAreaUploads)
 	}
 }

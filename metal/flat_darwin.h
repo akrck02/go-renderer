@@ -3,12 +3,13 @@
 
 #include <stdint.h>
 
-// flatInstance is one quad: where it goes on screen, where it reads the atlas (both in pixels,
-// left, top, right, bottom) and its straight RGBA colour. 36 bytes; the shader reads the same
-// layout (packed_float4, packed_float4, uchar4).
+// flatInstance is one quad: where it goes on screen, where it reads the atlas and the pictures
+// (all in pixels, left, top, right, bottom; a picture place of -1 reads none) and its straight
+// RGBA colour. 52 bytes; the shader reads the same layout (three packed_float4, uchar4).
 typedef struct {
 	float screen[4];
 	float atlas[4];
+	float picture[4];
 	uint8_t color[4];
 } flatInstance;
 
@@ -20,6 +21,11 @@ void flatRendererDestroy(void *renderer);
 // flatRendererUploadAtlas replaces the atlas texture's pixels (one byte of coverage each), making a
 // new texture when the size changed.
 void flatRendererUploadAtlas(void *renderer, const uint8_t *pixels, int size);
+
+// flatRendererUploadPictures sends the images' colours (straight RGBA, size × size pixels): all of
+// them in a new texture when whole, else the area x, y, width × height of the current one.
+void flatRendererUploadPictures(void *renderer, const uint8_t *pixels, int size, int whole, int x, int y, int width,
+                                int height);
 
 // flatRendererDraw clears to the background, draws the instances and shows the frame. It returns
 // 0 when there was no drawable to draw into (a hidden or zero-sized window).
