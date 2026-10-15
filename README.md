@@ -1,37 +1,24 @@
+<div align="center">
+
 # Go Renderer
 
-> **Note:** parts of this project (the scene renderer, the viewer and the docs) were written with an AI assistant and are pending thorough review. See the [AI disclosure](#ai-disclosure).
+**A tiny, educational graphics renderer built in Go.** It explores graphics pipelines from scratch
+behind a clean, simple API: draw shapes every frame, or load a whole glTF scene (terrain, forests,
+towns, sea and sky) and explore it in a viewer, on the desktop, in a web page or on a phone.
 
-A tiny, educational graphics renderer built in Go. The goal is to explore and implement graphics
-pipelines from scratch while exposing a clean, simple API for building applications on top: draw
-shapes every frame, or load a whole glTF scene (terrain, forests, towns, sea and sky) and explore
-it in a viewer.
+[![Go](https://img.shields.io/github/go-mod/go-version/akrck02/go-renderer)](go.mod)
+![Backends](https://img.shields.io/badge/backends-OpenGL%20%7C%20Metal%20%7C%20WebGL2%20%7C%20OpenGL%20ES-informational)
+![Status](https://img.shields.io/badge/status-educational%20experiment-orange)
+[![Licence](https://img.shields.io/github/license/akrck02/go-renderer)](LICENSE)
+
+</div>
+
+> **Note:** parts of this project (the scene renderer, the viewer and the docs) were written with an AI assistant and are pending thorough review. See the [AI disclosure](#-ai-disclosure).
 
 > ⚠️ **Warning:** This software is an educational experiment and is **not suitable for production
 > use**. APIs will break and errors are likely.
 
-```bash
-go run ./cmd/visor scene.glb          # explore a scene: drag to orbit, Tab to walk, M for a 2D map
-go run ./cmd/visor -walk -night scene.glb
-go run ./cmd/visor -sample island         # a built-in made-up island
-```
-
-## Goals
-
-* **Understand the pipeline:** vertex processing, clipping, rasterization and fragment shading.
-* **Clean abstraction:** an idiomatic Go API that hides backend complexity from the application.
-* **Minimal dependencies:** core maths and rendering concepts built by hand, to understand them.
-
-## Documentation
-
-Everything is in [docs/](docs/README.md): [architecture](docs/architecture.md),
-[the viewer](docs/viewer.md), [the overlay](docs/overlay.md), [in a web browser](docs/web.md), [on Android](docs/android.md), [Metal](docs/metal.md), [glTF extras](docs/gltf-extras.md),
-[optimization plan](docs/optimization-plan.md) and [roadmap](docs/roadmap.md).
-
-Simulations (moving things, weather, growing towns) live in the sibling project
-[go-simulator](https://github.com/akrck02/go-simulator), which changes the scene while the viewer shows it.
-
-## AI disclosure
+## 🤖 AI disclosure
 
 I write most of my code by hand, so I want to be clear about where AI was used here.
 
@@ -53,8 +40,96 @@ I write most of my code by hand, so I want to be clear about where AI was used h
 
 Commits made with AI carry a `Co-Authored-By: Claude` line.
 
-The overlay embeds third-party fonts: the Go fonts (BSD, through `golang.org/x/image`) and the
-[Lucide](https://lucide.dev) icon font (ISC, licence in `opengl/overlay/lucide/LICENSE`).
-
 **Status: pending thorough review.** The code compiles and its tests pass, but I have not yet
 reviewed it line by line. Treat it as a working draft, not as code I vouch for.
+
+---
+
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero-dark.png">
+  <img alt="The village of the built-in sample island seen from above: the harbour house with its label, a paved square, a river and the forest around them, by day (light theme) or at night (dark theme)" src="docs/images/hero-light.png" width="720">
+</picture>
+</p>
+
+## ✨ What it looks like
+
+<table>
+<tr>
+<th width="33%">Walking on the ground</th>
+<th width="33%">A map without perspective</th>
+<th width="33%">The sun at any hour</th>
+</tr>
+<tr>
+<td>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/walk-dark.png">
+  <img alt="Standing in the square in front of the harbour house, under clouds by day or stars at night" src="docs/images/walk-light.png">
+</picture>
+</td>
+<td><img alt="The whole island from straight above: the forest, the bare summit, the river and the village" src="docs/images/map.png"></td>
+<td><img alt="The island at dusk, with long shadows and the sky fading towards the horizon" src="docs/images/dusk.png"></td>
+</tr>
+<tr>
+<td>Eye height, the sky with clouds, the moon and the stars; labels follow what they name.</td>
+<td>From straight above or at the isometric angle, so lengths can be compared anywhere.</td>
+<td>Shadows from the sun, fog, a sea that fades into the shore, and night under the moon.</td>
+</tr>
+<tr>
+<td colspan="3" align="center">All of it is the built-in, made-up sample island (<code>-sample island</code>), captured with <code>cmd/visor -capture</code>.</td>
+</tr>
+</table>
+
+## 🚀 Quick start
+
+```bash
+go run ./cmd/visor scene.glb          # explore a scene: drag to orbit, Tab to walk, M for a 2D map
+go run ./cmd/visor -walk -night scene.glb
+go run ./cmd/visor -sample island         # a built-in made-up island
+go run ./cmd/visor -sample island -capture frame.png   # one frame to a PNG, in a hidden window
+```
+
+It needs a display with OpenGL 4.1 (or Metal on macOS), and the OpenGL, X11/Wayland and GLFW
+build headers, since the window goes through GLFW and cgo. Every control and option is in
+[the viewer](docs/viewer.md).
+
+## 🔍 How it works
+
+<p align="center">
+  <img alt="A scene, from a glTF file or built in Go → scene and sceneplan decide what a frame draws, with no graphics calls → it is drawn through OpenGL in a desktop window, through Metal on a Mac, or through OpenGL ES in a web page or on a phone" src="docs/images/how-it-works.svg" width="880">
+</p>
+
+What a frame draws (culling, levels of detail, instance batches, shadows, sky, water, the overlay)
+is decided once, in plain Go; each backend only uploads and draws that plan. Next to it sits the
+original, hand-written immediate-mode contract, where a program says "draw this triangle" every
+frame. [More on the architecture →](docs/architecture.md)
+
+## 🎯 Goals
+
+* **Understand the pipeline:** vertex processing, clipping, rasterization and fragment shading.
+* **Clean abstraction:** an idiomatic Go API that hides backend complexity from the application.
+* **Minimal dependencies:** core maths and rendering concepts built by hand, to understand them.
+
+## 📚 Documentation
+
+| | |
+|---|---|
+| [Architecture](docs/architecture.md) | The two ways to draw, the packages, the retained scene, the passes of a frame. |
+| [The viewer](docs/viewer.md) | `cmd/visor`: every control, key and option, with a picture of each view. |
+| [The overlay](docs/overlay.md) | Labels, the header and notices over the 3D view, and free 2D drawing (`draw2d`). |
+| [glTF extras](docs/gltf-extras.md) | What the renderer reads from a scene's extras: sky, water, materials, labels. |
+| [In a web browser](docs/web.md) | The island through WebGL2, and the renderers shared with phones. |
+| [On Android](docs/android.md) | A program as an Android app: its own activity, the keyboard, screen readers. |
+| [Metal](docs/metal.md) | The Metal backend on macOS: why, how it fits, what was measured. |
+| [Optimization plan](docs/optimization-plan.md) | Measurements and the plan that guided the performance work. |
+| [Roadmap](docs/roadmap.md) | Goals for the next versions. |
+
+Simulations (moving things, weather, growing towns) live in the sibling project
+[go-simulator](https://github.com/akrck02/go-simulator), which changes the scene while the viewer shows it.
+
+## Licence
+
+MIT, see [LICENSE](LICENSE).
+
+The overlay embeds third-party fonts: the Go fonts (BSD, through `golang.org/x/image`) and the
+[Lucide](https://lucide.dev) icon font (ISC, licence in `opengl/overlay/lucide/LICENSE`).

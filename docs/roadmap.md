@@ -1,4 +1,5 @@
-# Roadmap
+# 🗺️ Roadmap
+
 These are the goals for the next versions of the library. The feature implementation order can change.
 
 ## v1.0.0 Prototype
@@ -14,3 +15,7 @@ These are the goals for the next versions of the library. The feature implementa
 * Metal support (Apple silicon)
 * Vulkan support
 * WebGPU support
+
+---
+
+[← All the documentation](README.md)

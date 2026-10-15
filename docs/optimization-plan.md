@@ -1,4 +1,4 @@
-# Optimization plan
+# ⚡ Optimization plan
 
 Measured with `go run ./cmd/visor -benchmark 120 scene.glb` (GPU timer queries per pass, averages
 after a warm-up) on an Apple M4, 2560×1600 framebuffer. Test scene: a 60–90 km island exported by
@@ -132,6 +132,10 @@ baseline table, and its row is added to the results section.
 
 ## Results
 
+<p align="center">
+  <img alt="GPU time per frame with shadows, in milliseconds: overview 40.4 at the baseline and 12.3 after phase 1; close 42.4 and 8.9; walking 40.8 and 10.7" src="images/optimization-results.svg" width="880">
+</p>
+
 | Step | View | CPU | GPU shadows | GPU scene | GPU total |
 |---|---|---|---|---|---|
 | Baseline | Overview | 20.6 ms | 19.0 ms | 20.3 ms | 40.4 ms |
@@ -164,3 +168,7 @@ Triangles after phase 2: 2.2 M in the overview, 0.46 M close, 1.15 M walking.
 | Phase 3 | Walking | — | 2.47 ms (same as phase 2) |
 
 Phase 3 changed the file size, not the speed: 76 → 33 MB, loading ~60 ms.
+
+---
+
+[← All the documentation](README.md)

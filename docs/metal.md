@@ -1,4 +1,4 @@
-# Metal: a backend for flat drawing
+# 🍎 Metal: a backend for flat drawing
 
 **Status:** built (October 2026): the flat path, which go-ui's window draws through on macOS by
 default, and the 3D scene renderer, which the viewer draws through on macOS by default (see *The 3D
@@ -94,6 +94,15 @@ Built after the flat path, in the same way:
   opens a built-in sample island (`-sample island`) and draws at a fixed time (`-time`) for captures
   that can be compared.
 
+<table>
+<tr><th width="50%">OpenGL</th><th width="50%">Metal</th></tr>
+<tr>
+<td><img alt="The sample island drawn through OpenGL" src="images/backend-opengl.png"></td>
+<td><img alt="The same frame drawn through Metal, alike to the eye" src="images/backend-metal.png"></td>
+</tr>
+<tr><td colspan="2" align="center">The sample island at a fixed time (<code>-time 10</code>), captured through each backend with <code>-backend opengl</code> and <code>-backend metal</code>.</td></tr>
+</table>
+
 Measured with the sample island and an indoor scene of many models, 1280 × 800 on a high-density screen,
 drawing every frame:
 
@@ -131,14 +140,18 @@ Android keeps its own small OpenGL ES flat renderer, as planned in go-ui's `docs
 
 ## How it fits together
 
-```text
-go-ui window          chooses the backend: Metal on macOS, OpenGL elsewhere (-backend to force one)
-draw2d.List           unchanged: what an interface draws
-overlay painter       unchanged: turns the list into quads of one atlas (plain Go, no OpenGL)
-metal.FlatRenderer    NEW: uploads the atlas and the quads, one draw call, presents the drawable
-window loop           shared by both backends: GLFW events, drawing on demand, the resize follower
-GLFW                  creates the window; with Metal it creates no OpenGL context (NoAPI)
-```
+<p align="center">
+  <img alt="An interface (a draw2d.List, what go-ui draws) goes through the painter (opengl/overlay: quads of one atlas, plain Go), then to metal.FlatRenderer on macOS or opengl.FlatRenderer elsewhere; one window loop (windowloop) serves both: GLFW events, drawing on demand, resizing" src="images/metal-stack.svg" width="880">
+</p>
+
+| Layer | What it does |
+|---|---|
+| go-ui window | Chooses the backend: Metal on macOS, OpenGL elsewhere (`-backend` to force one) |
+| `draw2d.List` | Unchanged: what an interface draws |
+| overlay painter | Unchanged: turns the list into quads of one atlas (plain Go, no OpenGL) |
+| `metal.FlatRenderer` | **New:** uploads the atlas and the quads, one draw call, presents the drawable |
+| window loop | Shared by both backends: GLFW events, drawing on demand, the resize follower |
+| GLFW | Creates the window; with Metal it creates no OpenGL context (`NoAPI`) |
 
 The painter lives in `opengl/overlay` but imports nothing from OpenGL, so the Metal renderer uses
 it as it is. Moving it to a neutral package (for example `draw2d/paint`) is a tidy-up for later.
@@ -259,3 +272,7 @@ It was estimated at three to four days. Each step kept the OpenGL path working.
    it needs no Xcode, and costs a few milliseconds at start.
 3. **Metal as the default on macOS once captures match.** Taken, with `-backend opengl` to go back.
 4. **The OpenGL flat path takes the same instanced quads.** Still to do (step 5 of the audit).
+
+---
+
+[← All the documentation](README.md)

@@ -1,4 +1,4 @@
-# On Android
+# 📱 On Android
 
 **Status:** a first step (October 2026). Package `android` runs a go-renderer program as an Android
 application: go-ui's interfaces, and the 3D scene under them, draw on an Android 16 emulator and on a
@@ -8,13 +8,17 @@ what was tested.
 
 ## How it fits together
 
-```text
-your program            the same code as on the desktop and in a browser
-go-ui window            window.Run: an interface, and a scene under it
-android                 the activity, its window and touches, a thread that draws (this package)
-gles                    FlatRenderer and SceneRenderer, over gles.Functions (shared with browsers)
-Android                 NativeActivity loads the program, a shared library built with the NDK
-```
+<p align="center">
+  <img alt="Your program runs in a NativeActivity (package android: its window, touches, a drawing thread) and draws through gles, the renderers written once in GLSL ES 1.00 over gles.Functions, shared with the browser canvas" src="images/platforms.svg" width="880">
+</p>
+
+| Layer | What it does |
+|---|---|
+| Your program | The same code as on the desktop and in a browser |
+| go-ui window | `window.Run`: an interface, and a scene under it |
+| `android` | The activity, its window and touches, a thread that draws (this package) |
+| `gles` | `FlatRenderer` and `SceneRenderer`, over `gles.Functions` (shared with browsers) |
+| Android | `NativeActivity` loads the program, a shared library built with the NDK |
 
 | Piece | Where |
 |---|---|
@@ -231,3 +235,7 @@ ScreenReader.java         a virtual view per node, answering TalkBack; its focus
 - Keyboards for Chinese and Japanese, which compose the same way, are not tried yet.
 - Long presses.
 - Instanced drawing with OpenGL ES 3, and the full scene renderer (shadows, sky, waves) on phones.
+
+---
+
+[← All the documentation](README.md)

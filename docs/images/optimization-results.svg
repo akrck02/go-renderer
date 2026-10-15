@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 324" width="880" height="324" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <style>
+    .bg { fill: #ffffff; }
+    .box { fill: #f6f8fa; stroke: #d0d7de; }
+    .accent { fill: #ddf4ff; stroke: #54aeff; }
+    .hand { fill: #fff8c5; stroke: #d4a72c; }
+    .title { fill: #1f2328; font-size: 15px; font-weight: 600; }
+    .text { fill: #59636e; font-size: 12.5px; }
+    .code { fill: #0969da; font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .label { fill: #59636e; font-size: 11.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .arrow { stroke: #8c959f; stroke-width: 1.6; fill: none; }
+    .head { fill: #8c959f; }
+    .bar { fill: #d0d7de; }
+    .barnew { fill: #54aeff; }
+    .grid { stroke: #eaeef2; stroke-width: 1; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0d1117; }
+      .box { fill: #161b22; stroke: #30363d; }
+      .accent { fill: #0c2d4b; stroke: #1f6feb; }
+      .hand { fill: #2e2a14; stroke: #9e6a03; }
+      .title { fill: #e6edf3; }
+      .text { fill: #9198a1; }
+      .code { fill: #4493f8; }
+      .label { fill: #9198a1; }
+      .arrow { stroke: #6e7681; }
+      .head { fill: #6e7681; }
+      .bar { fill: #3d444d; }
+      .barnew { fill: #1f6feb; }
+      .grid { stroke: #21262d; }
+    }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="head" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="880" height="324" rx="12"/>
+  <text class="title" x="24" y="34">GPU time per frame, with shadows (ms)</text>
+  <line class="grid" x1="130.0" y1="50" x2="130.0" y2="254"/>
+  <text class="label" x="130.0" y="272" text-anchor="middle">0</text>
+  <line class="grid" x1="272.2" y1="50" x2="272.2" y2="254"/>
+  <text class="label" x="272.2" y="272" text-anchor="middle">10</text>
+  <line class="grid" x1="414.4" y1="50" x2="414.4" y2="254"/>
+  <text class="label" x="414.4" y="272" text-anchor="middle">20</text>
+  <line class="grid" x1="556.7" y1="50" x2="556.7" y2="254"/>
+  <text class="label" x="556.7" y="272" text-anchor="middle">30</text>
+  <line class="grid" x1="698.9" y1="50" x2="698.9" y2="254"/>
+  <text class="label" x="698.9" y="272" text-anchor="middle">40</text>
+  <text class="text" x="118" y="86" text-anchor="end">Overview</text>
+  <rect class="bar" x="130" y="62" width="574.6" height="20" rx="3"/>
+  <text class="label" x="712.6" y="77" text-anchor="start">40.4</text>
+  <rect class="barnew" x="130" y="86" width="174.9" height="20" rx="3"/>
+  <text class="label" x="312.9" y="101" text-anchor="start">12.3</text>
+  <text class="text" x="118" y="152" text-anchor="end">Close</text>
+  <rect class="bar" x="130" y="128" width="603.0" height="20" rx="3"/>
+  <text class="label" x="741.0" y="143" text-anchor="start">42.4</text>
+  <rect class="barnew" x="130" y="152" width="126.6" height="20" rx="3"/>
+  <text class="label" x="264.6" y="167" text-anchor="start">8.9</text>
+  <text class="text" x="118" y="218" text-anchor="end">Walking</text>
+  <rect class="bar" x="130" y="194" width="580.3" height="20" rx="3"/>
+  <text class="label" x="718.3" y="209" text-anchor="start">40.8</text>
+  <rect class="barnew" x="130" y="218" width="152.2" height="20" rx="3"/>
+  <text class="label" x="290.2" y="233" text-anchor="start">10.7</text>
+  <rect class="bar" x="130" y="287" width="14" height="14" rx="3"/>
+  <text class="text" x="152" y="298">baseline</text>
+  <rect class="barnew" x="240" y="287" width="14" height="14" rx="3"/>
+  <text class="text" x="262" y="298">after phase 1 (levels of detail, culling)</text>
+</svg>

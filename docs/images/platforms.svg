@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 360" width="880" height="360" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <style>
+    .bg { fill: #ffffff; }
+    .box { fill: #f6f8fa; stroke: #d0d7de; }
+    .accent { fill: #ddf4ff; stroke: #54aeff; }
+    .hand { fill: #fff8c5; stroke: #d4a72c; }
+    .title { fill: #1f2328; font-size: 15px; font-weight: 600; }
+    .text { fill: #59636e; font-size: 12.5px; }
+    .code { fill: #0969da; font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .label { fill: #59636e; font-size: 11.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .arrow { stroke: #8c959f; stroke-width: 1.6; fill: none; }
+    .head { fill: #8c959f; }
+    .bar { fill: #d0d7de; }
+    .barnew { fill: #54aeff; }
+    .grid { stroke: #eaeef2; stroke-width: 1; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0d1117; }
+      .box { fill: #161b22; stroke: #30363d; }
+      .accent { fill: #0c2d4b; stroke: #1f6feb; }
+      .hand { fill: #2e2a14; stroke: #9e6a03; }
+      .title { fill: #e6edf3; }
+      .text { fill: #9198a1; }
+      .code { fill: #4493f8; }
+      .label { fill: #9198a1; }
+      .arrow { stroke: #6e7681; }
+      .head { fill: #6e7681; }
+      .bar { fill: #3d444d; }
+      .barnew { fill: #1f6feb; }
+      .grid { stroke: #21262d; }
+    }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="head" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="880" height="360" rx="12"/>
+  <rect class="box" x="24" y="120" width="180" height="96" rx="10" stroke-width="1.2"/>
+  <text class="title" x="114.0" y="146" text-anchor="middle">Your program</text>
+  <text class="text" x="114.0" y="168" text-anchor="middle">the same scene, camera</text>
+  <text class="text" x="114.0" y="185" text-anchor="middle">and update function</text>
+  <path class="arrow" d="M204,150 C232,150 232,74 258,74" marker-end="url(#arrow)"/>
+  <path class="arrow" d="M204,186 C232,186 232,262 258,262" marker-end="url(#arrow)"/>
+  <rect class="box" x="262" y="30" width="230" height="92" rx="10" stroke-width="1.2"/>
+  <text class="code" x="377.0" y="56" text-anchor="middle">browser</text>
+  <text class="title" x="377.0" y="78" text-anchor="middle">A canvas</text>
+  <text class="text" x="377.0" y="100" text-anchor="middle">its events, requestAnimationFrame</text>
+  <rect class="box" x="262" y="216" width="230" height="92" rx="10" stroke-width="1.2"/>
+  <text class="code" x="377.0" y="242" text-anchor="middle">android</text>
+  <text class="title" x="377.0" y="264" text-anchor="middle">A NativeActivity</text>
+  <text class="text" x="377.0" y="286" text-anchor="middle">its window, touches, a thread</text>
+  <path class="arrow" d="M492,76 C520,76 520,150 548,150" marker-end="url(#arrow)"/>
+  <path class="arrow" d="M492,262 C520,262 520,186 548,186" marker-end="url(#arrow)"/>
+  <rect class="accent" x="552" y="110" width="304" height="116" rx="10" stroke-width="1.2"/>
+  <text class="code" x="704.0" y="136" text-anchor="middle">gles</text>
+  <text class="title" x="704.0" y="158" text-anchor="middle">Renderers written once</text>
+  <text class="text" x="704.0" y="180" text-anchor="middle">FlatRenderer and SceneRenderer,</text>
+  <text class="text" x="704.0" y="197" text-anchor="middle">GLSL ES 1.00, over gles.Functions</text>
+  <text class="text" x="704.0" y="214" text-anchor="middle">(WebGL2 in a browser, ES on a phone)</text>
+  <text class="text" x="262" y="342">The clock and update step are shared with the desktop (frameloop).</text>
+</svg>
