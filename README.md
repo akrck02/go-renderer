@@ -1,6 +1,6 @@
 <div align="center">
 
-# Go Renderer
+# Go renderer
 
 **A tiny, educational graphics renderer built in Go.** It explores graphics pipelines from scratch
 behind a clean, simple API: draw shapes every frame, or load a whole glTF scene (terrain, forests,
