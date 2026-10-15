@@ -272,7 +272,8 @@ func NewMeasurer() (*Measurer, error) {
 }
 
 // MeasureText measures a line at a size in layout pixels on a screen of a density (see
-// draw2d.Measurer). Characters the font lacks count as a question mark, as they are drawn.
+// draw2d.Measurer). A character the font lacks is measured in the system's font that has it
+// (FontFolders), or as a question mark, as it is drawn.
 func (measurer *Measurer) MeasureText(text string, size float32, weight draw2d.Weight, scale float32) draw2d.TextMetrics {
 	if scale <= 0 {
 		scale = 1
@@ -284,7 +285,7 @@ func (measurer *Measurer) MeasureText(text string, size float32, weight draw2d.W
 	}
 	width := float32(0)
 	for _, character := range text {
-		advance, found := fontFace.GlyphAdvance(character)
+		advance, found := measurer.fonts.faceFor(face, pixelSize, character).GlyphAdvance(character)
 		if !found {
 			advance, _ = fontFace.GlyphAdvance('?')
 		}
