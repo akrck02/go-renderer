@@ -91,6 +91,17 @@ The overlay is the last pass of the OpenGL scene renderer, after the scene, the 
    one draw call, in screen pixels, with alpha blending and no depth test. Pills of any width are
    built from the disc as nine pieces: four corners that keep their size and stretched edges.
 
+**Other scripts.** The Go fonts (or a program's own, `UseFonts`) have Latin, Greek and Cyrillic.
+A character they lack (Chinese, Arabic, Devanagari, a symbol) is drawn with one of the system's
+fonts, as a system's own text is: `FontFolders` are Android's `/system/fonts`, or the desktop's usual
+folders. The font is found by the name of its file, which names its script (`NotoNaskhArabic`,
+`NotoSansCJK`, from Go's `unicode` tables); a character of no named font is looked for in every
+file under 8 MB, the last resort. Files are read the first time a character needs them, and a font
+found is kept, shared by every painter and measurer. Colour emoji fonts are left out: they hold
+pictures, not outlines. Tried on the Android 14 emulator: Chinese, Arabic, Devanagari, Hebrew and
+a star in one field. Letters are drawn one after another, left to right: Arabic letters are not
+joined yet, and right-to-left text is not turned round.
+
 On a high-density screen one window pixel is two framebuffer pixels; the viewer sets
 `SceneRenderer.OverlayScale` so the overlay keeps its size.
 

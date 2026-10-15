@@ -66,6 +66,13 @@ func prebuiltCharacters() []rune {
 type fonts struct {
 	parsed map[faceName]*opentype.Font
 	faces  map[faceKey]font.Face
+	// fallbackFaces are faces of the system's fonts, for characters the program's fonts lack
+	fallbackFaces map[fallbackKey]font.Face
+}
+
+type fallbackKey struct {
+	font *opentype.Font
+	size int
 }
 
 type faceKey struct {
@@ -76,7 +83,7 @@ type faceKey struct {
 func loadFonts() (*fonts, error) {
 	sources := map[faceName][]byte{textFace: orDefault(chosen.Medium, gomedium.TTF), strongFace: orDefault(chosen.Bold, gobold.TTF),
 		iconFace: lucide.Font(), regularFace: orDefault(chosen.Regular, goregular.TTF), monoFace: orDefault(chosen.Mono, gomonobold.TTF)}
-	loaded := &fonts{parsed: map[faceName]*opentype.Font{}, faces: map[faceKey]font.Face{}}
+	loaded := &fonts{parsed: map[faceName]*opentype.Font{}, faces: map[faceKey]font.Face{}, fallbackFaces: map[fallbackKey]font.Face{}}
 	for name, data := range sources {
 		parsed, err := opentype.Parse(data)
 		if err != nil {
@@ -107,6 +114,32 @@ func (loaded *fonts) face(name faceName, size int) font.Face {
 	return face
 }
 
+// faceFor returns the face that draws a character: the font's own, or, for a character it lacks,
+// one of the system's fonts at the same size (not for icons). It is nil when none has it.
+func (loaded *fonts) faceFor(name faceName, size int, character rune) font.Face {
+	face := loaded.face(name, size)
+	if face == nil {
+		return nil
+	}
+	if _, found := face.GlyphAdvance(character); found || name == iconFace {
+		return face
+	}
+	system := systemFonts.fontFor(character)
+	if system == nil {
+		return face
+	}
+	key := fallbackKey{system, size}
+	if fallback, made := loaded.fallbackFaces[key]; made {
+		return fallback
+	}
+	fallback, err := opentype.NewFace(system, &opentype.FaceOptions{Size: float64(size), DPI: 72, Hinting: font.HintingFull})
+	if err != nil {
+		return face
+	}
+	loaded.fallbackFaces[key] = fallback
+	return fallback
+}
+
 // faceMetrics are the vertical measures of a face, in pixels.
 type faceMetrics struct {
 	ascent, descent, capHeight float32
@@ -130,7 +163,7 @@ func (loaded *fonts) metrics(name faceName, size int) faceMetrics {
 func (painter *Painter) glyph(name faceName, size int, character rune) Entry {
 	key := entryKey{kind: glyphEntry, face: name, size: size, character: character}
 	return painter.atlas.lookup(key, func() (*image.Alpha, Entry) {
-		return rasteriseGlyph(painter.fonts.face(name, size), character)
+		return rasteriseGlyph(painter.fonts.faceFor(name, size, character), character)
 	})
 }
 
@@ -163,9 +196,9 @@ func (painter *Painter) prebuild(name faceName, size int) {
 	}
 }
 
-// hasGlyph tells whether a face can draw a character.
+// hasGlyph tells whether a face, or the system's fonts for it, can draw a character.
 func (loaded *fonts) hasGlyph(name faceName, size int, character rune) bool {
-	face := loaded.face(name, size)
+	face := loaded.faceFor(name, size, character)
 	if face == nil {
 		return false
 	}
