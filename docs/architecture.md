@@ -1,4 +1,4 @@
-# Architecture
+# 🧭 Architecture
 
 go-renderer is a small renderer written in Go to learn how 3D graphics work from the inside. It
 offers two ways to draw:
@@ -11,6 +11,10 @@ offers two ways to draw:
 
 The renderer only draws. It does not know what a town or a season is: other programs change the
 scene, and it shows the result.
+
+<p align="center">
+  <img alt="Immediate mode: your program's Update and Draw call the hand-written models.Renderer contract, drawn by the software, opengl, vulkan, metal or webgpu backend. A retained scene: glTF 2.0 through loaders into scene and sceneplan, drawn by the scene renderers: opengl and metal on the desktop, gles in browsers and on Android" src="images/two-ways.svg" width="880">
+</p>
 
 ## Packages
 
@@ -109,14 +113,21 @@ shaders that are faithful translations of each other. Their captures of the samp
 except for rounding and where two surfaces lie in the same plane (`cmd/visor`'s
 `TestMetalDrawsTheSceneLikeOpenGL`; [measurements](metal.md)).
 
+<table>
+<tr><th width="50%">OpenGL (<code>-backend opengl</code>)</th><th width="50%">Metal (<code>-backend metal</code>)</th></tr>
+<tr>
+<td><img alt="The sample island drawn through OpenGL" src="images/backend-opengl.png"></td>
+<td><img alt="The same frame of the sample island drawn through Metal, alike to the eye" src="images/backend-metal.png"></td>
+</tr>
+<tr><td colspan="2" align="center">The same plan, drawn by each backend: <code>go run ./cmd/visor -sample island -time 10 -backend … -capture frame.png</code></td></tr>
+</table>
+
 Each uploads each mesh once and draws instanced geometry in a single call, so a
 forest of a hundred thousand trees costs a few draw calls. Every frame goes through the same passes:
 
-```mermaid
-flowchart LR
-    A[Culling<br/>what is in view,<br/>at what detail] --> B[Shadows<br/>the scene seen<br/>from the sun] --> C[Sky<br/>day, night,<br/>stars, clouds] --> D[Scene<br/>light, fog, patterns,<br/>snow, wind] --> E[Water<br/>depth, waves,<br/>tides, foam] --> F[Overlay<br/>labels, header,<br/>notices]
-```
-
+<p align="center">
+  <img alt="The six passes of a frame in order: 1 culling, what is in view at what detail; 2 shadows, the scene seen from the sun; 3 sky, day, night, stars and clouds; 4 scene, light, fog, patterns, snow and wind; 5 water, depth, waves, tides and foam; 6 overlay, labels, header, notices and drawing" src="images/frame-passes.svg" width="880">
+</p>
 
 1. **Culling.** Instances are kept in grid cells; cells outside the view frustum are skipped, and
    each cell picks a level of detail by its size on screen.
@@ -170,3 +181,7 @@ gusts, drifting clouds, the day cycle or growing cities live in the sibling proj
 [go-simulator](https://github.com/akrck02/go-simulator), which changes the scene through `viewer.Run`. The renderer only
 reads the state they leave: node transforms, `Environment.Wind`, `Sky.Clouds.Offset`, the sun
 direction, the snow line and the foliage tint.
+
+---
+
+[← All the documentation](README.md)

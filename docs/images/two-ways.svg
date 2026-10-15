@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 414" width="880" height="414" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <style>
+    .bg { fill: #ffffff; }
+    .box { fill: #f6f8fa; stroke: #d0d7de; }
+    .accent { fill: #ddf4ff; stroke: #54aeff; }
+    .hand { fill: #fff8c5; stroke: #d4a72c; }
+    .title { fill: #1f2328; font-size: 15px; font-weight: 600; }
+    .text { fill: #59636e; font-size: 12.5px; }
+    .code { fill: #0969da; font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .label { fill: #59636e; font-size: 11.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .arrow { stroke: #8c959f; stroke-width: 1.6; fill: none; }
+    .head { fill: #8c959f; }
+    .bar { fill: #d0d7de; }
+    .barnew { fill: #54aeff; }
+    .grid { stroke: #eaeef2; stroke-width: 1; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0d1117; }
+      .box { fill: #161b22; stroke: #30363d; }
+      .accent { fill: #0c2d4b; stroke: #1f6feb; }
+      .hand { fill: #2e2a14; stroke: #9e6a03; }
+      .title { fill: #e6edf3; }
+      .text { fill: #9198a1; }
+      .code { fill: #4493f8; }
+      .label { fill: #9198a1; }
+      .arrow { stroke: #6e7681; }
+      .head { fill: #6e7681; }
+      .bar { fill: #3d444d; }
+      .barnew { fill: #1f6feb; }
+      .grid { stroke: #21262d; }
+    }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="head" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="880" height="414" rx="12"/>
+  <text class="title" x="24" y="38">Immediate mode</text>
+  <text class="text" x="24" y="58">the program says what to draw, every frame</text>
+  <rect class="box" x="24" y="76" width="190" height="96" rx="10" stroke-width="1.2"/>
+  <text class="code" x="119.0" y="102" text-anchor="middle">Update, Draw</text>
+  <text class="title" x="119.0" y="124" text-anchor="middle">Your program</text>
+  <text class="text" x="119.0" y="146" text-anchor="middle">triangles, images,</text>
+  <text class="text" x="119.0" y="163" text-anchor="middle">models</text>
+  <path class="arrow" d="M214,124 H262" marker-end="url(#arrow)"/>
+  <rect class="hand" x="266" y="76" width="220" height="96" rx="10" stroke-width="1.2"/>
+  <text class="code" x="376.0" y="102" text-anchor="middle">models.Renderer</text>
+  <text class="title" x="376.0" y="124" text-anchor="middle">The contract</text>
+  <text class="text" x="376.0" y="146" text-anchor="middle">RenderTriangle, RenderImage,</text>
+  <text class="text" x="376.0" y="163" text-anchor="middle">Render3dModel, SetMatrices</text>
+  <path class="arrow" d="M486,124 H534" marker-end="url(#arrow)"/>
+  <rect class="hand" x="538" y="76" width="318" height="96" rx="10" stroke-width="1.2"/>
+  <text class="title" x="556" y="102" text-anchor="start">Backends</text>
+  <text class="text" x="556" y="124" text-anchor="start">software, opengl, vulkan, metal, webgpu</text>
+  <text class="text" x="556" y="141" text-anchor="start">(OpenGL is the complete one)</text>
+  <text class="title" x="24" y="226">A retained scene</text>
+  <text class="text" x="24" y="246">loaded once, drawn as fast as it can, changed by other programs</text>
+  <rect class="box" x="24" y="264" width="190" height="96" rx="10" stroke-width="1.2"/>
+  <text class="code" x="119.0" y="290" text-anchor="middle">loaders</text>
+  <text class="title" x="119.0" y="312" text-anchor="middle">glTF 2.0</text>
+  <text class="text" x="119.0" y="334" text-anchor="middle">.glb, .gltf, extras</text>
+  <path class="arrow" d="M214,312 H262" marker-end="url(#arrow)"/>
+  <rect class="accent" x="266" y="264" width="220" height="96" rx="10" stroke-width="1.2"/>
+  <text class="code" x="376.0" y="290" text-anchor="middle">scene, sceneplan</text>
+  <text class="title" x="376.0" y="312" text-anchor="middle">The scene and its plan</text>
+  <text class="text" x="376.0" y="334" text-anchor="middle">what a frame draws,</text>
+  <text class="text" x="376.0" y="351" text-anchor="middle">for any backend</text>
+  <path class="arrow" d="M486,312 H534" marker-end="url(#arrow)"/>
+  <rect class="accent" x="538" y="264" width="318" height="96" rx="10" stroke-width="1.2"/>
+  <text class="title" x="556" y="290" text-anchor="start">Scene renderers</text>
+  <text class="text" x="556" y="312" text-anchor="start">opengl and metal on the desktop,</text>
+  <text class="text" x="556" y="329" text-anchor="start">gles in browsers and on Android</text>
+  <rect class="hand" x="560" y="384" width="14" height="14" rx="3" stroke-width="1.2"/>
+  <text class="text" x="582" y="396">hand-written</text>
+  <rect class="accent" x="680" y="384" width="14" height="14" rx="3" stroke-width="1.2"/>
+  <text class="text" x="702" y="396">written with an AI assistant</text>
+</svg>
