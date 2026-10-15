@@ -1,4 +1,4 @@
-# The viewer
+# 🔭 The viewer
 
 `cmd/visor` opens a glTF 2.0 scene (`.glb` or `.gltf`) and lets you explore it: fly around it like
 a bird, walk on the ground at eye height, or look at it as a flat map; move the sun to see it at dawn or at night; take a
@@ -13,6 +13,23 @@ go run ./cmd/visor -capture frame.png scene.glb   # one frame to PNG, hidden win
 go run ./cmd/visor -sample island                 # a built-in made-up island, no file needed
 go run ./cmd/visor -benchmark 120 scene.glb       # CPU and GPU times per pass, draw calls, triangles
 ```
+
+<table>
+<tr><th width="50%">Orbit (the default)</th><th width="50%">Walking (<code>-walk</code>, or <code>Tab</code>)</th></tr>
+<tr>
+<td><img alt="The sample island from the orbit camera: the forest, the summit, the river and the village with its label" src="images/orbit.png"></td>
+<td>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/walk-dark.png">
+  <img alt="At eye height in the village square, facing the harbour house, by day (light theme) or at night (dark theme)" src="images/walk-light.png">
+</picture>
+</td>
+</tr>
+<tr>
+<td><code>go run ./cmd/visor -sample island</code></td>
+<td><code>-sample island -walk -look-at 20,32 -heading 0 -pitch 14</code>, and <code>-sample night</code> for the night</td>
+</tr>
+</table>
 
 The viewer **draws only when something changes**: a key or button held, the mouse moving the
 camera, a camera easing to a stop, the sun turning, a notice fading, the window resized. In
@@ -68,6 +85,14 @@ view, then back to the orbit. Both maps use an orthographic camera: nothing gets
 distance, so lengths and areas can be compared anywhere on screen, as on a printed map. Fog is
 lifted while a map is shown.
 
+<table>
+<tr><th width="50%">From straight above (<code>-map</code>)</th><th width="50%">Isometric (<code>-isometric</code>)</th></tr>
+<tr>
+<td><img alt="The island from straight above, north up, without perspective" src="images/map.png"></td>
+<td><img alt="The island at the classic isometric angle, without perspective" src="images/isometric.png"></td>
+</tr>
+</table>
+
 | Control | Action |
 |---|---|
 | Drag with any mouse button | Move the map (the ground follows the cursor) |
@@ -86,6 +111,14 @@ lifted while a map is shown.
 | `Z` `X` | Less or more vertical exaggeration (orbit only) |
 | `F` | Fog (toggle) |
 | `O` | Shadows (toggle) |
+
+<table>
+<tr><th width="50%">Low sun (<code>-sun-elevation 4 -sun-azimuth 270</code>)</th><th width="50%">Night (<code>-night</code>, or <code>-sample night</code>)</th></tr>
+<tr>
+<td><img alt="The island at dusk: long shadows across the forest and a pale sky at the horizon" src="images/dusk.png"></td>
+<td><img alt="The island at night, lit by the moon, the label still readable" src="images/night.png"></td>
+</tr>
+</table>
 
 ## Options
 
@@ -115,3 +148,16 @@ lifted while a map is shown.
 
 Other programs reuse these options: `viewer.Options.RegisterFlags` adds them to any flag set, as
 go-simulator's live simulator does.
+
+<table>
+<tr><th width="50%">With shadows (the default)</th><th width="50%">Without (<code>-no-shadows</code>, or <code>O</code>)</th></tr>
+<tr>
+<td><img alt="The village with the trees and the house casting shadows" src="images/shadows-on.png"></td>
+<td><img alt="The same view without shadows: flatter, the trees float on the ground" src="images/shadows-off.png"></td>
+</tr>
+<tr><td colspan="2" align="center"><code>go run ./cmd/visor -sample island -zoom 0.35 -look-at 20,15 -capture frame.png</code></td></tr>
+</table>
+
+---
+
+[← All the documentation](README.md)

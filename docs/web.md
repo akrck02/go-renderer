@@ -1,10 +1,12 @@
-# In a web browser
+# 🌐 In a web browser
 
 **Status:** a first step (October 2026). The sample island and its labels draw in a browser
 through WebGL2, and go-ui interfaces run there too (see go-ui's `docs/web.md`). The desktop is
 unchanged. What is still missing is listed at the end.
 
-![The sample island in a browser: forests, the river, the harbour house and its label](images/web-island.jpg)
+<p align="center">
+  <img alt="The sample island in a browser: forests, the river, the harbour house and its label" src="images/web-island.jpg" width="360">
+</p>
 
 ```bash
 GOOS=js GOARCH=wasm go build -o cmd/web-island/island.wasm ./cmd/web-island
@@ -28,13 +30,17 @@ not use GLFW, and **a renderer** that speaks WebGL2.
 
 ## How it fits together
 
-```text
-your program              the same scene, camera and update function as on the desktop
-browser   (js only)       the canvas, its events → input.State, requestAnimationFrame, WebGL2
-gles                      FlatRenderer and SceneRenderer, in GLSL ES 1.00, over gles.Functions
-frameloop                 the fixed-step clock, shared with windowloop
-overlay, scene, camera…   unchanged
-```
+<p align="center">
+  <img alt="Your program, the same scene, camera and update function as on the desktop, runs in a canvas (browser: its events, requestAnimationFrame) or in a NativeActivity (android: its window, touches, a thread); both draw through gles, renderers written once in GLSL ES 1.00 over gles.Functions. The clock and update step are shared with the desktop (frameloop)" src="images/platforms.svg" width="880">
+</p>
+
+| Layer | What it does |
+|---|---|
+| Your program | The same scene, camera and update function as on the desktop |
+| `browser` (js only) | The canvas, its events → `input.State`, `requestAnimationFrame`, WebGL2 |
+| `gles` | `FlatRenderer` and `SceneRenderer`, in GLSL ES 1.00, over `gles.Functions` |
+| `frameloop` | The fixed-step clock, shared with `windowloop` |
+| `overlay`, `scene`, `camera`… | Unchanged |
 
 ### `gles`: renderers written once for OpenGL ES
 
@@ -131,3 +137,7 @@ servers usually do on the fly. The fonts and icons are inside it, so the page lo
 - Locking the pointer for the walking camera, the on-screen keyboard, and the system clipboard
   at any time.
 - WebGPU, and smaller files with TinyGo.
+
+---
+
+[← All the documentation](README.md)
