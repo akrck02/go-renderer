@@ -42,6 +42,8 @@ void ANativeActivity_onCreate(ANativeActivity *activity, void *saved_state, size
 	current_activity = activity;
 	// what a screen reader reads of the window, on this activity's view (a rotation makes another)
 	screen_reader_install(activity->env, activity->clazz);
+	// the view the on-screen keyboard types in, standing in for the fields Go draws
+	text_input_install(activity->env, activity->clazz);
 	if (!main_started) {
 		uintptr_t main_code = (uintptr_t)dlsym(RTLD_DEFAULT, "main.main");
 		if (main_code == 0) {

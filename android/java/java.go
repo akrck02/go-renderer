@@ -1,7 +1,8 @@
 // Package java holds the Java a go-renderer program for Android carries, as source, for the tool
 // that packages it: it compiles the source against the platform's android.jar and puts the classes
 // in the package's classes.dex. Everything else runs in Go and C; this is the part Android only
-// offers to Java (a screen reader's view of the window, see ScreenReader.java).
+// offers to Java (a screen reader's view of the window, see ScreenReader.java, and a view the
+// on-screen keyboard types in, see TextInput.java).
 package java
 
 import _ "embed"
@@ -17,3 +18,20 @@ const (
 	ScreenReaderClass = "io.github.akrck02.gorenderer.ScreenReader"
 	ScreenReaderPath  = "io/github/akrck02/gorenderer/ScreenReader.java"
 )
+
+// TextInput is TextInput.java: the view the on-screen keyboard types in, standing in for a field
+// the program draws.
+//
+//go:embed TextInput.java
+var TextInput string
+
+// TextInputPath is where TextInput's source goes for javac.
+const TextInputPath = "io/github/akrck02/gorenderer/TextInput.java"
+
+// Source is one Java file a program carries: where it goes for javac, and what it holds.
+type Source struct {
+	Path, Text string
+}
+
+// Sources are every Java file a program carries, for a tool to compile together.
+var Sources = []Source{{ScreenReaderPath, ScreenReader}, {TextInputPath, TextInput}}

@@ -39,9 +39,10 @@ static void JNICALL reader_typed(JNIEnv *env, jclass class, jint node, jstring t
 static void JNICALL reader_focused(JNIEnv *env, jclass class, jint node) { goReaderFocused(node); }
 static void JNICALL reader_changed(JNIEnv *env, jclass class, jboolean on) { goReaderChanged(on ? 1 : 0); }
 
-// load_reader_class loads the class through the activity's class loader: on the interface thread,
-// FindClass would look among Android's own classes, where called from native code.
-static jclass load_reader_class(JNIEnv *env, jobject activity) {
+// load_package_class loads one of the package's own classes through the activity's class loader:
+// on the interface thread, FindClass would look among Android's own classes, where called from
+// native code.
+jclass load_package_class(JNIEnv *env, jobject activity, const char *class_name) {
 	jclass activity_class = (*env)->GetObjectClass(env, activity);
 	jmethodID get_loader = (*env)->GetMethodID(env, activity_class, "getClassLoader", "()Ljava/lang/ClassLoader;");
 	(*env)->DeleteLocalRef(env, activity_class);
@@ -53,7 +54,7 @@ static jclass load_reader_class(JNIEnv *env, jobject activity) {
 	(*env)->DeleteLocalRef(env, loader_class);
 	jclass found = NULL;
 	if (!thrown(env) && load != NULL) {
-		jstring name = (*env)->NewStringUTF(env, READER_CLASS);
+		jstring name = (*env)->NewStringUTF(env, class_name);
 		found = (jclass)(*env)->CallObjectMethod(env, loader, load, name);
 		(*env)->DeleteLocalRef(env, name);
 		if (thrown(env)) found = NULL;
@@ -65,7 +66,7 @@ static jclass load_reader_class(JNIEnv *env, jobject activity) {
 // prepare_reader_class finds the class and gives it its native methods, the first time.
 static int prepare_reader_class(JNIEnv *env, jobject activity) {
 	if (reader_class != NULL) return 1;
-	jclass found = load_reader_class(env, activity);
+	jclass found = load_package_class(env, activity, READER_CLASS);
 	if (found == NULL) {
 		__android_log_write(ANDROID_LOG_WARN, "Go", "no ScreenReader class in the package: no screen reader");
 		return 0;

@@ -64,6 +64,18 @@ void screen_reader_update(int count, const int *ids, const int *parents, const i
 	const float *ranges, const jchar *characters, const int *offsets);
 void screen_reader_hover(int action, float x, float y);
 
+// load_package_class loads one of the package's own Java classes (screenreader.c), on the
+// interface thread.
+jclass load_package_class(JNIEnv *env, jobject activity, const char *class_name);
+
+// The on-screen keyboard's text (textinput.c, with TextInput.java): install runs on the interface
+// thread when Android makes the activity; it says whether the package has the class. The others
+// are safe from any thread.
+int text_input_install(JNIEnv *env, jobject activity);
+int text_input_show(int typing);
+void text_input_set(jlong field, int edit, const jchar *characters, int length, int selection_start,
+	int selection_end, int composing_start, int composing_end, int secret);
+
 // log_text writes a line to Android's log, under the tag Go.
 void log_text(int priority, const char *text);
 
