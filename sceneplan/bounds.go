@@ -1,4 +1,4 @@
-package opengl
+package sceneplan
 
 import (
 	"math"
@@ -126,8 +126,8 @@ func pick(condition bool, whenTrue, whenFalse float32) float32 {
 	return whenFalse
 }
 
-// viewpoint is what decides which parts of the scene are drawn and how detailed they are.
-type viewpoint struct {
+// Viewpoint is what decides which parts of the scene are drawn and how detailed they are.
+type Viewpoint struct {
 	volume      frustum
 	eye         graphics.Vec4
 	screenScale float32 // apparent size = world size × screenScale / distance (÷ 1 without perspective)
@@ -137,8 +137,8 @@ type viewpoint struct {
 }
 
 // newViewpoint builds the viewpoint of a camera.
-func newViewpoint(viewProjection graphics.Mat4, camera models.Camera) viewpoint {
-	view := viewpoint{volume: frustumFromMatrix(viewProjection), eye: camera.Position}
+func newViewpoint(viewProjection graphics.Mat4, camera models.Camera) Viewpoint {
+	view := Viewpoint{volume: frustumFromMatrix(viewProjection), eye: camera.Position}
 	if camera.IsOrthographic() {
 		view.orthographic, view.screenScale = true, 1/camera.OrthographicHeight
 		return view
@@ -150,7 +150,7 @@ func newViewpoint(viewProjection graphics.Mat4, camera models.Camera) viewpoint 
 
 // apparentSize returns the fraction of the screen height taken by something of this size seen
 // from this distance.
-func (view viewpoint) apparentSize(size, distanceToEye float32) float32 {
+func (view Viewpoint) apparentSize(size, distanceToEye float32) float32 {
 	if view.orthographic {
 		return size * view.screenScale
 	}

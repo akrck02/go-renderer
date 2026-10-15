@@ -1,34 +1,42 @@
 package opengl
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"image/png"
 	"log"
-	"math"
 	"os"
 	"time"
 
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/models"
+	"github.com/akrck02/go-renderer/windowloop"
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.4/glfw"
 )
 
 type OpenGL struct {
 	window  *glfw.Window
-	frames  int
 	program uint32
 	// capturing keeps the last frame in the back buffer (no swap) so it can be read: after a swap
 	// the front buffer is undefined on some platforms (Wayland), and reading it gives an empty image
 	capturing bool
+	// unchangedFrames counts frames skipped because they would repeat the last one shown.
+	unchangedFrames int
 }
 
+// StartLoop opens the window and runs the application until it closes. It must be called on the
+// program's main thread (macOS only delivers window events there): lock it with
+// runtime.LockOSThread in an init function of package main.
 func (opengl *OpenGL) StartLoop(app *models.Application) error {
+	if !windowloop.OnMainThread() {
+		return errors.New("opengl: StartLoop must run on the main thread; call runtime.LockOSThread in an init function of package main")
+	}
 
 	opengl.window = InitWindow(app)
 	defer glfw.Terminate()
-	opengl.init()
+	opengl.init(app)
 
 	// Initialize state
 	if app.Camera.Up == (graphics.Vec4{}) {
@@ -39,62 +47,32 @@ func (opengl *OpenGL) StartLoop(app *models.Application) error {
 	}
 
 	if app.Input != nil {
-		forwardInputEvents(opengl.window, app.Input)
+		windowloop.ForwardInput(opengl.window, app.Input)
 	} else {
 		setInputs(opengl, app)
 	}
-	clock := newFixedStepClock(app.FixedStep)
-	cursorLocked := false
+	clock := windowloop.NewClock(app.FixedStep)
+	started := time.Now()
 
-	last_frame_time := time.Now()
-	now := last_frame_time
-
-	var err error
 	switch app.Type {
 	case models.WindowApplication:
-
-		for !opengl.window.ShouldClose() && !app.Stop {
-
-			if app.Input != nil {
-				updateWindowSizes(opengl.window, app.Input)
-			}
-			if err = clock.advance(app); err != nil {
-				return err
-			}
-
-			err = opengl.Draw(app)
-			if nil != err {
-				return err
-			}
-			if app.Input != nil {
-				applyCursorLock(opengl.window, app.Input, &cursorLocked)
-			}
-
-			opengl.frames++
-
-			if time.Since(last_frame_time).Milliseconds() >= 1000 {
-				now = time.Now()
-				opengl.window.SetTitle(fmt.Sprintf("%s %s   |   %d FPS", app.Title, app.Version, opengl.frames))
-				last_frame_time = now
-				opengl.frames = 0
-			}
-		}
+		return windowloop.Run(opengl.window, app, clock, func() error { return opengl.Draw(app) })
 	case models.HeadlessApplication:
 
 		println("OpenGL does not support headless mode by default for now. Rendering frame with window spawn (slow).")
 
-		if err = opengl.renderSettledFrame(app, clock); err != nil {
+		if err := opengl.renderSettledFrame(app, clock); err != nil {
 			return err
 		}
 		opengl.capturing = true
-		if err = opengl.Draw(app); err != nil {
+		if err := opengl.Draw(app); err != nil {
 			return err
 		}
-		if err = opengl.DrawOnDisk(app, capturePath(app)); err != nil {
+		if err := opengl.DrawOnDisk(app, capturePath(app)); err != nil {
 			return err
 		}
 
-		duration := time.Since(last_frame_time)
+		duration := time.Since(started)
 		fmt.Printf("Frame generated in %d ms.\n", duration.Milliseconds())
 	}
 
@@ -145,7 +123,7 @@ func setInputs(opengl *OpenGL, app *models.Application) {
 	})
 }
 
-func (opengl *OpenGL) init() {
+func (opengl *OpenGL) init(app *models.Application) {
 
 	if err := gl.Init(); err != nil {
 		panic(err)
@@ -153,6 +131,9 @@ func (opengl *OpenGL) init() {
 
 	version := gl.GoStr(gl.GetString(gl.VERSION))
 	log.Println("OpenGL version", version)
+	if app.FlatOnly {
+		return // the flat renderer brings its own shaders and needs no depth test
+	}
 
 	vertexShader, err := CompileShader(graphics.VertexShaderSource, gl.VERTEX_SHADER)
 	if err != nil {
@@ -182,6 +163,15 @@ func (opengl *OpenGL) Draw(app *models.Application) error {
 		firstFrame = false
 	}
 
+	presenting := nil != opengl.window && !opengl.capturing
+	if presenting && app.Unchanged != nil && app.Unchanged(app) {
+		opengl.unchangedFrames++
+		return nil // the window already shows this picture
+	}
+	if app.FlatOnly {
+		return opengl.drawFlat(app, presenting)
+	}
+
 	w, h := app.Width, app.Height
 	if nil != opengl.window {
 		w, h = opengl.window.GetFramebufferSize()
@@ -209,10 +199,21 @@ func (opengl *OpenGL) Draw(app *models.Application) error {
 	}
 
 	if nil != opengl.window && !opengl.capturing {
-		glfw.PollEvents()
 		opengl.window.SwapBuffers()
 	}
 
+	return nil
+}
+
+// drawFlat draws a frame of a flat-only application: its Draw callback clears and paints the whole
+// window (see FlatRenderer), so the 3D renderer's matrices, clear and program are left out.
+func (opengl *OpenGL) drawFlat(app *models.Application, presenting bool) error {
+	if err := app.Draw(app); err != nil {
+		return err
+	}
+	if presenting {
+		opengl.window.SwapBuffers()
+	}
 	return nil
 }
 
@@ -280,53 +281,11 @@ func (opengl *OpenGL) DrawOnDisk(app *models.Application, filePath string) error
 	return png.Encode(file, img)
 }
 
-// fixedStepClock runs Application.Update at a fixed time step, independent of the frame rate,
-// so that simulations advance the same way on fast and slow machines.
-type fixedStepClock struct {
-	step        float64
-	previous    time.Time
-	accumulated float64
-}
-
-func newFixedStepClock(step float64) *fixedStepClock {
-	if step <= 0 {
-		step = 1.0 / 60
-	}
-	return &fixedStepClock{step: step, previous: time.Now()}
-}
-
-// advance runs as many update steps as the elapsed time requires (at most a quarter of a second
-// worth, so a stall does not trigger a long catch-up).
-func (clock *fixedStepClock) advance(app *models.Application) error {
-	elapsed := time.Since(clock.previous).Seconds()
-	clock.previous = time.Now()
-	clock.accumulated += math.Min(elapsed, 0.25)
-	for clock.accumulated >= clock.step {
-		if err := runUpdateStep(app, clock.step); err != nil {
-			return err
-		}
-		clock.accumulated -= clock.step
-	}
-	return nil
-}
-
-// runUpdateStep calls the application update once and clears the per-step input deltas.
-func runUpdateStep(app *models.Application, step float64) error {
-	if app.Update != nil {
-		if err := app.Update(app, step); err != nil {
-			return err
-		}
-	}
-	if app.Input != nil {
-		app.Input.EndFrame()
-	}
-	return nil
-}
-
 // renderSettledFrame draws a few frames so that every buffer is uploaded and the camera settled.
-func (opengl *OpenGL) renderSettledFrame(app *models.Application, clock *fixedStepClock) error {
+func (opengl *OpenGL) renderSettledFrame(app *models.Application, clock *windowloop.Clock) error {
 	for frame := 0; frame < 3; frame++ {
-		if err := runUpdateStep(app, clock.step); err != nil {
+		glfw.PollEvents()
+		if err := windowloop.RunUpdateStep(app, clock.Step()); err != nil {
 			return err
 		}
 		if err := opengl.Draw(app); err != nil {
@@ -342,3 +301,7 @@ func capturePath(app *models.Application) string {
 	}
 	return app.CapturePath
 }
+
+// Wake makes a window that draws on demand draw a frame now: for a program whose data changes
+// on another goroutine (a download finishing, a message arriving). Safe from any goroutine.
+func Wake() { windowloop.Wake() }

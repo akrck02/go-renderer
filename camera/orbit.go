@@ -48,6 +48,36 @@ func (orbit *Orbit) Update(state *input.State, seconds float64, camera *models.C
 	camera.Up = graphics.Vec4{0, 1, 0, 0}
 }
 
+// Gesture applies what two fingers did (input.TwoFingers), as a map does: the ground that was
+// between the fingers stays between them while they spread (closer), turn (the view turns with
+// them) and move together. Call it before Update, which places the camera.
+func (orbit *Orbit) Gesture(gesture input.Gesture, windowWidth, windowHeight int) {
+	halfWidth, halfHeight := float64(windowWidth)/2, float64(windowHeight)/2
+	// the fingers' middle before, from the window's middle, and the ground under it
+	beforeX, beforeY := gesture.CenterX-gesture.PanX-halfWidth, gesture.CenterY-gesture.PanY-halfHeight
+	underX, underZ := orbit.groundOffset(beforeX, beforeY, windowHeight)
+	anchorX, anchorZ := float64(orbit.Target[0])+underX, float64(orbit.Target[2])+underZ
+	// turning the fingers counterclockwise turns the ground counterclockwise on screen, which is the
+	// camera going round the other way
+	orbit.Yaw -= gesture.Turn
+	if gesture.Spread > 0 {
+		orbit.Distance /= gesture.Spread
+	}
+	// the target goes where that ground is under the fingers' middle now (exact across the screen,
+	// close enough up and down, where perspective stretches the ground)
+	afterX, afterZ := orbit.groundOffset(gesture.CenterX-halfWidth, gesture.CenterY-halfHeight, windowHeight)
+	orbit.Target[0], orbit.Target[2] = float32(anchorX-afterX), float32(anchorZ-afterZ)
+}
+
+// groundOffset is where the ground is, from the target, at a point of the window given from its
+// middle in layout pixels: right is the camera's right, down is towards the camera.
+func (orbit *Orbit) groundOffset(screenX, screenY float64, windowHeight int) (x, z float64) {
+	worldPerCursorUnit := orbit.Distance / math.Max(float64(windowHeight), 1) * 0.9
+	rightX, rightZ := math.Cos(orbit.Yaw), -math.Sin(orbit.Yaw)
+	forwardX, forwardZ := -math.Sin(orbit.Yaw), -math.Cos(orbit.Yaw)
+	return (screenX*rightX - screenY*forwardX) * worldPerCursorUnit, (screenX*rightZ - screenY*forwardZ) * worldPerCursorUnit
+}
+
 func isPanning(state *input.State) bool {
 	return state.Button(input.MouseRight) || (state.Button(input.MouseLeft) && state.Down(input.KeyShift))
 }
@@ -64,11 +94,9 @@ func (orbit *Orbit) applyMouse(state *input.State) {
 
 // pan moves the target on the ground plane so that the scene follows the cursor.
 func (orbit *Orbit) pan(deltaX, deltaY float64, windowHeight int) {
-	worldPerCursorUnit := orbit.Distance / math.Max(float64(windowHeight), 1) * 0.9
-	rightX, rightZ := math.Cos(orbit.Yaw), -math.Sin(orbit.Yaw)
-	forwardX, forwardZ := -math.Sin(orbit.Yaw), -math.Cos(orbit.Yaw)
-	orbit.Target[0] += float32((-deltaX*rightX + deltaY*forwardX) * worldPerCursorUnit)
-	orbit.Target[2] += float32((-deltaX*rightZ + deltaY*forwardZ) * worldPerCursorUnit)
+	underX, underZ := orbit.groundOffset(deltaX, deltaY, windowHeight)
+	orbit.Target[0] -= float32(underX)
+	orbit.Target[2] -= float32(underZ)
 }
 
 func (orbit *Orbit) applyKeyboard(state *input.State, seconds float64) {

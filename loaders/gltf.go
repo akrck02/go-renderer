@@ -131,10 +131,30 @@ type gltfFile struct {
 //   - scene extras "environment" also: snow {level, blend, color}, foliageTint [r, g, b, amount]
 //   - mesh, primitive or node extras "ground": true (walkable surface)
 //   - mesh extras "detail": [{"mesh": index, "screenSize": fraction}, ...] simpler versions, finer first
+//   - node extras "label", "icon", "badge", "label_color", "pinned": the overlay (see readOverlay)
 func LoadScene(path string) (*scene.Scene, error) {
 	file, err := readGLTFFile(path)
 	if err != nil {
 		return nil, err
+	}
+	return file.buildScene()
+}
+
+// ParseSceneGLB reads a scene from the bytes of a .glb file, as LoadScene does from its path: for
+// programs with no file system (a web page) or that carry their scene inside them. Its buffers
+// must be in the file, as a .glb's are.
+func ParseSceneGLB(content []byte) (*scene.Scene, error) {
+	if !isGLBContainer(content) {
+		return nil, fmt.Errorf("not a .glb file")
+	}
+	file := &gltfFile{}
+	if err := file.parseGLBContainer(content); err != nil {
+		return nil, err
+	}
+	for _, buffer := range file.document.Buffers {
+		if buffer.URI != "" {
+			return nil, fmt.Errorf("the .glb names an external buffer (%s), which needs its folder: use LoadScene", buffer.URI)
+		}
 	}
 	return file.buildScene()
 }
@@ -296,6 +316,7 @@ func (file *gltfFile) buildScene() (*scene.Scene, error) {
 		result.Nodes = append(result.Nodes, node)
 	}
 	result.Tags = sceneExtras
+	readOverlay(result)
 	if environment, found := sceneExtras["environment"].(map[string]any); found {
 		applyEnvironment(&result.Environment, environment)
 		if err := file.applySky(&result.Environment, environment); err != nil {

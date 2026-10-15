@@ -89,6 +89,26 @@ func (walk *Walk) move(state *input.State, seconds float64) {
 	if state.Down(input.KeyShift) {
 		distance *= walk.RunFactor
 	}
+	walk.step(forward, sideways, distance)
+}
+
+// Steer walks as a stick on a phone's screen says: forward and sideways from -1 to 1 (right and
+// ahead positive), at the walking speed. Call it before Update.
+func (walk *Walk) Steer(forward, sideways float32, seconds float64) {
+	if forward == 0 && sideways == 0 {
+		return
+	}
+	walk.step(forward, sideways, walk.Speed*float32(seconds))
+}
+
+// Turn looks around by a finger's movement, in layout pixels: right turns right, down looks down.
+func (walk *Walk) Turn(deltaX, deltaY float64) {
+	walk.Yaw += deltaX * walk.LookSpeed
+	walk.Pitch = clamp(walk.Pitch-deltaY*walk.LookSpeed, -1.3, 1.3)
+}
+
+// step moves by a distance along forward and sideways amounts, unless the way is blocked.
+func (walk *Walk) step(forward, sideways, distance float32) {
 	sineYaw, cosineYaw := float32(math.Sin(walk.Yaw)), float32(math.Cos(walk.Yaw))
 	nextX := walk.X + (sineYaw*forward+cosineYaw*sideways)*distance
 	nextZ := walk.Z + (-cosineYaw*forward+sineYaw*sideways)*distance

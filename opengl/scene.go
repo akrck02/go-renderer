@@ -1,14 +1,13 @@
 package opengl
 
 import (
-	"math"
-	"sort"
 	"time"
 	"unsafe"
 
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/scene"
+	"github.com/akrck02/go-renderer/sceneplan"
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
@@ -19,23 +18,31 @@ type SceneRenderer struct {
 	Shadows    ShadowSettings
 	Profiling  bool            // measure CPU and GPU times into Statistics (waits for the GPU every frame)
 	Statistics FrameStatistics // the last frame drawn
-	profiler   *passProfiler
+	// OverlayScale is how many framebuffer pixels make one pixel of the overlay (labels, header,
+	// notices): 2 on a high-density screen, so they keep their size; 0 = 1.
+	OverlayScale float32
+	profiler     *passProfiler
 
-	sceneProgram     *shaderProgram
-	sky              *skyRenderer
-	waterPlane       *scene.Mesh
-	waterFloor       *scene.Mesh
-	shadow           *shadowMap
-	levelVariation   *levelVariationTexture
-	seabed           *seabedMap
-	measured         *scene.Scene
-	meshMeasures     map[*scene.Mesh]*meshMeasure
-	instancedDetails map[*scene.Instances]*instancedDetail
-	verticalScale    float32 // of the frame being drawn
-	counters         [passCount]drawCounter
-	sceneSize        float32 // horizontal size of the measured scene
-	sceneHeight      float32 // vertical span of the measured scene (before vertical scaling)
+	planner        *sceneplan.Planner
+	sceneProgram   *shaderProgram
+	sky            *skyRenderer
+	overlay        *overlayRenderer
+	shadow         *shadowMap
+	levelVariation *levelVariationTexture
+	seabed         *seabedMap
 }
+
+// ShadowSettings controls the sun shadows (see sceneplan.ShadowSettings).
+type ShadowSettings = sceneplan.ShadowSettings
+
+// DefaultShadowSettings returns enabled shadows with automatic sizes.
+func DefaultShadowSettings() ShadowSettings { return sceneplan.DefaultShadowSettings() }
+
+// FrameStatistics describes the last frame drawn (see sceneplan.FrameStatistics).
+type FrameStatistics = sceneplan.FrameStatistics
+
+// PassTimes are GPU durations of the passes of one frame.
+type PassTimes = sceneplan.PassTimes
 
 // shaderProgram is a linked program with its uniform locations cached by name.
 type shaderProgram struct {
@@ -55,23 +62,6 @@ type instanceBuffers struct {
 	mesh                        *meshBuffers
 }
 
-// drawCommand is one node to draw this frame.
-type drawCommand struct {
-	node                  *scene.Node
-	world                 graphics.Mat4
-	material              *scene.Material
-	squaredCameraDistance float32
-	transparent           bool
-	seaSurface            bool // the environment's water plane: the only surface the level variation moves
-}
-
-// cameraMatrices are the matrices of one frame.
-type cameraMatrices struct {
-	projection, view, viewProjection graphics.Mat4
-}
-
-const floatsPerVertex = 10   // position 3 + normal 3 + color 4
-const floatsPerInstance = 20 // matrix 16 + color 4
 const bytesPerFloat = 4
 
 // NewSceneRenderer compiles the scene shaders. Call it after the OpenGL context exists.
@@ -85,14 +75,17 @@ func NewSceneRenderer() (*SceneRenderer, error) {
 		return nil, err
 	}
 	renderer := &SceneRenderer{sceneProgram: sceneProgram, sky: sky, Shadows: DefaultShadowSettings(), profiler: newPassProfiler(),
-		meshMeasures: map[*scene.Mesh]*meshMeasure{}, instancedDetails: map[*scene.Instances]*instancedDetail{}}
-	if renderer.shadow, err = newShadowMap(renderer.Shadows.resolution()); err != nil {
+		planner: sceneplan.NewPlanner(instanceBatches{})}
+	if renderer.shadow, err = newShadowMap(renderer.Shadows.EffectiveResolution()); err != nil {
 		return nil, err
 	}
 	if renderer.seabed, err = newSeabedMap(seabedResolution); err != nil {
 		return nil, err
 	}
 	renderer.levelVariation = newLevelVariationTexture()
+	if renderer.overlay, err = newOverlayRenderer(); err != nil {
+		return nil, err
+	}
 	return renderer, nil
 }
 
@@ -143,32 +136,24 @@ func (program *shaderProgram) setInteger(name string, value int32) {
 	gl.Uniform1i(program.location(name), value)
 }
 
-// Draw renders the scene from the camera into the current framebuffer of the given size.
-// seconds is the elapsed time, which animates water and waterfalls.
+// Draw renders the scene from the camera into the current framebuffer of the given size, then its
+// overlay on top. seconds is the elapsed time, which animates water and waterfalls.
 func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int, seconds float64) {
 	started := time.Now()
-	matrices := computeCameraMatrices(camera, width, height)
-	light := world.Environment.Daylight()
-	renderer.startFrame(world)
-	mainView := newViewpoint(matrices.viewProjection, camera)
-	commands := renderer.collectDrawCommands(world, camera)
-	sortOpaqueBeforeTransparent(commands)
-	renderer.measurePass("seabed", func() { renderer.seabed.update(world, commands) })
-	var region shadowRegion
+	frame := renderer.planner.Plan(world, camera, width, height, renderer.Shadows)
+	renderer.measurePass("seabed", func() { renderer.seabed.update(frame.Seabed) })
 	var err error
-	renderer.measurePass("shadows", func() {
-		region, err = renderer.renderShadows(world, camera, commands, light.LightDirection, seconds, mainView)
-	})
-	shadowsReady := err == nil && renderer.Shadows.Enabled
-	clearFrame(light, width, height)
-	renderer.setFrameUniforms(world.Environment, light, camera, matrices, seconds)
-	renderer.shadow.bindForLighting(renderer.sceneProgram, region, shadowsReady)
+	renderer.measurePass("shadows", func() { err = renderer.renderShadows(world, frame, seconds) })
+	shadowsReady := err == nil && frame.Shadow.Enabled
+	clearFrame(frame.Light, width, height)
+	renderer.setFrameUniforms(world.Environment, frame.Light, camera, frame.Matrices, seconds)
+	renderer.shadow.bindForLighting(renderer.sceneProgram, frame.Shadow.Region, shadowsReady)
 	renderer.seabed.bindForWater(renderer.sceneProgram, world.Environment.Water)
 	renderer.levelVariation.bind(renderer.sceneProgram, world.Environment.Water)
-	opaque, transparent := splitOpaqueAndTransparent(commands)
-	renderer.measurePass("scene", func() { renderer.executeDrawCommands(opaque, mainView) })
-	renderer.measurePass("sky", func() { renderer.sky.draw(world.Environment, light, camera, matrices, seconds) })
-	renderer.measurePass("transparent", func() { renderer.executeDrawCommands(transparent, mainView) })
+	renderer.measurePass("scene", func() { renderer.executeDrawCommands(frame.Opaque, frame.View) })
+	renderer.measurePass("sky", func() { renderer.sky.draw(world.Environment, frame.Light, camera, frame.Matrices, seconds) })
+	renderer.measurePass("transparent", func() { renderer.executeDrawCommands(frame.Transparent, frame.View) })
+	renderer.measurePass("overlay", func() { renderer.overlay.draw(world, frame.Matrices, width, height, renderer.OverlayScale) })
 	renderer.recordStatistics(time.Since(started))
 }
 
@@ -183,53 +168,32 @@ func (renderer *SceneRenderer) measurePass(pass string, run func()) {
 	renderer.profiler.end()
 }
 
-// startFrame resets the counters and remembers what every draw of the frame shares.
-func (renderer *SceneRenderer) startFrame(world *scene.Scene) {
-	renderer.verticalScale = world.Environment.EffectiveVerticalScale()
-	renderer.counters = [passCount]drawCounter{}
-}
-
 func (renderer *SceneRenderer) recordStatistics(processorTime time.Duration) {
-	main, shadow := renderer.counters[mainPass], renderer.counters[shadowPass]
-	statistics := FrameStatistics{CPU: processorTime,
-		DrawCalls: main.drawCalls, Triangles: main.triangles, Instances: main.instances,
-		ShadowDrawCalls: shadow.drawCalls, ShadowTriangles: shadow.triangles}
+	statistics := renderer.planner.Statistics(processorTime)
 	if renderer.Profiling {
 		statistics.GPU = renderer.profiler.collect()
 	}
 	renderer.Statistics = statistics
 }
 
-// shadowLevelBias makes casters one level of detail coarser than what the camera sees: a shadow
-// shows an outline, and the shadow pass covers more than the view (what is behind the camera too).
-const shadowLevelBias = 1
-
 // renderShadows draws the shadow map for this frame when shadows are enabled.
-func (renderer *SceneRenderer) renderShadows(world *scene.Scene, camera models.Camera, commands []drawCommand, lightDirection graphics.Vec4, seconds float64, mainView viewpoint) (shadowRegion, error) {
-	if !renderer.Shadows.Enabled {
-		return shadowRegion{}, nil
+func (renderer *SceneRenderer) renderShadows(world *scene.Scene, frame sceneplan.Frame, seconds float64) error {
+	if !frame.Shadow.Enabled {
+		return nil
 	}
 	if err := renderer.matchShadowResolution(); err != nil {
-		return shadowRegion{}, err
+		return err
 	}
-	renderer.measureScene(world)
-	verticalScale := world.Environment.EffectiveVerticalScale()
-	extent := renderer.Shadows.extent(camera, renderer.sceneSize)
-	depthRange := extent*2 + renderer.sceneHeight*verticalScale*2
-	region := fitShadowRegion(lightDirection, shadowCenter(camera, extent), extent, depthRange, renderer.shadow.resolution)
-	shadowView := mainView
-	shadowView.volume = frustumFromMatrix(region.lightViewProjection())
-	shadowView.levelBias += shadowLevelBias
-	drawCaster := func(program *shaderProgram, command drawCommand) {
-		renderer.drawGeometry(program, command, shadowView, shadowPass, &renderer.counters[shadowPass])
+	drawCaster := func(program *shaderProgram, command sceneplan.Command) {
+		renderer.drawGeometry(program, command, frame.Shadow.View, sceneplan.ShadowPass)
 	}
-	renderer.shadow.renderShadowPass(commands, region, verticalScale, world.Environment.Wind, seconds, drawCaster)
-	return region, nil
+	renderer.shadow.renderShadowPass(frame.Commands, frame.Shadow.Region, world.Environment.EffectiveVerticalScale(), world.Environment.Wind, seconds, drawCaster)
+	return nil
 }
 
 // matchShadowResolution recreates the shadow map when the requested resolution changes.
 func (renderer *SceneRenderer) matchShadowResolution() error {
-	wanted := renderer.Shadows.resolution()
+	wanted := renderer.Shadows.EffectiveResolution()
 	if renderer.shadow != nil && renderer.shadow.resolution == wanted {
 		return nil
 	}
@@ -241,27 +205,6 @@ func (renderer *SceneRenderer) matchShadowResolution() error {
 	return nil
 }
 
-// measureScene caches the size of the scene, used to size the shadow region.
-func (renderer *SceneRenderer) measureScene(world *scene.Scene) {
-	if renderer.measured == world {
-		return
-	}
-	minimum, maximum := world.Bounds()
-	renderer.sceneSize = float32(math.Max(float64(maximum[0]-minimum[0]), float64(maximum[2]-minimum[2])))
-	renderer.sceneHeight = maximum[1] - minimum[1]
-	if renderer.sceneSize <= 0 || math.IsInf(float64(renderer.sceneSize), 0) {
-		renderer.sceneSize, renderer.sceneHeight = 1, 1
-	}
-	renderer.measured = world
-}
-
-func computeCameraMatrices(camera models.Camera, width, height int) cameraMatrices {
-	aspect := float64(width) / math.Max(float64(height), 1)
-	projection := camera.ProjectionMatrix(aspect)
-	view := graphics.LookAt(camera.Position, camera.Target, camera.Up)
-	return cameraMatrices{projection: projection, view: view, viewProjection: projection.Multiply(view)}
-}
-
 func clearFrame(light scene.Daylight, width, height int) {
 	gl.Viewport(0, 0, int32(width), int32(height))
 	horizon := light.Horizon
@@ -271,11 +214,11 @@ func clearFrame(light scene.Daylight, width, height int) {
 }
 
 // setFrameUniforms sets what every draw of the frame shares; the light is the sun or the moon.
-func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, light scene.Daylight, camera models.Camera, matrices cameraMatrices, seconds float64) {
+func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, light scene.Daylight, camera models.Camera, matrices sceneplan.CameraMatrices, seconds float64) {
 	program := renderer.sceneProgram
 	gl.UseProgram(program.handle)
-	program.setMatrix("projection", matrices.projection)
-	program.setMatrix("view", matrices.view)
+	program.setMatrix("projection", matrices.Projection)
+	program.setMatrix("view", matrices.View)
 	program.setFloat("verticalScale", environment.EffectiveVerticalScale())
 	program.setVector3("sunDirection", light.LightDirection)
 	program.setVector3("sunColor", light.LightColor)
@@ -290,7 +233,7 @@ func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, l
 	setSeason(program, environment)
 	program.setVector3("cameraPosition", camera.Position)
 	program.setFloat("time", float32(seconds))
-	program.setFloat("waveLength", waveLengthFor(environment.Water))
+	program.setFloat("waveLength", sceneplan.WaveLengthFor(environment.Water))
 }
 
 // setSeason sets the snow and the colour of the foliage.
@@ -306,76 +249,13 @@ func setSeason(program *shaderProgram, environment scene.Environment) {
 	program.setVector3("snowColor", environment.Snow.Color)
 }
 
-func waveLengthFor(water *scene.Water) float32 {
-	if water == nil || water.EffectiveWaveLength() <= 0 {
-		return 1
-	}
-	return water.EffectiveWaveLength()
-}
-
-func isTransparent(material *scene.Material) bool {
-	return material.Transparent || material.Kind == scene.KindWater || material.Kind == scene.KindWaterfall
-}
-
-func (renderer *SceneRenderer) collectDrawCommands(world *scene.Scene, camera models.Camera) []drawCommand {
-	var commands []drawCommand
-	world.Walk(func(node *scene.Node, transform graphics.Mat4) {
-		if node.Mesh == nil {
-			return
-		}
-		material := materialOrDefault(node.Mesh.Material)
-		commands = append(commands, drawCommand{
-			node: node, world: transform, material: material, transparent: isTransparent(material),
-			squaredCameraDistance: squaredHorizontalDistance(transform.Apply(graphics.Vec4{0, 0, 0, 1}), camera.Position),
-		})
-	})
-	if world.Environment.Water != nil {
-		commands = append(commands, renderer.waterFloorCommand(world.Environment.Water, camera))
-		commands = append(commands, renderer.waterCommand(world.Environment.Water, camera))
-	}
-	return commands
-}
-
-func materialOrDefault(material *scene.Material) *scene.Material {
-	if material == nil {
-		return &scene.Material{BaseColor: graphics.Vec4{1, 1, 1, 1}}
-	}
-	return material
-}
-
-func squaredHorizontalDistance(first, second graphics.Vec4) float32 {
-	deltaX, deltaZ := first[0]-second[0], first[2]-second[2]
-	return deltaX*deltaX + deltaZ*deltaZ
-}
-
-// sortOpaqueBeforeTransparent keeps opaque commands in order and draws transparent ones last,
-// farthest first, so blending composes correctly.
-func sortOpaqueBeforeTransparent(commands []drawCommand) {
-	sort.SliceStable(commands, func(first, second int) bool {
-		if commands[first].transparent != commands[second].transparent {
-			return !commands[first].transparent
-		}
-		return commands[first].transparent && commands[first].squaredCameraDistance > commands[second].squaredCameraDistance
-	})
-}
-
-// splitOpaqueAndTransparent cuts the sorted commands where the transparent ones start.
-func splitOpaqueAndTransparent(commands []drawCommand) (opaque, transparent []drawCommand) {
-	for index, command := range commands {
-		if command.transparent {
-			return commands[:index], commands[index:]
-		}
-	}
-	return commands, nil
-}
-
-func (renderer *SceneRenderer) executeDrawCommands(commands []drawCommand, view viewpoint) {
+func (renderer *SceneRenderer) executeDrawCommands(commands []sceneplan.Command, view sceneplan.Viewpoint) {
 	gl.UseProgram(renderer.sceneProgram.handle)
 	gl.Enable(gl.DEPTH_TEST)
 	gl.DepthFunc(gl.LEQUAL)
 	blending := false
 	for _, command := range commands {
-		if command.transparent && !blending {
+		if command.Transparent && !blending {
 			enableBlending()
 			blending = true
 		}
@@ -398,20 +278,17 @@ func disableBlending() {
 	gl.Disable(gl.BLEND)
 }
 
-func (renderer *SceneRenderer) drawNode(command drawCommand, view viewpoint) {
+func (renderer *SceneRenderer) drawNode(command sceneplan.Command, view sceneplan.Viewpoint) {
 	program := renderer.sceneProgram
-	baseColor := command.material.BaseColor
-	if baseColor == (graphics.Vec4{}) {
-		baseColor = graphics.Vec4{1, 1, 1, 1}
-	}
-	program.setVector4("baseColor", baseColor)
-	program.setInteger("kind", int32(command.material.Kind))
-	program.setInteger("pattern", int32(command.material.Pattern))
-	program.setInteger("foliage", boolToInteger(command.material.Foliage))
-	program.setFloat("patternScale", command.material.PatternScale)
-	program.setInteger("levelVariationEnabled", boolToInteger(command.seaSurface && renderer.levelVariation.active))
-	program.setInteger("seaSurface", boolToInteger(command.seaSurface))
-	renderer.drawGeometry(program, command, view, mainPass, &renderer.counters[mainPass])
+	material := command.Material
+	program.setVector4("baseColor", sceneplan.BaseColorOf(material))
+	program.setInteger("kind", int32(material.Kind))
+	program.setInteger("pattern", int32(material.Pattern))
+	program.setInteger("foliage", boolToInteger(material.Foliage))
+	program.setFloat("patternScale", material.PatternScale)
+	program.setInteger("levelVariationEnabled", boolToInteger(command.SeaSurface && renderer.levelVariation.active))
+	program.setInteger("seaSurface", boolToInteger(command.SeaSurface))
+	renderer.drawGeometry(program, command, view, sceneplan.MainPass)
 }
 
 func drawSingle(program *shaderProgram, buffers *meshBuffers) {
@@ -443,11 +320,8 @@ func uploadMesh(mesh *scene.Mesh) *meshBuffers {
 	if buffers == nil {
 		buffers = newMeshBuffers()
 	}
-	if len(mesh.Normals) != len(mesh.Positions) {
-		mesh.ComputeNormals()
-	}
 	gl.BindVertexArray(buffers.vertexArray)
-	fillVertexBuffer(buffers.vertexBuffer, interleaveVertices(mesh))
+	fillVertexBuffer(buffers.vertexBuffer, sceneplan.InterleaveVertices(mesh))
 	describeVertexLayout()
 	fillIndexBuffer(buffers, mesh)
 	gl.BindVertexArray(0)
@@ -463,23 +337,6 @@ func newMeshBuffers() *meshBuffers {
 	return buffers
 }
 
-// interleaveVertices packs position, normal and color per vertex (white when there are no colors).
-func interleaveVertices(mesh *scene.Mesh) []float32 {
-	vertexCount := mesh.VertexCount()
-	data := make([]float32, vertexCount*floatsPerVertex)
-	for vertex := 0; vertex < vertexCount; vertex++ {
-		offset := vertex * floatsPerVertex
-		copy(data[offset:offset+3], mesh.Positions[3*vertex:3*vertex+3])
-		copy(data[offset+3:offset+6], mesh.Normals[3*vertex:3*vertex+3])
-		if len(mesh.Colors) >= 4*(vertex+1) {
-			copy(data[offset+6:offset+10], mesh.Colors[4*vertex:4*vertex+4])
-		} else {
-			copy(data[offset+6:offset+10], []float32{1, 1, 1, 1})
-		}
-	}
-	return data
-}
-
 func fillVertexBuffer(buffer uint32, data []float32) {
 	gl.BindBuffer(gl.ARRAY_BUFFER, buffer)
 	if len(data) > 0 {
@@ -488,7 +345,7 @@ func fillVertexBuffer(buffer uint32, data []float32) {
 }
 
 func describeVertexLayout() {
-	stride := int32(floatsPerVertex * bytesPerFloat)
+	stride := int32(sceneplan.FloatsPerVertex * bytesPerFloat)
 	gl.EnableVertexAttribArray(0)
 	gl.VertexAttribPointerWithOffset(0, 3, gl.FLOAT, false, stride, 0)
 	gl.EnableVertexAttribArray(1)
@@ -527,20 +384,11 @@ func uploadInstances(instances *scene.Instances, mesh *meshBuffers) *instanceBuf
 	if mesh.indexed {
 		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.indexBuffer)
 	}
-	fillInstanceBuffer(buffers.instanceBuffer, packInstances(instances))
+	fillInstanceBuffer(buffers.instanceBuffer, sceneplan.PackInstances(instances))
 	describeInstanceLayout()
 	gl.BindVertexArray(0)
 	instances.GPU, instances.Dirty = buffers, false
 	return buffers
-}
-
-// packInstances writes the matrix and the color of every instance (white when missing).
-func packInstances(instances *scene.Instances) []float32 {
-	data := make([]float32, len(instances.Transforms)*floatsPerInstance)
-	for instance := range instances.Transforms {
-		packInstance(instances, instance, data[instance*floatsPerInstance:])
-	}
-	return data
 }
 
 func fillInstanceBuffer(buffer uint32, data []float32) {
@@ -552,93 +400,11 @@ func fillInstanceBuffer(buffer uint32, data []float32) {
 
 // describeInstanceLayout binds attributes 3-6 (matrix columns) and 7 (color), one per instance.
 func describeInstanceLayout() {
-	stride := int32(floatsPerInstance * bytesPerFloat)
+	stride := int32(sceneplan.FloatsPerInstance * bytesPerFloat)
 	for column := uint32(0); column < 5; column++ {
 		attribute := 3 + column
 		gl.EnableVertexAttribArray(attribute)
 		gl.VertexAttribPointerWithOffset(attribute, 4, gl.FLOAT, false, stride, uintptr(column*4*bytesPerFloat))
 		gl.VertexAttribDivisor(attribute, 1)
-	}
-}
-
-// waterCommand returns a large water plane that follows the camera horizontally.
-func (renderer *SceneRenderer) waterCommand(water *scene.Water, camera models.Camera) drawCommand {
-	if renderer.waterPlane == nil {
-		renderer.waterPlane = newWaterGrid(water.Size)
-	}
-	deepColor := water.Deep
-	if deepColor == (graphics.Vec4{}) {
-		deepColor = graphics.Vec4{0.05, 0.22, 0.28, 0.85}
-	}
-	renderer.waterPlane.Material.BaseColor = deepColor
-	world := graphics.Translate(graphics.Vec4{camera.Position[0], water.Level, camera.Position[2], 0})
-	node := &scene.Node{Name: "water", Mesh: renderer.waterPlane}
-	return drawCommand{node: node, world: world, material: renderer.waterPlane.Material, squaredCameraDistance: -1, transparent: true, seaSurface: true}
-}
-
-// waterFloorCommand returns an opaque dark floor under the water, so that nothing behind the
-// scene shows through the translucent surface where the geometry ends.
-func (renderer *SceneRenderer) waterFloorCommand(water *scene.Water, camera models.Camera) drawCommand {
-	if renderer.waterFloor == nil {
-		renderer.waterFloor = newWaterPlane(water.Size)
-		renderer.waterFloor.Material = &scene.Material{Name: "water floor", Kind: scene.KindUnlit, DoubleSided: true}
-	}
-	deep := water.Deep
-	renderer.waterFloor.Material.BaseColor = graphics.Vec4{deep[0] * 0.6, deep[1] * 0.6, deep[2] * 0.6, 1}
-	depth := water.Level - water.EffectiveFloorDepth()
-	world := graphics.Translate(graphics.Vec4{camera.Position[0], depth, camera.Position[2], 0})
-	node := &scene.Node{Name: "water floor", Mesh: renderer.waterFloor}
-	return drawCommand{node: node, world: world, material: renderer.waterFloor.Material}
-}
-
-// waterGridDivisions is the number of cells per side of the water surface.
-const waterGridDivisions = 256
-
-// newWaterGrid returns the water surface as a grid whose cells are small near its centre (the
-// camera) and large far away, so a varying surface (tides) meets the coast accurately nearby.
-func newWaterGrid(size float32) *scene.Mesh {
-	if size <= 0 {
-		size = 1000
-	}
-	half := size / 2
-	vertices := waterGridDivisions + 1
-	mesh := &scene.Mesh{Name: "water",
-		Material: &scene.Material{Name: "water", Kind: scene.KindWater, Transparent: true, DoubleSided: true}}
-	for row := 0; row < vertices; row++ {
-		for column := 0; column < vertices; column++ {
-			mesh.Positions = append(mesh.Positions, half*denseNearCentre(column, vertices), 0, half*denseNearCentre(row, vertices))
-			mesh.Normals = append(mesh.Normals, 0, 1, 0)
-		}
-	}
-	for row := 0; row < waterGridDivisions; row++ {
-		for column := 0; column < waterGridDivisions; column++ {
-			corner := uint32(row*vertices + column)
-			next := corner + uint32(vertices)
-			mesh.Indices = append(mesh.Indices, corner, next, corner+1, corner+1, next, next+1)
-		}
-	}
-	return mesh
-}
-
-// denseNearCentre maps a grid index to -1..1 with a quadratic spacing: fine in the middle.
-func denseNearCentre(index, count int) float32 {
-	linear := 2*float32(index)/float32(count-1) - 1
-	if linear < 0 {
-		return -linear * linear
-	}
-	return linear * linear
-}
-
-func newWaterPlane(size float32) *scene.Mesh {
-	if size <= 0 {
-		size = 1000
-	}
-	half := size / 2
-	return &scene.Mesh{
-		Name:      "water",
-		Positions: []float32{-half, 0, -half, half, 0, -half, -half, 0, half, half, 0, half},
-		Normals:   []float32{0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0},
-		Indices:   []uint32{0, 2, 1, 1, 2, 3},
-		Material:  &scene.Material{Name: "water", Kind: scene.KindWater, Transparent: true, DoubleSided: true},
 	}
 }

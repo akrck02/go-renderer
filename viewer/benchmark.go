@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/akrck02/go-renderer/opengl"
+	"github.com/akrck02/go-renderer/sceneplan"
 )
 
 // warmupFrames are drawn before measuring, while meshes are uploaded to the GPU.
@@ -19,8 +19,8 @@ type benchmark struct {
 	drawn          int
 	loadingTime    time.Duration
 	firstFrame     time.Duration
-	total          opengl.FrameStatistics
-	last           opengl.FrameStatistics
+	total          sceneplan.FrameStatistics
+	last           sceneplan.FrameStatistics
 	processorAlone time.Duration // processor time in the round without timers
 	betweenFrames  time.Duration // wall time of the round without timers
 	untimedStarted time.Time
@@ -36,7 +36,7 @@ func (measurement *benchmark) timing() bool {
 }
 
 // record adds a frame and reports whether the measurement is complete.
-func (measurement *benchmark) record(statistics opengl.FrameStatistics) bool {
+func (measurement *benchmark) record(statistics sceneplan.FrameStatistics) bool {
 	measurement.drawn++
 	if measurement.drawn == 1 {
 		measurement.firstFrame = statistics.CPU
@@ -60,7 +60,7 @@ func (measurement *benchmark) record(statistics opengl.FrameStatistics) bool {
 }
 
 // recordUntimed adds a frame of the second round.
-func (measurement *benchmark) recordUntimed(statistics opengl.FrameStatistics) bool {
+func (measurement *benchmark) recordUntimed(statistics sceneplan.FrameStatistics) bool {
 	measurement.processorAlone += statistics.CPU
 	if measurement.drawn < warmupFrames+2*measurement.frames {
 		return false
