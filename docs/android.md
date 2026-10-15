@@ -170,7 +170,8 @@ fields copy and paste with other applications. `OpenLink(link)` opens a link in 
 that shows it (an `ACTION_VIEW` intent: a web page, `mailto:`, `tel:`, `geo:`), and `Share(title,
 text)` offers a text through the system's sheet (`ACTION_SEND` in a chooser). `Options.Hidden` is
 called on the drawing thread when the activity pauses: Android may end the program after that
-without a word, so it is the moment to keep what must survive.
+without a word, so it is the moment to keep what must survive. `Options.Shown` is called when it
+resumes (at the start too): the moment to play again a sound `Hidden` stopped.
 
 **Films.** `OpenVideo(path)` decodes a film's pictures with the phone's own decoders (the NDK's
 `MediaCodec`: MP4 and WebM, H.264, H.265, VP8, VP9, AV1), a step at a time from the goroutine that
