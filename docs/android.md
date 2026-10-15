@@ -25,6 +25,7 @@ Android                 NativeActivity loads the program, a shared library built
 | OpenGL ES, called directly | `android/gl.go` |
 | The system's bars and theme, and the wallpaper's palettes, through JNI | `android/system.c`, `android/palettes.go` |
 | What a screen reader (TalkBack) reads, and what it asks | `android/screenreader.go`, `screenreader.c`, `android/java/ScreenReader.java` |
+| The text the on-screen keyboard edits: words, suggestions, the word being composed | `android/keyboard.go`, `android/textinput.go`, `textinput.c`, `android/java/TextInput.java` |
 
 **Starting.** Android loads the library and calls `ANativeActivity_onCreate`. Go does not run
 `main.main` in a shared library by itself, so the first time the library finds it by name and calls
@@ -120,6 +121,30 @@ shrinks while the keyboard is up, so what is typed in stays in sight. The window
 size; what changes is how much of its bottom the keyboard covers, which Android tells through
 `onContentRectChanged`: the insets are read again then, as the keyboard comes and goes.
 
+**What the keyboard edits.** A phone's keyboard does not type key by key: it edits the focused
+view's text through an `InputConnection`. It suggests words from the text around the caret, keeps
+the word it is still making underlined (*composing*: a prediction, a Chinese or Japanese reading)
+until it commits it or a suggestion replaces it, and deletes around the caret. NativeActivity's view
+offers no connection, so the package carries a small view of its own, `TextInput.java`: a pixel in
+the corner, drawing nothing, focused while a field is typed in. It keeps a copy of the field's text
+for the keyboard and tells Go the whole state after each edit.
+
+```text
+the program's field                       TextInput.java (a copy of the text)        the keyboard
+  EditText(field, text, secret)   ──────►  set: the text, the caret, the composing  ──► suggests from it
+  TakeTextEdit(field)             ◄──────  edited: the whole text after each edit   ◄── commits, composes, deletes
+```
+
+Both sides edit at once (a hardware key goes to Go; a word goes to Java), so each of the keyboard's
+edits is numbered: Go's text says which edit it comes after, and a text from before the latest one
+is dropped, as the keyboard has typed since. An edit of a field no longer typed in is dropped too.
+Positions cross as UTF-16 units, as Java counts them, and become characters in Go: an emoji is one
+character and two units. A `secret` field asks for a password's keyboard, with no suggestions; Enter
+is the keyboard's *Done*, which reaches Go as the Enter key. A package without the class (made by an
+older tool) types key by key, as before. Tried on the Android 14 emulator with Android's own
+keyboard: "harb" composes underlined, its suggestion "harbour" replaces it, a hardware key and the
+keyboard's backspace edit the same text, and a password gets no suggestions.
+
 **A finger lifted leaves nothing under it.** After the frame where a finger is lifted
 (`input.TouchPointer`), the pointer goes off the window (`State.PointerLeaves`): with a mouse, the
 control under the pointer is lit, and on a touch screen the last control touched stayed so.
@@ -199,8 +224,6 @@ ScreenReader.java         a virtual view per node, answering TalkBack; its focus
 
 ## Not yet
 
-- Characters a keyboard sends whole rather than key by key (some keyboards' suggestions, emoji):
-  Android hands them as one event whose text needs the Java event, which a NativeActivity does not
-  get.
+- Keyboards for Chinese and Japanese, which compose the same way, are not tried yet.
 - Long presses.
 - Instanced drawing with OpenGL ES 3, and the full scene renderer (shadows, sky, waves) on phones.
