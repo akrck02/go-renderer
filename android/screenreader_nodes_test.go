@@ -57,3 +57,13 @@ func TestJavaNumbersFlagsAndActionsAlike(t *testing.T) {
 		t.Fatal("the class is where its name says")
 	}
 }
+
+func TestTextFromJavaKeepsWhatUTF16Holds(t *testing.T) {
+	typed := "North light 🌊 at dusk"
+	if text := textFrom(utf16.Encode([]rune(typed))); text != typed {
+		t.Fatalf("an emoji crosses whole: %q", text)
+	}
+	if text := textFrom(nil); text != "" {
+		t.Fatalf("no characters, no text: %q", text)
+	}
+}

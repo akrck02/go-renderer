@@ -188,12 +188,14 @@ ScreenReader.java         a virtual view per node, answering TalkBack; its focus
   which reach the input queue like touches. They go to Java, which finds the smallest node under the
   finger and tells TalkBack it came onto it; TalkBack reads it and puts its focus there.
 - **What TalkBack asks.** A double tap is a click on the node it is on, a double tap held a long
-  click, a swipe with two fingers or the volume keys on a slider a scroll. Java passes them on
+  click, a swipe with two fingers or the volume keys on a slider a scroll, and text the screen reader
+  types, pastes or dictates into a field replaces its text (`ReaderSetText`, with the action's
+  `Text`). Java passes them on
   (`TakeReaderActions`) and wakes the drawing thread; the interface does them in the next frame. Where
   TalkBack's focus is (`ScreenReaderFocus`) comes the same way, for the program to ring it: the
   window is a native surface, where Android draws no ring of its own.
 - **Text as UTF-16.** JNI's own UTF-8 is not quite UTF-8: an emoji in a label sent that way stops a
-  program. Labels cross as Java keeps them.
+  program. Labels cross as Java keeps them, and so does a field's new text on its way back.
 
 ## Not yet
 

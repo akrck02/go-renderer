@@ -16,7 +16,8 @@ import (
 
 // A screen reader (TalkBack) reads the window through ScreenReader.java, which answers Android with
 // the nodes the program last showed. While one is on, a finger exploring the screen comes as hover
-// events, which go to Java to be read; a double tap comes back here as an action on a node.
+// events, which go to Java to be read; a double tap comes back here as an action on a node, and
+// text the screen reader puts in a field as one carrying it.
 
 var (
 	readerOn      atomic.Bool
@@ -80,6 +81,15 @@ func hoverForReader(action C.int32_t, x, y float32) {
 func goReaderActed(node, action C.int) {
 	readerActions.Lock()
 	readerActions.list = append(readerActions.list, ReaderAction{Node: int32(node), Kind: ReaderActionKind(action)})
+	readerActions.Unlock()
+	Wake()
+}
+
+//export goReaderTyped
+func goReaderTyped(node C.int, characters *C.jchar, length C.int) {
+	text := textFrom(unsafe.Slice((*uint16)(unsafe.Pointer(characters)), int(length)))
+	readerActions.Lock()
+	readerActions.list = append(readerActions.list, ReaderAction{Node: int32(node), Kind: ReaderSetText, Text: text})
 	readerActions.Unlock()
 	Wake()
 }

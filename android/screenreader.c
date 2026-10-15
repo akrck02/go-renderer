@@ -1,7 +1,7 @@
 //go:build android
 
 // The screen reader's side in C: it finds ScreenReader.java in the package, gives it the Go
-// functions it calls (acted, focused, readerChanged) and calls it with the frame's nodes and with
+// functions it calls (acted, typed, focused, readerChanged) and calls it with the frame's nodes and with
 // the finger exploring the screen. A package without the class (made by an older tool) runs without
 // a screen reader, and says so once in the log.
 
@@ -23,6 +23,19 @@ static int thrown(JNIEnv *env) {
 }
 
 static void JNICALL reader_acted(JNIEnv *env, jclass class, jint node, jint action) { goReaderActed(node, action); }
+// reader_typed passes on a field's new text as Java keeps it, UTF-16: JNI's own UTF-8 is not quite
+// UTF-8, and an emoji in it stops the program.
+static void JNICALL reader_typed(JNIEnv *env, jclass class, jint node, jstring text) {
+	if (text == NULL) {
+		goReaderTyped(node, NULL, 0);
+		return;
+	}
+	jsize length = (*env)->GetStringLength(env, text);
+	const jchar *characters = (*env)->GetStringChars(env, text, NULL);
+	if (characters == NULL) return;
+	goReaderTyped(node, (jchar *)characters, length);
+	(*env)->ReleaseStringChars(env, text, characters);
+}
 static void JNICALL reader_focused(JNIEnv *env, jclass class, jint node) { goReaderFocused(node); }
 static void JNICALL reader_changed(JNIEnv *env, jclass class, jboolean on) { goReaderChanged(on ? 1 : 0); }
 
@@ -59,10 +72,11 @@ static int prepare_reader_class(JNIEnv *env, jobject activity) {
 	}
 	JNINativeMethod natives[] = {
 		{"acted", "(II)V", (void *)reader_acted},
+		{"typed", "(ILjava/lang/String;)V", (void *)reader_typed},
 		{"focused", "(I)V", (void *)reader_focused},
 		{"readerChanged", "(Z)V", (void *)reader_changed},
 	};
-	if ((*env)->RegisterNatives(env, found, natives, 3) != 0 || thrown(env)) {
+	if ((*env)->RegisterNatives(env, found, natives, sizeof natives / sizeof natives[0]) != 0 || thrown(env)) {
 		(*env)->DeleteLocalRef(env, found);
 		return 0;
 	}

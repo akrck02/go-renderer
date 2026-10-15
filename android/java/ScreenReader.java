@@ -2,8 +2,8 @@
 // window. Android asks a view's AccessibilityNodeProvider, an abstract class, for what it holds,
 // and JNI cannot make a subclass, so this is Java. Go draws everything in one native window; the
 // program's interface tells this class what is where (update), and it answers Android with a
-// virtual view for each thing, and passes back what the screen reader asks: press, scroll, the
-// thing it is on. go-ui-apk compiles it into the package.
+// virtual view for each thing, and passes back what the screen reader asks: press, scroll, a
+// field's new text, the thing it is on. go-ui-apk compiles it into the package.
 package io.github.akrck02.gorenderer;
 
 import android.app.Activity;
@@ -35,6 +35,7 @@ public final class ScreenReader extends AccessibilityNodeProvider {
 
 	// Calls into Go, registered by screenreader.c.
 	static native void acted(int node, int action);
+	static native void typed(int node, String text);
 	static native void focused(int node);
 	static native void readerChanged(boolean on);
 
@@ -244,6 +245,8 @@ public final class ScreenReader extends AccessibilityNodeProvider {
 			info.setPassword((flags & SECRET) != 0);
 			info.setText(value);
 			info.setHintText(label);
+			// the screen reader's own typing, pasting and dictation replace the whole text
+			if ((flags & DISABLED) == 0) info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_TEXT);
 		} else {
 			info.setText(label);
 			if (!value.isEmpty()) {
@@ -312,6 +315,12 @@ public final class ScreenReader extends AccessibilityNodeProvider {
 			return true;
 		case AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD:
 			acted(virtualViewId, BACKWARD);
+			return true;
+		case AccessibilityNodeInfo.ACTION_SET_TEXT:
+			if ((known.flags[index] & (EDITABLE | DISABLED)) != EDITABLE) return false;
+			CharSequence text = arguments == null ? null
+				: arguments.getCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE);
+			typed(virtualViewId, text == null ? "" : text.toString());
 			return true;
 		}
 		if (action == android.R.id.accessibilityActionSetProgress && arguments != null) {
