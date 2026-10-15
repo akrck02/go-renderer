@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -26,11 +27,21 @@ type Options struct {
 	Heading       float64     // walking: degrees clockwise from north (-z) the walker starts facing; NaN keeps the default
 	Pitch         float64     // walking: degrees the walker starts looking up (negative = down)
 	EyeHeight     float64     // walking: eye height in scene units; 0 keeps the default (a share of the scene size)
+	WalkSpeed     float64     // walking: speed in scene units per second; 0 keeps the default (a share of the scene size)
+	// Continuous draws every frame, so water, clouds and plants in the wind keep moving while
+	// nothing else happens. By default the viewer draws only when something changes (input, the
+	// camera, the sun, notices), unless it runs a program's update function (a simulation).
+	Continuous bool
+	// Backend is what draws: Automatic (Metal on macOS, OpenGL elsewhere), Metal or OpenGL.
+	Backend Backend
+	// Time, when not NaN, draws every frame as if this many seconds had passed (water, clouds and
+	// waterfalls stand still): captures that must come out the same, to compare them.
+	Time float64
 }
 
 // DefaultOptions returns a 1280×800 window with the scene's own sun.
 func DefaultOptions() Options {
-	return Options{Width: 1280, Height: 800, SunElevation: math.NaN(), SunAzimuth: math.NaN(), Zoom: 1, Heading: math.NaN()}
+	return Options{Width: 1280, Height: 800, SunElevation: math.NaN(), SunAzimuth: math.NaN(), Zoom: 1, Heading: math.NaN(), Time: math.NaN()}
 }
 
 // RegisterFlags declares the viewer options as command-line flags, starting from the defaults.
@@ -53,10 +64,14 @@ func (options *Options) RegisterFlags(flags *flag.FlagSet) {
 	flags.Float64Var(&options.Heading, "heading", defaults.Heading, "with -walk, start facing this way: degrees clockwise from north (-z)")
 	flags.Float64Var(&options.Pitch, "pitch", defaults.Pitch, "with -walk, start looking up this many degrees (negative = down)")
 	flags.Float64Var(&options.EyeHeight, "eye-height", defaults.EyeHeight, "with -walk, eye height in scene units (0 = a share of the scene size)")
+	flags.Float64Var(&options.WalkSpeed, "walk-speed", defaults.WalkSpeed, "walking speed in scene units per second (0 = a share of the scene size)")
+	flags.BoolVar(&options.Continuous, "continuous", false, "draw every frame, so water, clouds and wind keep moving while nothing else happens")
+	flags.Var(&options.Backend, "backend", "what draws the scene: automatic, metal or opengl")
+	flags.Float64Var(&options.Time, "time", defaults.Time, "draw as if this many seconds had passed, with water and clouds still (captures to compare)")
 }
 
 // Usage lists the viewer flags for a usage line.
-const Usage = "[-width W] [-height H] [-capture frame.png] [-walk] [-no-shadows] [-night] [-sun-elevation D] [-sun-azimuth D] [-zoom F] [-benchmark N] [-no-vsync] [-look-at x,z] [-heading D] [-pitch D] [-eye-height H]"
+const Usage = "[-width W] [-height H] [-capture frame.png] [-walk] [-no-shadows] [-night] [-sun-elevation D] [-sun-azimuth D] [-zoom F] [-benchmark N] [-no-vsync] [-look-at x,z] [-heading D] [-pitch D] [-eye-height H] [-walk-speed S] [-time S] [-backend B] [-continuous]"
 
 // pointFlag reads a point "x,z" from the command line.
 type pointFlag struct {
@@ -85,4 +100,38 @@ func (value pointFlag) Set(text string) error {
 	}
 	*value.point = &point
 	return nil
+}
+
+// Backend is the graphics interface a session draws through.
+type Backend string
+
+const (
+	Automatic Backend = ""       // Metal on macOS, falling back to OpenGL if it cannot start; OpenGL elsewhere
+	Metal     Backend = "metal"  // only on macOS
+	OpenGL    Backend = "opengl" // OpenGL 4.1
+)
+
+// Set reads a backend from a flag: automatic, metal or opengl.
+func (backend *Backend) Set(text string) error {
+	switch text {
+	case "automatic", "":
+		*backend = Automatic
+	case string(Metal), string(OpenGL):
+		*backend = Backend(text)
+	default:
+		return fmt.Errorf("unknown backend %q: use automatic, metal or opengl", text)
+	}
+	return nil
+}
+
+func (backend *Backend) String() string {
+	if *backend == Automatic {
+		return "automatic"
+	}
+	return string(*backend)
+}
+
+// usesMetal tells whether a session should try Metal first.
+func (backend Backend) usesMetal() bool {
+	return backend == Metal || backend == Automatic && runtime.GOOS == "darwin"
 }

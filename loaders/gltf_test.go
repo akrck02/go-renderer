@@ -114,3 +114,31 @@ func TestLoadSceneGroundInstancesAndExtras(t *testing.T) {
 		t.Fatal("point outside the triangle should have no ground")
 	}
 }
+
+func TestASceneIsReadFromTheBytesOfAGLB(t *testing.T) {
+	positions := littleEndianFloats(0, 0, 0, 10, 0, 0, 0, 10, 10)
+	document := map[string]any{
+		"asset":       map[string]any{"version": "2.0"},
+		"scene":       0,
+		"scenes":      []any{map[string]any{"nodes": []int{0}}},
+		"nodes":       []any{map[string]any{"name": "triangle", "mesh": 0}},
+		"meshes":      []any{map[string]any{"primitives": []any{map[string]any{"attributes": map[string]int{"POSITION": 0}}}}},
+		"accessors":   []any{map[string]any{"bufferView": 0, "componentType": 5126, "count": 3, "type": "VEC3"}},
+		"bufferViews": []any{map[string]any{"buffer": 0, "byteOffset": 0, "byteLength": len(positions)}},
+		"buffers":     []any{map[string]any{"byteLength": len(positions)}},
+	}
+	content, err := os.ReadFile(writeGLB(t, document, positions))
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := ParseSceneGLB(content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(loaded.Nodes) != 1 || loaded.Nodes[0].Name != "triangle" || loaded.Nodes[0].Mesh.VertexCount() != 3 {
+		t.Fatalf("nodes = %+v, want the triangle", loaded.Nodes)
+	}
+	if _, err := ParseSceneGLB([]byte("{}")); err == nil {
+		t.Fatal("a JSON glTF was taken for a .glb")
+	}
+}

@@ -1,4 +1,4 @@
-package opengl
+package windowloop
 
 import (
 	"github.com/akrck02/go-renderer/input"
@@ -23,6 +23,18 @@ var keysFromGLFW = map[glfw.Key]input.Key{
 	glfw.KeyPageUp: input.KeyPageUp, glfw.KeyPageDown: input.KeyPageDown,
 	glfw.KeyLeftBracket: input.KeyLeftBracket, glfw.KeyRightBracket: input.KeyRightBracket,
 	glfw.KeyComma: input.KeyComma, glfw.KeyPeriod: input.KeyPeriod,
+	glfw.KeyBackspace: input.KeyBackspace, glfw.KeyDelete: input.KeyDelete,
+	glfw.KeyHome: input.KeyHome, glfw.KeyEnd: input.KeyEnd,
+	glfw.KeyLeftSuper: input.KeySuper, glfw.KeyRightSuper: input.KeySuper,
+}
+
+var cursorShapesToGLFW = map[input.CursorShape]glfw.StandardCursor{
+	input.CursorArrow:            glfw.ArrowCursor,
+	input.CursorText:             glfw.IBeamCursor,
+	input.CursorHand:             glfw.HandCursor,
+	input.CursorResizeHorizontal: glfw.HResizeCursor,
+	input.CursorResizeVertical:   glfw.VResizeCursor,
+	input.CursorMove:             glfw.ResizeAllCursor,
 }
 
 var mouseButtonsFromGLFW = map[glfw.MouseButton]input.MouseButton{
@@ -31,31 +43,43 @@ var mouseButtonsFromGLFW = map[glfw.MouseButton]input.MouseButton{
 	glfw.MouseButtonMiddle: input.MouseMiddle,
 }
 
-// forwardInputEvents sends GLFW keyboard, mouse and scroll events into an input.State.
-func forwardInputEvents(window *glfw.Window, state *input.State) {
+// ForwardInput sends GLFW keyboard, mouse, scroll and text events into an input.State, and
+// gives it the system clipboard.
+func ForwardInput(window *glfw.Window, state *input.State) {
 	window.SetKeyCallback(func(_ *glfw.Window, key glfw.Key, _ int, action glfw.Action, _ glfw.ModifierKey) {
-		if mapped, known := keysFromGLFW[key]; known && action != glfw.Repeat {
-			state.SetKey(mapped, action == glfw.Press)
+		mapped, known := keysFromGLFW[key]
+		if !known {
+			return
 		}
+		if action == glfw.Repeat {
+			state.RepeatKey(mapped)
+			return
+		}
+		state.SetKey(mapped, action == glfw.Press)
 	})
+	window.SetCharCallback(func(_ *glfw.Window, character rune) { state.AddCharacter(character) })
 	window.SetMouseButtonCallback(func(_ *glfw.Window, button glfw.MouseButton, action glfw.Action, _ glfw.ModifierKey) {
 		if mapped, known := mouseButtonsFromGLFW[button]; known {
 			state.SetButton(mapped, action == glfw.Press)
 		}
 	})
 	window.SetCursorPosCallback(func(_ *glfw.Window, x, y float64) { state.MoveCursor(x, y) })
-	window.SetScrollCallback(func(_ *glfw.Window, _, verticalScroll float64) { state.AddScroll(verticalScroll) })
-	updateWindowSizes(window, state)
+	window.SetScrollCallback(func(_ *glfw.Window, horizontalScroll, verticalScroll float64) {
+		state.AddScroll(verticalScroll)
+		state.AddHorizontalScroll(horizontalScroll)
+	})
+	state.Clipboard = windowClipboard{window}
+	UpdateSizes(window, state)
 }
 
-// updateWindowSizes copies the framebuffer and window sizes into the input state.
-func updateWindowSizes(window *glfw.Window, state *input.State) {
+// UpdateSizes copies the framebuffer and window sizes into the input state.
+func UpdateSizes(window *glfw.Window, state *input.State) {
 	state.FramebufferWidth, state.FramebufferHeight = window.GetFramebufferSize()
 	state.WindowWidth, state.WindowHeight = window.GetSize()
 }
 
-// applyCursorLock captures or releases the cursor when the application changes its request.
-func applyCursorLock(window *glfw.Window, state *input.State, currentlyLocked *bool) {
+// ApplyCursorLock captures or releases the cursor when the application changes its request.
+func ApplyCursorLock(window *glfw.Window, state *input.State, currentlyLocked *bool) {
 	if state.CursorLocked() == *currentlyLocked {
 		return
 	}
@@ -65,4 +89,41 @@ func applyCursorLock(window *glfw.Window, state *input.State, currentlyLocked *b
 	} else {
 		window.SetInputMode(glfw.CursorMode, glfw.CursorNormal)
 	}
+}
+
+// windowClipboard is the system clipboard through GLFW; it must be used on the main thread, where
+// update steps run.
+type windowClipboard struct{ window *glfw.Window }
+
+func (clipboard windowClipboard) ClipboardText() string { return clipboard.window.GetClipboardString() }
+
+func (clipboard windowClipboard) SetClipboardText(text string) {
+	clipboard.window.SetClipboardString(text)
+}
+
+// CursorShapes shows the pointer shape the application asks for, creating each system cursor once.
+type CursorShapes struct {
+	current input.CursorShape
+	cursors map[input.CursorShape]*glfw.Cursor
+}
+
+func (shapes *CursorShapes) Apply(window *glfw.Window, state *input.State) {
+	wanted := state.CursorShape()
+	if wanted == shapes.current {
+		return
+	}
+	shapes.current = wanted
+	if shapes.cursors == nil {
+		shapes.cursors = map[input.CursorShape]*glfw.Cursor{}
+	}
+	cursor, created := shapes.cursors[wanted]
+	if !created {
+		standard, known := cursorShapesToGLFW[wanted]
+		if !known {
+			standard = glfw.ArrowCursor
+		}
+		cursor = glfw.CreateStandardCursor(standard)
+		shapes.cursors[wanted] = cursor
+	}
+	window.SetCursor(cursor)
 }

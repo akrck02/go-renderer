@@ -10,7 +10,33 @@ go run ./cmd/visor -walk scene.glb
 go run ./cmd/visor -map scene.glb                 # a 2D map seen from straight above
 go run ./cmd/visor -isometric scene.glb           # the same map, at the classic isometric angle
 go run ./cmd/visor -capture frame.png scene.glb   # one frame to PNG, hidden window
+go run ./cmd/visor -sample island                 # a built-in made-up island, no file needed
 go run ./cmd/visor -benchmark 120 scene.glb       # CPU and GPU times per pass, draw calls, triangles
+```
+
+The viewer **draws only when something changes**: a key or button held, the mouse moving the
+camera, a camera easing to a stop, the sun turning, a notice fading, the window resized. In
+between it sleeps and uses no processor or GPU, and the water and clouds stand still until the next
+frame. `-continuous` draws every frame instead; a program that passes an update function (a
+simulation) and `-benchmark` always do.
+
+### Editing the scene
+
+`viewer.Edit` shows a scene like `viewer.Run`, for a program that changes it in answer to the user
+(a level editor, a floor plan designer). Its function runs at every step, before the viewer's own
+controls, and receives a `viewer.View`: the camera that drew the frame the user is looking at and
+the window's size. `View.PointOnPlane(x, y, height)` and `View.PointOnGround(x, y)` turn a point of
+the window (the pointer, `input.State.CursorX` and `CursorY`) into a point of the scene: on a flat
+floor, or on the walkable ground with its relief. The viewer keeps drawing on demand; a program
+that claims the mouse (`input.State.ClaimMouse`, as go-ui does over its panels) keeps it from the
+camera for that step. `camera.RayThrough` is the ray behind both, for any camera.
+
+```go
+viewer.Edit(world, options, "Editor", func(world *scene.Scene, state *input.State, step float64, view viewer.View) {
+	if point, onGround := view.PointOnGround(state.CursorX, state.CursorY); onGround && state.ButtonReleased(input.MouseLeft) {
+		placeSomething(world, point)
+	}
+})
 ```
 
 ## Orbit camera (default)
@@ -75,12 +101,17 @@ lifted while a map is shown.
 | `-heading D` | With `-walk`, start facing this way: degrees clockwise from north (−z) |
 | `-pitch D` | With `-walk`, start looking up this many degrees (negative = down) |
 | `-eye-height H` | With `-walk`, eye height in scene units (0 = a share of the scene size) |
+| `-walk-speed S` | Walking speed in scene units per second (0 = a share of the scene size); `[` `]` then change it within a range around it, so a small scene in large units (a plant in kilometres) walks at a person's pace |
 | `-no-shadows` | Start without sun shadows |
 | `-width` / `-height` | Window size |
-| `-capture frame.png` | Render one frame to a PNG with a hidden window, and exit |
+| `-capture frame.png` | Render one frame to a PNG with a hidden window, and exit (the [overlay](overlay.md) included) |
 | `-benchmark N` | Measure N frames, print CPU and GPU times per pass, draw calls and triangles, and exit |
 | `-no-vsync` | Do not wait for the display; the window title shows the real frames per second |
 | `-cpu-profile file` | Write a CPU profile of the session for `go tool pprof` |
+| `-continuous` | Draw every frame, so the water, clouds and plants in the wind keep moving while nothing else happens |
+| `-backend B` | What draws: `automatic` (Metal on macOS, OpenGL elsewhere), `metal` or `opengl` |
+| `-sample island` / `-sample night` | Open the built-in sample island (package `scene/sample`) instead of a file |
+| `-time S` | Draw every frame as if S seconds had passed: water and clouds stand still, so captures can be compared |
 
 Other programs reuse these options: `viewer.Options.RegisterFlags` adds them to any flag set, as
 go-simulator's live simulator does.

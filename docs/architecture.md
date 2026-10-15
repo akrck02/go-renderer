@@ -18,11 +18,20 @@ scene, and it shows the result.
 |---|---|
 | `graphics` | Vectors, matrices, coordinate spaces and transformations; the shader sources |
 | `models` | The application loop (`Application`, a fixed time step before every frame), the `Renderer` contract and the backend enumeration |
-| `software`, `opengl`, `vulkan`, `metal`, `webgpu` | Backends behind the contract; OpenGL is the complete one |
-| `scene` | The retained, backend-independent scene |
+| `software`, `opengl`, `vulkan`, `metal`, `webgpu` | Backends behind the contract; OpenGL is the complete one. `metal` also has `FlatWindow` and `FlatRenderer`, which draw a flat interface through Metal on macOS ([design](metal.md)) |
+| `sceneplan` | Decides what a frame of a scene draws, for any backend: the draw commands in order, culling and levels of detail, instance batches, where the shadow and seabed maps look |
+| `scene/sample` | A made-up island that uses every feature the renderers draw, for tests and comparisons |
+| `gles` | Renderers written once for OpenGL ES (WebGL2 in browsers, Android): a flat `FlatRenderer` and a simple `SceneRenderer`, over a small interface each platform implements ([in a browser](web.md)) |
+| `browser` | Built only for WebAssembly: a canvas as the window, its events as input, WebGL2, and the loop over `requestAnimationFrame` |
+| `android` | Built only for Android: the program as a NativeActivity's shared library, its window, touches and drawing thread, direct OpenGL ES calls ([on Android](android.md)) |
+| `frameloop` | The fixed-step clock and update step that the desktop and browser loops share |
+| `windowloop` | The window loop both OpenGL and Metal use: GLFW events and input, drawing on demand, the fixed-step clock, redrawing while resizing, the pointer's shape and lock |
+| `scene` | The retained, backend-independent scene, with its overlay (labels, header, notices) |
 | `loaders` | glTF 2.0 loading, including the renderer's extras |
-| `input` | A backend-independent snapshot of keyboard and mouse state |
-| `camera` | Camera controllers: orbit, walk and map |
+| `opengl/overlay` | Lays out the overlay as rectangles of one atlas of glyphs, icons and rounded corners (no graphics context needed) |
+| `draw2d` | A list of flat shapes (rounded rectangles, shadows, text, icons, pictures, clips, layers) to paint over the view, filled by a program or an interface library |
+| `input` | A backend-independent snapshot of keyboard and mouse state: held keys and buttons, presses and releases, double clicks, typed characters, clipboard, pointer shape, and what an interface claimed |
+| `camera` | Camera controllers: orbit, walk and map; the ray through a point of the window (`RayThrough`) and where it meets a plane or the ground |
 | `viewer` | The interactive explorer behind `cmd/visor` |
 | `cmd/visor` | The viewer as a program |
 
@@ -45,6 +54,21 @@ type Renderer interface {
 Coordinates can be given in local, world or viewport space; the backend does the transformations.
 `models.Application.Update` runs at a fixed time step before every frame, so motion does not
 depend on the frame rate.
+
+An application that is mostly still (a window of controls) sets `DrawOnDemand`: the loop then
+sleeps in `glfw.WaitEvents` and draws only when input arrives, when the program asked for a frame
+with `input.State.RequestFrame` (a caret's next blink), or when another goroutine calls
+`opengl.Wake` (or `windowloop.Wake`). Each such frame runs one update step, and a frame with input is followed by one
+more so hover looks catch up with a layout that just changed. Idle, it uses no processor. `Application.Unchanged` lets an application say a frame would repeat
+the last one shown (go-ui compares `draw2d.List.Fingerprint`), and the loop then neither draws nor
+presents it. In the default, continuous mode a frame is drawn only after an update step, so a
+display faster than the updates does not draw the same picture twice. While a
+window is being resized, it is redrawn from GLFW's refresh callback, since macOS holds the loop
+until the mouse is let go.
+
+This loop lives in `windowloop` and knows nothing about the graphics interface: `windowloop.Run`
+takes the window, the application and a function that draws and shows one frame. The OpenGL
+backend and the Metal flat window both use it, so they behave the same way.
 
 ## The retained scene
 
@@ -73,14 +97,24 @@ attributes (`KHR_mesh_quantization`: integer positions, normals, colours and ind
 [extras](gltf-extras.md): environment, sky, water, material kinds, levels of detail and walkable
 ground.
 
-## The OpenGL scene renderer
+`loaders.ParseSceneGLB` reads the same from the bytes of a `.glb`, for programs with no file system
+(a web page) or that carry their scene inside them.
 
-`opengl.SceneRenderer` uploads each mesh once and draws instanced geometry in a single call, so a
+## The scene renderers
+
+There are two, which draw the same frame: `opengl.SceneRenderer` and, on macOS, `metal.SceneRenderer`
+(the viewer chooses with `-backend`; Metal by default on macOS). What a frame draws is decided once,
+in `sceneplan`, which makes no graphics calls; each backend only uploads and draws that plan, with
+shaders that are faithful translations of each other. Their captures of the sample island match
+except for rounding and where two surfaces lie in the same plane (`cmd/visor`'s
+`TestMetalDrawsTheSceneLikeOpenGL`; [measurements](metal.md)).
+
+Each uploads each mesh once and draws instanced geometry in a single call, so a
 forest of a hundred thousand trees costs a few draw calls. Every frame goes through the same passes:
 
 ```mermaid
 flowchart LR
-    A[Culling<br/>what is in view,<br/>at what detail] --> B[Shadows<br/>the scene seen<br/>from the sun] --> C[Sky<br/>day, night,<br/>stars, clouds] --> D[Scene<br/>light, fog, patterns,<br/>snow, wind] --> E[Water<br/>depth, waves,<br/>tides, foam]
+    A[Culling<br/>what is in view,<br/>at what detail] --> B[Shadows<br/>the scene seen<br/>from the sun] --> C[Sky<br/>day, night,<br/>stars, clouds] --> D[Scene<br/>light, fog, patterns,<br/>snow, wind] --> E[Water<br/>depth, waves,<br/>tides, foam] --> F[Overlay<br/>labels, header,<br/>notices]
 ```
 
 
@@ -97,17 +131,37 @@ flowchart LR
 5. **Water.** Coloured by its depth, read from a top-down depth map of the ground that is rendered
    once per scene (and again when a ground mesh is `Dirty`); waves, foam on the shore, tides that
    rise and fall differently from place to place, and waterfalls.
+6. **Overlay.** Labels over things in the world, a header and fading notices, and on top of them
+   a free 2D drawing (`Overlay.Drawing`, a `draw2d.List`), in screen space with one texture atlas
+   and one draw call (see [the overlay](overlay.md)).
 
 ## Input, cameras and the viewer
 
-The window backend feeds `input` with a snapshot of the keyboard and the mouse. `camera.Orbit`
+The window backend feeds `input` with a snapshot of the keyboard and the mouse: what is held, and
+what happened since the last update step (keys and buttons that went down or up, keys repeated by
+the system, characters typed, which click of a double click a press was). An interface drawn over
+the view can **claim** the mouse or the keyboard for a step (`ClaimMouse`, `ClaimKeyboard`); the
+viewer gives its cameras and shortcuts `State.Unclaimed()`, a copy without what was claimed, so a
+slider being dragged does not turn the camera. `camera.Orbit`
 (drag, pan, zoom), `camera.Walk` (first person on the ground) and `camera.Plan` (a flat map, from
-above or isometric) turn it into a camera placement. A camera with an `OrthographicHeight` is
+above or isometric) turn it into a camera placement.
+
+On a touch screen the first finger is the pointer (`input.TouchPointer`): it moves the cursor and
+holds the left button, so a tap is a click and a drag turns the orbit. A second finger lets the
+button go, and every finger on the screen is in `State.Touches`. `input.TwoFingers` turns two
+fingers, from one step to the next, into a `Gesture`: how much they spread apart, how much they
+turned and how far their middle moved. `Orbit.Gesture` follows it as a map does: the ground between
+the fingers stays between them while they pinch, twist and move; `Walk.Steer` walks as an on-screen stick says and `Walk.Turn` looks
+around by a finger's movement. The interface's copy (`Unclaimed`) keeps the touches, so a program
+can tell which finger is on its own control. A camera with an `OrthographicHeight` is
 drawn without perspective: it shows that many scene units from the bottom to the top of the
 window, and shadows and levels of detail follow that size instead of the distance to the camera.
 The `viewer` package puts it all together: cameras, sun, fog, shadows, vertical exaggeration,
 headless captures and benchmarks. `viewer.Run` takes an optional update function called at every
-fixed step, so another program can change the scene while it is shown.
+fixed step, so another program can change the scene while it is shown. Without one, the viewer
+draws on demand: only while input arrives, a key is held or the view is still moving.
+`viewer.Edit` is for programs that edit the scene: they run at every step with a `viewer.View`
+that turns the pointer into a point on the ground, and the viewer still draws on demand.
 
 ## Simulations
 

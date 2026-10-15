@@ -3,11 +3,11 @@ package opengl
 import (
 	"image"
 	"image/draw"
-	"math"
 
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/scene"
+	"github.com/akrck02/go-renderer/sceneplan"
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
@@ -31,13 +31,7 @@ type constellationBuffers struct {
 	sky                       *scene.Sky
 	vertexArray, vertexBuffer uint32
 	pointCount                int32
-	lineRanges                []lineRange
-}
-
-// lineRange is the part of the line buffer of one constellation, with its color.
-type lineRange struct {
-	first, count int32
-	color        graphics.Vec4
+	lineRanges                []sceneplan.LineRange
 }
 
 const (
@@ -63,8 +57,8 @@ func newSkyRenderer() (*skyRenderer, error) {
 
 // draw paints the sky where the opaque scene left the far plane uncovered, so the covered pixels
 // cost nothing; it leaves depth testing ready for the transparent scene.
-func (renderer *skyRenderer) draw(environment scene.Environment, light scene.Daylight, camera models.Camera, matrices cameraMatrices, seconds float64) {
-	inverse, invertible := matrices.viewProjection.Inverse()
+func (renderer *skyRenderer) draw(environment scene.Environment, light scene.Daylight, camera models.Camera, matrices sceneplan.CameraMatrices, seconds float64) {
+	inverse, invertible := matrices.ViewProjection.Inverse()
 	if !invertible {
 		return
 	}
@@ -132,31 +126,17 @@ func setMoon(program *shaderProgram, moon *scene.Moon, direction graphics.Vec4) 
 
 func setClouds(program *shaderProgram, clouds scene.Clouds) {
 	program.setFloat("cloudCoverage", clouds.Coverage)
-	program.setVector3("cloudColor", colorOrWhite(clouds.Color))
+	program.setVector3("cloudColor", sceneplan.ColorOrWhite(clouds.Color))
 	program.setFloat("cloudSpeed", clouds.Speed)
-	program.setFloat("cloudScale", scaleOrOne(clouds.Scale))
+	program.setFloat("cloudScale", sceneplan.ScaleOrOne(clouds.Scale))
 	gl.Uniform2f(program.location("cloudOffset"), clouds.Offset[0], clouds.Offset[2])
 }
 
 // setWind gives a program the horizontal wind direction and strength.
 func setWind(program *shaderProgram, wind scene.Wind) {
-	direction := graphics.Vec4{wind.Direction[0], 0, wind.Direction[2], 0}.Normalize()
-	gl.Uniform2f(program.location("windDirection"), direction[0], direction[2])
+	directionX, directionZ := sceneplan.WindDirection(wind)
+	gl.Uniform2f(program.location("windDirection"), directionX, directionZ)
 	program.setFloat("windStrength", wind.Strength)
-}
-
-func colorOrWhite(color graphics.Vec4) graphics.Vec4 {
-	if color == (graphics.Vec4{}) {
-		return graphics.Vec4{1, 1, 1, 1}
-	}
-	return color
-}
-
-func scaleOrOne(value float32) float32 {
-	if value <= 0 {
-		return 1
-	}
-	return value
 }
 
 // bindSkyImage uploads the image once and binds it to its texture unit; kind tells the shader
@@ -263,16 +243,15 @@ func toRGBA(source image.Image) *image.RGBA {
 }
 
 // drawConstellations draws the lines and stars of every constellation, fading them with daylight.
-func (renderer *skyRenderer) drawConstellations(sky *scene.Sky, light scene.Daylight, camera models.Camera, matrices cameraMatrices) {
+func (renderer *skyRenderer) drawConstellations(sky *scene.Sky, light scene.Daylight, camera models.Camera, matrices sceneplan.CameraMatrices) {
 	if len(sky.Constellations) == 0 {
 		return
 	}
 	buffers := renderer.constellationBuffersFor(sky)
-	darkness := float32(math.Pow(float64(1-light.DayAmount), 4))
-	visibility := float32(math.Min(1, float64(darkness+sky.Stars.DaytimeVisibility*(1-darkness))))
+	visibility := sceneplan.ConstellationVisibility(sky, light)
 	program := renderer.constellationProgram
 	gl.UseProgram(program.handle)
-	program.setMatrix("viewProjection", matrices.viewProjection)
+	program.setMatrix("viewProjection", matrices.ViewProjection)
 	program.setVector3("cameraPosition", camera.Position)
 	program.setMatrix("starRotation", light.StarRotation)
 	program.setFloat("visibility", visibility)
@@ -290,8 +269,8 @@ func (renderer *skyRenderer) drawConstellations(sky *scene.Sky, light scene.Dayl
 func drawConstellationLines(program *shaderProgram, buffers *constellationBuffers) {
 	program.setInteger("drawingPoints", 0)
 	for _, lines := range buffers.lineRanges {
-		program.setVector4("lineColor", graphics.Vec4{lines.color[0], lines.color[1], lines.color[2], lines.color[3] * 0.55})
-		gl.DrawArrays(gl.LINES, lines.first, lines.count)
+		program.setVector4("lineColor", sceneplan.LineColor(lines.Color))
+		gl.DrawArrays(gl.LINES, lines.First, lines.Count)
 	}
 }
 
@@ -306,7 +285,7 @@ func (renderer *skyRenderer) constellationBuffersFor(sky *scene.Sky) *constellat
 	if renderer.constellations != nil && renderer.constellations.sky == sky {
 		return renderer.constellations
 	}
-	vertices, pointCount, lineRanges := constellationVertices(sky.Constellations)
+	vertices, pointCount, lineRanges := sceneplan.ConstellationVertices(sky.Constellations)
 	buffers := &constellationBuffers{sky: sky, pointCount: pointCount, lineRanges: lineRanges}
 	gl.GenVertexArrays(1, &buffers.vertexArray)
 	gl.BindVertexArray(buffers.vertexArray)
@@ -318,35 +297,4 @@ func (renderer *skyRenderer) constellationBuffersFor(sky *scene.Sky) *constellat
 	gl.BindVertexArray(0)
 	renderer.constellations = buffers
 	return buffers
-}
-
-// constellationVertices lays out every star first (drawn as points) and then the line segments
-// of each constellation.
-func constellationVertices(constellations []scene.Constellation) (vertices []float32, pointCount int32, lineRanges []lineRange) {
-	for _, constellation := range constellations {
-		for _, star := range constellation.Stars {
-			vertices = append(vertices, star[0], star[1], star[2])
-			pointCount++
-		}
-	}
-	next := pointCount
-	for _, constellation := range constellations {
-		first := next
-		for _, line := range constellation.Lines {
-			if !validLine(line, len(constellation.Stars)) {
-				continue
-			}
-			for _, end := range line {
-				star := constellation.Stars[end]
-				vertices = append(vertices, star[0], star[1], star[2])
-				next++
-			}
-		}
-		lineRanges = append(lineRanges, lineRange{first: first, count: next - first, color: colorOrWhite(constellation.Color)})
-	}
-	return vertices, pointCount, lineRanges
-}
-
-func validLine(line [2]int, starCount int) bool {
-	return line[0] >= 0 && line[1] >= 0 && line[0] < starCount && line[1] < starCount
 }
