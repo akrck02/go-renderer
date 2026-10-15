@@ -19,7 +19,7 @@ func (painter *Painter) paintDrawing(list *draw2d.List, scale float32) {
 	if list.IsEmpty() {
 		return
 	}
-	painter.preparePictures(list)
+	painter.preparePictures(list, scale)
 	for _, index := range painter.drawingOrder(list) {
 		command := &list.Commands[index]
 		first := len(painter.quads)
@@ -59,18 +59,34 @@ func (painter *Painter) paintCommand(command *draw2d.Command, scale float32) {
 }
 
 // preparePictures puts the pictures the list shows in the picture atlas before anything is laid
-// out, so none moves while the frame's quads point at it.
-func (painter *Painter) preparePictures(list *draw2d.List) {
+// out, so none moves while the frame's quads point at it: images, and the emoji in its texts.
+func (painter *Painter) preparePictures(list *draw2d.List, scale float32) {
 	shown := painter.shown[:0]
 	for index := range list.Commands {
-		if command := &list.Commands[index]; command.Kind == draw2d.ImageKind && command.Picture != nil {
+		command := &list.Commands[index]
+		switch {
+		case command.Kind == draw2d.ImageKind && command.Picture != nil:
 			shown = append(shown, command.Picture)
+		case command.Kind == draw2d.TextKind:
+			shown = painter.emojiPictures(command, scale, shown)
 		}
 	}
 	painter.shown = shown
 	if len(shown) > 0 {
 		painter.pictures.prepare(shown)
 	}
+}
+
+// emojiPictures adds the pictures of a text's emoji to a list.
+func (painter *Painter) emojiPictures(command *draw2d.Command, scale float32, shown []*draw2d.Image) []*draw2d.Image {
+	face, size := faceForWeight(command.Weight), max(pixels(command.Size, scale), 1)
+	text := []rune(command.Text)
+	for index, character := range text {
+		if emoji, coloured := painter.fonts.colourFor(face, size, character, askedAsEmoji(text, index)); coloured {
+			shown = append(shown, emoji.picture)
+		}
+	}
+	return shown
 }
 
 // paintImage fills a rounded rectangle with a picture: the corners' coverage from the grey atlas
@@ -86,7 +102,12 @@ func (painter *Painter) paintImage(command *draw2d.Command, scale float32) {
 	}
 	first := len(painter.quads)
 	painter.paintFill(area, cornerPixels(command.Radius, area, scale), colourOf(command.Fill))
-	source := coverCrop(bounds, area)
+	painter.pictureQuads(first, area, coverCrop(bounds, area))
+}
+
+// pictureQuads gives the quads from first on the colours of a part of the picture atlas, source,
+// stretched over an area.
+func (painter *Painter) pictureQuads(first int, area rectangle, source [4]float32) {
 	for index := first; index < len(painter.quads); index++ {
 		quad := &painter.quads[index]
 		for axis := range 2 {
@@ -185,10 +206,39 @@ func (painter *Painter) paintText(command *draw2d.Command, scale float32) {
 	baseline := pixels(command.Baseline, scale)
 	pen := command.Area.X * scale
 	colour := colourOf(command.Fill)
-	for _, character := range painter.drawable([]rune(command.Text), face, size) {
+	// an emoji keeps its own colours, faded as the text is
+	emojiColour := colourOf(draw2d.Color{1, 1, 1, command.Fill[3]})
+	text := []rune(command.Text)
+	for index, character := range text {
+		if invisible(character) {
+			continue
+		}
+		if emoji, coloured := painter.fonts.colourFor(face, size, character, askedAsEmoji(text, index)); coloured {
+			painter.paintEmoji(emoji, int(math.Round(float64(pen))), baseline, emojiColour)
+			pen += emoji.advance
+			continue
+		}
+		if !painter.fonts.hasGlyph(face, size, character) {
+			character = '?'
+		}
 		entry := painter.paintGlyph(face, size, character, int(math.Round(float64(pen))), baseline, colour)
 		pen += entry.Advance
 	}
+}
+
+// paintEmoji draws an emoji's picture with its left edge and top placed from the pen on the
+// baseline, as a glyph's would be.
+func (painter *Painter) paintEmoji(emoji *emojiGlyph, pen, baseline int, colour [4]float32) {
+	bounds, found := painter.pictures.bounds(emoji.picture)
+	if !found {
+		return
+	}
+	left := pen + int(math.Round(float64(emoji.left)))
+	top := baseline - int(math.Round(float64(emoji.top)))
+	area := rectangle{left, top, left + emoji.pixelWidth, top + emoji.pixelHeight}
+	first := len(painter.quads)
+	painter.paintFill(area, 0, colour)
+	painter.pictureQuads(first, area, [4]float32{float32(bounds.Min.X), float32(bounds.Min.Y), float32(bounds.Max.X), float32(bounds.Max.Y)})
 }
 
 func (painter *Painter) paintIcon(command *draw2d.Command, scale float32) {
@@ -284,7 +334,15 @@ func (measurer *Measurer) MeasureText(text string, size float32, weight draw2d.W
 		return draw2d.TextMetrics{}
 	}
 	width := float32(0)
-	for _, character := range text {
+	characters := []rune(text)
+	for index, character := range characters {
+		if invisible(character) {
+			continue
+		}
+		if emoji, coloured := measurer.fonts.colourFor(face, pixelSize, character, askedAsEmoji(characters, index)); coloured {
+			width += emoji.advance
+			continue
+		}
 		advance, found := measurer.fonts.faceFor(face, pixelSize, character).GlyphAdvance(character)
 		if !found {
 			advance, _ = fontFace.GlyphAdvance('?')

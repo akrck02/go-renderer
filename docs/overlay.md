@@ -97,10 +97,20 @@ fonts, as a system's own text is: `FontFolders` are Android's `/system/fonts`, o
 folders. The font is found by the name of its file, which names its script (`NotoNaskhArabic`,
 `NotoSansCJK`, from Go's `unicode` tables); a character of no named font is looked for in every
 file under 8 MB, the last resort. Files are read the first time a character needs them, and a font
-found is kept, shared by every painter and measurer. Colour emoji fonts are left out: they hold
-pictures, not outlines. Tried on the Android 14 emulator: Chinese, Arabic, Devanagari, Hebrew and
-a star in one field. Letters are drawn one after another, left to right: Arabic letters are not
-joined yet, and right-to-left text is not turned round.
+found is kept, shared by every painter and measurer. Letters are drawn one after another, left to
+right: Arabic letters are not joined yet, and right-to-left text is not turned round.
+
+**Emoji** are drawn in their own colours, from the system's colour emoji font: each is a PNG in
+the font's `CBDT` table, found through `CBLC` and `cmap`, which `colour.go` reads (`x/image` does
+not). An emoji becomes a picture in the picture atlas, scaled once to each size it is drawn at, and
+goes in the same draw call as the text, faded as the text is. An emoji by default (a face, a
+pictograph, transport) is drawn as a picture before any outline of it; another character is when
+it is followed by `U+FE0F` (❤️) or when no font has an outline of it. The variation selectors and
+the zero width joiner are not drawn; sequences joined by it (a family, a skin tone) show as their
+parts, as the font's ligatures are not read. Android 13 and later draw their own emoji from vector
+outlines (COLRv1, not read here) and keep the pictures in `NotoColorEmojiLegacy`, which is used;
+the fonts are tried in turn, the one for flags alone last. Tried on the Android 14 emulator:
+"North light 🌊 😀 🚀 ❤️ 灯台" in one field.
 
 On a high-density screen one window pixel is two framebuffer pixels; the viewer sets
 `SceneRenderer.OverlayScale` so the overlay keeps its size.
