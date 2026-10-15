@@ -36,7 +36,7 @@ static int call_setter(JNIEnv *env, jobject builder, const char *name, const cha
 	return cleared(env);
 }
 
-static int sdk_level(JNIEnv *env) {
+int sdk_level(JNIEnv *env) {
 	jclass version = (*env)->FindClass(env, "android/os/Build$VERSION");
 	if (!cleared(env) || version == NULL) return 0;
 	jfieldID field = (*env)->GetStaticFieldID(env, version, "SDK_INT", "I");

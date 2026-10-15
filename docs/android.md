@@ -155,9 +155,13 @@ list): touching it opens the program. Android 13 and later show them only once t
 it: `NotificationsAllowed` tells, and `AskForNotifications` shows Android's question (the package
 names `android.permission.POST_NOTIFICATIONS`). Tried on a OnePlus 7 Pro (Android 10).
 
-**The buzz of a long press.** `FeelLongPress()` gives the short buzz Android's own views give when a
-touch becomes a long press (`View.performHapticFeedback` on the window's view): it follows the
-person's setting for touch feedback and needs no permission.
+**Buzzes.** `Feel(feeling)` gives one of the buzzes Android's own views give
+(`View.performHapticFeedback` on the window's view): `FeelingTick` for something chosen,
+`FeelingConfirm` when something went through, `FeelingReject` when something went wrong or needs a
+look, `FeelingLongPress` when a touch becomes a long press (`FeelLongPress()` too). It follows the
+person's setting for touch feedback and needs no permission. Confirm and reject came with Android 11:
+before it, a confirm is a tick and a reject the long press's buzz, the strongest the older phones
+have.
 
 **No black before the first frame.** Android takes its starting screen away as soon as the window
 is there, while the program's first frame may still be on its way (the Go runtime starting, fonts

@@ -47,7 +47,9 @@ int system_colours(JNIEnv *env, const char **palettes, int palette_count, const 
 int screen_density(void);
 
 // The buzz of a long press (system.c): safe from any thread.
-void feel_long_press(void);
+void feel(int constant);
+int android_level(void);
+int sdk_level(JNIEnv *env);
 
 // The phone's services (services.c). font_scale runs on the drawing thread with its JNI
 // environment; the others are safe from any thread, which they attach to Java.

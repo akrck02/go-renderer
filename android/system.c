@@ -255,10 +255,10 @@ void leave_program(void) {
 	if (failed(env)) ANativeActivity_finish(current_activity);
 }
 
-// feel_long_press gives the short buzz Android's own views give when a touch becomes a long press
-// (View.performHapticFeedback with LONG_PRESS): it follows the person's setting for touch feedback
-// and needs no permission. Safe from any thread, which it attaches to Java.
-void feel_long_press(void) {
+// feel gives one of the buzzes Android's own views give (View.performHapticFeedback on the window's
+// view, with one of HapticFeedbackConstants): it follows the person's setting for touch feedback and
+// needs no permission. Safe from any thread, which it attaches to Java.
+void feel(int constant) {
 	JNIEnv *env = attach_thread();
 	if (env == NULL) return;
 	jobject window = call_object(env, current_activity->clazz, "getWindow", "()Landroid/view/Window;");
@@ -268,10 +268,17 @@ void feel_long_press(void) {
 		jmethodID perform = (*env)->GetMethodID(env, class, "performHapticFeedback", "(I)Z");
 		(*env)->DeleteLocalRef(env, class);
 		if (!failed(env) && perform != NULL) {
-			(*env)->CallBooleanMethod(env, decor, perform, 0); // HapticFeedbackConstants.LONG_PRESS
+			(*env)->CallBooleanMethod(env, decor, perform, constant);
 			failed(env);
 		}
 		(*env)->DeleteLocalRef(env, decor);
 	}
 	if (window != NULL) (*env)->DeleteLocalRef(env, window);
+}
+
+// android_level is the Android API level the phone runs, 0 when it cannot be read.
+int android_level(void) {
+	JNIEnv *env = attach_thread();
+	if (env == NULL) return 0;
+	return sdk_level(env);
 }
