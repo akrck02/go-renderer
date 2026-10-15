@@ -36,12 +36,21 @@ const (
 	ReaderLongPress                             // a double tap held
 	ReaderForward                               // a list scrolls on, a slider goes up a step
 	ReaderBackward                              // a list scrolls back, a slider goes down a step
+	ReaderSetText                               // a field's text is replaced by the action's Text
 )
 
 // ReaderAction is what a screen reader asked of which node.
 type ReaderAction struct {
 	Node int32
 	Kind ReaderActionKind
+	// Text is a field's whole new text, for ReaderSetText: what the screen reader typed, pasted or
+	// spoke into it.
+	Text string
+}
+
+// textFrom is a Java string's UTF-16 as Go text.
+func textFrom(characters []uint16) string {
+	return string(utf16.Decode(characters))
 }
 
 // The bits of a node's flags, as ScreenReader.java reads them.
