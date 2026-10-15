@@ -140,6 +140,25 @@ func (loaded *fonts) faceFor(name faceName, size int, character rune) font.Face 
 	return fallback
 }
 
+// colourFor returns the system's colour picture of an emoji, when it is drawn as one: an emoji by
+// default (a face, a pictograph), or one asked for as an emoji (followed by U+FE0F), before any
+// outline of it; another character only when no font has an outline of it. Icons never are.
+func (loaded *fonts) colourFor(name faceName, size int, character rune, asked bool) (*emojiGlyph, bool) {
+	if name == iconFace || (character < 0x2000 && !asked) {
+		return nil, false // the common case, at no cost
+	}
+	if !asked && !emojiFirst(character) {
+		face := loaded.faceFor(name, size, character)
+		if face == nil {
+			return nil, false
+		}
+		if _, drawn := face.GlyphAdvance(character); drawn {
+			return nil, false
+		}
+	}
+	return systemEmoji.glyph(character, size)
+}
+
 // faceMetrics are the vertical measures of a face, in pixels.
 type faceMetrics struct {
 	ascent, descent, capHeight float32
