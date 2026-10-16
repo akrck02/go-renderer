@@ -107,6 +107,7 @@ type SceneRenderer struct {
 	// this frame's shading, and the shader its uniforms were last set for
 	shading        frameShading
 	light          lightKey
+	bakes          int // meshes baked since the renderer was made (Bakes)
 	bound          *Shader
 	frame          sceneplan.Frame
 	viewProjection graphics.Mat4 // of the eye being drawn, in the PICA200's clip space
@@ -157,6 +158,12 @@ func NewSceneRenderer(screen *Screen) (*SceneRenderer, error) {
 		fogColour: baked.Uniform("fogColour"), model: baked.Uniform("model"),
 	}
 	return renderer, nil
+}
+
+// Bakes is how many times a mesh's light has been worked out on the processor since the renderer
+// was made: when meshes are new, change, or the light changes.
+func (renderer *SceneRenderer) Bakes() int {
+	return renderer.bakes
 }
 
 // Statistics are what the last frame drew; processorTime is how long the program took for it.
@@ -344,12 +351,14 @@ func (renderer *SceneRenderer) bakedFor(mesh *scene.Mesh, key bakeKey) *meshOnGP
 			continue
 		}
 		if !variant.key.light.closeTo(key.light) {
+			renderer.bakes++
 			variant.onGPU.free()
 			variant.onGPU = uploadPieces(bakeVertices(mesh, key), mesh.Indices, floatsPerBakedVertex)
 			variant.key = key
 		}
 		return variant.onGPU
 	}
+	renderer.bakes++
 	onGPU := uploadPieces(bakeVertices(mesh, key), mesh.Indices, floatsPerBakedVertex)
 	baked.variants = append(baked.variants, bakedVariant{key: key, onGPU: onGPU})
 	return onGPU
