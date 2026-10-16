@@ -16,11 +16,13 @@ static void setVector(int location, float x, float y, float z, float w) {
 // maps the near plane to 1 and the far one to 0, and clears to 0.
 static void prepareScene(void) {
 	C3D_CullFace(GPU_CULL_NONE);
-	// The first colour stage passes the vertex colour through (the overlay changes it).
+	// The first colour stage passes the vertex colour through, and the second passes it on (the
+	// overlay changes both).
 	C3D_TexEnv* environment = C3D_GetTexEnv(0);
 	C3D_TexEnvInit(environment);
 	C3D_TexEnvSrc(environment, C3D_Both, GPU_PRIMARY_COLOR, 0, 0);
 	C3D_TexEnvFunc(environment, C3D_Both, GPU_REPLACE);
+	C3D_TexEnvInit(C3D_GetTexEnv(1));
 }
 
 // setBlending switches between opaque surfaces, which write depth, and translucent ones, blended

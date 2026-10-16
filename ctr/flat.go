@@ -54,32 +54,72 @@ static void uploadTexture(C3D_Tex* texture, const void* tiled) {
 	C3D_TexFlush(texture);
 }
 
-// prepareOverlay sets the colour stages for the overlay: the colour as it comes, its alpha times
-// the atlas's coverage; blended over what is behind, with no depth test.
-static void prepareOverlay(C3D_Tex* texture) {
-	C3D_TexBind(0, texture);
-	C3D_TexEnv* environment = C3D_GetTexEnv(0);
-	C3D_TexEnvInit(environment);
-	C3D_TexEnvSrc(environment, C3D_RGB, GPU_PRIMARY_COLOR, 0, 0);
-	C3D_TexEnvFunc(environment, C3D_RGB, GPU_REPLACE);
-	C3D_TexEnvSrc(environment, C3D_Alpha, GPU_PRIMARY_COLOR, GPU_TEXTURE0, 0);
-	C3D_TexEnvFunc(environment, C3D_Alpha, GPU_MODULATE);
+// newPicturesTexture makes a square texture of straight RGBA pixels, filtered linearly.
+static C3D_Tex* newPicturesTexture(int size) {
+	C3D_Tex* texture = malloc(sizeof(C3D_Tex));
+	if (texture == NULL) return NULL;
+	if (!C3D_TexInit(texture, size, size, GPU_RGBA8)) {
+		free(texture);
+		return NULL;
+	}
+	C3D_TexSetFilter(texture, GPU_LINEAR, GPU_LINEAR);
+	C3D_TexSetWrap(texture, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);
+	return texture;
+}
+
+// prepareOverlay sets what the overlay's rectangles share: the atlas on texture unit 0, the
+// pictures (when there are any) on unit 1, blended over what is behind, with no depth test.
+static void prepareOverlay(C3D_Tex* atlas, C3D_Tex* pictures) {
+	C3D_TexBind(0, atlas);
+	if (pictures != NULL) C3D_TexBind(1, pictures);
 	C3D_CullFace(GPU_CULL_NONE);
 	C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 	C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
 }
 
-// drawQuads draws overlay corners: position (2 floats), atlas position (2) and colour (4).
-static void drawQuads(void* vertices, int count) {
+// setPlainStages: the colour as it comes, its alpha times the atlas's coverage.
+static void setPlainStages(void) {
+	C3D_TexEnv* first = C3D_GetTexEnv(0);
+	C3D_TexEnvInit(first);
+	C3D_TexEnvSrc(first, C3D_RGB, GPU_PRIMARY_COLOR, 0, 0);
+	C3D_TexEnvFunc(first, C3D_RGB, GPU_REPLACE);
+	C3D_TexEnvSrc(first, C3D_Alpha, GPU_PRIMARY_COLOR, GPU_TEXTURE0, 0);
+	C3D_TexEnvFunc(first, C3D_Alpha, GPU_MODULATE);
+	C3D_TexEnvInit(C3D_GetTexEnv(1)); // passes the first stage on
+}
+
+// setPictureStages: the picture's colours times the colour (a tint), then the alpha times the
+// atlas's coverage too, which rounds the picture's corners.
+static void setPictureStages(void) {
+	C3D_TexEnv* first = C3D_GetTexEnv(0);
+	C3D_TexEnvInit(first);
+	C3D_TexEnvSrc(first, C3D_Both, GPU_PRIMARY_COLOR, GPU_TEXTURE1, 0);
+	C3D_TexEnvFunc(first, C3D_Both, GPU_MODULATE);
+	C3D_TexEnv* second = C3D_GetTexEnv(1);
+	C3D_TexEnvInit(second);
+	C3D_TexEnvSrc(second, C3D_RGB, GPU_PREVIOUS, 0, 0);
+	C3D_TexEnvFunc(second, C3D_RGB, GPU_REPLACE);
+	C3D_TexEnvSrc(second, C3D_Alpha, GPU_PREVIOUS, GPU_TEXTURE0, 0);
+	C3D_TexEnvFunc(second, C3D_Alpha, GPU_MODULATE);
+}
+
+// describeQuads tells where overlay corners are: position (2 floats), atlas position (2), colour
+// (4) and picture position (2).
+static void describeQuads(void* vertices) {
 	C3D_AttrInfo* attributeInfo = C3D_GetAttrInfo();
 	AttrInfo_Init(attributeInfo);
 	AttrInfo_AddLoader(attributeInfo, 0, GPU_FLOAT, 2);
 	AttrInfo_AddLoader(attributeInfo, 1, GPU_FLOAT, 2);
 	AttrInfo_AddLoader(attributeInfo, 2, GPU_FLOAT, 4);
+	AttrInfo_AddLoader(attributeInfo, 3, GPU_FLOAT, 2);
 	C3D_BufInfo* bufferInfo = C3D_GetBufInfo();
 	BufInfo_Init(bufferInfo);
-	BufInfo_Add(bufferInfo, vertices, 8 * sizeof(float), 3, 0x210);
-	C3D_DrawArrays(GPU_TRIANGLES, 0, count);
+	BufInfo_Add(bufferInfo, vertices, 10 * sizeof(float), 4, 0x3210);
+}
+
+static void drawRun(int first, int count, int pictured) {
+	if (pictured) setPictureStages(); else setPlainStages();
+	C3D_DrawArrays(GPU_TRIANGLES, first, count);
 }
 
 static void* newLinearMemory(u32 size) {
@@ -142,7 +182,13 @@ type FlatRenderer struct {
 	tiled        []byte
 	tooLarge     bool // the atlas outgrew the largest texture: told once
 
+	pictures         *C.C3D_Tex
+	picturesSize     int
+	tiledPictures    []byte
+	picturesTooLarge bool // told once
+
 	vertices []float32
+	runs     []quadRun
 	buffers  [2]linearBuffer // one for the frame being drawn, one for the GPU's previous frame
 	frame    int
 }
@@ -180,7 +226,8 @@ func (renderer *FlatRenderer) Paint(list *draw2d.List, background draw2d.Color) 
 	if !renderer.uploadAtlas() {
 		return
 	}
-	renderer.vertices = appendQuadVertices(renderer.vertices[:0], quads, renderer.textureSize)
+	renderer.uploadPictures()
+	renderer.vertices, renderer.runs = appendQuadVertices(renderer.vertices[:0], renderer.runs[:0], quads, renderer.textureSize, renderer.picturesSize)
 	if len(renderer.vertices) == 0 {
 		return
 	}
@@ -191,8 +238,55 @@ func (renderer *FlatRenderer) Paint(list *draw2d.List, background draw2d.Color) 
 	renderer.shader.Use()
 	// Pixels from the top-left corner: y grows downwards, so top and bottom are swapped.
 	SetMatrix(renderer.projection, OrthographicTilt(0, BottomWidth, BottomHeight, 0, 0, 1))
-	C.prepareOverlay(renderer.texture)
-	C.drawQuads(vertices, C.int(len(renderer.vertices)/floatsPerQuadVertex))
+	C.prepareOverlay(renderer.texture, renderer.pictures)
+	C.describeQuads(vertices)
+	for _, run := range renderer.runs {
+		if run.pictured && renderer.pictures == nil {
+			continue // pictures that could not be uploaded
+		}
+		pictured := 0
+		if run.pictured {
+			pictured = 1
+		}
+		C.drawRun(C.int(run.first), C.int(run.count), C.int(pictured))
+	}
+}
+
+// uploadPictures sends the pictures' colours to the GPU when pictures were added or changed,
+// tiled. Pictures larger than the chip's largest texture are not drawn.
+func (renderer *FlatRenderer) uploadPictures() {
+	pictures := renderer.painter.Pictures()
+	size := pictures.Size()
+	if size == 0 {
+		return // no picture drawn yet
+	}
+	whole, areas := pictures.Pending()
+	if !whole && len(areas) == 0 && size == renderer.picturesSize {
+		return
+	}
+	if size > largestTexture {
+		if !renderer.picturesTooLarge {
+			println("ctr: the overlay's pictures outgrew the largest texture:", size)
+			renderer.picturesTooLarge = true
+		}
+		pictures.Uploaded()
+		return
+	}
+	if renderer.pictures == nil || renderer.picturesSize != size {
+		if renderer.pictures != nil {
+			C.freeTexture(renderer.pictures)
+		}
+		renderer.pictures = C.newPicturesTexture(C.int(size))
+		renderer.picturesSize = size
+		if renderer.pictures == nil {
+			return
+		}
+	}
+	// The whole atlas, even for a few changed areas: tiling scatters an area's rows over the
+	// texture. Pictures change seldom; a video would want only its tiles.
+	renderer.tiledPictures = tileRGBAForPICA(renderer.tiledPictures, pictures.Image.Pix, size)
+	C.uploadTexture(renderer.pictures, unsafe.Pointer(&renderer.tiledPictures[0]))
+	pictures.Uploaded()
 }
 
 // uploadAtlas sends the atlas to the GPU when glyphs, icons or corners were added to it, tiled the
