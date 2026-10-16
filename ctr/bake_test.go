@@ -79,3 +79,18 @@ func TestASlowlyTurningSunDoesNotBakeAgain(t *testing.T) {
 		t.Fatal("a turn of a hundredth should bake again")
 	}
 }
+
+func TestTheGammaTableMatchesThePower(t *testing.T) {
+	// Away from black, where the curve is steepest, the table's steps are finer than a byte.
+	worst := 0
+	for value := float32(0.01); value <= 1; value += 0.001 {
+		want := int(math.Round(math.Pow(float64(value), 1/2.2) * 255))
+		got := int(screenByte(value))
+		if difference := got - want; difference > worst || -difference > worst {
+			worst = max(difference, -difference)
+		}
+	}
+	if worst > 1 {
+		t.Fatalf("the table is %d steps of 255 away from the power", worst)
+	}
+}
