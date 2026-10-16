@@ -38,6 +38,34 @@ static C3D_RenderTarget* openTopScreen(void) {
 	return target;
 }
 
+// openRightEye makes the top screen's second picture, for the right eye in 3D.
+static C3D_RenderTarget* openRightEye(void) {
+	C3D_DEPTHTYPE depth;
+	depth.__i = GPU_RB_DEPTH24_STENCIL8;
+	C3D_RenderTarget* target = C3D_RenderTargetCreate(240, 400, GPU_RB_RGBA8, depth);
+	if (target != NULL) C3D_RenderTargetSetOutput(target, GFX_TOP, GFX_RIGHT, DISPLAY_TRANSFER_FLAGS);
+	return target;
+}
+
+static void set3D(int on) {
+	gfxSet3D(on != 0);
+}
+
+static float slider3D(void) {
+	return osGet3DSliderState();
+}
+
+// beginStereoFrame waits for the previous frame and clears both eyes' pictures.
+static void beginStereoFrame(C3D_RenderTarget* left, C3D_RenderTarget* right, u32 clearColour) {
+	C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+	C3D_RenderTargetClear(left, C3D_CLEAR_ALL, clearColour, 0);
+	C3D_RenderTargetClear(right, C3D_CLEAR_ALL, clearColour, 0);
+}
+
+static void drawOn(C3D_RenderTarget* target) {
+	C3D_FrameDrawOn(target);
+}
+
 static void closeScreen(C3D_RenderTarget* target) {
 	C3D_RenderTargetDelete(target);
 	C3D_Fini();
@@ -156,9 +184,11 @@ func OpenBottomConsole() {
 	C.openBottomConsole()
 }
 
-// Screen is the top screen, drawn by citro3d.
+// Screen is the top screen, drawn by citro3d: one picture, or one for each eye in 3D.
 type Screen struct {
 	target *C.C3D_RenderTarget
+	right  *C.C3D_RenderTarget // made the first time a frame is drawn in 3D
+	stereo bool                // the screen shows two pictures
 }
 
 // Open starts the graphics system and prepares the top screen for drawing.
@@ -172,12 +202,58 @@ func Open() (*Screen, error) {
 
 // Close stops the graphics system.
 func (screen *Screen) Close() {
+	if screen.right != nil {
+		C.C3D_RenderTargetDelete(screen.right)
+	}
 	C.closeScreen(screen.target)
 }
 
-// BeginFrame waits for the previous frame and clears the screen to a colour given as 0xRRGGBBAA.
+// BeginFrame waits for the previous frame and clears the screen to a colour given as 0xRRGGBBAA,
+// for one picture: the screen leaves 3D.
 func (screen *Screen) BeginFrame(clearColour uint32) {
+	screen.setStereo(false)
 	C.beginFrame(screen.target, C.u32(clearColour))
+}
+
+// BeginStereoFrame is BeginFrame for a picture for each eye; DrawOn chooses the one drawn next.
+// It falls back to one picture when the second cannot be made.
+func (screen *Screen) BeginStereoFrame(clearColour uint32) bool {
+	if screen.right == nil {
+		screen.right = C.openRightEye()
+	}
+	if screen.right == nil {
+		screen.BeginFrame(clearColour)
+		return false
+	}
+	screen.setStereo(true)
+	C.beginStereoFrame(screen.target, screen.right, C.u32(clearColour))
+	return true
+}
+
+// DrawOn makes the next draws go to one eye's picture, in a stereo frame.
+func (screen *Screen) DrawOn(eye Eye) {
+	if eye == RightEye && screen.right != nil {
+		C.drawOn(screen.right)
+		return
+	}
+	C.drawOn(screen.target)
+}
+
+func (screen *Screen) setStereo(stereo bool) {
+	if screen.stereo == stereo {
+		return
+	}
+	screen.stereo = stereo
+	on := 0
+	if stereo {
+		on = 1
+	}
+	C.set3D(C.int(on))
+}
+
+// Slider3D is the position of the 3D slider, from 0 (off) to 1.
+func Slider3D() float32 {
+	return float32(C.slider3D())
 }
 
 // EndFrame sends what was drawn to the GPU and shows it.
