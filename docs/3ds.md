@@ -52,9 +52,12 @@ of the time of day, fog and translucent water, planned by `sceneplan`. What chan
   four bytes: a vertex is 16 bytes instead of 40. A mesh is baked again only when the light, the
   mesh or its node's turn changes. `ctr/shaders/baked.v.pica` then only places each vertex and
   fogs it by its distance to the camera, linearly: 27 instructions instead of 95.
-- **Water on the GPU.** Water's reflection of the sky depends on where the camera looks from, so
-  water goes through the full shader, `ctr/shaders/scene.v.pica` (gles's scene shader done per
-  vertex, with its smoothstep fog and the chip's `lg2` and `ex2` for gamma). It has few vertices.
+- **Water on the GPU, on a coarser grid.** Water's reflection of the sky depends on where the
+  camera looks from, so water goes through the full shader, `ctr/shaders/scene.v.pica` (gles's
+  scene shader done per vertex, with its smoothstep fog and the chip's `lg2` and `ex2` for gamma).
+  The planner's water grid of 256 × 256 cells, made for the desktop's waves, was 131 072 of the
+  island's 160 756 triangles; `ctr` asks for 32 × 32 (`Planner.WaterGridDivisions`), still fine
+  near the camera for the fog.
 - **Not the chip's own fog.** The PICA200 can fog in fixed function, from a table of 128 steps of
   the depth buffer; but depth is far from linear (with the near plane at 0.1 and the far one at
   20 000, the whole island's fog would fall in the first step), so ctr fogs per vertex.
@@ -77,7 +80,9 @@ Copy the `.3dsx` to `/3ds/` on the SD card and open it from the Homebrew Launche
 
 ## Not yet
 
-- How fast the baked renderer is on the console. Positions in shorts and fewer triangles far away
+- How fast the renderer is on the console with the coarser water (baking the light alone went from
+  30 to 36 frames a second: the chip was held back by the number of triangles more than by the
+  shader). Positions in shorts and fewer triangles far away
   are the next steps if it is not enough.
 - A sun that moves all the time bakes the meshes again whenever a colour would change by a step.
 - Planning a frame makes about 4 KB of garbage; the collector would have to run every few minutes.

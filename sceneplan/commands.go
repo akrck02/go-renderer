@@ -107,7 +107,7 @@ func splitOpaqueAndTransparent(commands []Command) (opaque, transparent []Comman
 // waterCommand returns a large water plane that follows the camera horizontally.
 func (planner *Planner) waterCommand(water *scene.Water, camera models.Camera) Command {
 	if planner.waterPlane == nil {
-		planner.waterPlane = newWaterGrid(water.Size)
+		planner.waterPlane = newWaterGrid(water.Size, planner.WaterGridDivisions)
 	}
 	deepColor := water.Deep
 	if deepColor == (graphics.Vec4{}) {
@@ -134,17 +134,20 @@ func (planner *Planner) waterFloorCommand(water *scene.Water, camera models.Came
 	return Command{Node: node, World: world, Material: planner.waterFloor.Material}
 }
 
-// waterGridDivisions is the number of cells per side of the water surface.
-const waterGridDivisions = 256
+// defaultWaterGridDivisions is the number of cells per side of the water surface.
+const defaultWaterGridDivisions = 256
 
 // newWaterGrid returns the water surface as a grid whose cells are small near its centre (the
 // camera) and large far away, so a varying surface (tides) meets the coast accurately nearby.
-func newWaterGrid(size float32) *scene.Mesh {
+func newWaterGrid(size float32, divisions int) *scene.Mesh {
 	if size <= 0 {
 		size = 1000
 	}
+	if divisions <= 0 {
+		divisions = defaultWaterGridDivisions
+	}
 	half := size / 2
-	vertices := waterGridDivisions + 1
+	vertices := divisions + 1
 	mesh := &scene.Mesh{Name: "water",
 		Material: &scene.Material{Name: "water", Kind: scene.KindWater, Transparent: true, DoubleSided: true}}
 	for row := 0; row < vertices; row++ {
@@ -153,8 +156,8 @@ func newWaterGrid(size float32) *scene.Mesh {
 			mesh.Normals = append(mesh.Normals, 0, 1, 0)
 		}
 	}
-	for row := 0; row < waterGridDivisions; row++ {
-		for column := 0; column < waterGridDivisions; column++ {
+	for row := 0; row < divisions; row++ {
+		for column := 0; column < divisions; column++ {
 			corner := uint32(row*vertices + column)
 			next := corner + uint32(vertices)
 			mesh.Indices = append(mesh.Indices, corner, next, corner+1, corner+1, next, next+1)

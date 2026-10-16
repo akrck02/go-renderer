@@ -15,6 +15,10 @@ import (
 // the boxes of meshes, the grids of instances and the batches the backend keeps for them, the
 // water meshes, the size of the scene.
 type Planner struct {
+	// WaterGridDivisions is the number of cells per side of the water surface (0 = 256). Fewer
+	// suit GPUs that draw few triangles and no waves, such as the 3DS's.
+	WaterGridDivisions int
+
 	batches          BatchStore
 	meshMeasures     map[*scene.Mesh]*meshMeasure
 	instancedDetails map[*scene.Instances]*instancedDetail
