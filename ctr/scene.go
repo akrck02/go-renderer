@@ -105,10 +105,11 @@ type SceneRenderer struct {
 	bakedMeshes map[*scene.Mesh]*bakedMesh
 
 	// this frame's shading, and the shader its uniforms were last set for
-	shading frameShading
-	light   lightKey
-	bound   *Shader
-	frame   sceneplan.Frame
+	shading        frameShading
+	light          lightKey
+	bound          *Shader
+	frame          sceneplan.Frame
+	viewProjection graphics.Mat4 // of the eye being drawn, in the PICA200's clip space
 }
 
 // waterLocations are where scene.v.pica reads each uniform.
@@ -166,16 +167,44 @@ func (renderer *SceneRenderer) Statistics(processorTime time.Duration) sceneplan
 // Draw plans and draws a frame of the scene seen by the camera, between BeginFrame and EndFrame
 // of the screen: Draw calls them itself.
 func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera) {
+	renderer.DrawStereo(world, camera, 0, 0)
+}
+
+// DrawStereo draws a frame for both eyes, which stand separation apart and see what lies at the
+// focal distance on the plane of the screen. The frame is planned once, for the camera between
+// them. With no separation it draws one picture, as Draw.
+func (renderer *SceneRenderer) DrawStereo(world *scene.Scene, camera models.Camera, separation, focalDistance float32) {
 	frame := renderer.planner.Plan(world, camera, ScreenWidth, ScreenHeight, sceneplan.ShadowSettings{})
 	renderer.frame = frame
 	renderer.shading = shadingFor(world.Environment, frame.Light, camera)
 	renderer.light = lightKeyOf(renderer.shading)
+	clear := screenColour(frame.Light.Horizon)
+	stereo := false
+	if separation > 0 && focalDistance > 0 {
+		stereo = renderer.screen.BeginStereoFrame(clear) // begins one picture if it cannot do two
+	} else {
+		renderer.screen.BeginFrame(clear)
+	}
+	if !stereo {
+		renderer.drawEye(PICAViewProjection(frame.Matrices.ViewProjection), frame)
+		renderer.screen.EndFrame()
+		return
+	}
+	for _, eye := range []Eye{LeftEye, RightEye} {
+		renderer.screen.DrawOn(eye)
+		viewProjection := EyeViewProjection(camera, eye, separation, focalDistance, ScreenWidth, ScreenHeight)
+		renderer.drawEye(PICAViewProjection(viewProjection), frame)
+	}
+	renderer.screen.EndFrame()
+}
+
+// drawEye draws the planned frame with one view-projection.
+func (renderer *SceneRenderer) drawEye(viewProjection graphics.Mat4, frame sceneplan.Frame) {
+	renderer.viewProjection = viewProjection
 	renderer.bound = nil
-	renderer.screen.BeginFrame(screenColour(frame.Light.Horizon))
 	C.prepareScene()
 	renderer.drawCommands(frame.Opaque, frame.View)
 	renderer.drawCommands(frame.Transparent, frame.View)
-	renderer.screen.EndFrame()
 }
 
 // bind makes a shader the one drawing, setting its per-frame uniforms the first time this frame.
@@ -186,7 +215,7 @@ func (renderer *SceneRenderer) bind(shader *Shader) {
 	shader.Use()
 	renderer.bound = shader
 	shading := renderer.shading
-	viewProjection := PICAViewProjection(renderer.frame.Matrices.ViewProjection)
+	viewProjection := renderer.viewProjection
 	if shader == renderer.baked {
 		places := renderer.bakedPlaces
 		SetMatrix(places.viewProjection, viewProjection)

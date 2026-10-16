@@ -99,3 +99,32 @@ func TestTheHorizonIsPackedInTheScreensGamma(t *testing.T) {
 func cameraAt(x, y, z float32) models.Camera {
 	return models.Camera{Position: graphics.Vec4{x, y, z, 1}}
 }
+
+func TestBothEyesSeeTheFocalPointInTheSamePlace(t *testing.T) {
+	camera := models.Camera{Position: graphics.Vec4{0, 0, 10, 1}, Target: graphics.Vec4{0, 0, 0, 1}, Up: graphics.Vec4{0, 1, 0, 0}}
+	screenX := func(eye Eye, point graphics.Vec4) float32 {
+		clip := EyeViewProjection(camera, eye, 1, 10, 400, 240).Apply(point)
+		return clip[0] / clip[3]
+	}
+	focal := graphics.Vec4{0, 0, 0, 1}
+	if !near(screenX(LeftEye, focal), screenX(RightEye, focal)) {
+		t.Fatalf("the focal point is at %v and %v", screenX(LeftEye, focal), screenX(RightEye, focal))
+	}
+	// Nearer than the focal distance: the left eye sees it more to the right (it comes out).
+	nearer := graphics.Vec4{0, 0, 5, 1}
+	if screenX(LeftEye, nearer) <= screenX(RightEye, nearer) {
+		t.Fatalf("a nearer point is at %v (left) and %v (right)", screenX(LeftEye, nearer), screenX(RightEye, nearer))
+	}
+	farther := graphics.Vec4{0, 0, -20, 1}
+	if screenX(LeftEye, farther) >= screenX(RightEye, farther) {
+		t.Fatalf("a farther point is at %v (left) and %v (right)", screenX(LeftEye, farther), screenX(RightEye, farther))
+	}
+}
+
+func TestTheEyesStandApartAlongTheCamerasRight(t *testing.T) {
+	camera := models.Camera{Position: graphics.Vec4{0, 0, 10, 1}, Target: graphics.Vec4{0, 0, 0, 1}, Up: graphics.Vec4{0, 1, 0, 0}}
+	left, right := EyeCamera(camera, LeftEye, 2), EyeCamera(camera, RightEye, 2)
+	if !near(left.Position[0], -1) || !near(right.Position[0], 1) || !near(right.Target[0], 1) {
+		t.Fatalf("left at %v, right at %v looking at %v", left.Position, right.Position, right.Target)
+	}
+}

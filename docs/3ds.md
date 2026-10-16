@@ -70,6 +70,16 @@ of the time of day, fog and translucent water, planned by `sceneplan`. What chan
   (`MergedBatch`), which both renderers share.
 - **Meshes in linear memory,** uploaded once and again only when `Dirty`.
 
+## In 3D
+
+The top screen shows a picture for each eye when the 3D slider is up. `SceneRenderer.DrawStereo`
+plans the frame once, for the camera between the eyes, and draws it twice: each eye's camera is
+moved sideways by half the separation, looking the same way, and its picture is shifted so that
+what lies at the focal distance falls on the plane of the screen (`ctr.EyeViewProjection`, tested
+on any computer); nearer comes out of the screen, farther goes in. `ctr.Slider3D` reads the
+slider; a program usually makes the separation grow with it. Drawing twice doubles the GPU's
+work: the sample island goes from about 5 to 10 ms a frame.
+
 ## Building
 
 ```bash
@@ -87,7 +97,8 @@ Copy the `.3dsx` to `/3ds/` on the SD card and open it from the Homebrew Launche
 - A sun that moves all the time bakes the meshes again whenever a colour would change by a step.
 - Planning a frame makes about 4 KB of garbage; the collector would have to run every few minutes.
 - Textures, the overlay and `draw2d`.
-- Input beyond the START button, the bottom screen's touch, and the 3D slider.
+- Input: the buttons, the circle pad and the touch screen go to `input.State` in
+  [go-3ds](https://github.com/akrck02/go-3ds), which also holds the program loop.
 - Reading scenes from the SD card: TinyGo's `os` has no file system there yet, so scenes are
   embedded in the program.
 - Collection pauses: about a quarter of a second with 10 MB alive on the console. Keeping meshes
