@@ -1,6 +1,7 @@
 ; ctr's overlay shader: rectangles of the overlay's atlas, placed in screen pixels by an
-; orthographic projection, with their texture position and colour passed on. The colour stage
-; multiplies the colour's alpha by the atlas's coverage (flat.go).
+; orthographic projection, with their atlas position, colour and picture position passed on. The
+; colour stages multiply the colour's alpha by the atlas's coverage, and a picture's colours by the
+; colour (flat.go).
 
 .fvec projection[4]
 
@@ -11,10 +12,12 @@
 .out outPosition position
 .out outTexture  texcoord0
 .out outColour   color
+.out outPicture  texcoord1
 
 .alias inPosition v0 ; x, y in pixels
 .alias inTexture  v1
 .alias inColour   v2
+.alias inPicture  v3
 
 .proc main
 	mov r0.xy, inPosition
@@ -26,5 +29,6 @@
 	dp4 outPosition.w, projection[3], r0
 	mov outTexture, inTexture
 	mov outColour, inColour
+	mov outPicture, inPicture
 	end
 .end
