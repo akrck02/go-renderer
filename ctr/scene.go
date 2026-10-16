@@ -103,6 +103,7 @@ type SceneRenderer struct {
 	bakedPlaces bakedLocations
 	planner     *sceneplan.Planner
 	bakedMeshes map[*scene.Mesh]*bakedMesh
+	forests     map[*scene.Instances]*mergedForest
 
 	// this frame's shading, and the shader its uniforms were last set for
 	shading        frameShading
@@ -142,7 +143,7 @@ func NewSceneRenderer(screen *Screen) (*SceneRenderer, error) {
 	// slow full shader; without waves 32 × 32 is enough, fine near the camera for the fog.
 	planner.WaterGridDivisions = waterGridDivisions
 	renderer := &SceneRenderer{screen: screen, water: water, baked: baked,
-		planner: planner, bakedMeshes: map[*scene.Mesh]*bakedMesh{}}
+		planner: planner, bakedMeshes: map[*scene.Mesh]*bakedMesh{}, forests: map[*scene.Instances]*mergedForest{}}
 	renderer.waterPlaces = waterLocations{
 		viewProjection: water.Uniform("viewProjection"), camera: water.Uniform("camera"),
 		sunDirection: water.Uniform("sunDirection"), sunColour: water.Uniform("sunColour"),
@@ -279,14 +280,9 @@ func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view scene
 		SetMatrix(renderer.bakedPlaces.model, command.World)
 	}
 	if command.Node.Instances != nil {
-		for _, batch := range renderer.planner.InstanceBatches(command, view, sceneplan.MainPass) {
-			instances, _ := batch.Handle.(*sceneplan.MergedBatch)
-			if instances == nil || batch.Count == 0 {
-				continue
-			}
-			draw(command, instances.MergedFor(batch.Mesh, batch.Count))
-			renderer.planner.Count(sceneplan.MainPass, batch.Mesh, batch.Count)
-		}
+		forest := renderer.wholeForest(command.Node)
+		draw(command, forest)
+		renderer.planner.Count(sceneplan.MainPass, command.Node.Mesh, len(command.Node.Instances.Transforms))
 		return
 	}
 	mesh, visible := renderer.planner.MeshToDraw(command, view)
@@ -295,6 +291,34 @@ func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view scene
 	}
 	draw(command, mesh)
 	renderer.planner.Count(sceneplan.MainPass, mesh, 0)
+}
+
+// wholeForest is all of a node's instances merged into one mesh, made again only when the
+// instances change. sceneplan's batches hold only the visible cells, at their level of detail, so
+// they change as the camera turns, and merging and baking a forest of 30 000 vertices again took
+// a quarter of a second on a New 3DS XL. The whole node at its finest level is a few thousand
+// triangles more for the GPU, which has room for them.
+func (renderer *SceneRenderer) wholeForest(node *scene.Node) *scene.Mesh {
+	instances := node.Instances
+	forest := renderer.forests[instances]
+	if forest != nil && forest.source == node.Mesh && !instances.Dirty && len(instances.Changed) == 0 {
+		return forest.merged
+	}
+	if forest == nil {
+		forest = &mergedForest{merged: &scene.Mesh{Name: node.Mesh.Name + " (all instances)"}}
+		renderer.forests[instances] = forest
+	}
+	forest.source = node.Mesh
+	sceneplan.MergeInstances(forest.merged, node.Mesh, sceneplan.PackInstances(instances), len(instances.Transforms))
+	forest.merged.Dirty = true // bake and upload it again
+	instances.Dirty, instances.Changed = false, instances.Changed[:0]
+	return forest.merged
+}
+
+// mergedForest is a node's instances as one mesh.
+type mergedForest struct {
+	source *scene.Mesh // the instanced mesh it was made from
+	merged *scene.Mesh
 }
 
 // prepareWater binds the full shader and sets what one water command needs.
