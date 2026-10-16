@@ -30,6 +30,19 @@ static void setBlending(int translucent) {
 	C3D_DepthTest(true, GPU_GEQUAL, GPU_WRITE_ALL);
 }
 
+// drawBakedElements draws a piece of a baked mesh: interleaved position (3 floats) and colour (4
+// bytes), and 16-bit indices.
+static void drawBakedElements(void* vertices, void* indices, int count) {
+	C3D_AttrInfo* attributeInfo = C3D_GetAttrInfo();
+	AttrInfo_Init(attributeInfo);
+	AttrInfo_AddLoader(attributeInfo, 0, GPU_FLOAT, 3);
+	AttrInfo_AddLoader(attributeInfo, 1, GPU_UNSIGNED_BYTE, 4);
+	C3D_BufInfo* bufferInfo = C3D_GetBufInfo();
+	BufInfo_Init(bufferInfo);
+	BufInfo_Add(bufferInfo, vertices, 3 * sizeof(float) + 4, 2, 0x10);
+	C3D_DrawElements(GPU_TRIANGLES, count, C3D_UNSIGNED_SHORT, indices);
+}
+
 // drawSceneElements draws a piece of a mesh: interleaved position (3), normal (3) and colour (4)
 // floats, and 16-bit indices.
 static void drawSceneElements(void* vertices, void* indices, int count) {
@@ -66,41 +79,74 @@ const (
 //go:embed shaders/scene.shbin
 var sceneShaderBinary []byte
 
+//go:embed shaders/baked.shbin
+var bakedShaderBinary []byte
+
 // SceneRenderer draws a scene.Scene on the top screen in gles's simple form: lit meshes and
-// instances, the light of the time of day, fog and translucent water, shaded per vertex. What a
-// frame draws is planned by sceneplan, as on every other platform. The PICA200 cannot draw
-// instances either, so each batch is merged into one mesh on the processor (sceneplan's
-// MergedBatch), again only when it changes.
+// instances, the light of the time of day, fog and translucent water. What a frame draws is
+// planned by sceneplan, as on every other platform. The PICA200 cannot draw instances either, so
+// each batch is merged into one mesh on the processor (sceneplan's MergedBatch), again only when
+// it changes.
+//
+// Lighting every vertex on the GPU was too slow (30 frames a second for the sample island on a
+// New 3DS XL), so meshes are drawn with their light worked out on the processor (bake.go) through
+// baked.v.pica. Only water, whose reflection depends on the camera, is shaded on the GPU, by
+// scene.v.pica.
 type SceneRenderer struct {
-	screen    *Screen
-	shader    *Shader
-	locations sceneLocations
-	planner   *sceneplan.Planner
+	screen      *Screen
+	water       *Shader
+	baked       *Shader
+	waterPlaces waterLocations
+	bakedPlaces bakedLocations
+	planner     *sceneplan.Planner
+	bakedMeshes map[*scene.Mesh]*bakedMesh
+
+	// this frame's shading, and the shader its uniforms were last set for
+	shading frameShading
+	light   lightKey
+	bound   *Shader
+	frame   sceneplan.Frame
 }
 
-// sceneLocations are where scene.v.pica reads each uniform.
-type sceneLocations struct {
+// waterLocations are where scene.v.pica reads each uniform.
+type waterLocations struct {
 	viewProjection, camera, sunDirection, sunColour, ambientGround, ambientSpan int
 	waterLight, skyReflection, fogColour, settings, fog                         int
 	model, normalMatrix, baseColour, weights, minimumAlpha                      int
 }
 
-// NewSceneRenderer loads the scene shader for drawing on the screen.
+// bakedLocations are where baked.v.pica reads each uniform.
+type bakedLocations struct {
+	viewProjection, camera, settings, fog, fogColour, model int
+}
+
+// NewSceneRenderer loads the scene shaders for drawing on the screen.
 func NewSceneRenderer(screen *Screen) (*SceneRenderer, error) {
-	shader, err := LoadShader(sceneShaderBinary)
+	water, err := LoadShader(sceneShaderBinary)
 	if err != nil {
 		return nil, err
 	}
-	renderer := &SceneRenderer{screen: screen, shader: shader, planner: sceneplan.NewPlanner(sceneplan.MergingStore{})}
-	renderer.locations = sceneLocations{
-		viewProjection: shader.Uniform("viewProjection"), camera: shader.Uniform("camera"),
-		sunDirection: shader.Uniform("sunDirection"), sunColour: shader.Uniform("sunColour"),
-		ambientGround: shader.Uniform("ambientGround"), ambientSpan: shader.Uniform("ambientSpan"),
-		waterLight: shader.Uniform("waterLight"), skyReflection: shader.Uniform("skyReflection"),
-		fogColour: shader.Uniform("fogColour"), settings: shader.Uniform("settings"), fog: shader.Uniform("fog"),
-		model: shader.Uniform("model"), normalMatrix: shader.Uniform("normalMatrix"),
-		baseColour: shader.Uniform("baseColour"), weights: shader.Uniform("weights"),
-		minimumAlpha: shader.Uniform("minimumAlpha"),
+	baked, err := LoadShader(bakedShaderBinary)
+	if err != nil {
+		water.Free()
+		return nil, err
+	}
+	renderer := &SceneRenderer{screen: screen, water: water, baked: baked,
+		planner: sceneplan.NewPlanner(sceneplan.MergingStore{}), bakedMeshes: map[*scene.Mesh]*bakedMesh{}}
+	renderer.waterPlaces = waterLocations{
+		viewProjection: water.Uniform("viewProjection"), camera: water.Uniform("camera"),
+		sunDirection: water.Uniform("sunDirection"), sunColour: water.Uniform("sunColour"),
+		ambientGround: water.Uniform("ambientGround"), ambientSpan: water.Uniform("ambientSpan"),
+		waterLight: water.Uniform("waterLight"), skyReflection: water.Uniform("skyReflection"),
+		fogColour: water.Uniform("fogColour"), settings: water.Uniform("settings"), fog: water.Uniform("fog"),
+		model: water.Uniform("model"), normalMatrix: water.Uniform("normalMatrix"),
+		baseColour: water.Uniform("baseColour"), weights: water.Uniform("weights"),
+		minimumAlpha: water.Uniform("minimumAlpha"),
+	}
+	renderer.bakedPlaces = bakedLocations{
+		viewProjection: baked.Uniform("viewProjection"), camera: baked.Uniform("camera"),
+		settings: baked.Uniform("settings"), fog: baked.Uniform("fog"),
+		fogColour: baked.Uniform("fogColour"), model: baked.Uniform("model"),
 	}
 	return renderer, nil
 }
@@ -114,32 +160,50 @@ func (renderer *SceneRenderer) Statistics(processorTime time.Duration) sceneplan
 // of the screen: Draw calls them itself.
 func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera) {
 	frame := renderer.planner.Plan(world, camera, ScreenWidth, ScreenHeight, sceneplan.ShadowSettings{})
+	renderer.frame = frame
+	renderer.shading = shadingFor(world.Environment, frame.Light, camera)
+	renderer.light = lightKeyOf(renderer.shading)
+	renderer.bound = nil
 	renderer.screen.BeginFrame(screenColour(frame.Light.Horizon))
-	renderer.shader.Use()
 	C.prepareScene()
-	renderer.setFrameUniforms(world.Environment, frame, camera)
-	renderer.drawCommands(frame.Opaque, frame.View, frame.Light.Brightness)
-	renderer.drawCommands(frame.Transparent, frame.View, frame.Light.Brightness)
+	renderer.drawCommands(frame.Opaque, frame.View)
+	renderer.drawCommands(frame.Transparent, frame.View)
 	renderer.screen.EndFrame()
 }
 
-func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, frame sceneplan.Frame, camera models.Camera) {
-	shading := shadingFor(environment, frame.Light, camera)
-	locations := renderer.locations
-	SetMatrix(locations.viewProjection, PICAViewProjection(frame.Matrices.ViewProjection))
-	setVector(locations.camera, shading.camera)
-	setVector(locations.sunDirection, shading.sunDirection)
-	setVector(locations.sunColour, shading.sunColour)
-	setVector(locations.ambientGround, shading.ambientGround)
-	setVector(locations.ambientSpan, shading.ambientSpan)
-	setVector(locations.waterLight, shading.waterLight)
-	setVector(locations.skyReflection, shading.skyReflection)
-	setVector(locations.fogColour, shading.fogColour)
-	setVector(locations.settings, shading.settings)
-	setVector(locations.fog, shading.fog)
+// bind makes a shader the one drawing, setting its per-frame uniforms the first time this frame.
+func (renderer *SceneRenderer) bind(shader *Shader) {
+	if renderer.bound == shader {
+		return
+	}
+	shader.Use()
+	renderer.bound = shader
+	shading := renderer.shading
+	viewProjection := PICAViewProjection(renderer.frame.Matrices.ViewProjection)
+	if shader == renderer.baked {
+		places := renderer.bakedPlaces
+		SetMatrix(places.viewProjection, viewProjection)
+		setVector(places.camera, shading.camera)
+		setVector(places.settings, shading.settings)
+		setVector(places.fog, shading.fog)
+		setVector(places.fogColour, inScreenGamma(shading.fogColour))
+		return
+	}
+	places := renderer.waterPlaces
+	SetMatrix(places.viewProjection, viewProjection)
+	setVector(places.camera, shading.camera)
+	setVector(places.sunDirection, shading.sunDirection)
+	setVector(places.sunColour, shading.sunColour)
+	setVector(places.ambientGround, shading.ambientGround)
+	setVector(places.ambientSpan, shading.ambientSpan)
+	setVector(places.waterLight, shading.waterLight)
+	setVector(places.skyReflection, shading.skyReflection)
+	setVector(places.fogColour, shading.fogColour)
+	setVector(places.settings, shading.settings)
+	setVector(places.fog, shading.fog)
 }
 
-func (renderer *SceneRenderer) drawCommands(commands []sceneplan.Command, view sceneplan.Viewpoint, brightness float32) {
+func (renderer *SceneRenderer) drawCommands(commands []sceneplan.Command, view sceneplan.Viewpoint) {
 	if len(commands) == 0 {
 		return
 	}
@@ -149,47 +213,110 @@ func (renderer *SceneRenderer) drawCommands(commands []sceneplan.Command, view s
 	}
 	C.setBlending(C.int(translucent))
 	for _, command := range commands {
-		renderer.drawCommand(command, view, brightness)
+		renderer.drawCommand(command, view)
 	}
 }
 
-func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view sceneplan.Viewpoint, brightness float32) {
-	locations := renderer.locations
-	setVector(locations.baseColour, sceneplan.BaseColorOf(command.Material))
-	setVector(locations.weights, materialWeights(command.Material.Kind, brightness))
-	setVector(locations.minimumAlpha, graphics.Vec4{minimumAlpha(command.Material.Kind), 0, 0, 0})
-	renderer.setModel(command.World)
+func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view sceneplan.Viewpoint) {
+	draw := renderer.drawBaked
+	if command.Material.Kind == scene.KindWater {
+		draw = renderer.drawWater
+		renderer.prepareWater(command)
+	} else {
+		renderer.bind(renderer.baked)
+		SetMatrix(renderer.bakedPlaces.model, command.World)
+	}
 	if command.Node.Instances != nil {
-		renderer.drawInstances(command, view)
+		for _, batch := range renderer.planner.InstanceBatches(command, view, sceneplan.MainPass) {
+			instances, _ := batch.Handle.(*sceneplan.MergedBatch)
+			if instances == nil || batch.Count == 0 {
+				continue
+			}
+			draw(command, instances.MergedFor(batch.Mesh, batch.Count))
+			renderer.planner.Count(sceneplan.MainPass, batch.Mesh, batch.Count)
+		}
 		return
 	}
 	mesh, visible := renderer.planner.MeshToDraw(command, view)
 	if !visible {
 		return
 	}
-	drawMesh(mesh)
+	draw(command, mesh)
 	renderer.planner.Count(sceneplan.MainPass, mesh, 0)
 }
 
-// drawInstances draws each batch of visible instances as one mesh holding all its copies.
-func (renderer *SceneRenderer) drawInstances(command sceneplan.Command, view sceneplan.Viewpoint) {
-	for _, batch := range renderer.planner.InstanceBatches(command, view, sceneplan.MainPass) {
-		instances, _ := batch.Handle.(*sceneplan.MergedBatch)
-		if instances == nil || batch.Count == 0 {
-			continue
-		}
-		drawMesh(instances.MergedFor(batch.Mesh, batch.Count))
-		renderer.planner.Count(sceneplan.MainPass, batch.Mesh, batch.Count)
+// prepareWater binds the full shader and sets what one water command needs.
+func (renderer *SceneRenderer) prepareWater(command sceneplan.Command) {
+	renderer.bind(renderer.water)
+	places := renderer.waterPlaces
+	setVector(places.baseColour, sceneplan.BaseColorOf(command.Material))
+	setVector(places.weights, materialWeights(command.Material.Kind, renderer.light.brightness))
+	setVector(places.minimumAlpha, graphics.Vec4{minimumAlpha(command.Material.Kind), 0, 0, 0})
+	SetMatrix(places.model, command.World)
+	normal := sceneplan.NormalMatrix(command.World) // column by column
+	for row := range 3 {
+		setVector(places.normalMatrix+row, graphics.Vec4{normal[row], normal[3+row], normal[6+row], 0})
 	}
 }
 
-// setModel sets the model matrix and the rows of its normal matrix.
-func (renderer *SceneRenderer) setModel(model graphics.Mat4) {
-	SetMatrix(renderer.locations.model, model)
-	normal := sceneplan.NormalMatrix(model) // column by column
-	for row := range 3 {
-		setVector(renderer.locations.normalMatrix+row, graphics.Vec4{normal[row], normal[3+row], normal[6+row], 0})
+func (renderer *SceneRenderer) drawWater(command sceneplan.Command, mesh *scene.Mesh) {
+	for _, piece := range uploadShaded(mesh).pieces {
+		C.drawSceneElements(piece.vertices, piece.indices, C.int(piece.count))
 	}
+}
+
+func (renderer *SceneRenderer) drawBaked(command sceneplan.Command, mesh *scene.Mesh) {
+	key := bakeKey{
+		normalMatrix: sceneplan.NormalMatrix(command.World),
+		baseColour:   sceneplan.BaseColorOf(command.Material),
+		kind:         command.Material.Kind,
+		light:        renderer.light,
+	}
+	for _, piece := range renderer.bakedFor(mesh, key).pieces {
+		C.drawBakedElements(piece.vertices, piece.indices, C.int(piece.count))
+	}
+}
+
+// bakedMesh is a mesh's baked versions on the GPU: usually one, more when the mesh is drawn by
+// nodes turned differently or with different materials.
+type bakedMesh struct {
+	variants []bakedVariant
+}
+
+type bakedVariant struct {
+	key   bakeKey
+	onGPU *meshOnGPU
+}
+
+// bakedFor returns the mesh baked for key, baking it when it is new, Dirty, or lit differently.
+func (renderer *SceneRenderer) bakedFor(mesh *scene.Mesh, key bakeKey) *meshOnGPU {
+	baked := renderer.bakedMeshes[mesh]
+	if baked == nil {
+		baked = &bakedMesh{}
+		renderer.bakedMeshes[mesh] = baked
+	}
+	if mesh.Dirty {
+		for _, variant := range baked.variants {
+			variant.onGPU.free()
+		}
+		baked.variants = baked.variants[:0]
+		mesh.Dirty = false
+	}
+	for index := range baked.variants {
+		variant := &baked.variants[index]
+		if variant.key.normalMatrix != key.normalMatrix || variant.key.baseColour != key.baseColour || variant.key.kind != key.kind {
+			continue
+		}
+		if !variant.key.light.closeTo(key.light) {
+			variant.onGPU.free()
+			variant.onGPU = uploadPieces(bakeVertices(mesh, key), mesh.Indices, floatsPerBakedVertex)
+			variant.key = key
+		}
+		return variant.onGPU
+	}
+	onGPU := uploadPieces(bakeVertices(mesh, key), mesh.Indices, floatsPerBakedVertex)
+	baked.variants = append(baked.variants, bakedVariant{key: key, onGPU: onGPU})
+	return onGPU
 }
 
 // meshOnGPU is a mesh in linear memory, in pieces of 16-bit indices.
@@ -202,14 +329,9 @@ type pieceOnGPU struct {
 	count             int
 }
 
-func drawMesh(mesh *scene.Mesh) {
-	for _, piece := range upload(mesh).pieces {
-		C.drawSceneElements(piece.vertices, piece.indices, C.int(piece.count))
-	}
-}
-
-// upload copies a mesh to linear memory the first time it is drawn, and again when it is Dirty.
-func upload(mesh *scene.Mesh) *meshOnGPU {
+// uploadShaded copies a mesh, with its normals, to linear memory for the full shader the first
+// time it is drawn, and again when it is Dirty.
+func uploadShaded(mesh *scene.Mesh) *meshOnGPU {
 	onGPU, _ := mesh.GPU.(*meshOnGPU)
 	if onGPU != nil && !mesh.Dirty {
 		return onGPU
@@ -217,18 +339,28 @@ func upload(mesh *scene.Mesh) *meshOnGPU {
 	if onGPU != nil {
 		onGPU.free()
 	}
-	onGPU = &meshOnGPU{}
-	for _, piece := range splitForShortIndices(sceneplan.InterleaveVertices(mesh), mesh.Indices, sceneplan.FloatsPerVertex) {
-		vertices := copyToLinearMemory(unsafe.Pointer(&piece.vertices[0]), len(piece.vertices)*4)
-		indices := copyToLinearMemory(unsafe.Pointer(&piece.indices[0]), len(piece.indices)*2)
-		if vertices == nil || indices == nil {
-			freeLinearMemory(vertices)
-			freeLinearMemory(indices)
+	onGPU = uploadPieces(sceneplan.InterleaveVertices(mesh), mesh.Indices, sceneplan.FloatsPerVertex)
+	mesh.GPU, mesh.Dirty = onGPU, false
+	return onGPU
+}
+
+// uploadPieces copies interleaved vertices and their triangles to linear memory, cut into pieces
+// of 16-bit indices.
+func uploadPieces(vertices []float32, indices []uint32, floatsPerVertex int) *meshOnGPU {
+	onGPU := &meshOnGPU{}
+	if len(vertices) == 0 {
+		return onGPU
+	}
+	for _, piece := range splitForShortIndices(vertices, indices, floatsPerVertex) {
+		pieceVertices := copyToLinearMemory(unsafe.Pointer(&piece.vertices[0]), len(piece.vertices)*4)
+		pieceIndices := copyToLinearMemory(unsafe.Pointer(&piece.indices[0]), len(piece.indices)*2)
+		if pieceVertices == nil || pieceIndices == nil {
+			freeLinearMemory(pieceVertices)
+			freeLinearMemory(pieceIndices)
 			break // out of linear memory: draw what fits
 		}
-		onGPU.pieces = append(onGPU.pieces, pieceOnGPU{vertices: vertices, indices: indices, count: len(piece.indices)})
+		onGPU.pieces = append(onGPU.pieces, pieceOnGPU{vertices: pieceVertices, indices: pieceIndices, count: len(piece.indices)})
 	}
-	mesh.GPU, mesh.Dirty = onGPU, false
 	return onGPU
 }
 

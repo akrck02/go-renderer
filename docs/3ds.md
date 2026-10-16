@@ -45,12 +45,19 @@ takes under a millisecond. The tests of `graphics`, `scene`, `sceneplan`, `camer
 `ctr.SceneRenderer` draws a `scene.Scene` the way `gles` does: lit meshes and instances, the light
 of the time of day, fog and translucent water, planned by `sceneplan`. What changes on the PICA200:
 
-- **Shading per vertex.** `ctr/shaders/scene.v.pica` lights each vertex with the sun and the sky
-  and ground light, adds the glow of glowing materials and the sky's reflection on water at
-  grazing angles, fogs it with a smoothstep and turns it to the screen's gamma (with the chip's
-  `lg2` and `ex2`). An instruction reads one uniform at most, so what is the same for the whole
-  frame is worked out first in Go (`ctr/shading.go`), and the material's kind picks its shading
-  through weights instead of branches.
+- **Light worked out on the processor.** Lighting every vertex on the GPU held the sample island
+  to 30 frames a second on a New 3DS XL: the GPU took 34 ms a frame, the processor 0.4 ms. Sun and
+  sky change slowly, so `ctr/bake.go` lights each vertex once, when a mesh is uploaded (sun, sky
+  and ground light, glow, flat by brightness, then the screen's gamma), and keeps its colour in
+  four bytes: a vertex is 16 bytes instead of 40. A mesh is baked again only when the light, the
+  mesh or its node's turn changes. `ctr/shaders/baked.v.pica` then only places each vertex and
+  fogs it by its distance to the camera, linearly: 27 instructions instead of 95.
+- **Water on the GPU.** Water's reflection of the sky depends on where the camera looks from, so
+  water goes through the full shader, `ctr/shaders/scene.v.pica` (gles's scene shader done per
+  vertex, with its smoothstep fog and the chip's `lg2` and `ex2` for gamma). It has few vertices.
+- **Not the chip's own fog.** The PICA200 can fog in fixed function, from a table of 128 steps of
+  the depth buffer; but depth is far from linear (with the near plane at 0.1 and the far one at
+  20 000, the whole island's fog would fall in the first step), so ctr fogs per vertex.
 - **OpenGL's matrices, turned.** `sceneplan` plans frames with OpenGL's clip space; one fixed
   matrix (`ctr.PICAViewProjection`) gives the PICA200's quarter turn and depth range. Turning
   `graphics.OrthographicOpenGL` with it gives `ctr.OrthographicTilt` (tested on any computer).
@@ -70,8 +77,9 @@ Copy the `.3dsx` to `/3ds/` on the SD card and open it from the Homebrew Launche
 
 ## Not yet
 
-- How fast the scene renderer is on the console: the emulator does not tell. Smaller vertices
-  (the chip reads bytes and shorts too) and fewer triangles far away are the next steps.
+- How fast the baked renderer is on the console. Positions in shorts and fewer triangles far away
+  are the next steps if it is not enough.
+- A sun that moves all the time bakes the meshes again whenever a colour would change by a step.
 - Planning a frame makes about 4 KB of garbage; the collector would have to run every few minutes.
 - Textures, the overlay and `draw2d`.
 - Input beyond the START button, the bottom screen's touch, and the 3D slider.

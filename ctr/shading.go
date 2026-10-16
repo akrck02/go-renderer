@@ -84,6 +84,17 @@ func screenColour(colour graphics.Vec4) uint32 {
 	return channel(colour[0])<<24 | channel(colour[1])<<16 | channel(colour[2])<<8 | 0xFF
 }
 
+// inScreenGamma turns a linear colour into the screen's gamma, keeping it as floats.
+func inScreenGamma(colour graphics.Vec4) graphics.Vec4 {
+	gamma := func(value float32) float32 {
+		if value <= 0 {
+			return 0
+		}
+		return float32(math.Pow(float64(value), 1/2.2))
+	}
+	return graphics.Vec4{gamma(colour[0]), gamma(colour[1]), gamma(colour[2]), colour[3]}
+}
+
 func scaled(vector graphics.Vec4, factor float32) graphics.Vec4 {
 	return graphics.Vec4{vector[0] * factor, vector[1] * factor, vector[2] * factor, vector[3] * factor}
 }
