@@ -107,7 +107,8 @@ type SceneRenderer struct {
 	// this frame's shading, and the shader its uniforms were last set for
 	shading        frameShading
 	light          lightKey
-	bakes          int // meshes baked since the renderer was made (Bakes)
+	bakes          int           // meshes baked since the renderer was made (Bakes)
+	planTime       time.Duration // how long sceneplan took for the last frame (PlanTime)
 	bound          *Shader
 	frame          sceneplan.Frame
 	viewProjection graphics.Mat4 // of the eye being drawn, in the PICA200's clip space
@@ -160,6 +161,12 @@ func NewSceneRenderer(screen *Screen) (*SceneRenderer, error) {
 	return renderer, nil
 }
 
+// PlanTime is how long planning the last frame took on the processor, before citro3d's own
+// processing time (ProcessingTime) starts.
+func (renderer *SceneRenderer) PlanTime() time.Duration {
+	return renderer.planTime
+}
+
 // Bakes is how many times a mesh's light has been worked out on the processor since the renderer
 // was made: when meshes are new, change, or the light changes.
 func (renderer *SceneRenderer) Bakes() int {
@@ -181,7 +188,9 @@ func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera) {
 // focal distance on the plane of the screen. The frame is planned once, for the camera between
 // them. With no separation it draws one picture, as Draw.
 func (renderer *SceneRenderer) DrawStereo(world *scene.Scene, camera models.Camera, separation, focalDistance float32) {
+	planStart := time.Now()
 	frame := renderer.planner.Plan(world, camera, ScreenWidth, ScreenHeight, sceneplan.ShadowSettings{})
+	renderer.planTime = time.Since(planStart)
 	renderer.frame = frame
 	renderer.shading = shadingFor(world.Environment, frame.Light, camera)
 	renderer.light = lightKeyOf(renderer.shading)
