@@ -65,3 +65,12 @@ func TestAMergedBatchIsMadeAgainOnlyWhenItChanges(t *testing.T) {
 		t.Fatal("a rewritten batch should be made and uploaded again")
 	}
 }
+
+func TestTheWaterGridCanBeCoarser(t *testing.T) {
+	if cells := len(newWaterGrid(100, 0).Indices) / 6; cells != 256*256 {
+		t.Fatalf("%d cells by default, want 256 × 256", cells)
+	}
+	if cells := len(newWaterGrid(100, 32).Indices) / 6; cells != 32*32 {
+		t.Fatalf("%d cells, want 32 × 32", cells)
+	}
+}

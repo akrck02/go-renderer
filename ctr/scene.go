@@ -76,6 +76,9 @@ const (
 	ScreenHeight = 240
 )
 
+// waterGridDivisions is how many cells per side the water surface has here.
+const waterGridDivisions = 32
+
 //go:embed shaders/scene.shbin
 var sceneShaderBinary []byte
 
@@ -131,8 +134,12 @@ func NewSceneRenderer(screen *Screen) (*SceneRenderer, error) {
 		water.Free()
 		return nil, err
 	}
+	planner := sceneplan.NewPlanner(sceneplan.MergingStore{})
+	// 256 × 256 cells of water were 131 072 of the sample island's 160 756 triangles, through the
+	// slow full shader; without waves 32 × 32 is enough, fine near the camera for the fog.
+	planner.WaterGridDivisions = waterGridDivisions
 	renderer := &SceneRenderer{screen: screen, water: water, baked: baked,
-		planner: sceneplan.NewPlanner(sceneplan.MergingStore{}), bakedMeshes: map[*scene.Mesh]*bakedMesh{}}
+		planner: planner, bakedMeshes: map[*scene.Mesh]*bakedMesh{}}
 	renderer.waterPlaces = waterLocations{
 		viewProjection: water.Uniform("viewProjection"), camera: water.Uniform("camera"),
 		sunDirection: water.Uniform("sunDirection"), sunColour: water.Uniform("sunColour"),
