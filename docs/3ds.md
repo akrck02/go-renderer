@@ -70,6 +70,26 @@ of the time of day, fog and translucent water, planned by `sceneplan`. What chan
   (`MergedBatch`), which both renderers share.
 - **Meshes in linear memory,** uploaded once and again only when `Dirty`.
 
+## The bottom screen
+
+`ctr.FlatRenderer` paints a `draw2d.List` (an interface: go-ui's, or a program's own) on the
+bottom screen, as `gles.FlatRenderer` does in browsers and on phones: `opengl/overlay` lays the
+list out as rectangles of one atlas of glyphs, icons and rounded corners, and they are drawn in one
+call. On the PICA200 the atlas is a texture of one byte per pixel (A8), which has to be laid out
+in the chip's own way: tiles of 8 × 8 pixels, from the bottom of the picture, Morton order inside
+each tile (`ctr/texture.go`, tested on any computer); a colour stage then multiplies each
+rectangle's alpha by the atlas's coverage. Pictures (`draw2d` images) are not drawn yet, and the
+atlas has to stay within the chip's 1024 × 1024 pixels.
+
+<p align="center">
+  <img alt="The emulator's two screens: the village of the sample island above, in the morning; below, a dark blue go-ui panel titled Sample island with the tabs View, Light and Figures, Light chosen, a time of day slider at 10:00 and a fog switch, on" src="images/3ds-interface.png" width="420">
+</p>
+
+Both screens are drawn in one frame: `ctr.BeginFrame`, then `SceneRenderer.PaintStereo` for the
+top screen and `FlatRenderer.Paint` for the bottom one, then `ctr.EndFrame`. (`Draw` and
+`DrawStereo` begin and end a frame themselves, for a program with the top screen only.)
+[go-3ds](https://github.com/akrck02/go-3ds) puts go-ui on the bottom screen this way.
+
 ## In 3D
 
 The top screen shows a picture for each eye when the 3D slider is up. `SceneRenderer.DrawStereo`

@@ -55,13 +55,6 @@ static float slider3D(void) {
 	return osGet3DSliderState();
 }
 
-// beginStereoFrame waits for the previous frame and clears both eyes' pictures.
-static void beginStereoFrame(C3D_RenderTarget* left, C3D_RenderTarget* right, u32 clearColour) {
-	C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-	C3D_RenderTargetClear(left, C3D_CLEAR_ALL, clearColour, 0);
-	C3D_RenderTargetClear(right, C3D_CLEAR_ALL, clearColour, 0);
-}
-
 static void drawOn(C3D_RenderTarget* target) {
 	C3D_FrameDrawOn(target);
 }
@@ -72,8 +65,12 @@ static void closeScreen(C3D_RenderTarget* target) {
 	gfxExit();
 }
 
-static void beginFrame(C3D_RenderTarget* target, u32 clearColour) {
+static void frameBegin(void) {
 	C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+}
+
+// clearOn clears a picture and makes the next draws go to it.
+static void clearOn(C3D_RenderTarget* target, u32 clearColour) {
 	C3D_RenderTargetClear(target, C3D_CLEAR_ALL, clearColour, 0);
 	C3D_FrameDrawOn(target);
 }
@@ -208,25 +205,50 @@ func (screen *Screen) Close() {
 	C.closeScreen(screen.target)
 }
 
-// BeginFrame waits for the previous frame and clears the screen to a colour given as 0xRRGGBBAA,
-// for one picture: the screen leaves 3D.
+// BeginFrame waits for the previous frame and starts one: the top screen and the bottom one are
+// drawn between it and EndFrame.
+func BeginFrame() {
+	C.frameBegin()
+}
+
+// EndFrame sends what was drawn this frame to the GPU and shows it.
+func EndFrame() {
+	C.endFrame()
+}
+
+// BeginFrame begins a frame (the package's BeginFrame) and clears the screen to a colour given as
+// 0xRRGGBBAA, for one picture.
 func (screen *Screen) BeginFrame(clearColour uint32) {
+	BeginFrame()
+	screen.Clear(clearColour)
+}
+
+// Clear clears the screen for one picture, in a frame: the screen leaves 3D, and the next draws go
+// to it.
+func (screen *Screen) Clear(clearColour uint32) {
 	screen.setStereo(false)
-	C.beginFrame(screen.target, C.u32(clearColour))
+	C.clearOn(screen.target, C.u32(clearColour))
 }
 
 // BeginStereoFrame is BeginFrame for a picture for each eye; DrawOn chooses the one drawn next.
-// It falls back to one picture when the second cannot be made.
+// It falls back to one picture, and answers false, when the second cannot be made.
 func (screen *Screen) BeginStereoFrame(clearColour uint32) bool {
+	BeginFrame()
+	return screen.ClearStereo(clearColour)
+}
+
+// ClearStereo clears both eyes' pictures in a frame; the next draws go to the left one.
+func (screen *Screen) ClearStereo(clearColour uint32) bool {
 	if screen.right == nil {
 		screen.right = C.openRightEye()
 	}
 	if screen.right == nil {
-		screen.BeginFrame(clearColour)
+		screen.Clear(clearColour)
 		return false
 	}
 	screen.setStereo(true)
-	C.beginStereoFrame(screen.target, screen.right, C.u32(clearColour))
+	C.clearOn(screen.right, C.u32(clearColour))
+	C.clearOn(screen.target, C.u32(clearColour))
 	return true
 }
 
@@ -256,9 +278,9 @@ func Slider3D() float32 {
 	return float32(C.slider3D())
 }
 
-// EndFrame sends what was drawn to the GPU and shows it.
+// EndFrame ends the frame (the package's EndFrame).
 func (screen *Screen) EndFrame() {
-	C.endFrame()
+	EndFrame()
 }
 
 // Shader is a vertex shader for the PICA200, assembled by devkitPro's picasso (a .shbin file).
