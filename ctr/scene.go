@@ -16,6 +16,11 @@ static void setVector(int location, float x, float y, float z, float w) {
 // maps the near plane to 1 and the far one to 0, and clears to 0.
 static void prepareScene(void) {
 	C3D_CullFace(GPU_CULL_NONE);
+	// The first colour stage passes the vertex colour through (the overlay changes it).
+	C3D_TexEnv* environment = C3D_GetTexEnv(0);
+	C3D_TexEnvInit(environment);
+	C3D_TexEnvSrc(environment, C3D_Both, GPU_PRIMARY_COLOR, 0, 0);
+	C3D_TexEnvFunc(environment, C3D_Both, GPU_REPLACE);
 }
 
 // setBlending switches between opaque surfaces, which write depth, and translucent ones, blended
@@ -187,8 +192,16 @@ func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera) {
 
 // DrawStereo draws a frame for both eyes, which stand separation apart and see what lies at the
 // focal distance on the plane of the screen. The frame is planned once, for the camera between
-// them. With no separation it draws one picture, as Draw.
+// them. With no separation it draws one picture, as Draw. It begins and ends the frame itself; to
+// draw the bottom screen in the same frame, use PaintStereo between BeginFrame and EndFrame.
 func (renderer *SceneRenderer) DrawStereo(world *scene.Scene, camera models.Camera, separation, focalDistance float32) {
+	BeginFrame()
+	renderer.PaintStereo(world, camera, separation, focalDistance)
+	EndFrame()
+}
+
+// PaintStereo is DrawStereo inside a frame begun with BeginFrame.
+func (renderer *SceneRenderer) PaintStereo(world *scene.Scene, camera models.Camera, separation, focalDistance float32) {
 	planStart := time.Now()
 	frame := renderer.planner.Plan(world, camera, ScreenWidth, ScreenHeight, sceneplan.ShadowSettings{})
 	renderer.planTime = time.Since(planStart)
@@ -198,13 +211,12 @@ func (renderer *SceneRenderer) DrawStereo(world *scene.Scene, camera models.Came
 	clear := screenColour(frame.Light.Horizon)
 	stereo := false
 	if separation > 0 && focalDistance > 0 {
-		stereo = renderer.screen.BeginStereoFrame(clear) // begins one picture if it cannot do two
+		stereo = renderer.screen.ClearStereo(clear) // clears one picture if it cannot do two
 	} else {
-		renderer.screen.BeginFrame(clear)
+		renderer.screen.Clear(clear)
 	}
 	if !stereo {
 		renderer.drawEye(PICAViewProjection(frame.Matrices.ViewProjection), frame)
-		renderer.screen.EndFrame()
 		return
 	}
 	for _, eye := range []Eye{LeftEye, RightEye} {
@@ -212,7 +224,6 @@ func (renderer *SceneRenderer) DrawStereo(world *scene.Scene, camera models.Came
 		viewProjection := EyeViewProjection(camera, eye, separation, focalDistance, ScreenWidth, ScreenHeight)
 		renderer.drawEye(PICAViewProjection(viewProjection), frame)
 	}
-	renderer.screen.EndFrame()
 }
 
 // drawEye draws the planned frame with one view-projection.
