@@ -162,18 +162,16 @@ import (
 	"github.com/akrck02/go-renderer/graphics"
 )
 
-// ButtonStart is the START button in ButtonsPressed.
-const ButtonStart = uint32(C.KEY_START)
-
 // Running reports whether the program should go on; it is false when the system asks it to
 // close (the HOME menu, the power button).
 func Running() bool {
 	return bool(C.aptMainLoop())
 }
 
-// ButtonsPressed reads the buttons and answers those pressed since the last call.
-func ButtonsPressed() uint32 {
-	return uint32(C.buttonsPressed())
+// ButtonsPressed reads the buttons and answers those pressed since the last read, for a program
+// that needs no more; ReadControls reads everything.
+func ButtonsPressed() Buttons {
+	return Buttons(C.buttonsPressed())
 }
 
 // OpenBottomConsole turns the bottom screen into a text console for println, after Open.

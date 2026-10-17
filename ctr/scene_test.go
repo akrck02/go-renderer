@@ -21,7 +21,7 @@ func TestOpenGLMatricesBecomePICAOnes(t *testing.T) {
 
 func TestASmallMeshStaysInOnePiece(t *testing.T) {
 	vertices := make([]float32, 3*2)
-	pieces := splitForShortIndices(vertices, []uint32{0, 1, 2}, 2)
+	pieces := splitForShortIndices(vertices, []uint32{0, 1, 2}, 2, nil)
 	if len(pieces) != 1 || len(pieces[0].indices) != 3 || pieces[0].indices[2] != 2 {
 		t.Fatalf("pieces %v", pieces)
 	}
@@ -36,7 +36,7 @@ func TestALargeMeshIsCutIntoPiecesOfShortIndices(t *testing.T) {
 		vertices[index] = float32(index) // one float per vertex: its own number
 		indices[index] = uint32(index)
 	}
-	pieces := splitForShortIndices(vertices, indices, 1)
+	pieces := splitForShortIndices(vertices, indices, 1, nil)
 	if len(pieces) != 2 {
 		t.Fatalf("%d pieces, want 2", len(pieces))
 	}
@@ -58,7 +58,7 @@ func TestALargeMeshIsCutIntoPiecesOfShortIndices(t *testing.T) {
 }
 
 func TestAMeshWithoutIndicesIsAListOfTriangles(t *testing.T) {
-	pieces := splitForShortIndices(make([]float32, 6), nil, 1)
+	pieces := splitForShortIndices(make([]float32, 6), nil, 1, nil)
 	if len(pieces) != 1 || len(pieces[0].indices) != 6 || pieces[0].indices[5] != 5 {
 		t.Fatalf("pieces %v", pieces)
 	}

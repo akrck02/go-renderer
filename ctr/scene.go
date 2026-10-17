@@ -110,7 +110,13 @@ type SceneRenderer struct {
 	bakedPlaces bakedLocations
 	planner     *sceneplan.Planner
 	bakedMeshes map[*scene.Mesh]*bakedMesh
+	shaded      map[*scene.Mesh]*shadedMesh
 	forests     map[*scene.Instances]*mergedForest
+	frames      int // frames drawn, to let go of meshes no longer drawn (forget)
+	// vertexScratch and indexScratch are reused by every bake and upload: their contents only
+	// matter until they are copied to linear memory.
+	vertexScratch []float32
+	indexScratch  []uint16
 
 	// this frame's shading, and the shader its uniforms were last set for
 	shading        frameShading
@@ -150,7 +156,8 @@ func NewSceneRenderer(screen *Screen) (*SceneRenderer, error) {
 	// slow full shader; without waves 32 × 32 is enough, fine near the camera for the fog.
 	planner.WaterGridDivisions = waterGridDivisions
 	renderer := &SceneRenderer{screen: screen, water: water, baked: baked,
-		planner: planner, bakedMeshes: map[*scene.Mesh]*bakedMesh{}, forests: map[*scene.Instances]*mergedForest{}}
+		planner: planner, bakedMeshes: map[*scene.Mesh]*bakedMesh{}, shaded: map[*scene.Mesh]*shadedMesh{},
+		forests: map[*scene.Instances]*mergedForest{}}
 	renderer.waterPlaces = waterLocations{
 		viewProjection: water.Uniform("viewProjection"), camera: water.Uniform("camera"),
 		sunDirection: water.Uniform("sunDirection"), sunColour: water.Uniform("sunColour"),
@@ -204,6 +211,7 @@ func (renderer *SceneRenderer) DrawStereo(world *scene.Scene, camera models.Came
 
 // PaintStereo is DrawStereo inside a frame begun with BeginFrame.
 func (renderer *SceneRenderer) PaintStereo(world *scene.Scene, camera models.Camera, separation, focalDistance float32) {
+	renderer.nextFrame()
 	planStart := time.Now()
 	frame := renderer.planner.Plan(world, camera, ScreenWidth, ScreenHeight, sceneplan.ShadowSettings{})
 	renderer.planTime = time.Since(planStart)
@@ -226,6 +234,21 @@ func (renderer *SceneRenderer) PaintStereo(world *scene.Scene, camera models.Cam
 		viewProjection := EyeViewProjection(camera, eye, separation, focalDistance, ScreenWidth, ScreenHeight)
 		renderer.drawEye(PICAViewProjection(viewProjection), frame)
 	}
+}
+
+// PaintOn draws a frame of the scene on either screen, in one picture, inside a frame begun with
+// BeginFrame: on the bottom one, the scene can be touched.
+func (renderer *SceneRenderer) PaintOn(surface Surface, world *scene.Scene, camera models.Camera) {
+	renderer.nextFrame()
+	width, height := surface.size()
+	planStart := time.Now()
+	frame := renderer.planner.Plan(world, camera, width, height, sceneplan.ShadowSettings{})
+	renderer.planTime = time.Since(planStart)
+	renderer.frame = frame
+	renderer.shading = shadingFor(world.Environment, frame.Light, camera)
+	renderer.light = lightKeyOf(renderer.shading)
+	surface.clear(screenColour(frame.Light.Horizon))
+	renderer.drawEye(PICAViewProjection(frame.Matrices.ViewProjection), frame)
 }
 
 // drawEye draws the planned frame with one view-projection.
@@ -314,11 +337,14 @@ func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view scene
 func (renderer *SceneRenderer) wholeForest(node *scene.Node) *scene.Mesh {
 	instances := node.Instances
 	forest := renderer.forests[instances]
+	if forest != nil {
+		forest.lastDrawn = renderer.frames
+	}
 	if forest != nil && forest.source == node.Mesh && !instances.Dirty && len(instances.Changed) == 0 {
 		return forest.merged
 	}
 	if forest == nil {
-		forest = &mergedForest{merged: &scene.Mesh{Name: node.Mesh.Name + " (all instances)"}}
+		forest = &mergedForest{merged: &scene.Mesh{Name: node.Mesh.Name + " (all instances)"}, lastDrawn: renderer.frames}
 		renderer.forests[instances] = forest
 	}
 	forest.source = node.Mesh
@@ -330,8 +356,9 @@ func (renderer *SceneRenderer) wholeForest(node *scene.Node) *scene.Mesh {
 
 // mergedForest is a node's instances as one mesh.
 type mergedForest struct {
-	source *scene.Mesh // the instanced mesh it was made from
-	merged *scene.Mesh
+	source    *scene.Mesh // the instanced mesh it was made from
+	merged    *scene.Mesh
+	lastDrawn int
 }
 
 // prepareWater binds the full shader and sets what one water command needs.
@@ -349,7 +376,7 @@ func (renderer *SceneRenderer) prepareWater(command sceneplan.Command) {
 }
 
 func (renderer *SceneRenderer) drawWater(command sceneplan.Command, mesh *scene.Mesh) {
-	for _, piece := range uploadShaded(mesh).pieces {
+	for _, piece := range renderer.uploadShaded(mesh).pieces {
 		C.drawSceneElements(piece.vertices, piece.indices, C.int(piece.count))
 	}
 }
@@ -366,10 +393,44 @@ func (renderer *SceneRenderer) drawBaked(command sceneplan.Command, mesh *scene.
 	}
 }
 
+// forgetAfter is how many frames a mesh stays on the GPU without being drawn: a program that
+// makes its scene again (a plan whose machines change colour) leaves its old meshes behind, and
+// their memory, in the Go heap and in linear memory, would never come back.
+const forgetAfter = 60
+
+// nextFrame counts a frame, and every forgetAfter frames lets go of the meshes not drawn since.
+func (renderer *SceneRenderer) nextFrame() {
+	renderer.frames++
+	if renderer.frames%forgetAfter != 0 {
+		return
+	}
+	stale := renderer.frames - forgetAfter
+	for mesh, baked := range renderer.bakedMeshes {
+		if baked.lastDrawn < stale {
+			for _, variant := range baked.variants {
+				variant.onGPU.free()
+			}
+			delete(renderer.bakedMeshes, mesh)
+		}
+	}
+	for mesh, shaded := range renderer.shaded {
+		if shaded.lastDrawn < stale {
+			shaded.onGPU.free()
+			delete(renderer.shaded, mesh)
+		}
+	}
+	for instances, forest := range renderer.forests {
+		if forest.lastDrawn < stale {
+			delete(renderer.forests, instances) // its merged mesh goes with bakedMeshes
+		}
+	}
+}
+
 // bakedMesh is a mesh's baked versions on the GPU: usually one, more when the mesh is drawn by
 // nodes turned differently or with different materials.
 type bakedMesh struct {
-	variants []bakedVariant
+	variants  []bakedVariant
+	lastDrawn int // the frame it was last drawn in
 }
 
 type bakedVariant struct {
@@ -384,6 +445,7 @@ func (renderer *SceneRenderer) bakedFor(mesh *scene.Mesh, key bakeKey) *meshOnGP
 		baked = &bakedMesh{}
 		renderer.bakedMeshes[mesh] = baked
 	}
+	baked.lastDrawn = renderer.frames
 	if mesh.Dirty {
 		for _, variant := range baked.variants {
 			variant.onGPU.free()
@@ -397,17 +459,23 @@ func (renderer *SceneRenderer) bakedFor(mesh *scene.Mesh, key bakeKey) *meshOnGP
 			continue
 		}
 		if !variant.key.light.closeTo(key.light) {
-			renderer.bakes++
 			variant.onGPU.free()
-			variant.onGPU = uploadPieces(bakeVertices(mesh, key), mesh.Indices, floatsPerBakedVertex)
+			variant.onGPU = renderer.uploadBaked(mesh, key)
 			variant.key = key
 		}
 		return variant.onGPU
 	}
-	renderer.bakes++
-	onGPU := uploadPieces(bakeVertices(mesh, key), mesh.Indices, floatsPerBakedVertex)
+	onGPU := renderer.uploadBaked(mesh, key)
 	baked.variants = append(baked.variants, bakedVariant{key: key, onGPU: onGPU})
 	return onGPU
+}
+
+// uploadBaked bakes a mesh's light and copies it to linear memory, through the renderer's own
+// buffers: a mesh baked again (its colours changed) makes no new garbage.
+func (renderer *SceneRenderer) uploadBaked(mesh *scene.Mesh, key bakeKey) *meshOnGPU {
+	renderer.bakes++
+	renderer.vertexScratch = bakeVertices(renderer.vertexScratch, mesh, key)
+	return uploadPieces(renderer.vertexScratch, mesh.Indices, floatsPerBakedVertex, &renderer.indexScratch)
 }
 
 // meshOnGPU is a mesh in linear memory, in pieces of 16-bit indices.
@@ -420,29 +488,37 @@ type pieceOnGPU struct {
 	count             int
 }
 
+// shadedMesh is a mesh with its normals on the GPU, for the full shader.
+type shadedMesh struct {
+	onGPU     *meshOnGPU
+	lastDrawn int
+}
+
 // uploadShaded copies a mesh, with its normals, to linear memory for the full shader the first
 // time it is drawn, and again when it is Dirty.
-func uploadShaded(mesh *scene.Mesh) *meshOnGPU {
-	onGPU, _ := mesh.GPU.(*meshOnGPU)
-	if onGPU != nil && !mesh.Dirty {
-		return onGPU
+func (renderer *SceneRenderer) uploadShaded(mesh *scene.Mesh) *meshOnGPU {
+	shaded := renderer.shaded[mesh]
+	if shaded != nil && !mesh.Dirty {
+		shaded.lastDrawn = renderer.frames
+		return shaded.onGPU
 	}
-	if onGPU != nil {
-		onGPU.free()
+	if shaded != nil {
+		shaded.onGPU.free()
 	}
-	onGPU = uploadPieces(sceneplan.InterleaveVertices(mesh), mesh.Indices, sceneplan.FloatsPerVertex)
-	mesh.GPU, mesh.Dirty = onGPU, false
-	return onGPU
+	shaded = &shadedMesh{onGPU: uploadPieces(sceneplan.InterleaveVertices(mesh), mesh.Indices, sceneplan.FloatsPerVertex, &renderer.indexScratch), lastDrawn: renderer.frames}
+	renderer.shaded[mesh] = shaded
+	mesh.Dirty = false
+	return shaded.onGPU
 }
 
 // uploadPieces copies interleaved vertices and their triangles to linear memory, cut into pieces
 // of 16-bit indices.
-func uploadPieces(vertices []float32, indices []uint32, floatsPerVertex int) *meshOnGPU {
+func uploadPieces(vertices []float32, indices []uint32, floatsPerVertex int, reusedIndices *[]uint16) *meshOnGPU {
 	onGPU := &meshOnGPU{}
 	if len(vertices) == 0 {
 		return onGPU
 	}
-	for _, piece := range splitForShortIndices(vertices, indices, floatsPerVertex) {
+	for _, piece := range splitForShortIndices(vertices, indices, floatsPerVertex, reusedIndices) {
 		pieceVertices := copyToLinearMemory(unsafe.Pointer(&piece.vertices[0]), len(piece.vertices)*4)
 		pieceIndices := copyToLinearMemory(unsafe.Pointer(&piece.indices[0]), len(piece.indices)*2)
 		if pieceVertices == nil || pieceIndices == nil {

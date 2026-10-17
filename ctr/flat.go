@@ -15,11 +15,11 @@ package ctr
 	GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO))
 
 // openBottomScreen makes a picture for the bottom screen, a 240 × 320 portrait panel on its side
-// like the top one, with no depth: interfaces are painted in order.
+// like the top one, with depth, so it can show a scene as well as an interface.
 static C3D_RenderTarget* openBottomScreen(void) {
-	C3D_DEPTHTYPE noDepth;
-	noDepth.__i = -1;
-	C3D_RenderTarget* target = C3D_RenderTargetCreate(240, 320, GPU_RB_RGBA8, noDepth);
+	C3D_DEPTHTYPE depth;
+	depth.__i = GPU_RB_DEPTH24_STENCIL8;
+	C3D_RenderTarget* target = C3D_RenderTargetCreate(240, 320, GPU_RB_RGBA8, depth);
 	if (target != NULL) C3D_RenderTargetSetOutput(target, GFX_BOTTOM, GFX_LEFT, BOTTOM_TRANSFER_FLAGS);
 	return target;
 }
@@ -166,6 +166,17 @@ func OpenBottomScreen() (*BottomScreen, error) {
 	return &BottomScreen{target: target}, nil
 }
 
+// Surface is a screen the GPU draws a frame on: the top one or the bottom one.
+type Surface interface {
+	clear(colour uint32) // clears it for one picture and makes the next draws go to it
+	size() (width, height int)
+}
+
+func (screen *BottomScreen) clear(colour uint32) { C.clearBottom(screen.target, C.u32(colour)) }
+func (screen *BottomScreen) size() (int, int)    { return BottomWidth, BottomHeight }
+func (screen *Screen) clear(colour uint32)       { screen.Clear(colour) }
+func (screen *Screen) size() (int, int)          { return ScreenWidth, ScreenHeight }
+
 // FlatRenderer paints a 2D draw list (an interface: go-ui's, or a program's own) on the bottom
 // screen, as gles.FlatRenderer does: opengl/overlay lays it out as rectangles of one atlas of
 // glyphs, icons and rounded corners, and they are drawn in one call. Pictures are not drawn yet.
@@ -217,12 +228,19 @@ func NewFlatRenderer(screen *BottomScreen) (*FlatRenderer, error) {
 // Paint clears the bottom screen to the background and paints the list on it, in a frame begun
 // with BeginFrame. Coordinates are the screen's pixels, from its top-left corner.
 func (renderer *FlatRenderer) Paint(list *draw2d.List, background draw2d.Color) {
-	C.clearBottom(renderer.screen.target, C.u32(packedColour(background)))
+	renderer.PaintOn(renderer.screen, list, background)
+}
+
+// PaintOn is Paint on either screen: an interface can also be shown on the top one (in one picture,
+// not in 3D).
+func (renderer *FlatRenderer) PaintOn(surface Surface, list *draw2d.List, background draw2d.Color) {
+	surface.clear(packedColour(background))
+	width, height := surface.size()
 	renderer.layer.Drawing = list
 	if renderer.layer.IsEmpty() {
 		return
 	}
-	quads := renderer.painter.Paint(&renderer.layer, nil, overlay.Frame{Width: BottomWidth, Height: BottomHeight, Scale: 1})
+	quads := renderer.painter.Paint(&renderer.layer, nil, overlay.Frame{Width: width, Height: height, Scale: 1})
 	if !renderer.uploadAtlas() {
 		return
 	}
@@ -237,7 +255,7 @@ func (renderer *FlatRenderer) Paint(list *draw2d.List, background draw2d.Color) 
 	}
 	renderer.shader.Use()
 	// Pixels from the top-left corner: y grows downwards, so top and bottom are swapped.
-	SetMatrix(renderer.projection, OrthographicTilt(0, BottomWidth, BottomHeight, 0, 0, 1))
+	SetMatrix(renderer.projection, OrthographicTilt(0, float32(width), float32(height), 0, 0, 1))
 	C.prepareOverlay(renderer.texture, renderer.pictures)
 	C.describeQuads(vertices)
 	for _, run := range renderer.runs {
