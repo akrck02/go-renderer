@@ -53,6 +53,7 @@ type Painter struct {
 	occupied []rectangle
 	order    []int // the drawing's commands sorted by layer, reused every frame
 	shown    []*draw2d.Image
+	runes    []rune // a text's characters, reused: converting every text every frame is garbage
 }
 
 // NewPainter parses the embedded fonts and prepares an empty atlas.
