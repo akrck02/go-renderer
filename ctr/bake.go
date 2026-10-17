@@ -58,14 +58,16 @@ func (light lightKey) closeTo(other lightKey) bool {
 
 // bakeVertices lays out a mesh's vertices with their final colour: lit like gles's scene shader
 // (sun, sky and ground light, glow, or flat by brightness), raised to the screen's gamma and packed
-// in bytes. Fog is left to the GPU, since it depends on the camera.
-func bakeVertices(mesh *scene.Mesh, key bakeKey) []float32 {
+// in bytes. Fog is left to the GPU, since it depends on the camera. It writes into into, grown
+// when too small, and returns it: the caller keeps one buffer for every bake, since a new one each
+// time fragments a heap that does not move what it holds (TinyGo's).
+func bakeVertices(into []float32, mesh *scene.Mesh, key bakeKey) []float32 {
 	if len(mesh.Normals) != len(mesh.Positions) {
 		mesh.ComputeNormals()
 	}
 	weights := materialWeights(key.kind, key.light.brightness)
 	vertexCount := mesh.VertexCount()
-	baked := make([]float32, vertexCount*floatsPerBakedVertex)
+	baked := grownTo(into, vertexCount*floatsPerBakedVertex)
 	for vertex := range vertexCount {
 		colour := vertexColour(mesh, vertex)
 		for channel := range 4 {
@@ -79,6 +81,14 @@ func bakeVertices(mesh *scene.Mesh, key bakeKey) []float32 {
 		baked[offset+3] = math.Float32frombits(packColour(shaded))
 	}
 	return baked
+}
+
+// grownTo is a slice of length size, reusing buffer's memory when it is large enough.
+func grownTo[Element any](buffer []Element, size int) []Element {
+	if cap(buffer) >= size {
+		return buffer[:size]
+	}
+	return make([]Element, size)
 }
 
 func vertexColour(mesh *scene.Mesh, vertex int) graphics.Vec4 {

@@ -95,6 +95,23 @@ top screen and `FlatRenderer.Paint` for the bottom one, then `ctr.EndFrame`. (`D
 `DrawStereo` begin and end a frame themselves, for a program with the top screen only.)
 [go-3ds](https://github.com/akrck02/go-3ds) puts go-ui on the bottom screen this way.
 
+## Both screens, and the controls
+
+`ctr.Surface` is either screen: `SceneRenderer.PaintOn` and `FlatRenderer.PaintOn` draw a scene or
+an interface on the top one or the bottom one (which has a depth buffer, so a scene can be shown
+where it can be touched). go-ui's window for the 3DS uses it to swap the screens with SELECT.
+
+`ctr.ReadControls` reads the buttons, the circle pad and the touch screen, and `ctr.Controls`
+turns them into `input.State`: the cross is the arrow keys, L and R minus and plus, A Enter, B
+Escape and the system's back, and the touch screen the pointer (tested on any computer).
+
+## Memory
+
+TinyGo's collector does not move what it keeps, so garbage made over and over fragments the heap
+until a large block no longer fits. `ctr` keeps its bake and upload buffers and reuses them, and
+lets go of a mesh, on the GPU and in its caches, once it has not been drawn for a second: a
+program that makes its scene again (a plan whose machines change colour) leaves nothing behind.
+
 ## In 3D
 
 The top screen shows a picture for each eye when the 3D slider is up. `SceneRenderer.DrawStereo`
@@ -122,8 +139,6 @@ Copy the `.3dsx` to `/3ds/` on the SD card and open it from the Homebrew Launche
 - A sun that moves all the time bakes the meshes again whenever a colour would change by a step.
 - Planning a frame makes about 4 KB of garbage; the collector would have to run every few minutes.
 - Textures, the overlay and `draw2d`.
-- Input: the buttons, the circle pad and the touch screen go to `input.State` in
-  [go-3ds](https://github.com/akrck02/go-3ds), which also holds the program loop.
 - Reading scenes from the SD card: TinyGo's `os` has no file system there yet, so scenes are
   embedded in the program.
 - Collection pauses: about a quarter of a second with 10 MB alive on the console. Keeping meshes

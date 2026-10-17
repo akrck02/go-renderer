@@ -11,9 +11,14 @@ type meshPiece struct {
 }
 
 // splitForShortIndices cuts interleaved vertices and their triangles into pieces of at most
-// largestPieceVertices vertices each. A mesh with no indices is a list of triangles.
-func splitForShortIndices(vertices []float32, indices []uint32, floatsPerVertex int) []meshPiece {
+// largestPieceVertices vertices each. A mesh with no indices is a list of triangles. A mesh that
+// needs no cutting gets its indices in reused's buffer (nil makes a new one).
+func splitForShortIndices(vertices []float32, indices []uint32, floatsPerVertex int, reused *[]uint16) []meshPiece {
 	vertexCount := len(vertices) / floatsPerVertex
+	if len(indices) == 0 && vertexCount <= largestPieceVertices {
+		short := sequence(reused, vertexCount)
+		return []meshPiece{{vertices: vertices, indices: short}}
+	}
 	if len(indices) == 0 {
 		indices = make([]uint32, vertexCount)
 		for index := range indices {
@@ -21,7 +26,7 @@ func splitForShortIndices(vertices []float32, indices []uint32, floatsPerVertex 
 		}
 	}
 	if vertexCount <= largestPieceVertices {
-		return []meshPiece{{vertices: vertices, indices: shortIndices(indices)}}
+		return []meshPiece{{vertices: vertices, indices: shortIndices(reused, indices)}}
 	}
 	var pieces []meshPiece
 	current := newPieceBuilder()
@@ -39,12 +44,29 @@ func splitForShortIndices(vertices []float32, indices []uint32, floatsPerVertex 
 	return pieces
 }
 
-func shortIndices(indices []uint32) []uint16 {
-	short := make([]uint16, len(indices))
+func shortIndices(reused *[]uint16, indices []uint32) []uint16 {
+	short := reusedIndices(reused, len(indices))
 	for position, index := range indices {
 		short[position] = uint16(index)
 	}
 	return short
+}
+
+// sequence is the indices 0, 1, 2… of a list of triangles.
+func sequence(reused *[]uint16, count int) []uint16 {
+	short := reusedIndices(reused, count)
+	for position := range short {
+		short[position] = uint16(position)
+	}
+	return short
+}
+
+func reusedIndices(reused *[]uint16, count int) []uint16 {
+	if reused == nil {
+		return make([]uint16, count)
+	}
+	*reused = grownTo(*reused, count)
+	return *reused
 }
 
 // pieceBuilder gathers triangles into a piece, numbering each vertex the first time it is used.
