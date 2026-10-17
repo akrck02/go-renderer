@@ -4,6 +4,14 @@ Until now the program decided everything and the person only watched. In this le
 becomes something you **edit**: a click on the ground plants a tree there. You learn
 `viewer.Edit`, the **input state**, and how to find the point of the world under the pointer.
 
+| Mission | Pieces | Time |
+|---|---|---|
+| Trees planted where you click | `viewer.Edit`, `input.State`, `View.PointOnGround` | 20 min |
+
+#### The idea
+
+A **laser pointer** in a dark room: the dot lands on whatever the beam meets first. The viewer shoots that beam from the camera through the pixel under the mouse and tells you where it meets the ground: that is where the tree goes.
+
 ## `viewer.Edit` instead of `viewer.Run`
 
 `viewer.Run` is for programs that change the scene on their own (a simulation). `viewer.Edit` is
@@ -86,6 +94,12 @@ if err := viewer.Edit(world, options, "Island", edit); err != nil {
 `view` can also move the cameras: `view.FrameGround(minimumX, minimumZ, maximumX, maximumZ)` shows
 a rectangle of ground whole, and `view.ZoomBy(2)` comes twice as close, as zoom buttons would.
 
+#### Checkpoint
+
+On the map (`M`), a click on the island plants a tree there, the header counts one more and *A tree was planted* appears; a drag still moves the map without planting.
+
+![Achievement unlocked: Gardener](../images/tutorial/quest/achievement-gardener.svg)
+
 ## What you learnt
 
 - `viewer.Edit` is for programs that change the scene in answer to the person, and it draws on
@@ -93,12 +107,12 @@ a rectangle of ground whole, and `view.ZoomBy(2)` comes twice as close, as zoom 
 - `input.State` tells what is held and what happened during the step.
 - `view.PointOnGround` turns the pointer into a point of the world.
 
-## Practice
+## Bonus (optional)
 
 Let a right click take away the tree nearest to the pointer, if it is within two metres.
 
 <details>
-<summary>Solution</summary>
+<summary>🔓 Show the solution</summary>
 
 Removing an instance changes the list, so the whole forest is uploaded again (`Dirty`):
 

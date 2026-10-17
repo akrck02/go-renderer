@@ -4,6 +4,14 @@ A lighthouse needs a lamp that turns, and an island needs trees. In this lesson 
 **update function**, how a **child node** follows its parent, and how **instancing** draws three
 hundred trees for the price of one.
 
+| Mission | Pieces | Time |
+|---|---|---|
+| A lamp that turns, and a forest | the update function, child nodes, `Instances` | 15 min |
+
+#### The idea
+
+A **clockmaker** sets the hands on the dial, and the dial on the clock: move the clock and the hands go with it. A child node is a hand on its parent's dial. And a forest is a **rubber stamp**: one tree, stamped three hundred times, each copy in its own place.
+
 ## The update function
 
 `viewer.Run`'s fourth argument is a function the viewer calls at a **fixed step**, sixty times a
@@ -141,19 +149,25 @@ Forests of a hundred thousand trees stay fast: instances are kept in cells, cell
 skipped, and a mesh with simpler versions (`Mesh.Details`) uses them far away
 ([architecture](../architecture.md#the-scene-renderers)).
 
+#### Checkpoint
+
+The lamp on top of the tower turns, about a turn every four seconds, and a forest of cones covers the hill but not the tower's doorstep.
+
+![Achievement unlocked: Clockmaker](../images/tutorial/quest/achievement-clockmaker.svg)
+
 ## What you learnt
 
 - The update function runs at a fixed step on the drawing goroutine: change the scene there.
 - Children inherit their parent's transform.
 - Instancing draws one mesh many times; `Dirty` and `MarkChanged` tell the renderer what changed.
 
-## Practice
+## Bonus (optional)
 
 Make the trees different: tint each a slightly different green, and turn each about its trunk by a
 random angle.
 
 <details>
-<summary>Solution</summary>
+<summary>🔓 Show the solution</summary>
 
 A rotation of an angle about the vertical axis is the quaternion `{0, sin(angle/2), 0,
 cos(angle/2)}`:

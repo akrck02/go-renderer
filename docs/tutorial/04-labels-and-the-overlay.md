@@ -4,6 +4,14 @@ A 3D view often needs words: the name of a place, the time, a message that somet
 this lesson you put a **label** over the lighthouse, a **header** in the corner, a **notice** that
 fades, and a small card drawn with **`draw2d`**, go-renderer's flat drawing.
 
+| Mission | Pieces | Time |
+|---|---|---|
+| Names and messages on screen | `Overlay`, labels, the header, notices, `draw2d` | 15 min |
+
+#### The idea
+
+A map in a **museum** has little cards on it: a name pinned over each thing, a title in the corner, and the guide's latest news. The overlay is that glass over the scene: it stays the same size however close you come.
+
 All of it lives in `world.Overlay`, drawn over the scene in screen space: it stays the same size
 however far the camera is, and costs one draw call.
 
@@ -79,19 +87,25 @@ function: `Reset` keeps the list's memory, so a frame allocates nothing.
 > 📝 **Buttons?** `draw2d` paints; it does not know about the mouse. For panels, buttons, fields and
 > lists that react, use [go-ui](https://github.com/akrck02/go-ui), which fills this same list.
 
+#### Checkpoint
+
+*North Point* floats over the lighthouse with a *lit* badge, the header counts the trees, *A boat came in* fades after six seconds, and the wind card sits in the bottom-left corner.
+
+![Achievement unlocked: Herald](../images/tutorial/quest/achievement-herald.svg)
+
 ## What you learnt
 
 - `Overlay` draws in screen space over the scene: labels, a header, notices and a free drawing.
 - Labels follow a node or stand at a point; notices fade on their own.
 - `draw2d.List` paints rectangles, shadows, text, icons and pictures in layout pixels.
 
-## Practice
+## Bonus (optional)
 
 Keep the header honest: add a second line that says whether it is day or night, and update it at
 every step.
 
 <details>
-<summary>Solution</summary>
+<summary>🔓 Show the solution</summary>
 
 `Environment.Daylight()` works out the light of the moment from the sun's height; `DayAmount` is 1
 in full day and 0 at night:
