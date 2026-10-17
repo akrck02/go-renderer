@@ -5,6 +5,14 @@ modelled in a 3D editor, or built from a map by a tool. In this lesson you load 
 add the renderer's own information to it through **extras**, and carry the scene inside the
 program.
 
+| Mission | Pieces | Time |
+|---|---|---|
+| The island from a file | `loaders.LoadScene`, extras, `ParseSceneGLB` | 10 min |
+
+#### The idea
+
+glTF is a **shipping container for 3D**: every tool packs it the same way, so the renderer can unload one from anyone. What the standard boxes have no room for (the tide, the walkable ground, a label) travels in the **extras**, a note taped to each box.
+
 ## glTF in one paragraph
 
 [glTF 2.0](https://www.khronos.org/gltf/) is the open format for 3D scenes: nodes, meshes and
@@ -93,11 +101,53 @@ world, err := loaders.ParseSceneGLB(islandFile)
 The buffers must be inside the file, as a `.glb`'s are; a `.gltf` with separate `.bin` files needs
 `LoadScene`.
 
+#### Checkpoint
+
+`go run ./cmd/visor island.glb` opens a scene made elsewhere (Blender, go-scene-builder), and its labels, sea and walkable ground come with it.
+
+![Achievement unlocked: Librarian](../images/tutorial/quest/achievement-librarian.svg)
+
 ## What you learnt
 
 - `loaders.LoadScene` opens a `.glb` or `.gltf`; `ParseSceneGLB` reads embedded bytes.
 - Extras carry what glTF cannot: the environment, the ground, material kinds, labels.
 - A loaded scene is an ordinary `scene.Scene`: find nodes by name and change them.
+
+## Final challenge · Lighthouse keeper
+
+Back in lesson 5's program, build a **second lighthouse** on the island's eastern shore, shorter and red, with its own lamp turning **the other way** and its own label.
+
+> **Hint:** the tower is another node with `box`; the lamp a child of it; `GroundHeight` says where the shore's ground is; the edit function already turns one lamp and can turn two.
+
+Try it on your own first, then compare with the solution.
+
+![The final challenge at night: North Point and the red East Light, both lamps glowing](../images/tutorial/final.jpg)
+
+<details>
+<summary>🔓 Show the solution</summary>
+
+```go
+height, _ := world.GroundHeight(18, 0)
+second := &scene.Node{Name: "east lighthouse", Transform: graphics.Translate(graphics.Vec4{18, height, 0, 1}),
+	Mesh: box(1.5, 5, 1.5, graphics.Vec4{0.75, 0.2, 0.15, 1})}
+secondLamp := &scene.Node{Name: "east lamp", Transform: graphics.Translate(graphics.Vec4{0, 5, 0, 1}),
+	Mesh: box(2, 0.4, 0.4, graphics.Vec4{1, 0.85, 0.3, 1})}
+secondLamp.Mesh.Material.Kind = scene.KindGlow
+second.Children = append(second.Children, secondLamp)
+world.Nodes = append(world.Nodes, second)
+world.Overlay.AddLabel(&scene.Label{Node: second, Height: 6, Icon: "lightbulb", Text: "East Light"})
+
+// in the edit function, after the first lamp:
+secondLamp.Transform = graphics.Translate(graphics.Vec4{0, 5, 0, 1}).Multiply(graphics.RotateY(-angle))
+```
+
+</details>
+
+![Rare achievement unlocked: Lighthouse keeper](../images/tutorial/quest/achievement-final.svg)
+
+## Well done
+
+![Every achievement of the quest](../images/tutorial/quest/achievements-all.svg)
 
 ## Where next
 

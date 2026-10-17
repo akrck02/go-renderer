@@ -3,6 +3,14 @@
 So far the island floats in grey. In this lesson you fill `scene.Environment`: the sea around it,
 fog in the distance, wind in the trees, clouds, and the night, with a lamp that glows in it.
 
+| Mission | Pieces | Time |
+|---|---|---|
+| The sea, the wind, clouds and the night | `scene.Environment`, `Water`, `Sky`, `KindGlow` | 15 min |
+
+#### The idea
+
+The scene's **weather report**: one struct says where the sun is, how far the fog reaches, how high the sea comes and which way the wind blows. There is no clock in it: **the sun's height is the time of day**, as a sundial reads it.
+
 ## The environment
 
 Everything that is not a node lives in `world.Environment`: the sun, the sky, fog, water, wind,
@@ -82,19 +90,25 @@ go run . -night
 | `KindWater` | An animated water surface: a river or a lake above the sea's level |
 | `KindWaterfall` | Translucent falling water |
 
+#### Checkpoint
+
+The hill rises out of a sea, turquoise at the shore and dark further out; the trees sway; with `-night`, the lamp glows yellow over the dark island.
+
+![Achievement unlocked: Weatherman](../images/tutorial/quest/achievement-weatherman.svg)
+
 ## What you learnt
 
 - `Environment` holds the sun, the sky, fog, water, wind and snow.
 - The sun's height is the time of day; the night comes with the moon and the stars.
 - `Sway` bends plants in the wind; `KindGlow` shines at night.
 
-## Practice
+## Bonus (optional)
 
 Give the island a winter: snow above two and a half metres, fading in over half a metre, and
 foliage turned a little brown.
 
 <details>
-<summary>Solution</summary>
+<summary>🔓 Show the solution</summary>
 
 ```go
 world.Environment.Snow = &scene.Snow{Level: 2.5, Blend: 0.5, Color: graphics.Vec4{0.95, 0.97, 1, 1}}

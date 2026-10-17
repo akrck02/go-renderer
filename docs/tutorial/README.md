@@ -1,5 +1,7 @@
 # Tutorial: an island with a lighthouse
 
+![The quest map: Mason, Clockmaker, Weatherman, Herald, Gardener, Librarian, then the final challenge, Lighthouse keeper](../images/tutorial/quest/quest-map.svg)
+
 In six short lessons you build one program, a step at a time: a hill rising out of the sea, a
 lighthouse whose lamp turns, a forest that sways in the wind, the sky by day and by night, labels
 over things, and trees you plant with a click. Each lesson adds a little to the program of the one
@@ -9,6 +11,8 @@ before it and ends with something you can run.
 
 **Before you start**, follow [Get started](../get-started.md): Go, a C compiler and go-renderer
 cloned beside your module. Each lesson takes ten to twenty minutes.
+
+Every lesson has the same shape, as in a quest: **the idea** in everyday words, **the code**, a **checkpoint** to know it works, a **bonus** with its solution folded, and an **achievement** to unlock. A final challenge waits at the end of lesson 6.
 
 | Lesson | You learn | You end with |
 |---|---|---|

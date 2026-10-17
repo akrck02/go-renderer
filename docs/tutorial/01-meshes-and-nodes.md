@@ -3,6 +3,14 @@
 In this lesson you build the ground of the island, a hill, and stand a tower on it. You learn what
 a mesh is made of and how a node places it.
 
+| Mission | Pieces | Time |
+|---|---|---|
+| A tower on a hill | `scene.Mesh`, `scene.Node`, materials, `viewer.Run` | 15 min |
+
+#### The idea
+
+A mesh is **a tent made of triangles**: a list of poles (the vertices) and which three of them hold up each piece of cloth (the indices). The node is **where you pitch the tent**: a position, a turn and a size. Build the tent once; pitch it anywhere, as often as you like.
+
 ## Coordinates
 
 go-renderer's world has **y up**. The ground lies in the x–z plane, and north is towards −z (the
@@ -134,19 +142,25 @@ func main() {
 
 ![A white tower on a green hill](../images/tutorial/tutorial-1.jpg)
 
+#### Checkpoint
+
+A cream tower stands on a green hill, its shadow on the grass. Press `Tab` and walk round it, at eye height on the hill.
+
+![Achievement unlocked: Mason](../images/tutorial/quest/achievement-mason.svg)
+
 ## What you learnt
 
 - A mesh is positions and indices, counter-clockwise from the front, with normals for the light.
 - A material says how it is shaded; `Pattern` adds surface detail with no texture.
 - A node places a mesh with a matrix; `Ground: true` makes it walkable.
 
-## Practice
+## Bonus (optional)
 
 Put a small house beside the tower: a box 3 m wide, 2.5 m tall and 4 m deep, painted in planks,
 four metres east of it and turned 30°.
 
 <details>
-<summary>Solution</summary>
+<summary>🔓 Show the solution</summary>
 
 ```go
 house := box(3, 2.5, 4, graphics.Vec4{0.6, 0.45, 0.3, 1})
