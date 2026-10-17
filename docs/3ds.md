@@ -107,6 +107,10 @@ Escape and the system's back, the circle pad the stick (`input.State.StickX` and
 touch screen the pointer (tested on any computer). The cameras read the stick as a game's player
 moves: the orbit and the plan move their target over the ground, the walk walks.
 
+`ctr.ReadMemory` tells how much of the console's memory is free: the linear memory the GPU reads,
+the video memory and the application's region, which holds the Go heap. It is cheap enough to read
+every second, for a program that shows its own resources.
+
 ## Memory
 
 TinyGo's collector does not move what it keeps, so garbage made over and over fragments the heap
