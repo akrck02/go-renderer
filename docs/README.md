@@ -2,6 +2,9 @@
 
 | Document | What it covers |
 |---|---|
+| [Get started](get-started.md) | Installing, the sample island and a first scene |
+| [Tutorial](tutorial/README.md) | Six lessons that build an island with a lighthouse |
+| [Reference](reference/README.md) | Every package, type and function |
 | [Architecture](architecture.md) | The immediate-mode contract and its backends, the retained scene, the glTF loader, the OpenGL scene renderer, input, cameras and the viewer |
 | [Viewer](viewer.md) | `cmd/visor`: every control, key and option |
 | [Overlay](overlay.md) | Labels, icons and badges over the 3D view, the header and the notices, and the free 2D drawing (`draw2d`) interfaces paint with: how to use them and how they are drawn |
