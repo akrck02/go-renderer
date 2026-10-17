@@ -1,3 +1,5 @@
+<p align="center"><img alt="" src="images/logo.svg" width="120"></p>
+
 # Welcome to go-renderer 👋
 
 **go-renderer draws pictures with a computer's graphics card**: 3D scenes of islands, towns, forests, the sea and the sky, by day and by night, and the flat buttons and panels other programs put over them. It is written in Go, to learn how 3D graphics work from the inside.
