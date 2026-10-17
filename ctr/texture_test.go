@@ -25,18 +25,16 @@ func TestTexturesAreTiledFromTheBottomInMortonOrder(t *testing.T) {
 	}
 }
 
-func TestQuadsBecomeTwoTrianglesInRunsOfPicturesOrNone(t *testing.T) {
+func TestQuadsBecomeFourCornersInRunsOfPicturesOrNone(t *testing.T) {
 	quads := []overlay.Quad{
 		{Screen: [4]float32{10, 20, 30, 40}, Atlas: [4]float32{0, 0, 256, 128}, Color: [4]float32{1, 0.5, 0, 1}},
 		{Screen: [4]float32{0, 0, 1, 1}, Pictured: true, Picture: [4]float32{0, 0, 512, 256}},
 		{Screen: [4]float32{0, 0, 1, 1}, Pictured: true},
 		{Screen: [4]float32{0, 0, 1, 1}},
 	}
-	vertices, runs := appendQuadVertices(nil, nil, quads, 512, 1024)
-	if len(vertices) != 4*6*floatsPerQuadVertex {
-		t.Fatalf("%d floats, want four rectangles of six corners", len(vertices))
-	}
-	want := []quadRun{{0, 6, false}, {6, 12, true}, {18, 6, false}}
+	vertices := make([]float32, len(quads)*4*floatsPerQuadVertex)
+	runs := writeQuadVertices(vertices, nil, quads, 512, 1024)
+	want := []quadRun{{0, 1, false}, {1, 2, true}, {3, 1, false}}
 	if len(runs) != len(want) {
 		t.Fatalf("runs %v, want %v", runs, want)
 	}
@@ -45,20 +43,25 @@ func TestQuadsBecomeTwoTrianglesInRunsOfPicturesOrNone(t *testing.T) {
 			t.Fatalf("runs %v, want %v", runs, want)
 		}
 	}
+	corner := func(quad, number int) []float32 {
+		start := (quad*4 + number) * floatsPerQuadVertex
+		return vertices[start : start+floatsPerQuadVertex]
+	}
 	// The first corner is the top-left: the atlas's top-left, 0, 0.
-	first := vertices[0:floatsPerQuadVertex]
-	if first[0] != 10 || first[1] != 20 || first[2] != 0 || first[3] != 0 || first[4] != 1 || first[5] != 0.5 {
+	if first := corner(0, 0); first[0] != 10 || first[1] != 20 || first[2] != 0 || first[3] != 0 || first[4] != 1 || first[5] != 0.5 {
 		t.Fatalf("first corner %v", first)
 	}
 	// The third corner is the bottom-right: atlas 256, 128 of 512.
-	third := vertices[2*floatsPerQuadVertex : 3*floatsPerQuadVertex]
-	if third[0] != 30 || third[1] != 40 || third[2] != 0.5 || third[3] != 0.25 {
+	if third := corner(0, 2); third[0] != 30 || third[1] != 40 || third[2] != 0.5 || third[3] != 0.25 {
 		t.Fatalf("third corner %v", third)
 	}
+	// The fourth is the top-right.
+	if fourth := corner(0, 3); fourth[0] != 30 || fourth[1] != 20 {
+		t.Fatalf("fourth corner %v", fourth)
+	}
 	// The picture's bottom-right corner: 512, 256 of 1024.
-	pictured := vertices[(6+2)*floatsPerQuadVertex : (6+3)*floatsPerQuadVertex]
-	if pictured[8] != 0.5 || pictured[9] != 0.25 {
-		t.Fatalf("picture corner %v", pictured[8:10])
+	if pictured := corner(1, 2); pictured[8] != 0.5 || pictured[9] != 0.25 {
+		t.Fatalf("pictured corner %v", pictured)
 	}
 }
 

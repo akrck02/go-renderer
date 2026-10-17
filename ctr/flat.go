@@ -117,9 +117,27 @@ static void describeQuads(void* vertices) {
 	BufInfo_Add(bufferInfo, vertices, 10 * sizeof(float), 4, 0x3210);
 }
 
+// quadIndices make each rectangle's four corners two triangles: 0 1 2 and 0 2 3, for as many
+// rectangles as 16-bit corner numbers reach. Made once, in linear memory.
+static u16* quadIndices;
+
+static int makeQuadIndices(int quads) {
+	if (quadIndices != NULL) return 1;
+	quadIndices = linearAlloc(quads * 6 * sizeof(u16));
+	if (quadIndices == NULL) return 0;
+	for (int quad = 0; quad < quads; quad++) {
+		u16 corner = quad * 4;
+		u16* indices = quadIndices + quad * 6;
+		indices[0] = corner; indices[1] = corner + 1; indices[2] = corner + 2;
+		indices[3] = corner; indices[4] = corner + 2; indices[5] = corner + 3;
+	}
+	GSPGPU_FlushDataCache(quadIndices, quads * 6 * sizeof(u16));
+	return 1;
+}
+
 static void drawRun(int first, int count, int pictured) {
 	if (pictured) setPictureStages(); else setPlainStages();
-	C3D_DrawArrays(GPU_TRIANGLES, first, count);
+	C3D_DrawElements(GPU_TRIANGLES, count * 6, C3D_UNSIGNED_SHORT, quadIndices + first * 6);
 }
 
 static void* newLinearMemory(u32 size) {
@@ -135,6 +153,7 @@ import "C"
 import (
 	_ "embed"
 	"errors"
+	"math"
 	"unsafe"
 
 	"github.com/akrck02/go-renderer/draw2d"
@@ -198,10 +217,23 @@ type FlatRenderer struct {
 	tiledPictures    []byte
 	picturesTooLarge bool // told once
 
-	vertices []float32
-	runs     []quadRun
-	buffers  [2]linearBuffer // one for the frame being drawn, one for the GPU's previous frame
-	frame    int
+	// lists are the lists painted in a frame, in the order they are painted (a frame may paint
+	// several: the scene's drawing in each eye, then the interface), each with its corners kept:
+	// a list that draws the same as the frame before is drawn again from them, without laying it
+	// out, which is most of what an interface costs the console's processor
+	lists      []paintedList
+	listsFrame uint32 // the frame nextList counts in
+	nextList   int
+}
+
+// paintedList is a list's corners in linear memory, and what they were made for.
+type paintedList struct {
+	fingerprint               uint64
+	width, height             int
+	textureSize, picturesSize int // texture positions are fractions of them
+	memory                    linearBuffer
+	vertices                  linearBuffer // memory, once it holds the corners; empty when it does not
+	runs                      []quadRun
 }
 
 // linearBuffer is linear memory the GPU reads vertices from, kept and grown from frame to frame.
@@ -209,6 +241,9 @@ type linearBuffer struct {
 	data     unsafe.Pointer
 	capacity int // in bytes
 }
+
+// firstVertexBuffer is the room a list's corners start with, a few thousand rectangles.
+const firstVertexBuffer = 64 << 10
 
 // NewFlatRenderer loads the overlay shader and the fonts, for painting on the bottom screen.
 func NewFlatRenderer(screen *BottomScreen) (*FlatRenderer, error) {
@@ -250,25 +285,27 @@ func (renderer *FlatRenderer) paint(surface Surface, list *draw2d.List) {
 	if renderer.layer.IsEmpty() {
 		return
 	}
-	quads := renderer.painter.Paint(&renderer.layer, nil, overlay.Frame{Width: width, Height: height, Scale: 1})
-	if !renderer.uploadAtlas() {
+	if renderer.listsFrame != frameNumber {
+		renderer.listsFrame, renderer.nextList = frameNumber, 0
+	}
+	if renderer.nextList == len(renderer.lists) {
+		renderer.lists = append(renderer.lists, paintedList{})
+	}
+	painted := &renderer.lists[renderer.nextList]
+	renderer.nextList++
+	fingerprint := quickFingerprint(list)
+	same := painted.vertices.data != nil && painted.fingerprint == fingerprint && painted.width == width && painted.height == height &&
+		painted.textureSize == renderer.textureSize && painted.picturesSize == renderer.picturesSize
+	if !same && !renderer.paintList(painted, width, height) {
 		return
 	}
-	renderer.uploadPictures()
-	renderer.vertices, renderer.runs = appendQuadVertices(renderer.vertices[:0], renderer.runs[:0], quads, renderer.textureSize, renderer.picturesSize)
-	if len(renderer.vertices) == 0 {
-		return
-	}
-	vertices := renderer.copyVertices()
-	if vertices == nil {
-		return
-	}
+	painted.fingerprint = fingerprint
 	renderer.shader.Use()
 	// Pixels from the top-left corner: y grows downwards, so top and bottom are swapped.
 	SetMatrix(renderer.projection, OrthographicTilt(0, float32(width), float32(height), 0, 0, 1))
 	C.prepareOverlay(renderer.texture, renderer.pictures)
-	C.describeQuads(vertices)
-	for _, run := range renderer.runs {
+	C.describeQuads(painted.vertices.data)
+	for _, run := range painted.runs {
 		if run.pictured && renderer.pictures == nil {
 			continue // pictures that could not be uploaded
 		}
@@ -278,6 +315,39 @@ func (renderer *FlatRenderer) paint(surface Surface, list *draw2d.List) {
 		}
 		C.drawRun(C.int(run.first), C.int(run.count), C.int(pictured))
 	}
+}
+
+// paintList lays the list out as rectangles and writes their corners into the painted list's
+// own linear memory, which the GPU has finished reading: a frame begins once it is done with the
+// one before.
+func (renderer *FlatRenderer) paintList(painted *paintedList, width, height int) bool {
+	painted.vertices.data, painted.runs = nil, painted.runs[:0]
+	quads := renderer.painter.Paint(&renderer.layer, nil, overlay.Frame{Width: width, Height: height, Scale: 1})
+	if !renderer.uploadAtlas() {
+		return false
+	}
+	renderer.uploadPictures()
+	quads = quads[:min(len(quads), maxQuadsPerList)]
+	if len(quads) == 0 || C.makeQuadIndices(maxQuadsPerList) == 0 {
+		return false
+	}
+	floats := len(quads) * 4 * floatsPerQuadVertex
+	buffer := &painted.memory
+	if buffer.capacity < floats*4 {
+		freeLinearMemory(buffer.data)
+		buffer.capacity = max(2*floats*4, firstVertexBuffer) // room to grow before the next allocation
+		buffer.data = C.newLinearMemory(C.u32(buffer.capacity))
+		if buffer.data == nil {
+			buffer.capacity = 0
+			return false
+		}
+	}
+	painted.runs = writeQuadVertices(unsafe.Slice((*float32)(buffer.data), floats), painted.runs, quads, renderer.textureSize, renderer.picturesSize)
+	C.flush(buffer.data, C.u32(floats*4))
+	painted.vertices = *buffer
+	painted.width, painted.height = width, height
+	painted.textureSize, painted.picturesSize = renderer.textureSize, renderer.picturesSize
+	return true
 }
 
 // uploadPictures sends the pictures' colours to the GPU when pictures were added or changed,
@@ -348,28 +418,49 @@ func (renderer *FlatRenderer) uploadAtlas() bool {
 	return true
 }
 
-// copyVertices copies this frame's corners to linear memory, alternating between two buffers so
-// the GPU never reads one being written.
-func (renderer *FlatRenderer) copyVertices() unsafe.Pointer {
-	buffer := &renderer.buffers[renderer.frame%2]
-	renderer.frame++
-	bytes := len(renderer.vertices) * 4
-	if buffer.capacity < bytes {
-		freeLinearMemory(buffer.data)
-		buffer.capacity = bytes * 2 // room to grow before the next allocation
-		buffer.data = C.newLinearMemory(C.u32(buffer.capacity))
-		if buffer.data == nil {
-			buffer.capacity = 0
-			return nil
-		}
-	}
-	copy(unsafe.Slice((*float32)(buffer.data), len(renderer.vertices)), renderer.vertices)
-	C.flush(buffer.data, C.u32(bytes))
-	return buffer.data
-}
-
 // packedColour packs a draw2d colour (in the screen's gamma already) as 0xRRGGBBAA.
 func packedColour(colour draw2d.Color) uint32 {
 	channel := func(value float32) uint32 { return uint32(min(max(value, 0), 1)*255 + 0.5) }
 	return channel(colour[0])<<24 | channel(colour[1])<<16 | channel(colour[2])<<8 | channel(colour[3])
+}
+
+// quickFingerprint sums up what a list draws in one number, as draw2d.List.Fingerprint does but
+// mixing the values straight in, without writing them out as bytes first: it runs every frame
+// on the console, to tell whether the list drew the same as the frame before.
+func quickFingerprint(list *draw2d.List) uint64 {
+	hash := uint64(14695981039346656037)
+	for index := range list.Commands {
+		command := &list.Commands[index]
+		hash = mixed(hash, uint32(command.Kind)|uint32(command.Layer)<<8|uint32(command.Weight)<<16|uint32(boolBit(command.HasClip))<<24)
+		for _, value := range [...]float32{
+			command.Area.X, command.Area.Y, command.Area.Width, command.Area.Height,
+			command.Clip.X, command.Clip.Y, command.Clip.Width, command.Clip.Height,
+			command.Radius, command.BorderWidth, command.Blur, command.Size, command.Baseline,
+			command.Fill[0], command.Fill[1], command.Fill[2], command.Fill[3],
+			command.Border[0], command.Border[1], command.Border[2], command.Border[3],
+		} {
+			hash = mixed(hash, math.Float32bits(value))
+		}
+		for position := 0; position < len(command.Text); position++ {
+			hash = mixed(hash, uint32(command.Text[position]))
+		}
+		hash = mixed(hash, 0xff) // so "ab"+"c" and "a"+"bc" differ
+		if command.Picture != nil {
+			hash = mixed(hash, uint32(command.Picture.ID()))
+			hash = mixed(hash, uint32(command.Picture.Version()))
+		}
+	}
+	return hash
+}
+
+// mixed is a hash with a value mixed in, FNV-1a style a word at a time.
+func mixed(hash uint64, value uint32) uint64 {
+	return (hash ^ uint64(value)) * 1099511628211
+}
+
+func boolBit(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
 }

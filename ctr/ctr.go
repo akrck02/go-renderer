@@ -18,6 +18,9 @@ package ctr
 	GX_TRANSFER_SCALING(GX_TRANSFER_SCALE_NO))
 
 static C3D_RenderTarget* openTopScreen(void) {
+	// On a New 3DS, the processor at 804 MHz with its second-level cache instead of 268 MHz
+	// without: libctru leaves it slow unless asked. Nothing changes on an older 3DS.
+	osSetSpeedupEnable(true);
 	gfxInitDefault();
 	if (!C3D_Init(C3D_DEFAULT_CMDBUF_SIZE)) return NULL;
 	// The top screen is a 240×400 portrait panel on its side, hence height and width swapped.
@@ -207,7 +210,11 @@ func (screen *Screen) Close() {
 // drawn between it and EndFrame.
 func BeginFrame() {
 	C.frameBegin()
+	frameNumber++
 }
+
+// frameNumber counts the frames begun: what is kept for one frame knows when the next starts.
+var frameNumber uint32
 
 // EndFrame sends what was drawn this frame to the GPU and shows it.
 func EndFrame() {

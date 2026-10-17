@@ -57,37 +57,49 @@ const floatsPerQuadVertex = 10
 // quadRun is rectangles in a row that all show a picture, or none: each run is drawn with its own
 // colour stages, in the list's order, so what is painted over what stays the same.
 type quadRun struct {
-	first, count int // in corners
+	first, count int // in rectangles
 	pictured     bool
 }
 
-// appendQuadVertices writes six corners per rectangle, two triangles, and the runs they make.
-func appendQuadVertices(vertices []float32, runs []quadRun, quads []overlay.Quad, atlasSize, picturesSize int) ([]float32, []quadRun) {
-	atlas, pictures := float32(atlasSize), float32(max(picturesSize, 1))
-	for _, quad := range quads {
-		picture := [4]float32{}
-		if quad.Pictured {
-			picture = [4]float32{quad.Picture[0] / pictures, quad.Picture[1] / pictures, quad.Picture[2] / pictures, quad.Picture[3] / pictures}
-		}
-		corner := len(vertices) / floatsPerQuadVertex
+// writeQuadVertices writes four corners per rectangle into vertices, which holds
+// len(quads)·4·floatsPerQuadVertex floats (linear memory, on the console), and lists the runs
+// they make. The corners go top-left, bottom-left, bottom-right, top-right: quadIndices make them
+// two triangles. Written in place and multiplied rather than divided: on the console's processor
+// this is most of what painting an interface costs.
+func writeQuadVertices(vertices []float32, runs []quadRun, quads []overlay.Quad, atlasSize, picturesSize int) []quadRun {
+	toAtlas, toPictures := 1/float32(atlasSize), 1/float32(max(picturesSize, 1))
+	_ = vertices[len(quads)*4*floatsPerQuadVertex-1] // one bounds check for them all
+	for index := range quads {
+		quad := &quads[index]
 		if len(runs) == 0 || runs[len(runs)-1].pictured != quad.Pictured {
-			runs = append(runs, quadRun{first: corner, pictured: quad.Pictured})
+			runs = append(runs, quadRun{first: index, pictured: quad.Pictured})
 		}
-		runs[len(runs)-1].count += len(quadCorners)
-		for _, edges := range quadCorners {
-			x, y := edges[0], edges[1] // 0 for the left or top edge, 2 for the right or bottom
-			vertices = append(vertices, quad.Screen[x], quad.Screen[y+1],
-				quad.Atlas[x]/atlas, quad.Atlas[y+1]/atlas,
-				quad.Color[0], quad.Color[1], quad.Color[2], quad.Color[3],
-				picture[x], picture[y+1])
+		runs[len(runs)-1].count++
+		left, top, right, bottom := quad.Screen[0], quad.Screen[1], quad.Screen[2], quad.Screen[3]
+		atlasLeft, atlasTop, atlasRight, atlasBottom := quad.Atlas[0]*toAtlas, quad.Atlas[1]*toAtlas, quad.Atlas[2]*toAtlas, quad.Atlas[3]*toAtlas
+		var pictureLeft, pictureTop, pictureRight, pictureBottom float32
+		if quad.Pictured {
+			pictureLeft, pictureTop, pictureRight, pictureBottom = quad.Picture[0]*toPictures, quad.Picture[1]*toPictures, quad.Picture[2]*toPictures, quad.Picture[3]*toPictures
 		}
+		corners := vertices[index*4*floatsPerQuadVertex : (index+1)*4*floatsPerQuadVertex]
+		writeCorner(corners[0:floatsPerQuadVertex], left, top, atlasLeft, atlasTop, &quad.Color, pictureLeft, pictureTop)
+		writeCorner(corners[floatsPerQuadVertex:2*floatsPerQuadVertex], left, bottom, atlasLeft, atlasBottom, &quad.Color, pictureLeft, pictureBottom)
+		writeCorner(corners[2*floatsPerQuadVertex:3*floatsPerQuadVertex], right, bottom, atlasRight, atlasBottom, &quad.Color, pictureRight, pictureBottom)
+		writeCorner(corners[3*floatsPerQuadVertex:4*floatsPerQuadVertex], right, top, atlasRight, atlasTop, &quad.Color, pictureRight, pictureTop)
 	}
-	return vertices, runs
+	return runs
 }
 
-// quadCorners are a rectangle's two triangles: for each corner, which edges it is on (0 left or
-// top, 2 right or bottom), into a quad's left, top, right, bottom.
-var quadCorners = [6][2]int{{0, 0}, {0, 2}, {2, 2}, {0, 0}, {2, 2}, {2, 0}}
+func writeCorner(corner []float32, x, y, atlasX, atlasY float32, colour *[4]float32, pictureX, pictureY float32) {
+	_ = corner[floatsPerQuadVertex-1]
+	corner[0], corner[1], corner[2], corner[3] = x, y, atlasX, atlasY
+	corner[4], corner[5], corner[6], corner[7] = colour[0], colour[1], colour[2], colour[3]
+	corner[8], corner[9] = pictureX, pictureY
+}
+
+// maxQuadsPerList is how many rectangles one painted list can have: their corners are numbered
+// with 16 bits. More are left out.
+const maxQuadsPerList = 65536 / 4
 
 // largestTexture is the PICA200's largest texture side.
 const largestTexture = 1024
