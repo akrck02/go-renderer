@@ -127,6 +127,35 @@ until a large block no longer fits. `ctr` keeps its bake and upload buffers and 
 lets go of a mesh, on the GPU and in its caches, once it has not been drawn for a second: a
 program that makes its scene again (a plan whose machines change colour) leaves nothing behind.
 
+## Keeping a frame short
+
+Measure before changing anything: go-ui's `window.LastFrameTimes` splits a frame into waiting for
+the GPU, painting the scene, what is drawn over it, the interface, and handing the frame over.
+The processor's time to prepare an interface is not where it costs; laying it out as rectangles
+is.
+
+- **The overlay costs by the rectangle.** `FlatRenderer` lays a list out only when it draws
+  something else than the frame before; an interface that stands still costs almost nothing. A
+  part that changes every frame (a clock, an animation, figures read every second) makes its whole
+  list be laid out again: keep it small, or update it seldom.
+- **Pixel-art shapes are many rectangles.** A window with an outline, a frame, rounded corners in
+  steps and a shadow is fifteen or more; a key with a lip, twenty. They are cheap while they stand
+  still and dear on the frames they change. A graph is two rectangles a column (the filled part
+  and the track), not one a block.
+- **The scene's own drawing goes in both eyes.** With 3D on, `World.Overlay.Drawing` is painted
+  twice: keep it to a sight and a label.
+- **Waiting for the GPU** is the time the PICA200 took for the frame before: triangles, filled
+  pixels and blending. Fewer triangles far away, and fewer layers of transparent rectangles,
+  lower it.
+- **The New 3DS's fast mode** is on: `ctr.Open` asks for it.
+
+## Garbage
+
+TinyGo's collector stops the program while it runs, so a frame should make as little garbage as
+it can. `ctr`, the overlay and the scene planner make none in a steady frame: their lists and
+buffers are kept and filled again. What a program builds every frame is the rest; tinygo-3ds's
+`NINTENDO3DS.md` lists what makes garbage in TinyGo that would not in Go, and how to find it.
+
 ## In 3D
 
 The top screen shows a picture for each eye when the 3D slider is up. `SceneRenderer.DrawStereo`
@@ -152,9 +181,7 @@ Copy the `.3dsx` to `/3ds/` on the SD card and open it from the Homebrew Launche
   shader). Positions in shorts and fewer triangles far away
   are the next steps if it is not enough.
 - A sun that moves all the time bakes the meshes again whenever a colour would change by a step.
-- Planning a frame makes about 4 KB of garbage; the collector would have to run every few minutes.
-- Textures, the overlay and `draw2d`.
 - Reading scenes from the SD card: TinyGo's `os` has no file system there yet, so scenes are
   embedded in the program.
-- Collection pauses: about a quarter of a second with 10 MB alive on the console. Keeping meshes
-  in linear memory and making no garbage every frame (as `cmd/triangle3ds` does) avoids them.
+- Collection pauses: about 170 ms in the emulator for an 80 MB heap with 30 MB alive. Making
+  little garbage every frame keeps them rare.
