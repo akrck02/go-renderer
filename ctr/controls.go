@@ -78,7 +78,8 @@ func (controls *Controls) Pressed(reading Reading) Buttons {
 }
 
 // Apply puts a reading into the input state: the buttons as keys (B also as the system's back),
-// and the touch screen as the pointer, so dragging works like dragging with a mouse.
+// the circle pad as the stick, and the touch screen as the pointer, so dragging works like dragging
+// with a mouse.
 func (controls *Controls) Apply(state *input.State, reading Reading) {
 	changed := reading.Held ^ controls.previous.Held
 	for _, mapping := range buttonKeys {
@@ -89,6 +90,7 @@ func (controls *Controls) Apply(state *input.State, reading Reading) {
 	if controls.Pressed(reading)&ButtonB != 0 {
 		state.PressBack()
 	}
+	state.StickX, state.StickY = reading.Circle()
 	controls.applyTouch(state, reading)
 	controls.previous = reading
 }

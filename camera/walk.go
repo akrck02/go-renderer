@@ -34,6 +34,7 @@ func (walk *Walk) Update(state *input.State, seconds float64, camera *models.Cam
 		walk.look(state)
 		walk.turnWithArrows(state, seconds)
 		walk.move(state, seconds)
+		walk.Steer(float32(state.StickY), float32(state.StickX), seconds) // the stick walks, as on a phone's screen
 	}
 	eye := graphics.Vec4{walk.X, walk.groundUnderFeet() + walk.EyeHeight, walk.Z, 1}
 	camera.Position = eye

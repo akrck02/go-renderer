@@ -68,3 +68,16 @@ func TestPressedIsOnlyTheNewButtons(t *testing.T) {
 		t.Fatalf("pressed %b, want START only", pressed)
 	}
 }
+
+func TestTheCirclePadIsTheStick(t *testing.T) {
+	state := input.NewState()
+	var controls Controls
+	controls.Apply(state, Reading{CircleX: 156, CircleY: 0})
+	if state.StickX != 1 || state.StickY != 0 {
+		t.Fatalf("the pad at its right edge is the stick right: %v, %v", state.StickX, state.StickY)
+	}
+	controls.Apply(state, Reading{CircleX: 5, CircleY: -5})
+	if state.StickX != 0 || state.StickY != 0 {
+		t.Fatalf("the pad at rest is no stick: %v, %v", state.StickX, state.StickY)
+	}
+}
