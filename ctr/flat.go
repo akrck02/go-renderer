@@ -235,6 +235,16 @@ func (renderer *FlatRenderer) Paint(list *draw2d.List, background draw2d.Color) 
 // not in 3D).
 func (renderer *FlatRenderer) PaintOn(surface Surface, list *draw2d.List, background draw2d.Color) {
 	surface.clear(packedColour(background))
+	renderer.paint(surface, list)
+}
+
+// PaintOver paints the list over what the screen shows already (a scene), without clearing it, on
+// the picture drawn now (for 3D, call it after DrawOn for each eye).
+func (renderer *FlatRenderer) PaintOver(surface Surface, list *draw2d.List) {
+	renderer.paint(surface, list)
+}
+
+func (renderer *FlatRenderer) paint(surface Surface, list *draw2d.List) {
 	width, height := surface.size()
 	renderer.layer.Drawing = list
 	if renderer.layer.IsEmpty() {
