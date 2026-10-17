@@ -1,3 +1,5 @@
+<p align="center"><img alt="" src="docs/images/logo.svg" width="120"></p>
+
 # Go Renderer
 
 > **Note:** parts of this project (the scene renderer, the viewer and the docs) were written with an AI assistant and are pending thorough review. See the [AI disclosure](#ai-disclosure).
