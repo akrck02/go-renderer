@@ -13,7 +13,7 @@ The renderer only draws. It does not know what a town or a season is: other prog
 scene, and it shows the result.
 
 <p align="center">
-  <img alt="Immediate mode: your program's Update and Draw call the hand-written models.Renderer contract, drawn by the software, opengl, vulkan, metal or webgpu backend. A retained scene: glTF 2.0 through loaders into scene and sceneplan, drawn by the scene renderers: opengl and metal on the desktop, gles in browsers and on Android" src="images/two-ways.svg" width="880">
+  <img alt="Immediate mode: your program's Update and Draw call the hand-written models.Renderer contract, drawn by the software, opengl, vulkan, metal or webgpu backend. A retained scene: glTF 2.0 through loaders into scene and sceneplan, drawn by the scene renderers: opengl and metal on the desktop, gles in browsers and on Android" src="../images/two-ways.svg" width="880">
 </p>
 
 ## Packages
@@ -22,12 +22,12 @@ scene, and it shows the result.
 |---|---|
 | `graphics` | Vectors, matrices, coordinate spaces and transformations; the shader sources |
 | `models` | The application loop (`Application`, a fixed time step before every frame), the `Renderer` contract and the backend enumeration |
-| `software`, `opengl`, `vulkan`, `metal`, `webgpu` | Backends behind the contract; OpenGL is the complete one. `metal` also has `FlatWindow` and `FlatRenderer`, which draw a flat interface through Metal on macOS ([design](metal.md)) |
+| `software`, `opengl`, `vulkan`, `metal`, `webgpu` | Backends behind the contract; OpenGL is the complete one. `metal` also has `FlatWindow` and `FlatRenderer`, which draw a flat interface through Metal on macOS ([design](7-metal.md)) |
 | `sceneplan` | Decides what a frame of a scene draws, for any backend: the draw commands in order, culling and levels of detail, instance batches, where the shadow and seabed maps look |
 | `scene/sample` | A made-up island that uses every feature the renderers draw, for tests and comparisons |
-| `gles` | Renderers written once for OpenGL ES (WebGL2 in browsers, Android): a flat `FlatRenderer` and a simple `SceneRenderer`, over a small interface each platform implements ([in a browser](web.md)) |
+| `gles` | Renderers written once for OpenGL ES (WebGL2 in browsers, Android): a flat `FlatRenderer` and a simple `SceneRenderer`, over a small interface each platform implements ([in a browser](5-web.md)) |
 | `browser` | Built only for WebAssembly: a canvas as the window, its events as input, WebGL2, and the loop over `requestAnimationFrame` |
-| `android` | Built only for Android: the program as a NativeActivity's shared library, its window, touches and drawing thread, direct OpenGL ES calls ([on Android](android.md)) |
+| `android` | Built only for Android: the program as a NativeActivity's shared library, its window, touches and drawing thread, direct OpenGL ES calls ([on Android](6-android.md)) |
 | `frameloop` | The fixed-step clock and update step that the desktop and browser loops share |
 | `windowloop` | The window loop both OpenGL and Metal use: GLFW events and input, drawing on demand, the fixed-step clock, redrawing while resizing, the pointer's shape and lock |
 | `scene` | The retained, backend-independent scene, with its overlay (labels, header, notices) |
@@ -98,7 +98,7 @@ them again; `Instances.MarkChanged(indices...)` uploads only the instances that 
 `loaders.LoadScene` reads glTF 2.0 (`.glb` or `.gltf`): the node hierarchy, `COLOR_0`, quantized
 attributes (`KHR_mesh_quantization`: integer positions, normals, colours and indices),
 `EXT_mesh_gpu_instancing` (with a `_COLOR` per instance), and the renderer's
-[extras](gltf-extras.md): environment, sky, water, material kinds, levels of detail and walkable
+[extras](4-gltf-extras.md): environment, sky, water, material kinds, levels of detail and walkable
 ground.
 
 `loaders.ParseSceneGLB` reads the same from the bytes of a `.glb`, for programs with no file system
@@ -111,13 +111,13 @@ There are two, which draw the same frame: `opengl.SceneRenderer` and, on macOS, 
 in `sceneplan`, which makes no graphics calls; each backend only uploads and draws that plan, with
 shaders that are faithful translations of each other. Their captures of the sample island match
 except for rounding and where two surfaces lie in the same plane (`cmd/visor`'s
-`TestMetalDrawsTheSceneLikeOpenGL`; [measurements](metal.md)).
+`TestMetalDrawsTheSceneLikeOpenGL`; [measurements](7-metal.md)).
 
 <table>
 <tr><th width="50%">OpenGL (<code>-backend opengl</code>)</th><th width="50%">Metal (<code>-backend metal</code>)</th></tr>
 <tr>
-<td><img alt="The sample island drawn through OpenGL" src="images/backend-opengl.png"></td>
-<td><img alt="The same frame of the sample island drawn through Metal, alike to the eye" src="images/backend-metal.png"></td>
+<td><img alt="The sample island drawn through OpenGL" src="../images/backend-opengl.png"></td>
+<td><img alt="The same frame of the sample island drawn through Metal, alike to the eye" src="../images/backend-metal.png"></td>
 </tr>
 <tr><td colspan="2" align="center">The same plan, drawn by each backend: <code>go run ./cmd/visor -sample island -time 10 -backend … -capture frame.png</code></td></tr>
 </table>
@@ -126,7 +126,7 @@ Each uploads each mesh once and draws instanced geometry in a single call, so a
 forest of a hundred thousand trees costs a few draw calls. Every frame goes through the same passes:
 
 <p align="center">
-  <img alt="The six passes of a frame in order: 1 culling, what is in view at what detail; 2 shadows, the scene seen from the sun; 3 sky, day, night, stars and clouds; 4 scene, light, fog, patterns, snow and wind; 5 water, depth, waves, tides and foam; 6 overlay, labels, header, notices and drawing" src="images/frame-passes.svg" width="880">
+  <img alt="The six passes of a frame in order: 1 culling, what is in view at what detail; 2 shadows, the scene seen from the sun; 3 sky, day, night, stars and clouds; 4 scene, light, fog, patterns, snow and wind; 5 water, depth, waves, tides and foam; 6 overlay, labels, header, notices and drawing" src="../images/frame-passes.svg" width="880">
 </p>
 
 1. **Culling.** Instances are kept in grid cells; cells outside the view frustum are skipped, and
@@ -144,7 +144,7 @@ forest of a hundred thousand trees costs a few draw calls. Every frame goes thro
    rise and fall differently from place to place, and waterfalls.
 6. **Overlay.** Labels over things in the world, a header and fading notices, and on top of them
    a free 2D drawing (`Overlay.Drawing`, a `draw2d.List`), in screen space with one texture atlas
-   and one draw call (see [the overlay](overlay.md)).
+   and one draw call (see [the overlay](3-overlay.md)).
 
 ## Input, cameras and the viewer
 
@@ -184,4 +184,4 @@ direction, the snow line and the foliage tint.
 
 ---
 
-[← All the documentation](README.md)
+[← All the documentation](../1-overview.md)
