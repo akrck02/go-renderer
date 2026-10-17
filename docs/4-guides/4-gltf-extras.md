@@ -8,8 +8,8 @@ can use them.
 <table>
 <tr><th width="50%">The sky by day</th><th width="50%">The same sky at night</th></tr>
 <tr>
-<td><img alt="Clouds drifting over the harbour house by day" src="images/walk-light.png"></td>
-<td><img alt="Stars and darker clouds over the harbour house at night, the label still lit" src="images/walk-dark.png"></td>
+<td><img alt="Clouds drifting over the harbour house by day" src="../images/walk-light.png"></td>
+<td><img alt="Stars and darker clouds over the harbour house at night, the label still lit" src="../images/walk-dark.png"></td>
 </tr>
 <tr><td colspan="2" align="center">The sample island is built in Go, but it uses the same settings a file gives here: <code>sky.clouds</code>, <code>sky.stars</code>, the <code>moon</code>, a constellation, a <code>label</code> with an <code>icon</code> and a <code>badge</code>.</td></tr>
 </table>
@@ -25,8 +25,8 @@ can use them.
 * material `extras.kind`: `lit` | `unlit` | `water` | `waterfall`; `extras.depthBias`: share of its distance the surface is pulled towards the camera, so rivers and roads lying on the terrain stay visible over its simpler far versions; `extras.sway`: how much the wind bends it (plants modelled with height 1 and the base at the origin)
 * mesh `extras.detail`: `[{"mesh": index, "screenSize": fraction of the screen height}, ...]`, simpler versions from finer to coarser; the renderer culls instanced nodes by cells and picks a level per cell
 * mesh, primitive or node `extras.ground: true`: walkable surface
-* node `extras.label`, `icon`, `badge`, `label_color`, `pinned`: the [overlay](overlay.md). A node with a `label` (text), an `icon` (a [Lucide](https://lucide.dev/icons) name) or a `badge` (a short text) gets a label above it, as high as its mesh; `label_color` (`"#rrggbb"`) tints the icon and the badge. With `pinned` (a number) it becomes that line of the header instead: `{"label": "12:00", "icon": "clock", "pinned": 1}`
+* node `extras.label`, `icon`, `badge`, `label_color`, `pinned`: the [overlay](3-overlay.md). A node with a `label` (text), an `icon` (a [Lucide](https://lucide.dev/icons) name) or a `badge` (a short text) gets a label above it, as high as its mesh; `label_color` (`"#rrggbb"`) tints the icon and the badge. With `pinned` (a number) it becomes that line of the header instead: `{"label": "12:00", "icon": "clock", "pinned": 1}`
 
 ---
 
-[← All the documentation](README.md)
+[← All the documentation](../1-overview.md)

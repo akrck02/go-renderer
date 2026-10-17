@@ -17,11 +17,11 @@ go run ./cmd/visor -benchmark 120 scene.glb       # CPU and GPU times per pass, 
 <table>
 <tr><th width="50%">Orbit (the default)</th><th width="50%">Walking (<code>-walk</code>, or <code>Tab</code>)</th></tr>
 <tr>
-<td><img alt="The sample island from the orbit camera: the forest, the summit, the river and the village with its label" src="images/orbit.png"></td>
+<td><img alt="The sample island from the orbit camera: the forest, the summit, the river and the village with its label" src="../images/orbit.png"></td>
 <td>
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/walk-dark.png">
-  <img alt="At eye height in the village square, facing the harbour house, by day (light theme) or at night (dark theme)" src="images/walk-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="../images/walk-dark.png">
+  <img alt="At eye height in the village square, facing the harbour house, by day (light theme) or at night (dark theme)" src="../images/walk-light.png">
 </picture>
 </td>
 </tr>
@@ -88,8 +88,8 @@ lifted while a map is shown.
 <table>
 <tr><th width="50%">From straight above (<code>-map</code>)</th><th width="50%">Isometric (<code>-isometric</code>)</th></tr>
 <tr>
-<td><img alt="The island from straight above, north up, without perspective" src="images/map.png"></td>
-<td><img alt="The island at the classic isometric angle, without perspective" src="images/isometric.png"></td>
+<td><img alt="The island from straight above, north up, without perspective" src="../images/map.png"></td>
+<td><img alt="The island at the classic isometric angle, without perspective" src="../images/isometric.png"></td>
 </tr>
 </table>
 
@@ -115,8 +115,8 @@ lifted while a map is shown.
 <table>
 <tr><th width="50%">Low sun (<code>-sun-elevation 4 -sun-azimuth 270</code>)</th><th width="50%">Night (<code>-night</code>, or <code>-sample night</code>)</th></tr>
 <tr>
-<td><img alt="The island at dusk: long shadows across the forest and a pale sky at the horizon" src="images/dusk.png"></td>
-<td><img alt="The island at night, lit by the moon, the label still readable" src="images/night.png"></td>
+<td><img alt="The island at dusk: long shadows across the forest and a pale sky at the horizon" src="../images/dusk.png"></td>
+<td><img alt="The island at night, lit by the moon, the label still readable" src="../images/night.png"></td>
 </tr>
 </table>
 
@@ -137,7 +137,7 @@ lifted while a map is shown.
 | `-walk-speed S` | Walking speed in scene units per second (0 = a share of the scene size); `[` `]` then change it within a range around it, so a small scene in large units (a plant in kilometres) walks at a person's pace |
 | `-no-shadows` | Start without sun shadows |
 | `-width` / `-height` | Window size |
-| `-capture frame.png` | Render one frame to a PNG with a hidden window, and exit (the [overlay](overlay.md) included) |
+| `-capture frame.png` | Render one frame to a PNG with a hidden window, and exit (the [overlay](3-overlay.md) included) |
 | `-benchmark N` | Measure N frames, print CPU and GPU times per pass, draw calls and triangles, and exit |
 | `-no-vsync` | Do not wait for the display; the window title shows the real frames per second |
 | `-cpu-profile file` | Write a CPU profile of the session for `go tool pprof` |
@@ -152,12 +152,12 @@ go-simulator's live simulator does.
 <table>
 <tr><th width="50%">With shadows (the default)</th><th width="50%">Without (<code>-no-shadows</code>, or <code>O</code>)</th></tr>
 <tr>
-<td><img alt="The village with the trees and the house casting shadows" src="images/shadows-on.png"></td>
-<td><img alt="The same view without shadows: flatter, the trees float on the ground" src="images/shadows-off.png"></td>
+<td><img alt="The village with the trees and the house casting shadows" src="../images/shadows-on.png"></td>
+<td><img alt="The same view without shadows: flatter, the trees float on the ground" src="../images/shadows-off.png"></td>
 </tr>
 <tr><td colspan="2" align="center"><code>go run ./cmd/visor -sample island -zoom 0.35 -look-at 20,15 -capture frame.png</code></td></tr>
 </table>
 
 ---
 
-[← All the documentation](README.md)
+[← All the documentation](../1-overview.md)

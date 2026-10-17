@@ -133,7 +133,7 @@ baseline table, and its row is added to the results section.
 ## Results
 
 <p align="center">
-  <img alt="GPU time per frame with shadows, in milliseconds: overview 40.4 at the baseline and 12.3 after phase 1; close 42.4 and 8.9; walking 40.8 and 10.7" src="images/optimization-results.svg" width="880">
+  <img alt="GPU time per frame with shadows, in milliseconds: overview 40.4 at the baseline and 12.3 after phase 1; close 42.4 and 8.9; walking 40.8 and 10.7" src="../images/optimization-results.svg" width="880">
 </p>
 
 | Step | View | CPU | GPU shadows | GPU scene | GPU total |
@@ -171,4 +171,4 @@ Phase 3 changed the file size, not the speed: 76 → 33 MB, loading ~60 ms.
 
 ---
 
-[← All the documentation](README.md)
+[← All the documentation](../1-overview.md)

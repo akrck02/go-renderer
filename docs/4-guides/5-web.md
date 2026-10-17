@@ -5,7 +5,7 @@ through WebGL2, and go-ui interfaces run there too (see go-ui's `docs/web.md`). 
 unchanged. What is still missing is listed at the end.
 
 <p align="center">
-  <img alt="The sample island in a browser: forests, the river, the harbour house and its label" src="images/web-island.jpg" width="360">
+  <img alt="The sample island in a browser: forests, the river, the harbour house and its label" src="../images/web-island.jpg" width="360">
 </p>
 
 ```bash
@@ -31,7 +31,7 @@ not use GLFW, and **a renderer** that speaks WebGL2.
 ## How it fits together
 
 <p align="center">
-  <img alt="Your program, the same scene, camera and update function as on the desktop, runs in a canvas (browser: its events, requestAnimationFrame) or in a NativeActivity (android: its window, touches, a thread); both draw through gles, renderers written once in GLSL ES 1.00 over gles.Functions. The clock and update step are shared with the desktop (frameloop)" src="images/platforms.svg" width="880">
+  <img alt="Your program, the same scene, camera and update function as on the desktop, runs in a canvas (browser: its events, requestAnimationFrame) or in a NativeActivity (android: its window, touches, a thread); both draw through gles, renderers written once in GLSL ES 1.00 over gles.Functions. The clock and update step are shared with the desktop (frameloop)" src="../images/platforms.svg" width="880">
 </p>
 
 | Layer | What it does |
@@ -51,7 +51,7 @@ to make shaders, buffers and textures and to draw. Each platform implements it:
 | Platform | Implementation |
 |---|---|
 | Browser | `browser.WebGL`, over the canvas's `WebGL2RenderingContext` through `syscall/js` |
-| Android | `android.GL`, direct calls into the phone's OpenGL ES ([on Android](android.md)) |
+| Android | `android.GL`, direct calls into the phone's OpenGL ES ([on Android](6-android.md)) |
 | Tests | a fake that records the calls, so the renderers are tested on any computer, without a display |
 
 `gles.FlatRenderer` paints a `draw2d.List` on a plain background, like `opengl.FlatRenderer`: the
@@ -140,4 +140,4 @@ servers usually do on the fly. The fonts and icons are inside it, so the page lo
 
 ---
 
-[← All the documentation](README.md)
+[← All the documentation](../1-overview.md)
