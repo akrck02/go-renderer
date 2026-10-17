@@ -103,7 +103,9 @@ where it can be touched). go-ui's window for the 3DS uses it to swap the screens
 
 `ctr.ReadControls` reads the buttons, the circle pad and the touch screen, and `ctr.Controls`
 turns them into `input.State`: the cross is the arrow keys, L and R minus and plus, A Enter, B
-Escape and the system's back, and the touch screen the pointer (tested on any computer).
+Escape and the system's back, the circle pad the stick (`input.State.StickX` and `StickY`) and the
+touch screen the pointer (tested on any computer). The cameras read the stick as a game's player
+moves: the orbit and the plan move their target over the ground, the walk walks.
 
 ## Memory
 

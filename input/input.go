@@ -116,20 +116,24 @@ const (
 
 // State is the input state for the current frame.
 type State struct {
-	keysHeld            [keyCount]bool
-	keysPressedNow      [keyCount]bool
-	keysTypedNow        [keyCount]bool // pressed or repeated by the system
-	buttonsHeld         [mouseButtonCount]bool
-	buttonsPressedNow   [mouseButtonCount]bool
-	buttonsReleasedNow  [mouseButtonCount]bool
-	clicks              [mouseButtonCount]int // clicks of the last press this step: 1, 2 (double), 3…
-	lastPress           pressRecord
-	characters          []rune
-	CursorX, CursorY    float64 // cursor position in window coordinates
-	CursorDeltaX        float64 // cursor movement since the previous frame
-	CursorDeltaY        float64
-	ScrollDelta         float64 // vertical scroll since the previous frame
-	ScrollDeltaX        float64 // horizontal scroll since the previous frame (trackpads, tilting wheels)
+	keysHeld           [keyCount]bool
+	keysPressedNow     [keyCount]bool
+	keysTypedNow       [keyCount]bool // pressed or repeated by the system
+	buttonsHeld        [mouseButtonCount]bool
+	buttonsPressedNow  [mouseButtonCount]bool
+	buttonsReleasedNow [mouseButtonCount]bool
+	clicks             [mouseButtonCount]int // clicks of the last press this step: 1, 2 (double), 3…
+	lastPress          pressRecord
+	characters         []rune
+	CursorX, CursorY   float64 // cursor position in window coordinates
+	CursorDeltaX       float64 // cursor movement since the previous frame
+	CursorDeltaY       float64
+	ScrollDelta        float64 // vertical scroll since the previous frame
+	ScrollDeltaX       float64 // horizontal scroll since the previous frame (trackpads, tilting wheels)
+	// StickX and StickY are a game pad's stick where there is one (a console's circle pad), from
+	// -1 to 1 each way, right and up positive; 0 at rest or without one. The backend sets them
+	// every frame.
+	StickX, StickY      float64
 	hasCursorPosition   bool
 	leaving             bool // the pointer goes off the window when this frame ends (PointerLeaves)
 	backPressed         bool // the system's back, this step (PressBack)
