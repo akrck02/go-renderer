@@ -24,9 +24,9 @@ go run ./cmd/visor -sample island         # a built-in made-up island
 
 ## Documentation
 
-Everything is in [docs/](docs/README.md): [get started](docs/get-started.md), [the tutorial](docs/tutorial/README.md), [the reference](docs/reference/README.md), [architecture](docs/architecture.md),
-[the viewer](docs/viewer.md), [the overlay](docs/overlay.md), [in a web browser](docs/web.md), [on Android](docs/android.md), [Metal](docs/metal.md), [glTF extras](docs/gltf-extras.md),
-[optimization plan](docs/optimization-plan.md) and [roadmap](docs/roadmap.md).
+Everything is in [docs/](docs/1-overview.md): [get started](docs/2-get-started.md), [the tutorial](docs/3-the-quest/0-the-quest.md), [the reference](docs/5-reference/0-packages.md), [architecture](docs/4-guides/1-architecture.md),
+[the viewer](docs/4-guides/2-viewer.md), [the overlay](docs/4-guides/3-overlay.md), [in a web browser](docs/4-guides/5-web.md), [on Android](docs/4-guides/6-android.md), [Metal](docs/4-guides/7-metal.md), [glTF extras](docs/4-guides/4-gltf-extras.md),
+[optimization plan](docs/6-project/1-optimization-plan.md) and [roadmap](docs/6-project/2-roadmap.md).
 
 Simulations (moving things, weather, growing towns) live in the sibling project
 [go-simulator](https://github.com/akrck02/go-simulator), which changes the scene while the viewer shows it.
