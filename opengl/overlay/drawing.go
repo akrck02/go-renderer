@@ -33,13 +33,20 @@ func (painter *Painter) paintDrawing(list *draw2d.List, scale float32) {
 // drawingOrder lists the commands by layer, keeping their order within a layer.
 func (painter *Painter) drawingOrder(list *draw2d.List) []int {
 	order := painter.order[:0]
+	sorted := true
 	for index := range list.Commands {
 		order = append(order, index)
+		if index > 0 && list.Commands[index].Layer < list.Commands[index-1].Layer {
+			sorted = false
+		}
+	}
+	painter.order = order
+	if sorted {
+		return order // most lists are drawn layer by layer already: no sort, no closure
 	}
 	sort.SliceStable(order, func(first, second int) bool {
 		return list.Commands[order[first]].Layer < list.Commands[order[second]].Layer
 	})
-	painter.order = order
 	return order
 }
 
@@ -79,6 +86,9 @@ func (painter *Painter) preparePictures(list *draw2d.List, scale float32) {
 
 // emojiPictures adds the pictures of a text's emoji to a list.
 func (painter *Painter) emojiPictures(command *draw2d.Command, scale float32, shown []*draw2d.Image) []*draw2d.Image {
+	if isASCII(command.Text) {
+		return shown // no emoji in it: most texts
+	}
 	face, size := faceForWeight(command.Weight), max(pixels(command.Size, scale), 1)
 	text := painter.runesOf(command.Text)
 	for index, character := range text {
@@ -181,7 +191,7 @@ func (painter *Painter) paintBorder(area rectangle, radius, width int, colour [4
 		return
 	}
 	width = min(width, area.width()/2, area.height()/2)
-	edges := []rectangle{
+	edges := [4]rectangle{ // an array: a slice here would be garbage every border
 		{area.left, area.top, area.right, area.top + width},
 		{area.left, area.bottom - width, area.right, area.bottom},
 		{area.left, area.top + width, area.left + width, area.bottom - width},
@@ -367,4 +377,14 @@ func (painter *Painter) runesOf(text string) []rune {
 	}
 	painter.runes = runes
 	return runes
+}
+
+// isASCII tells whether a text is plain ASCII, without looking at it character by character.
+func isASCII(text string) bool {
+	for index := 0; index < len(text); index++ {
+		if text[index] >= 0x80 {
+			return false
+		}
+	}
+	return true
 }

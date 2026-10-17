@@ -107,6 +107,15 @@ Escape and the system's back, the circle pad the stick (`input.State.StickX` and
 touch screen the pointer (tested on any computer). The cameras read the stick as a game's player
 moves: the orbit and the plan move their target over the ground, the walk walks.
 
+`ctr.Open` asks a New 3DS for its fast mode (804 MHz and the second-level cache): libctru leaves
+the processor at 268 MHz otherwise, a third of what it can do.
+
+`FlatRenderer` keeps the corners of every list it paints, one buffer per list painted in a frame.
+A list that draws the same as the frame before (its fingerprint says so) is drawn again from
+them, without being laid out: an interface that does not change costs the processor almost
+nothing. Each rectangle is four corners and two triangles of a fixed index buffer, written straight
+into linear memory.
+
 `ctr.ReadMemory` tells how much of the console's memory is free: the linear memory the GPU reads,
 the video memory and the application's region, which holds the Go heap. It is cheap enough to read
 every second, for a program that shows its own resources.
