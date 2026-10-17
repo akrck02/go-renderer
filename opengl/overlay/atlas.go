@@ -126,6 +126,14 @@ func (atlas *Atlas) grow() bool {
 // disc returns a filled circle of a radius, anti-aliased; its quarters are the corners of pills.
 func (atlas *Atlas) disc(radius int) Entry {
 	key := entryKey{kind: discEntry, size: radius}
+	if entry, found := atlas.entries[key]; found {
+		return entry // without making the closure below, which would allocate (see Painter.glyph)
+	}
+	return atlas.drawDisc(key)
+}
+
+func (atlas *Atlas) drawDisc(key entryKey) Entry {
+	radius := key.size
 	return atlas.lookup(key, func() (*image.Alpha, Entry) {
 		return circleMask(radius, func(distance float64) float64 { return clamp01(float64(radius) - distance + 0.5) }), Entry{}
 	})
@@ -134,6 +142,14 @@ func (atlas *Atlas) disc(radius int) Entry {
 // ring returns the outline of a circle, width pixels thick inside the radius: the pill borders.
 func (atlas *Atlas) ring(radius, width int) Entry {
 	key := entryKey{kind: ringEntry, size: radius, extra: width}
+	if entry, found := atlas.entries[key]; found {
+		return entry
+	}
+	return atlas.drawRing(key)
+}
+
+func (atlas *Atlas) drawRing(key entryKey) Entry {
+	radius, width := key.size, key.extra
 	return atlas.lookup(key, func() (*image.Alpha, Entry) {
 		return circleMask(radius, func(distance float64) float64 {
 			outer := clamp01(float64(radius) - distance + 0.5)
@@ -147,6 +163,14 @@ func (atlas *Atlas) ring(radius, width int) Entry {
 // side is 2·(radius+blur), so its corners are radius+blur wide.
 func (atlas *Atlas) shadow(radius, blur int) Entry {
 	key := entryKey{kind: shadowEntry, size: radius, extra: blur}
+	if entry, found := atlas.entries[key]; found {
+		return entry
+	}
+	return atlas.drawShadow(key)
+}
+
+func (atlas *Atlas) drawShadow(key entryKey) Entry {
+	radius, blur := key.size, key.extra
 	return atlas.lookup(key, func() (*image.Alpha, Entry) {
 		inner, outer := float64(radius-blur), float64(radius+blur)
 		return circleMask(radius+blur, func(distance float64) float64 { return 1 - smoothStep(inner, outer, distance) }), Entry{}

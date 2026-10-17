@@ -2,7 +2,7 @@ package sceneplan
 
 import (
 	"math"
-	"sort"
+	"slices"
 
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/models"
@@ -63,35 +63,54 @@ func squaredHorizontalDistance(first, second graphics.Vec4) float32 {
 	return deltaX*deltaX + deltaZ*deltaZ
 }
 
-// collectCommands lists every node with a mesh, and the sea and its floor when there is water.
+// collectCommands lists every node with a mesh, and the sea and its floor when there is water,
+// in the planner's own list: it holds until the next call.
 func (planner *Planner) collectCommands(world *scene.Scene, camera models.Camera) []Command {
-	var commands []Command
-	world.Walk(func(node *scene.Node, transform graphics.Mat4) {
-		if node.Mesh == nil {
-			return
-		}
-		material := materialOrDefault(node.Mesh.Material)
-		commands = append(commands, Command{
-			Node: node, World: transform, Material: material, Transparent: IsTransparent(material),
-			SquaredCameraDistance: squaredHorizontalDistance(transform.Apply(graphics.Vec4{0, 0, 0, 1}), camera.Position),
-		})
-	})
-	if world.Environment.Water != nil {
-		commands = append(commands, planner.waterFloorCommand(world.Environment.Water, camera))
-		commands = append(commands, planner.waterCommand(world.Environment.Water, camera))
+	planner.commands, planner.walkCamera = planner.commands[:0], camera
+	if planner.collectOne == nil {
+		planner.collectOne = planner.collectNode
 	}
-	return commands
+	world.Walk(planner.collectOne)
+	if world.Environment.Water != nil {
+		planner.commands = append(planner.commands, planner.waterFloorCommand(world.Environment.Water, camera))
+		planner.commands = append(planner.commands, planner.waterCommand(world.Environment.Water, camera))
+	}
+	return planner.commands
+}
+
+// collectNode adds a node's command, when it has a mesh.
+func (planner *Planner) collectNode(node *scene.Node, transform graphics.Mat4) {
+	if node.Mesh == nil {
+		return
+	}
+	material := materialOrDefault(node.Mesh.Material)
+	planner.commands = append(planner.commands, Command{
+		Node: node, World: transform, Material: material, Transparent: IsTransparent(material),
+		SquaredCameraDistance: squaredHorizontalDistance(transform.Apply(graphics.Vec4{0, 0, 0, 1}), planner.walkCamera.Position),
+	})
 }
 
 // sortOpaqueBeforeTransparent keeps opaque commands in order and draws transparent ones last,
 // farthest first, so blending composes correctly.
 func sortOpaqueBeforeTransparent(commands []Command) {
-	sort.SliceStable(commands, func(first, second int) bool {
-		if commands[first].Transparent != commands[second].Transparent {
-			return !commands[first].Transparent
+	slices.SortStableFunc(commands, compareForDrawing) // no reflection, no closure: no garbage
+}
+
+func compareForDrawing(first, second Command) int {
+	switch {
+	case first.Transparent != second.Transparent:
+		if first.Transparent {
+			return 1
 		}
-		return commands[first].Transparent && commands[first].SquaredCameraDistance > commands[second].SquaredCameraDistance
-	})
+		return -1
+	case !first.Transparent:
+		return 0
+	case first.SquaredCameraDistance > second.SquaredCameraDistance:
+		return -1
+	case first.SquaredCameraDistance < second.SquaredCameraDistance:
+		return 1
+	}
+	return 0
 }
 
 // splitOpaqueAndTransparent cuts the sorted commands where the transparent ones start.

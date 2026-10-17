@@ -80,7 +80,7 @@ func (painter *Painter) preparePictures(list *draw2d.List, scale float32) {
 // emojiPictures adds the pictures of a text's emoji to a list.
 func (painter *Painter) emojiPictures(command *draw2d.Command, scale float32, shown []*draw2d.Image) []*draw2d.Image {
 	face, size := faceForWeight(command.Weight), max(pixels(command.Size, scale), 1)
-	text := []rune(command.Text)
+	text := painter.runesOf(command.Text)
 	for index, character := range text {
 		if emoji, coloured := painter.fonts.colourFor(face, size, character, askedAsEmoji(text, index)); coloured {
 			shown = append(shown, emoji.picture)
@@ -208,7 +208,7 @@ func (painter *Painter) paintText(command *draw2d.Command, scale float32) {
 	colour := colourOf(command.Fill)
 	// an emoji keeps its own colours, faded as the text is
 	emojiColour := colourOf(draw2d.Color{1, 1, 1, command.Fill[3]})
-	text := []rune(command.Text)
+	text := painter.runesOf(command.Text)
 	for index, character := range text {
 		if invisible(character) {
 			continue
@@ -357,4 +357,14 @@ func (measurer *Measurer) MeasureText(text string, size float32, weight draw2d.W
 func (measurer *Measurer) HasIcon(name string) bool {
 	_, found := lucide.Codepoint(name)
 	return found
+}
+
+// runesOf is a text's characters in a slice the painter keeps: valid until the next call.
+func (painter *Painter) runesOf(text string) []rune {
+	runes := painter.runes[:0]
+	for _, character := range text {
+		runes = append(runes, character)
+	}
+	painter.runes = runes
+	return runes
 }
