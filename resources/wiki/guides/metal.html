@@ -1,0 +1,499 @@
+<h1 id="metal-a-backend-for-flat-drawing">🍎 Metal: a backend for flat drawing</h1>
+
+<p><strong>Status:</strong> built (October 2026): the flat path, which go-ui&rsquo;s window draws through on macOS by
+default, and the 3D scene renderer, which the viewer draws through on macOS by default (see <em>The 3D
+scene renderer</em> below). This page started as the design; <em>What was built</em> and <em>Measured</em> say how it turned
+out. Pending a look on screen: live resizing by dragging an edge, and a second screen with another
+scale.</p>
+
+<h2 id="why">Why</h2>
+
+<p>OpenGL has been <strong>deprecated on macOS since 2018</strong> and is frozen at version 4.1. On Apple silicon it
+runs as a translation layer over Metal (the driver reports &ldquo;4.1 Metal&rdquo;). It still ships in macOS 26.
+Apple has announced no removal, but there are warning signs: a report from a macOS 27 beta of an
+OpenGL application that would not start, and Chrome, which dropped its OpenGL backend on macOS and
+draws only through Metal.</p>
+
+<p>It is <strong>not</strong> needed for performance or battery today. An interface that draws on demand sleeps
+while idle, and each frame it does draw is one draw call; the translation layer costs about
+0.1–0.2 ms of such a frame. Metal is insurance, plus a few things OpenGL cannot do on macOS:
+smooth live resizing (<code>presentsWithTransaction</code>), choosing the low-power GPU, and pacing frames
+with the display.</p>
+
+<h2 id="what-was-built">What was built</h2>
+
+<table>
+<thead>
+<tr>
+<th>Piece</th>
+<th>Where</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>The window and its <code>CAMetalLayer</code>, the pipeline, the atlas texture, instanced quads, the frame, captures</td>
+<td><code>metal/flat_darwin.m</code> (Objective-C), <code>metal/flat_darwin.go</code> (cgo)</td>
+</tr>
+
+<tr>
+<td>Packing the painter&rsquo;s quads into 36-byte instances</td>
+<td><code>metal/instances.go</code>, with tests</td>
+</tr>
+
+<tr>
+<td>The window&rsquo;s loop through Metal, and one-frame captures</td>
+<td><code>metal/flat_window_darwin.go</code> (<code>FlatWindow</code>)</td>
+</tr>
+
+<tr>
+<td>The loop both backends share</td>
+<td><code>windowloop</code> (moved out of <code>opengl</code>, which now calls it)</td>
+</tr>
+
+<tr>
+<td><code>ErrUnavailable</code>, and a <code>FlatWindow</code> that returns it outside macOS</td>
+<td><code>metal/flat.go</code>, <code>metal/flat_other.go</code></td>
+</tr>
+
+<tr>
+<td>Choosing the backend: <code>Options.Backend</code>, `-backend automatic</td>
+<td>metal</td>
+</tr>
+</tbody>
+</table>
+<p>Where it differs from the design below:</p>
+
+<ul>
+<li><strong>An instance is 36 bytes, not 32:</strong> the screen and atlas rectangles stay as floats (the atlas
+places glyphs at half pixels), and the colour is four bytes.</li>
+<li><strong>The layer keeps two drawables</strong> (<code>maximumDrawableCount = 2</code>) instead of three: a window that
+draws on demand never queues more than one frame, and each drawable is a whole window of pixels.</li>
+<li><strong>A new atlas texture each time the atlas changes</strong>, instead of <code>replaceRegion</code> on the changed
+rectangle: a frame still being drawn keeps reading the old texture, and the atlas changes only
+when glyphs or corners are added. Uploading only the changed rectangle is left for later, as on
+the OpenGL path.</li>
+<li><strong>The OpenGL path keeps its six vertices per quad</strong> for now; moving it to the same instances is
+step 5 of go-ui&rsquo;s performance audit.</li>
+</ul>
+
+<h2 id="measured">Measured</h2>
+
+<p>On a laptop with an Apple M4 and a 60 Hz screen, macOS 26, a 1280 × 800 window on a high-density
+screen.</p>
+
+<p><strong>Captures:</strong> the register application captured through both backends differs in fewer than 1 %
+of its pixels, by at most <sup>1</sup>&frasl;<sub>255</sub> in a channel (the colour rounded to a byte), light and dark. go-ui&rsquo;s
+<code>cmd/app</code> test <code>TestMetalDrawsLikeOpenGL</code> checks it.</p>
+
+<p><strong>The register application, idle (drawing on demand):</strong></p>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th>OpenGL</th>
+<th>Metal</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Memory (system footprint)</td>
+<td>93–102 MB</td>
+<td><strong>66–70 MB</strong></td>
+</tr>
+
+<tr>
+<td>Processor</td>
+<td>0 %</td>
+<td>0 %</td>
+</tr>
+</tbody>
+</table>
+<p><strong>A window whose content changes every frame for 20 seconds (60 frames a second), then stays
+still</strong> (a probe with 30 lines of text, <code>-continuous</code>):</p>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th>OpenGL</th>
+<th>Metal</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Processor while changing</td>
+<td>13.6 % of a core</td>
+<td><strong>9 %</strong></td>
+</tr>
+
+<tr>
+<td>GPU while changing</td>
+<td>19–20 %</td>
+<td><strong>12–16 %</strong></td>
+</tr>
+
+<tr>
+<td>Memory while changing</td>
+<td>163 MB</td>
+<td><strong>107 MB</strong></td>
+</tr>
+
+<tr>
+<td>Memory once still</td>
+<td>109 MB</td>
+<td><strong>60 MB</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Most of the memory saved is the window&rsquo;s buffers and the driver&rsquo;s caches: OpenGL on macOS runs on
+a translation layer over Metal, which keeps more buffers and caches of its own.</p>
+
+<h2 id="the-3d-scene-renderer">The 3D scene renderer</h2>
+
+<p>Built after the flat path, in the same way:</p>
+
+<ul>
+<li><strong>One plan, two backends.</strong> What a frame draws (commands in order, culling, levels of detail,
+instance batches, the shadow and seabed regions) moved out of <code>opengl</code> into <code>sceneplan</code>, which
+makes no graphics calls. OpenGL&rsquo;s captures came out identical, pixel for pixel, before and after
+the move. <code>metal.SceneRenderer</code> draws the same plan.</li>
+<li><strong>Shaders translated one to one</strong> (<code>metal/scene_shaders.go</code>), compiled at start with precise
+maths: the noise behind the patterns, stars and clouds takes sines of large numbers, and fast
+maths would round them differently. The uniform blocks are mirrored in Go byte for byte, checked
+by tests on both sides.</li>
+<li><strong>A thin Objective-C layer</strong> (<code>scene_darwin.m</code>): buffers, textures, pipelines, passes and draw
+calls; the logic stays in Go. A frame waits for the previous one, so buffers can be rewritten in
+place (a simulation moving instances).</li>
+<li><strong>Memoryless depth buffer</strong> where the GPU allows it (Apple silicon): nothing reads it after the
+frame, so it takes no memory.</li>
+<li><strong>The viewer</strong> chooses with <code>-backend</code> (Metal on macOS, falling back to OpenGL), and the visor
+opens a built-in sample island (<code>-sample island</code>) and draws at a fixed time (<code>-time</code>) for captures
+that can be compared.</li>
+</ul>
+
+<table>
+<tr><th width="50%">OpenGL</th><th width="50%">Metal</th></tr>
+<tr>
+<td><img alt="The sample island drawn through OpenGL" src="../images/backend-opengl.png"></td>
+<td><img alt="The same frame drawn through Metal, alike to the eye" src="../images/backend-metal.png"></td>
+</tr>
+<tr><td colspan="2" align="center">The sample island at a fixed time (<code>-time 10</code>), captured through each backend with <code>-backend opengl</code> and <code>-backend metal</code>.</td></tr>
+</table>
+
+<p>Measured with the sample island and an indoor scene of many models, 1280 × 800 on a high-density screen,
+drawing every frame:</p>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th>OpenGL</th>
+<th>Metal</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Captures</td>
+<td></td>
+<td>differ only by rounding (<sup>1</sup>&frasl;<sub>255</sub>) and where two surfaces share a plane</td>
+</tr>
+
+<tr>
+<td>Draw calls and triangles</td>
+<td>15 and 160 756</td>
+<td>the same</td>
+</tr>
+
+<tr>
+<td>Processor per frame (benchmark)</td>
+<td>0.76 ms</td>
+<td><strong>0.32 ms</strong></td>
+</tr>
+
+<tr>
+<td>Processor, the viewer open</td>
+<td>17.5 % of a core</td>
+<td><strong>11.4 %</strong></td>
+</tr>
+
+<tr>
+<td>GPU busy</td>
+<td>52–73 %</td>
+<td>60–92 % (precise maths)</td>
+</tr>
+
+<tr>
+<td>Memory</td>
+<td>305–322 MB</td>
+<td><strong>214–230 MB</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Not tested yet: sky images (panoramas and cube faces), a second screen, simulations that move
+instances every frame.</p>
+
+<h2 id="scope">Scope</h2>
+
+<p><strong>First:</strong> the flat path, <code>FlatRenderer</code> — everything an interface-only window needs (go-ui&rsquo;s
+<code>window</code> package). It is small: about 25 OpenGL calls, two short shaders, one atlas texture and one
+draw call a frame.</p>
+
+<p><strong>Later (now done, see above):</strong> the 3D scene renderer (shadows, sky, water, levels of
+detail, instancing; about 3400 lines and 660 lines of GLSL). That is three to six weeks and a
+decision of its own (see <em>Options</em>).</p>
+
+<h2 id="options">Options</h2>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Fit</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><strong>Native Metal through cgo and Objective-C</strong></td>
+<td>cgo is already required by GLFW, so nothing new. Smallest and most direct; how Gio draws on Apple systems. <strong>Chosen for the flat path.</strong></td>
+</tr>
+
+<tr>
+<td>Metal through <code>purego</code> (no cgo)</td>
+<td>How Ebitengine does it. No gain while GLFW needs cgo anyway, and the bindings are ours to write.</td>
+</tr>
+
+<tr>
+<td>WebGPU through wgpu-native</td>
+<td>One renderer for Metal, Vulkan, OpenGL ES and Direct3D, with WGSL shaders: attractive for the 3D renderer and Android. A large native library and young Go bindings. <strong>Reconsider when porting the 3D renderer.</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Android keeps its own small OpenGL ES flat renderer, as planned in go-ui&rsquo;s <code>docs/android.md</code>.</p>
+
+<h2 id="how-it-fits-together">How it fits together</h2>
+
+<p align="center">
+  <img alt="An interface (a draw2d.List, what go-ui draws) goes through the painter (opengl/overlay: quads of one atlas, plain Go), then to metal.FlatRenderer on macOS or opengl.FlatRenderer elsewhere; one window loop (windowloop) serves both: GLFW events, drawing on demand, resizing" src="../images/metal-stack.svg" width="880">
+</p>
+
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>What it does</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>go-ui window</td>
+<td>Chooses the backend: Metal on macOS, OpenGL elsewhere (<code>-backend</code> to force one)</td>
+</tr>
+
+<tr>
+<td><code>draw2d.List</code></td>
+<td>Unchanged: what an interface draws</td>
+</tr>
+
+<tr>
+<td>overlay painter</td>
+<td>Unchanged: turns the list into quads of one atlas (plain Go, no OpenGL)</td>
+</tr>
+
+<tr>
+<td><code>metal.FlatRenderer</code></td>
+<td><strong>New:</strong> uploads the atlas and the quads, one draw call, presents the drawable</td>
+</tr>
+
+<tr>
+<td>window loop</td>
+<td>Shared by both backends: GLFW events, drawing on demand, the resize follower</td>
+</tr>
+
+<tr>
+<td>GLFW</td>
+<td>Creates the window; with Metal it creates no OpenGL context (<code>NoAPI</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The painter lives in <code>opengl/overlay</code> but imports nothing from OpenGL, so the Metal renderer uses
+it as it is. Moving it to a neutral package (for example <code>draw2d/paint</code>) is a tidy-up for later.</p>
+
+<h2 id="the-pieces">The pieces</h2>
+
+<h3 id="1-the-window-and-the-layer-metal-objective-c-through-cgo">1. The window and the layer (<code>metal/</code>, Objective-C through cgo)</h3>
+
+<ul>
+<li>GLFW creates the window with <code>glfw.ClientAPI</code> set to <code>glfw.NoAPI</code>: no OpenGL context.</li>
+<li><code>window.GetCocoaWindow()</code> gives the <code>NSWindow</code>; its content view gets a <code>CAMetalLayer</code>
+(<code>wantsLayer = YES</code>, <code>layer = metalLayer</code>).</li>
+<li>The layer:
+
+<ul>
+<li><code>device</code>: the system&rsquo;s default device, or the low-power one when there is a choice.</li>
+<li><code>pixelFormat</code>: <code>BGRA8Unorm</code>.</li>
+<li><code>framebufferOnly = YES</code>, <code>opaque = YES</code>, <code>contentsScale</code> = the screen&rsquo;s backing scale.</li>
+<li><code>displaySyncEnabled = YES</code>, unless vsync is off.</li>
+<li><code>drawableSize</code> follows the framebuffer size callback. The scale follows the window when it moves
+to another screen.</li>
+</ul></li>
+<li><strong>Live resize:</strong> while the window is being resized, <code>presentsWithTransaction = YES</code> and the frame is
+drawn from the refresh callback (as the OpenGL loop already does). This presents the new size in
+the same transaction as the window&rsquo;s frame, so nothing stretches.</li>
+</ul>
+
+<h3 id="2-the-flat-renderer-metal-flatrenderer">2. The flat renderer (<code>metal.FlatRenderer</code>)</h3>
+
+<p>It has the same method as the OpenGL one:</p>
+<pre><code class="language-go"><span class="kd">func</span> <span class="nf">NewFlatRenderer</span><span class="p">(</span><span class="nx">window</span> <span class="o">*</span><span class="nx">glfw</span><span class="p">.</span><span class="nx">Window</span><span class="p">,</span> <span class="nx">vsync</span> <span class="kt">bool</span><span class="p">)</span> <span class="p">(</span><span class="o">*</span><span class="nx">FlatRenderer</span><span class="p">,</span> <span class="kt">error</span><span class="p">)</span>
+<span class="kd">func</span> <span class="p">(</span><span class="nx">renderer</span> <span class="o">*</span><span class="nx">FlatRenderer</span><span class="p">)</span> <span class="nf">Draw</span><span class="p">(</span><span class="nx">list</span> <span class="o">*</span><span class="nx">draw2d</span><span class="p">.</span><span class="nx">List</span><span class="p">,</span> <span class="nx">background</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Color</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">scale</span> <span class="kt">float32</span><span class="p">)</span>
+</code></pre>
+
+<ul>
+<li><strong>One pipeline:</strong> the vertex and fragment functions, with blending set in the pipeline the same way
+as the OpenGL path&rsquo;s <code>BlendFuncSeparate</code>.</li>
+<li><strong>Instanced quads:</strong> about 32 bytes each (screen rectangle, atlas rectangle, colour), drawn as a
+four-vertex triangle strip per instance. Today&rsquo;s OpenGL path uses 192 bytes per quad, so the
+OpenGL path should take the same layout at the same time and both stay alike.</li>
+<li><strong>Vertex buffers:</strong> three, used in turn and guarded by a semaphore, so the CPU never writes one
+the GPU is still reading. A buffer grows by doubling and is kept between frames.</li>
+<li><strong>The atlas:</strong> an <code>R8Unorm</code> texture. <code>replaceRegion</code> uploads only the rectangle that changed; a
+larger texture is made only when the atlas grows.</li>
+<li><strong>The shaders:</strong> about 30 lines of Metal Shading Language: position to clip space, atlas
+coverage times colour. They are compiled from source when the renderer starts
+(<code>newLibraryWithSource</code>), so building needs no Xcode, only the command-line tools.</li>
+<li><strong>The frame:</strong>
+
+<ol>
+<li>take the next drawable;</li>
+<li>a render pass that clears to the background;</li>
+<li>one draw call;</li>
+<li>present;</li>
+<li>commit.</li>
+</ol></li>
+</ul>
+
+<p>No depth buffer.</p>
+
+<h3 id="3-a-loop-shared-by-both-backends">3. A loop shared by both backends</h3>
+
+<p>Today the window loop lives in <code>opengl.StartLoop</code>. Its parts are not about OpenGL:</p>
+
+<ul>
+<li>GLFW events,</li>
+<li>drawing on demand,</li>
+<li>frame requests and <code>Wake</code>,</li>
+<li>the resize follower,</li>
+<li>cursor shape and lock,</li>
+<li>the fixed-step clock.</li>
+</ul>
+
+<p>They move to a package both backends use. Each backend gives the loop a small interface to make
+its window and to draw and show a frame. The OpenGL backend keeps its behaviour, and its tests must
+pass unchanged.</p>
+
+<p>The existing hand-written <code>metal.Metal</code> and <code>metal.MetalRenderer</code> stubs (the immediate-mode
+<code>Renderer</code> contract) are left as they are. Filling them in is a separate decision for the author.</p>
+
+<h3 id="4-captures-without-a-screen">4. Captures without a screen</h3>
+
+<p><code>-capture</code> draws into an off-screen texture with shared storage and reads it back into a PNG, as
+the OpenGL path does with <code>ReadPixels</code>. The same frame captured through both backends must match
+within a small tolerance. That comparison is the main test of the port.</p>
+
+<h3 id="5-choosing-the-backend-go-ui">5. Choosing the backend (go-ui)</h3>
+
+<ul>
+<li><code>window.Options.Backend</code>: <code>Automatic</code> (Metal on macOS when a device exists, else OpenGL), <code>Metal</code> or
+<code>OpenGL</code>.</li>
+<li>The flag <code>-backend</code> forces one.</li>
+<li>If Metal fails to start, the window falls back to OpenGL and says so once.</li>
+</ul>
+
+<h2 id="iterations">Iterations</h2>
+
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>What</th>
+<th>Done when</th>
+<th>State</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>0</td>
+<td>GLFW window with no OpenGL context, a <code>CAMetalLayer</code>, clear to a colour, drawing on demand, a capture</td>
+<td>A window shows the background, sleeps while idle, and <code>-capture</code> writes the colour</td>
+<td>Done</td>
+</tr>
+
+<tr>
+<td>1</td>
+<td><code>metal.FlatRenderer</code>: pipeline, atlas, instanced quads, shaders</td>
+<td>The register application&rsquo;s capture matches the OpenGL one within <sup>1</sup>&frasl;<sub>255</sub> per channel, light and dark</td>
+<td>Done</td>
+</tr>
+
+<tr>
+<td>2</td>
+<td>The shared loop; go-ui backend choice; live resize in a transaction; moving between screens</td>
+<td>The register runs on Metal, resizes without stretching or flicker, and its CPU, GPU and memory are measured against OpenGL</td>
+<td>Done; resizing and a second screen still need a look on screen</td>
+</tr>
+
+<tr>
+<td>3</td>
+<td>Docs, tests, README disclosure</td>
+<td><code>go vet</code> and <code>go test</code> pass in both repositories; this page says what was measured</td>
+<td>Done</td>
+</tr>
+</tbody>
+</table>
+<p>It was estimated at three to four days. Each step kept the OpenGL path working.</p>
+
+<h2 id="testing">Testing</h2>
+
+<ul>
+<li><strong>Without a window:</strong> unit tests for packing quads into instances, for the dirty rectangle of the
+atlas, and for choosing the backend.</li>
+<li><strong>With a window:</strong> captures through both backends compared pixel by pixel; the register idle
+for a minute (no frames, no processor); resizing by dragging an edge; a second screen with
+another scale.</li>
+<li><strong>Measured against OpenGL:</strong> processor time while moving the pointer, GPU use, memory footprint.</li>
+</ul>
+
+<h2 id="risks">Risks</h2>
+
+<ul>
+<li><strong>Pacing:</strong> <code>nextDrawable</code> blocks when every drawable is in use. Drawing on demand never holds
+one while idle. Continuous mode relies on display sync, and on skipping frames with no update.</li>
+<li><strong>Retina and scale changes:</strong> the layer&rsquo;s <code>contentsScale</code> and <code>drawableSize</code> must follow the window
+as it moves between screens, or text turns blurry. This is tested on a second screen.</li>
+<li><strong>Two backends to keep alike:</strong> the captures comparison catches drift, and both share the painter
+and the quad layout.</li>
+<li><strong>OpenGL removal may never come:</strong> the work is still small, and it brings the resize and power
+gains with it.</li>
+</ul>
+
+<h2 id="decisions">Decisions</h2>
+
+<ol>
+<li><strong>Native Metal for the flat path and WebGPU only for a later 3D port.</strong> Taken.</li>
+<li><strong>Shaders compiled from source at start-up rather than shipped as a compiled library.</strong> Taken:
+it needs no Xcode, and costs a few milliseconds at start.</li>
+<li><strong>Metal as the default on macOS once captures match.</strong> Taken, with <code>-backend opengl</code> to go back.</li>
+<li><strong>The OpenGL flat path takes the same instanced quads.</strong> Still to do (step 5 of the audit).</li>
+</ol>
+
+<hr>
+
+<p><a href="./overview">← All the documentation</a></p>

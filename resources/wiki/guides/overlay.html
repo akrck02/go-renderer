@@ -1,0 +1,259 @@
+<h1 id="the-overlay-labels-header-and-notices">🏷️ The overlay: labels, header and notices</h1>
+
+<p>Sometimes a picture needs words. Which boat is the ferry? What time is it in the harbour? Did the
+lighthouse just switch on? The <strong>overlay</strong> answers those questions with small, light labels drawn
+over the 3D view, a header pinned to the top-left corner and short notices that fade away.</p>
+
+<p align="center">
+  <img alt="Where each part goes: the header in a card at the top-left corner with one line per pinned item, notices under it (newest first, fading after a few seconds), and a label (an icon and a text in a light pill, with a badge under it) above the thing it belongs to" src="../images/overlay-layout.svg" width="880">
+</p>
+
+<p>It is <strong>visual only</strong>: nothing on it can be clicked. It is part of the scene (<code>Scene.Overlay</code>), so
+any program that changes the scene can change it, and headless captures (<code>visor -capture</code>)
+include it.</p>
+
+<h2 id="labels">Labels</h2>
+
+<p align="center">
+  <img alt="A real label from the sample island: a house icon and the text Harbour house in a white pill, the badge open under it, above the house it belongs to" src="../images/label.png" width="360">
+</p>
+
+<p>A <code>scene.Label</code> floats above something in the world:</p>
+
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>Node</code></td>
+<td>The node it follows: it moves with the node&rsquo;s world transform and hides with it</td>
+</tr>
+
+<tr>
+<td><code>Point</code></td>
+<td>Where it stands when there is no <code>Node</code> (a world position)</td>
+</tr>
+
+<tr>
+<td><code>Height</code></td>
+<td>How far above the anchor, in world units: the top of a box, the roof of a house</td>
+</tr>
+
+<tr>
+<td><code>Text</code></td>
+<td>A short text, cut with &ldquo;…&rdquo; when it is very long</td>
+</tr>
+
+<tr>
+<td><code>Icon</code></td>
+<td>The name of a <a href="https://lucide.dev/icons" target="_blank">Lucide</a> icon (<code>anchor</code>, <code>sailboat</code>, <code>clock</code>…), drawn before the text or alone in a circle</td>
+</tr>
+
+<tr>
+<td><code>Badge</code></td>
+<td>A very short text in a small pill under the label: <code>7/10</code>, <code>open</code></td>
+</tr>
+
+<tr>
+<td><code>Tint</code></td>
+<td>Colour of the icon and the badge, as on a web page (<code>scene.ColorFromHex(&quot;#2563eb&quot;)</code>); the text stays dark</td>
+</tr>
+
+<tr>
+<td><code>Hidden</code></td>
+<td>Keep it, but do not draw it</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-go"><span class="nx">lighthouse</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Label</span><span class="p">{</span><span class="nx">Node</span><span class="p">:</span> <span class="nx">lighthouseNode</span><span class="p">,</span> <span class="nx">Height</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="nx">Text</span><span class="p">:</span> <span class="s">&#34;Lighthouse&#34;</span><span class="p">,</span> <span class="nx">Icon</span><span class="p">:</span> <span class="s">&#34;lighthouse&#34;</span><span class="p">}</span>
+<span class="nx">world</span><span class="p">.</span><span class="nx">Overlay</span><span class="p">.</span><span class="nf">AddLabel</span><span class="p">(</span><span class="nx">lighthouse</span><span class="p">)</span>
+<span class="nx">lighthouse</span><span class="p">.</span><span class="nx">Badge</span> <span class="p">=</span> <span class="s">&#34;lit&#34;</span>                 <span class="c1">// change it whenever you like</span>
+<span class="nx">world</span><span class="p">.</span><span class="nx">Overlay</span><span class="p">.</span><span class="nf">RemoveLabel</span><span class="p">(</span><span class="nx">lighthouse</span><span class="p">)</span>
+</code></pre>
+
+<p>Labels keep <strong>the same size on screen</strong> however far the camera is, and they are drawn only when
+their anchor is in front of the camera and inside the window. When two labels would cover each
+other, the one nearer the camera wins and the other waits until there is room: a crowded view stays
+readable instead of turning into a pile of pills. Labels also stay clear of the header and the
+notices.</p>
+
+<h2 id="the-header-and-the-notices">The header and the notices</h2>
+
+<p><code>Overlay.Header</code> is a list of lines (<code>scene.HeaderLine</code>: icon, text, tint) shown in a card at the
+top-left corner; the first line is a little bigger and bolder, for a clock or a title.</p>
+
+<p>Notices are short messages under the header:</p>
+<pre><code class="language-go"><span class="nx">world</span><span class="p">.</span><span class="nx">Overlay</span><span class="p">.</span><span class="nf">AddNotice</span><span class="p">(</span><span class="s">&#34;anchor&#34;</span><span class="p">,</span> <span class="s">&#34;Boat 4 moored at the north quay&#34;</span><span class="p">,</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{})</span>
+</code></pre>
+
+<p>They show newest first, at most <code>MaximumNotices</code> at a time (5 by default), for
+<code>NoticeDuration</code> seconds (6 by default), fading out over their last second. Their time is the
+overlay&rsquo;s own <code>Clock</code>, which the viewer advances at every step, so a paused or slowed program does
+not lose its notices early.</p>
+
+<h2 id="changing-it-while-the-scene-is-shown">Changing it while the scene is shown</h2>
+
+<p><code>viewer.Run</code> calls your update function on the same goroutine that draws, between frames, so the
+update function can add, change and remove labels, lines and notices freely, with no locking.</p>
+
+<h2 id="from-a-gltf-file">From a glTF file</h2>
+
+<p>A file can carry labels too, in its node extras (see <a href="./guides/gltf-extras">glTF extras</a>): <code>label</code>,
+<code>icon</code>, <code>badge</code>, <code>label_color</code> and <code>pinned</code>. It is a handy way to try the overlay with <code>cmd/visor</code>
+alone.</p>
+
+<h2 id="how-it-is-drawn">How it is drawn</h2>
+
+<p>The overlay is the last pass of the OpenGL scene renderer, after the scene, the sky and the water:</p>
+
+<ol>
+<li><strong>Layout</strong> (package <code>opengl/overlay</code>, plain Go, no graphics context needed): every label&rsquo;s
+anchor is projected to the screen, the labels are sorted nearest first, and the header, notices
+and labels are cut into rectangles of one <strong>atlas</strong>.</li>
+<li><strong>The atlas</strong> is a single grey image holding coverage masks: the glyphs of the text (Go Medium
+and Go Bold, from <code>golang.org/x/image/font/gofont</code>), the icons (the Lucide icon font) and the
+rounded corners of the pills (a disc, a ring and a soft shadow of each size). Pictures are drawn
+into it the first time they are needed, at the exact pixel size they are shown at, so text stays
+crisp; ASCII, Latin-1 and a few signs (<code>→ … € •</code>) are drawn as soon as a size is first used.</li>
+<li><strong>Drawing</strong>: the atlas is uploaded when it changed, and every rectangle becomes two triangles in
+one draw call, in screen pixels, with alpha blending and no depth test. Pills of any width are
+built from the disc as nine pieces: four corners that keep their size and stretched edges.</li>
+</ol>
+
+<p><strong>Other scripts.</strong> The Go fonts (or a program&rsquo;s own, <code>UseFonts</code>) have Latin, Greek and Cyrillic.
+A character they lack (Chinese, Arabic, Devanagari, a symbol) is drawn with one of the system&rsquo;s
+fonts, as a system&rsquo;s own text is: <code>FontFolders</code> are Android&rsquo;s <code>/system/fonts</code>, or the desktop&rsquo;s usual
+folders. The font is found by the name of its file, which names its script (<code>NotoNaskhArabic</code>,
+<code>NotoSansCJK</code>, from Go&rsquo;s <code>unicode</code> tables); a character of no named font is looked for in every
+file under 8 MB, the last resort. Files are read the first time a character needs them, and a font
+found is kept, shared by every painter and measurer. Letters are drawn one after another, left to
+right: Arabic letters are not joined yet, and right-to-left text is not turned round.</p>
+
+<p><strong>Emoji</strong> are drawn in their own colours, from the system&rsquo;s colour emoji font: each is a PNG in
+the font&rsquo;s <code>CBDT</code> table, found through <code>CBLC</code> and <code>cmap</code>, which <code>colour.go</code> reads (<code>x/image</code> does
+not). An emoji becomes a picture in the picture atlas, scaled once to each size it is drawn at, and
+goes in the same draw call as the text, faded as the text is. An emoji by default (a face, a
+pictograph, transport) is drawn as a picture before any outline of it; another character is when
+it is followed by <code>U+FE0F</code> (❤️) or when no font has an outline of it. The variation selectors and
+the zero width joiner are not drawn; sequences joined by it (a family, a skin tone) show as their
+parts, as the font&rsquo;s ligatures are not read. Android 13 and later draw their own emoji from vector
+outlines (COLRv1, not read here) and keep the pictures in <code>NotoColorEmojiLegacy</code>, which is used;
+the fonts are tried in turn, the one for flags alone last. Tried on the Android 14 emulator:
+&ldquo;North light 🌊 😀 🚀 ❤️ 灯台&rdquo; in one field.</p>
+
+<p>On a high-density screen one window pixel is two framebuffer pixels; the viewer sets
+<code>SceneRenderer.OverlayScale</code> so the overlay keeps its size.</p>
+
+<p>The colours aim for calm and contrast: white pills at 92 % opacity with a thin border and a soft
+shadow, dark text (<code>#18212e</code>), and colour only where it means something (the icon and the badge).</p>
+
+<h2 id="the-icons">The icons</h2>
+
+<p>The icons come from <a href="https://lucide.dev" target="_blank">Lucide</a> (ISC licence), copied from the <code>lucide-static</code>
+npm package into <code>opengl/overlay/lucide</code>: the font <code>lucide.ttf</code>, its licence and a generated table
+from names to characters. <code>opengl/overlay/lucide/generate.go</code> explains how to update them. An
+unknown icon name draws nothing and is reported once in the log.</p>
+
+<h2 id="free-drawing-overlay-drawing">Free drawing: <code>Overlay.Drawing</code></h2>
+
+<p>Labels, the header and notices are laid out by the renderer. For anything else drawn over the view
+(panels, buttons, a status bar) a program fills a <strong>draw list</strong> of package <code>draw2d</code> every frame and
+sets <code>world.Overlay.Drawing</code> to it once. It is painted last, over the labels.</p>
+<pre><code class="language-go"><span class="kd">var</span> <span class="nx">drawing</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">List</span>
+<span class="nx">world</span><span class="p">.</span><span class="nx">Overlay</span><span class="p">.</span><span class="nx">Drawing</span> <span class="p">=</span> <span class="o">&amp;</span><span class="nx">drawing</span>
+
+<span class="c1">// in the update function, every step:</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Reset</span><span class="p">()</span>
+<span class="nx">card</span> <span class="o">:=</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Rect</span><span class="p">{</span><span class="nx">X</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span> <span class="nx">Y</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span> <span class="nx">Width</span><span class="p">:</span> <span class="mi">220</span><span class="p">,</span> <span class="nx">Height</span><span class="p">:</span> <span class="mi">64</span><span class="p">}</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Shadow</span><span class="p">(</span><span class="nx">card</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">Hex</span><span class="p">(</span><span class="s">&#34;#14202f2e&#34;</span><span class="p">))</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Rectangle</span><span class="p">(</span><span class="nx">card</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">Hex</span><span class="p">(</span><span class="s">&#34;#ffffff&#34;</span><span class="p">),</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">Hex</span><span class="p">(</span><span class="s">&#34;#dde3ea&#34;</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Icon</span><span class="p">(</span><span class="s">&#34;lightbulb&#34;</span><span class="p">,</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">48</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">Hex</span><span class="p">(</span><span class="s">&#34;#4a5768&#34;</span><span class="p">))</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Text</span><span class="p">(</span><span class="s">&#34;The lamp is lit&#34;</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">61</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Regular</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">Hex</span><span class="p">(</span><span class="s">&#34;#14202f&#34;</span><span class="p">))</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>What it draws</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>Rectangle(area, radius, fill, border, width)</code></td>
+<td>A rectangle with rounded corners, a fill and a border inside its area</td>
+</tr>
+
+<tr>
+<td><code>Shadow(area, radius, blur, drop, colour)</code></td>
+<td>A soft shadow for a rectangle, fading out over <code>blur</code> pixels and falling <code>drop</code> pixels</td>
+</tr>
+
+<tr>
+<td><code>Text(text, x, baseline, size, weight, colour)</code></td>
+<td>One line of text in Go Regular, Medium or Bold</td>
+</tr>
+
+<tr>
+<td><code>Icon(name, x, y, size, colour)</code></td>
+<td>A Lucide icon in a square</td>
+</tr>
+
+<tr>
+<td><code>Image(picture, area, radius, tint)</code></td>
+<td>A picture covering a rounded rectangle, cropped evenly where their shapes differ; white tints nothing</td>
+</tr>
+
+<tr>
+<td><code>PushClip(area)</code> / <code>PopClip()</code></td>
+<td>Cuts what follows to a rectangle (nested clips intersect)</td>
+</tr>
+
+<tr>
+<td><code>SetLayer(layer)</code></td>
+<td>Higher layers cover lower ones, whatever order they were added in</td>
+</tr>
+</tbody>
+</table>
+<p>Commands wholly outside the current clip are left out as they are added, so the rows of a long
+scrolled list out of sight cost nothing to paint; a text goes when its line misses the clip above
+or below, or starts past its right edge. <code>Fingerprint(seed)</code> sums up a list in one number: a window
+that draws on demand compares it with the last frame&rsquo;s to skip a frame that would look the same.</p>
+
+<p>Coordinates are <strong>layout pixels</strong> from the top-left corner, the same units as the cursor in
+<code>input.State</code>; on a high-density screen the renderer doubles them, so sizes match on every screen
+and text is drawn at its real pixel size. Shapes use the same atlas as the labels (the disc, ring
+and shadow pictures, cut into nine pieces), so a whole interface is still one draw call. Clipping
+is done on the processor: each rectangle is cut, and its atlas coordinates with it.</p>
+
+<p>To lay text out before drawing it, <code>overlay.NewMeasurer()</code> measures a line exactly as it will be
+painted (<code>MeasureText(text, size, weight, scale)</code>); it needs no graphics context. Interface
+libraries such as <a href="https://github.com/akrck02/go-ui" target="_blank">go-ui</a> build on these two pieces.</p>
+
+<h3 id="pictures">Pictures</h3>
+
+<p>A picture is a <code>draw2d.Image</code>: <code>draw2d.DecodeImage(reader)</code> reads a PNG, JPEG or GIF (a file the
+program embeds), <code>draw2d.NewImage(picture)</code> takes an <code>image.Image</code>, and <code>draw2d.NewBlankImage</code>
+makes one whose pixels the program writes itself. Keep it between frames: its pixels are uploaded
+once. To show other pixels in it (a video&rsquo;s next frame), write them into <code>Pixels</code> and call
+<code>Changed</code>; only its own area is uploaded again.</p>
+
+<p>Pictures sit side by side in a second atlas, of colours (<code>overlay.Pictures</code>, RGBA, made with the
+first picture). A picture&rsquo;s quads read their colours there and their coverage in the grey atlas,
+as any rounded rectangle does, so corners and clips work as for every other shape and the whole
+interface stays one draw call. Photos larger than 2048 pixels are scaled down to it as they are
+copied in; the atlas grows to 4096 pixels, and when even that is full it is emptied and holds only
+the pictures of the frame being drawn.</p>
+
+<p>A program that is only an interface, with no scene, uses <code>opengl.FlatRenderer</code>: it clears the
+window to a background colour and paints a draw list, with the same atlas and one draw call.</p>
+
+<hr>
+
+<p><a href="./overview">← All the documentation</a></p>

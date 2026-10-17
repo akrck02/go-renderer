@@ -1,0 +1,459 @@
+<h1 id="input">input</h1>
+<pre><code class="language-go"><span class="kn">import</span> <span class="s">&#34;github.com/akrck02/go-renderer/input&#34;</span>
+</code></pre>
+
+<p>Package input holds a backend-independent snapshot of keyboard and mouse state.</p>
+
+<p>Window backends (GLFW for OpenGL today, others later) feed events into a State;
+applications, camera controllers and simulations only read from it.</p>
+
+<p>Besides what is held, a State remembers what happened since the last update
+step: keys and buttons that went down or up, keys repeated by the system,
+the characters typed and how many clicks a press makes (a double click).
+An interface drawn over the view can claim the mouse or the keyboard for a step,
+so the camera does not move while a slider is dragged or a name typed.</p>
+
+<h3 id="constants-and-variables">Constants and variables</h3>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="nx">MultiClickInterval</span> <span class="p">=</span> <span class="mi">400</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Millisecond</span>
+	<span class="nx">MultiClickDistance</span> <span class="p">=</span> <span class="mf">4.0</span>
+<span class="p">)</span>
+</code></pre>
+
+<p>MultiClickInterval is the longest pause between the presses of a double click, and MultiClickDistance how far, in window coordinates, the pointer may move between them.</p>
+
+<h3 id="clipboard">Clipboard</h3>
+
+<p>Clipboard is the system clipboard, given by the backend.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Clipboard</span> <span class="kd">interface</span> <span class="p">{</span>
+	<span class="nf">ClipboardText</span><span class="p">()</span> <span class="kt">string</span>
+	<span class="nf">SetClipboardText</span><span class="p">(</span><span class="nx">text</span> <span class="kt">string</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="cursorshape">CursorShape</h3>
+
+<p>CursorShape is the look of the mouse pointer.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">CursorShape</span> <span class="kt">int</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="nx">CursorArrow</span>            <span class="nx">CursorShape</span> <span class="p">=</span> <span class="kc">iota</span> <span class="c1">// the default pointer</span>
+	<span class="nx">CursorText</span>                                <span class="c1">// an I-beam, over text that can be edited</span>
+	<span class="nx">CursorHand</span>                                <span class="c1">// a pointing hand, over something to click</span>
+	<span class="nx">CursorResizeHorizontal</span>                    <span class="c1">// a left-right arrow, over an edge to drag sideways</span>
+	<span class="nx">CursorResizeVertical</span>                      <span class="c1">// an up-down arrow, over an edge to drag up or down</span>
+	<span class="nx">CursorMove</span>                                <span class="c1">// four arrows, over something to drag around</span>
+<span class="p">)</span>
+</code></pre>
+
+<h3 id="gesture">Gesture</h3>
+
+<p>Gesture is what two fingers did since the last step.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Gesture</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Spread</span> <span class="kt">float64</span> <span class="c1">// the distance between them now over before: above 1 they moved apart</span>
+	<span class="nx">Turn</span>   <span class="kt">float64</span> <span class="c1">// radians they turned around their middle, counterclockwise on screen</span>
+	<span class="nx">PanX</span>   <span class="kt">float64</span> <span class="c1">// how far their middle moved, in layout pixels</span>
+	<span class="nx">PanY</span>   <span class="kt">float64</span>
+	<span class="c1">// CenterX and CenterY are where their middle is now, in layout pixels: what a pinch comes</span>
+	<span class="c1">// closer to</span>
+	<span class="nx">CenterX</span><span class="p">,</span> <span class="nx">CenterY</span> <span class="kt">float64</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="key">Key</h3>
+
+<p>Key is a backend-independent key code.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Key</span> <span class="kt">int</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="nx">KeyUnknown</span> <span class="nx">Key</span> <span class="p">=</span> <span class="kc">iota</span>
+	<span class="nx">KeyA</span>
+	<span class="nx">KeyB</span>
+	<span class="nx">KeyC</span>
+	<span class="nx">KeyD</span>
+	<span class="nx">KeyE</span>
+	<span class="nx">KeyF</span>
+	<span class="nx">KeyG</span>
+	<span class="nx">KeyH</span>
+	<span class="nx">KeyI</span>
+	<span class="nx">KeyJ</span>
+	<span class="nx">KeyK</span>
+	<span class="nx">KeyL</span>
+	<span class="nx">KeyM</span>
+	<span class="nx">KeyN</span>
+	<span class="nx">KeyO</span>
+	<span class="nx">KeyP</span>
+	<span class="nx">KeyQ</span>
+	<span class="nx">KeyR</span>
+	<span class="nx">KeyS</span>
+	<span class="nx">KeyT</span>
+	<span class="nx">KeyU</span>
+	<span class="nx">KeyV</span>
+	<span class="nx">KeyW</span>
+	<span class="nx">KeyX</span>
+	<span class="nx">KeyY</span>
+	<span class="nx">KeyZ</span>
+	<span class="nx">Key0</span>
+	<span class="nx">Key1</span>
+	<span class="nx">Key2</span>
+	<span class="nx">Key3</span>
+	<span class="nx">Key4</span>
+	<span class="nx">Key5</span>
+	<span class="nx">Key6</span>
+	<span class="nx">Key7</span>
+	<span class="nx">Key8</span>
+	<span class="nx">Key9</span>
+	<span class="nx">KeyUp</span>
+	<span class="nx">KeyDown</span>
+	<span class="nx">KeyLeft</span>
+	<span class="nx">KeyRight</span>
+	<span class="nx">KeySpace</span>
+	<span class="nx">KeyTab</span>
+	<span class="nx">KeyEnter</span>
+	<span class="nx">KeyEscape</span>
+	<span class="nx">KeyShift</span>
+	<span class="nx">KeyControl</span>
+	<span class="nx">KeyAlt</span>
+	<span class="nx">KeyPlus</span>
+	<span class="nx">KeyMinus</span>
+	<span class="nx">KeyPageUp</span>
+	<span class="nx">KeyPageDown</span>
+	<span class="nx">KeyLeftBracket</span>
+	<span class="nx">KeyRightBracket</span>
+	<span class="nx">KeyComma</span>
+	<span class="nx">KeyPeriod</span>
+	<span class="nx">KeyBackspace</span>
+	<span class="nx">KeyDelete</span>
+	<span class="nx">KeyHome</span>
+	<span class="nx">KeyEnd</span>
+	<span class="nx">KeySuper</span> <span class="c1">// the Command key on a Mac, the Windows key elsewhere</span>
+
+<span class="p">)</span>
+</code></pre>
+
+<h3 id="mousebutton">MouseButton</h3>
+
+<p>MouseButton is a backend-independent mouse button.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">MouseButton</span> <span class="kt">int</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="nx">MouseLeft</span> <span class="nx">MouseButton</span> <span class="p">=</span> <span class="kc">iota</span>
+	<span class="nx">MouseRight</span>
+	<span class="nx">MouseMiddle</span>
+<span class="p">)</span>
+</code></pre>
+
+<h3 id="state">State</h3>
+
+<p>State is the input state for the current frame.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">State</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">CursorX</span><span class="p">,</span> <span class="nx">CursorY</span> <span class="kt">float64</span> <span class="c1">// cursor position in window coordinates</span>
+	<span class="nx">CursorDeltaX</span>     <span class="kt">float64</span> <span class="c1">// cursor movement since the previous frame</span>
+	<span class="nx">CursorDeltaY</span>     <span class="kt">float64</span>
+	<span class="nx">ScrollDelta</span>      <span class="kt">float64</span> <span class="c1">// vertical scroll since the previous frame</span>
+	<span class="nx">ScrollDeltaX</span>     <span class="kt">float64</span> <span class="c1">// horizontal scroll since the previous frame (trackpads, tilting wheels)</span>
+
+	<span class="nx">FramebufferWidth</span>  <span class="kt">int</span> <span class="c1">// updated by the backend</span>
+	<span class="nx">FramebufferHeight</span> <span class="kt">int</span>
+	<span class="nx">WindowWidth</span>       <span class="kt">int</span> <span class="c1">// window size in cursor coordinates</span>
+	<span class="nx">WindowHeight</span>      <span class="kt">int</span>
+	<span class="c1">// Clipboard is set by the backend; nil when there is no system clipboard (tests, headless).</span>
+	<span class="nx">Clipboard</span> <span class="nx">Clipboard</span>
+	<span class="c1">// Now tells the time, for double clicks; nil = time.Now. Tests set it to a fake clock.</span>
+	<span class="nx">Now</span> <span class="kd">func</span><span class="p">()</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Time</span>
+
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func NewState() *State</code></td>
+<td>NewState returns an empty input state.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) AddCharacter(character rune)</code></td>
+<td>AddCharacter records a character typed, after the keyboard layout and dead keys (called by the backend): &ldquo;ñ&rdquo; is one character, whatever keys made it.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) AddHorizontalScroll(delta float64)</code></td>
+<td>AddHorizontalScroll records sideways scroll movement (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) AddScroll(delta float64)</code></td>
+<td>AddScroll records scroll movement (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) AnyHeld() bool</code></td>
+<td>AnyHeld tells whether a key or a mouse button is being held down: a program that draws on demand keeps drawing while one is, since holding a key (walking forward) sends no events.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) BackUnanswered() bool</code></td>
+<td>BackUnanswered tells whether the last step had a back that nobody took, once, for the backend to leave the program.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) Button(button MouseButton) bool</code></td>
+<td>Button reports whether a mouse button is held.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) ButtonPressed(button MouseButton) bool</code></td>
+<td>ButtonPressed reports whether a mouse button went down during this step.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) ButtonReleased(button MouseButton) bool</code></td>
+<td>ButtonReleased reports whether a mouse button went up during this step.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) ClaimKeyboard()</code></td>
+<td>ClaimKeyboard marks the keyboard as used by an interface during this step (a text field has the focus).</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) ClaimMouse()</code></td>
+<td>ClaimMouse marks the mouse as used by an interface during this step (the pointer is over a panel, or dragging a slider): cameras and shortcuts should leave it alone.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) ClearTouches()</code></td>
+<td>ClearTouches takes every finger off, when the system takes a gesture over (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) Clicks(button MouseButton) int</code></td>
+<td>Clicks says which click a press during this step was: 1 for a single click, 2 for the second press of a double click, 3 for a triple click; 0 when the button was not pressed.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) ClipboardText() string</code></td>
+<td>ClipboardText returns the text on the system clipboard, or &ldquo;&rdquo; without one.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) CursorLocked() bool</code></td>
+<td>CursorLocked reports whether the application asked for a captured cursor.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) CursorShape() CursorShape</code></td>
+<td>CursorShape is the pointer shape the application asked for.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) Down(key Key) bool</code></td>
+<td>Down reports whether a key is held.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) EndFrame()</code></td>
+<td>EndFrame clears per-frame movement, presses, typed characters and claims; the backend calls it after each update step.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) HasInput() bool</code></td>
+<td>HasInput tells whether anything arrived during this step: keys, characters, buttons, pointer movement or scrolling.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) KeyboardClaimed() bool</code></td>
+<td>KeyboardClaimed tells whether an interface claimed the keyboard during this step.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) LiftTouch(finger int64)</code></td>
+<td>LiftTouch takes a finger off the screen (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) LockCursor(lock bool)</code></td>
+<td>LockCursor asks the backend to hide and capture the cursor (first-person look) or release it.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) MouseClaimed() bool</code></td>
+<td>MouseClaimed tells whether an interface claimed the mouse during this step.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) MoveCursor(x, y float64)</code></td>
+<td>MoveCursor records a new cursor position (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) PointerLeaves()</code></td>
+<td>PointerLeaves takes the pointer off the window once this frame ends: a finger lifted from a touch screen leaves nothing under it, so no control stays lit as if a mouse rested on it.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) PressBack()</code></td>
+<td>PressBack records the system&rsquo;s back: a phone&rsquo;s back gesture or button (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) Pressed(key Key) bool</code></td>
+<td>Pressed reports whether a key went down during this frame.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) RepeatKey(key Key)</code></td>
+<td>RepeatKey records that the system repeated a held key (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) RequestFrame(delay time.Duration)</code></td>
+<td>RequestFrame asks the backend for another frame within a delay, even if no input arrives: the next step of an animation, a caret&rsquo;s blink, a tooltip due.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) SetButton(button MouseButton, isDown bool)</code></td>
+<td>SetButton records a mouse button transition (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) SetClipboardText(text string)</code></td>
+<td>SetClipboardText puts a text on the system clipboard, when there is one.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) SetCursorShape(shape CursorShape)</code></td>
+<td>SetCursorShape asks the backend to show the pointer with a shape; it stays until changed.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) SetKey(key Key, isDown bool)</code></td>
+<td>SetKey records a key transition (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) SetTouch(finger int64, x, y float64)</code></td>
+<td>SetTouch puts a finger down, or moves it (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) TakeBack() bool</code></td>
+<td>TakeBack answers the system&rsquo;s back in this step, and tells whether there was one to answer: the part of the program the person is in goes back (a dialog closes, a screen returns to the one before) and returns true; any other part asking after it gets false.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) TakeFrameRequest() (time.Duration, bool)</code></td>
+<td>TakeFrameRequest returns how long until the frame asked for with RequestFrame (0 when it is due) and forgets the request; false when none was made (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) Time() time.Time</code></td>
+<td>Time is the time now, by Now when it is set (a test&rsquo;s fake clock).</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) Touches() []Touch</code></td>
+<td>Touches returns the fingers on the screen now: for gestures of more than one finger (pinch, twist).</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) Typed(key Key) bool</code></td>
+<td>Typed reports whether a key went down or was repeated by the system during this step: what text fields use for Backspace or the arrows, so holding them keeps acting.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) TypedText() string</code></td>
+<td>TypedText returns the characters typed during this step, in order.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) Unclaimed() State</code></td>
+<td>Unclaimed returns a copy of the state without what an interface claimed: no buttons, pointer movement or scroll when it has the mouse, no keys or characters when it has the keyboard.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="touch">Touch</h3>
+
+<p>Touch is a finger on the screen: which one, and where, in layout pixels.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Touch</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Finger</span> <span class="kt">int64</span>
+	<span class="nx">X</span><span class="p">,</span> <span class="nx">Y</span>   <span class="kt">float64</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="touchpointer">TouchPointer</h3>
+
+<p>TouchPointer turns fingers into the pointer every interface already understands: one finger down moves the cursor and presses the left button, lifting it releases the button. A second finger lets the pointer go: two fingers are a gesture (pinch, twist), not a click or a drag; the pointer comes back with the next finger down once all are lifted. Positions come in screen pixels and go to the state in layout pixels, divided by the screen&rsquo;s scale; every finger is also in the state&rsquo;s touches.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">TouchPointer</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (pointer *TouchPointer) Begin(state *State, finger int64, x, y, scale float32)</code></td>
+<td>Begin puts a finger down: the first becomes the pointer, a second lets it go.</td>
+</tr>
+
+<tr>
+<td><code>func (pointer *TouchPointer) Cancel(state *State)</code></td>
+<td>Cancel lets go of every finger, when the system takes the gesture over (a swipe from the screen&rsquo;s edge): the button is released, so nothing stays pressed.</td>
+</tr>
+
+<tr>
+<td><code>func (pointer *TouchPointer) End(state *State, finger int64, x, y, scale float32)</code></td>
+<td>End lifts a finger: lifting the pointer&rsquo;s is a click where it was.</td>
+</tr>
+
+<tr>
+<td><code>func (pointer *TouchPointer) Move(state *State, finger int64, x, y, scale float32)</code></td>
+<td>Move follows a finger; the pointer follows its own.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="twofingers">TwoFingers</h3>
+
+<p>TwoFingers follows a gesture of two fingers from one step to the next: how much they spread (pinch), turned (twist) and moved together (pan).</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">TwoFingers</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (follower *TwoFingers) Step(state *State) (Gesture, bool)</code></td>
+<td>Step reads the state&rsquo;s touches and returns the gesture since the last step; false when there are not exactly two fingers, or they just came down (a gesture starts at the next step).</td>
+</tr>
+</tbody>
+</table>
+
+<hr>
+
+<p><a href="./reference/packages">← Reference</a> · generated from the doc comments by <code>generate.py</code></p>

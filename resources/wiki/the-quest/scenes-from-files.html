@@ -1,0 +1,210 @@
+<h1 id="lesson-6-scenes-from-files">Lesson 6: scenes from files</h1>
+
+<p>Building meshes in Go is good for learning and for things a program generates. Real islands are
+modelled in a 3D editor, or built from a map by a tool. In this lesson you load a <strong>glTF</strong> file,
+add the renderer&rsquo;s own information to it through <strong>extras</strong>, and carry the scene inside the
+program.</p>
+
+<table>
+<thead>
+<tr>
+<th>Mission</th>
+<th>Pieces</th>
+<th>Time</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>The island from a file</td>
+<td><code>loaders.LoadScene</code>, extras, <code>ParseSceneGLB</code></td>
+<td>10 min</td>
+</tr>
+</tbody>
+</table>
+
+<h4 id="the-idea">The idea</h4>
+
+<p>glTF is a <strong>shipping container for 3D</strong>: every tool packs it the same way, so the renderer can unload one from anyone. What the standard boxes have no room for (the tide, the walkable ground, a label) travels in the <strong>extras</strong>, a note taped to each box.</p>
+
+<h2 id="gltf-in-one-paragraph">glTF in one paragraph</h2>
+
+<p><a href="https://www.khronos.org/gltf/" target="_blank">glTF 2.0</a> is the open format for 3D scenes: nodes, meshes and
+materials, in a <code>.gltf</code> (JSON beside its binary buffers) or a single <code>.glb</code>. Blender exports it
+(<em>File → Export → glTF 2.0</em>), and so does go-scene-builder, which turns a 2D map and a relief into
+a whole scene.</p>
+
+<h2 id="opening-a-file">Opening a file</h2>
+<pre><code class="language-go"><span class="nx">world</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">loaders</span><span class="p">.</span><span class="nf">LoadScene</span><span class="p">(</span><span class="s">&#34;island.glb&#34;</span><span class="p">)</span>
+<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+	<span class="nx">log</span><span class="p">.</span><span class="nf">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+<span class="p">}</span>
+<span class="nx">viewer</span><span class="p">.</span><span class="nf">Run</span><span class="p">(</span><span class="nx">world</span><span class="p">,</span> <span class="nx">options</span><span class="p">,</span> <span class="s">&#34;Island&#34;</span><span class="p">,</span> <span class="kc">nil</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+</code></pre>
+
+<p>That is the whole of <code>cmd/visor</code>, give or take its flags: <code>go run ./cmd/visor island.glb</code> opens
+any file without writing a line.</p>
+
+<p>The loader reads the node tree, positions, normals, vertex colours (<code>COLOR_0</code>), indices, the
+base colour of materials with <code>doubleSided</code> and <code>alphaMode</code>, compressed attributes
+(<code>KHR_mesh_quantization</code>) and instancing (<code>EXT_mesh_gpu_instancing</code>). Textures are not read: colour
+comes from materials, vertex colours and the procedural patterns.</p>
+
+<h2 id="extras-what-gltf-cannot-say">Extras: what glTF cannot say</h2>
+
+<p>glTF has no word for the tide, the walkable ground or a label. It lets any object carry free JSON,
+its <strong>extras</strong>, and go-renderer reads its own there. In Blender, <em>custom properties</em> become extras
+when <em>Include → Custom Properties</em> is ticked in the exporter.</p>
+
+<table>
+<thead>
+<tr>
+<th>On</th>
+<th>Extra</th>
+<th>Becomes</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>The scene</td>
+<td><code>environment</code>: <code>sunDirection</code>, <code>fog</code>, <code>water</code>, <code>wind</code>, <code>sky</code>, <code>snow</code>…</td>
+<td><code>world.Environment</code> (lesson 3)</td>
+</tr>
+
+<tr>
+<td>A mesh, a primitive or a node</td>
+<td><code>&quot;ground&quot;: true</code></td>
+<td><code>Mesh.Ground</code>: walkable, found by <code>GroundHeight</code></td>
+</tr>
+
+<tr>
+<td>A material</td>
+<td><code>&quot;kind&quot;: &quot;glow&quot;</code>, <code>&quot;sway&quot;: 0.3</code>, <code>&quot;pattern&quot;: &quot;cobbles&quot;</code>, <code>&quot;patternScale&quot;: 0.5</code></td>
+<td><code>Material.Kind</code>, <code>Sway</code>, <code>Pattern</code> (lessons 1–3)</td>
+</tr>
+
+<tr>
+<td>A mesh</td>
+<td><code>&quot;detail&quot;: [{&quot;mesh&quot;: 3, &quot;screenSize&quot;: 0.05}]</code></td>
+<td>Simpler versions drawn far away</td>
+</tr>
+
+<tr>
+<td>A node</td>
+<td><code>&quot;label&quot;</code>, <code>&quot;icon&quot;</code>, <code>&quot;badge&quot;</code>, <code>&quot;label_color&quot;</code>, <code>&quot;pinned&quot;</code></td>
+<td>A label, or a line of the header (lesson 4)</td>
+</tr>
+</tbody>
+</table>
+<p>A node&rsquo;s extras, all of them, are also in <code>node.Tags</code>, for your program&rsquo;s own data: a lighthouse&rsquo;s
+range, a building&rsquo;s owner. For example, a node exported like this:</p>
+<pre><code class="language-json"><span class="p">{</span>
+  <span class="nt">&#34;name&#34;</span><span class="p">:</span> <span class="s2">&#34;harbour&#34;</span><span class="p">,</span>
+  <span class="nt">&#34;mesh&#34;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+  <span class="nt">&#34;extras&#34;</span><span class="p">:</span> <span class="p">{</span> <span class="nt">&#34;label&#34;</span><span class="p">:</span> <span class="s2">&#34;Harbour&#34;</span><span class="p">,</span> <span class="nt">&#34;icon&#34;</span><span class="p">:</span> <span class="s2">&#34;anchor&#34;</span><span class="p">,</span> <span class="nt">&#34;berths&#34;</span><span class="p">:</span> <span class="mi">12</span> <span class="p">}</span>
+<span class="p">}</span>
+</code></pre>
+
+<p>gets a label with an anchor, and <code>node.Tags[&quot;berths&quot;]</code> holds <code>12</code> (a <code>float64</code>, as JSON numbers
+are). The full list is in <a href="./guides/gltf-extras">glTF extras</a>.</p>
+
+<h2 id="finding-nodes">Finding nodes</h2>
+
+<p>A loaded scene is the same <code>scene.Scene</code> you built by hand, so everything in lessons 2 to 5 works
+on it. To animate a node, find it by name:</p>
+<pre><code class="language-go"><span class="kd">func</span> <span class="nf">findNode</span><span class="p">(</span><span class="nx">nodes</span> <span class="p">[]</span><span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Node</span><span class="p">,</span> <span class="nx">name</span> <span class="kt">string</span><span class="p">)</span> <span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Node</span> <span class="p">{</span>
+	<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">node</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">nodes</span> <span class="p">{</span>
+		<span class="k">if</span> <span class="nx">node</span><span class="p">.</span><span class="nx">Name</span> <span class="o">==</span> <span class="nx">name</span> <span class="p">{</span>
+			<span class="k">return</span> <span class="nx">node</span>
+		<span class="p">}</span>
+		<span class="k">if</span> <span class="nx">found</span> <span class="o">:=</span> <span class="nf">findNode</span><span class="p">(</span><span class="nx">node</span><span class="p">.</span><span class="nx">Children</span><span class="p">,</span> <span class="nx">name</span><span class="p">);</span> <span class="nx">found</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+			<span class="k">return</span> <span class="nx">found</span>
+		<span class="p">}</span>
+	<span class="p">}</span>
+	<span class="k">return</span> <span class="kc">nil</span>
+<span class="p">}</span>
+
+<span class="nx">lamp</span> <span class="o">:=</span> <span class="nf">findNode</span><span class="p">(</span><span class="nx">world</span><span class="p">.</span><span class="nx">Nodes</span><span class="p">,</span> <span class="s">&#34;lamp&#34;</span><span class="p">)</span>
+</code></pre>
+
+<h2 id="carrying-the-scene-inside-the-program">Carrying the scene inside the program</h2>
+
+<p>A program for a web page or a phone has no files beside it. Embed the <code>.glb</code> and parse its bytes:</p>
+<pre><code class="language-go"><span class="cp">//go:embed island.glb</span>
+<span class="kd">var</span> <span class="nx">islandFile</span> <span class="p">[]</span><span class="kt">byte</span>
+
+<span class="nx">world</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">loaders</span><span class="p">.</span><span class="nf">ParseSceneGLB</span><span class="p">(</span><span class="nx">islandFile</span><span class="p">)</span>
+</code></pre>
+
+<p>The buffers must be inside the file, as a <code>.glb</code>&rsquo;s are; a <code>.gltf</code> with separate <code>.bin</code> files needs
+<code>LoadScene</code>.</p>
+
+<h4 id="checkpoint">Checkpoint</h4>
+
+<p><code>go run ./cmd/visor island.glb</code> opens a scene made elsewhere (Blender, go-scene-builder), and its labels, sea and walkable ground come with it.</p>
+
+<p><img src="./images/tutorial/quest/achievement-librarian.svg" alt="Achievement unlocked: Librarian" /></p>
+
+<h2 id="what-you-learnt">What you learnt</h2>
+
+<ul>
+<li><code>loaders.LoadScene</code> opens a <code>.glb</code> or <code>.gltf</code>; <code>ParseSceneGLB</code> reads embedded bytes.</li>
+<li>Extras carry what glTF cannot: the environment, the ground, material kinds, labels.</li>
+<li>A loaded scene is an ordinary <code>scene.Scene</code>: find nodes by name and change them.</li>
+</ul>
+
+<h2 id="final-challenge-lighthouse-keeper">Final challenge · Lighthouse keeper</h2>
+
+<p>Back in lesson 5&rsquo;s program, build a <strong>second lighthouse</strong> on the island&rsquo;s eastern shore, shorter and red, with its own lamp turning <strong>the other way</strong> and its own label.</p>
+
+<blockquote>
+<p><strong>Hint:</strong> the tower is another node with <code>box</code>; the lamp a child of it; <code>GroundHeight</code> says where the shore&rsquo;s ground is; the edit function already turns one lamp and can turn two.</p>
+</blockquote>
+
+<p>Try it on your own first, then compare with the solution.</p>
+
+<p><img src="./images/tutorial/final.jpg" alt="The final challenge at night: North Point and the red East Light, both lamps glowing" /></p>
+
+<details>
+<summary>🔓 Show the solution</summary>
+
+```go
+height, _ := world.GroundHeight(18, 0)
+second := &scene.Node{Name: "east lighthouse", Transform: graphics.Translate(graphics.Vec4{18, height, 0, 1}),
+	Mesh: box(1.5, 5, 1.5, graphics.Vec4{0.75, 0.2, 0.15, 1})}
+secondLamp := &scene.Node{Name: "east lamp", Transform: graphics.Translate(graphics.Vec4{0, 5, 0, 1}),
+	Mesh: box(2, 0.4, 0.4, graphics.Vec4{1, 0.85, 0.3, 1})}
+secondLamp.Mesh.Material.Kind = scene.KindGlow
+second.Children = append(second.Children, secondLamp)
+world.Nodes = append(world.Nodes, second)
+world.Overlay.AddLabel(&scene.Label{Node: second, Height: 6, Icon: "lightbulb", Text: "East Light"})
+
+// in the edit function, after the first lamp:
+secondLamp.Transform = graphics.Translate(graphics.Vec4{0, 5, 0, 1}).Multiply(graphics.RotateY(-angle))
+```
+
+</details>
+
+<p><img src="./images/tutorial/quest/achievement-final.svg" alt="Rare achievement unlocked: Lighthouse keeper" /></p>
+
+<h2 id="well-done">Well done</h2>
+
+<p><img src="./images/tutorial/quest/achievements-all.svg" alt="Every achievement of the quest" /></p>
+
+<h2 id="where-next">Where next</h2>
+
+<p>You have used every part of go-renderer a program usually needs. From here:</p>
+
+<ul>
+<li><strong>Put an interface over the island</strong>: panels, buttons, sliders, with
+<a href="https://github.com/akrck02/go-ui" target="_blank">go-ui</a>. Its own tutorial starts where this one ends.</li>
+<li><strong>Run it elsewhere</strong>: <a href="./guides/web">in a web browser</a> and <a href="./guides/android">on Android</a>.</li>
+<li><strong>Understand the inside</strong>: <a href="./guides/architecture">architecture</a>, the <a href="./guides/overlay">overlay</a>, and
+how a frame is planned and drawn.</li>
+<li><strong>Look things up</strong> in <a href="./reference/packages">the reference</a>.</li>
+</ul>
+
+<hr>
+
+<p><a href="./the-quest/editing-with-the-pointer">← Lesson 5</a> · <a href="./the-quest/the-quest">Tutorial</a> · <a href="./reference/packages">Reference →</a></p>

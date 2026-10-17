@@ -1,0 +1,217 @@
+<h1 id="lesson-2-making-things-move">Lesson 2: making things move</h1>
+
+<p>A lighthouse needs a lamp that turns, and an island needs trees. In this lesson you learn the
+<strong>update function</strong>, how a <strong>child node</strong> follows its parent, and how <strong>instancing</strong> draws three
+hundred trees for the price of one.</p>
+
+<table>
+<thead>
+<tr>
+<th>Mission</th>
+<th>Pieces</th>
+<th>Time</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>A lamp that turns, and a forest</td>
+<td>the update function, child nodes, <code>Instances</code></td>
+<td>15 min</td>
+</tr>
+</tbody>
+</table>
+
+<h4 id="the-idea">The idea</h4>
+
+<p>A <strong>clockmaker</strong> sets the hands on the dial, and the dial on the clock: move the clock and the hands go with it. A child node is a hand on its parent&rsquo;s dial. And a forest is a <strong>rubber stamp</strong>: one tree, stamped three hundred times, each copy in its own place.</p>
+
+<h2 id="the-update-function">The update function</h2>
+
+<p><code>viewer.Run</code>&rsquo;s fourth argument is a function the viewer calls at a <strong>fixed step</strong>, sixty times a
+second whatever the frame rate, before it draws:</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">UpdateFunc</span> <span class="kd">func</span><span class="p">(</span><span class="nx">world</span> <span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Scene</span><span class="p">,</span> <span class="nx">state</span> <span class="o">*</span><span class="nx">input</span><span class="p">.</span><span class="nx">State</span><span class="p">,</span> <span class="nx">step</span> <span class="kt">float64</span><span class="p">)</span>
+</code></pre>
+
+<p><code>step</code> is the time since the last call, in seconds (always the same, <sup>1</sup>&frasl;<sub>60</sub>). Changing the scene
+inside it is safe: it runs on the same goroutine as the drawing, so there is nothing to lock.</p>
+
+<h2 id="a-child-node">A child node</h2>
+
+<p>The lamp is a flat bar on top of the tower. As a <strong>child</strong> of the tower it takes the tower&rsquo;s
+transform first, so its own <code>Translate</code> is measured from the tower&rsquo;s foot:</p>
+<pre><code class="language-go"><span class="nx">lamp</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Node</span><span class="p">{</span>
+	<span class="nx">Name</span><span class="p">:</span>      <span class="s">&#34;lamp&#34;</span><span class="p">,</span>
+	<span class="nx">Transform</span><span class="p">:</span> <span class="nx">graphics</span><span class="p">.</span><span class="nf">Translate</span><span class="p">(</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="mi">0</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">}),</span> <span class="c1">// eight metres up the tower</span>
+	<span class="nx">Mesh</span><span class="p">:</span>      <span class="nf">box</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.85</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mi">1</span><span class="p">}),</span>
+<span class="p">}</span>
+<span class="nx">tower</span><span class="p">.</span><span class="nx">Children</span> <span class="p">=</span> <span class="nb">append</span><span class="p">(</span><span class="nx">tower</span><span class="p">.</span><span class="nx">Children</span><span class="p">,</span> <span class="nx">lamp</span><span class="p">)</span>
+</code></pre>
+
+<p>Turning it is a new transform at every step:</p>
+<pre><code class="language-go"><span class="nx">angle</span> <span class="o">:=</span> <span class="mf">0.0</span>
+<span class="nx">turnLamp</span> <span class="o">:=</span> <span class="kd">func</span><span class="p">(</span><span class="nx">world</span> <span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Scene</span><span class="p">,</span> <span class="nx">state</span> <span class="o">*</span><span class="nx">input</span><span class="p">.</span><span class="nx">State</span><span class="p">,</span> <span class="nx">step</span> <span class="kt">float64</span><span class="p">)</span> <span class="p">{</span>
+	<span class="nx">angle</span> <span class="o">+=</span> <span class="nx">step</span> <span class="o">*</span> <span class="mf">1.5</span> <span class="c1">// radians per second</span>
+	<span class="nx">lamp</span><span class="p">.</span><span class="nx">Transform</span> <span class="p">=</span> <span class="nx">graphics</span><span class="p">.</span><span class="nf">Translate</span><span class="p">(</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="mi">0</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">}).</span><span class="nf">Multiply</span><span class="p">(</span><span class="nx">graphics</span><span class="p">.</span><span class="nf">RotateY</span><span class="p">(</span><span class="nx">angle</span><span class="p">))</span>
+<span class="p">}</span>
+<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">viewer</span><span class="p">.</span><span class="nf">Run</span><span class="p">(</span><span class="nx">world</span><span class="p">,</span> <span class="nx">options</span><span class="p">,</span> <span class="s">&#34;Island&#34;</span><span class="p">,</span> <span class="nx">turnLamp</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+	<span class="nx">log</span><span class="p">.</span><span class="nf">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre>
+
+<p>Moving a node costs nothing to upload: only its matrix changes. Move the tower and the lamp goes
+with it.</p>
+
+<blockquote>
+<p>📝 <strong>When does the viewer draw?</strong> Without an update function it draws <em>on demand</em>: only while
+you move the camera or a key is held, and sleeps in between. With one, it draws every frame,
+since a program that animates may change anything at any step.</p>
+</blockquote>
+
+<h2 id="a-forest-with-instancing">A forest with instancing</h2>
+
+<p>Three hundred nodes of three hundred meshes would be three hundred draw calls. A node with
+<strong>instances</strong> draws one mesh many times in a single call, each copy with its own transform and
+tint:</p>
+<pre><code class="language-go"><span class="nx">forest</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Node</span><span class="p">{</span>
+	<span class="nx">Name</span><span class="p">:</span>      <span class="s">&#34;forest&#34;</span><span class="p">,</span>
+	<span class="nx">Transform</span><span class="p">:</span> <span class="nx">graphics</span><span class="p">.</span><span class="nf">Identity</span><span class="p">(),</span>
+	<span class="nx">Mesh</span><span class="p">:</span>      <span class="nf">cone</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.45</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mi">1</span><span class="p">}),</span>
+	<span class="nx">Instances</span><span class="p">:</span> <span class="o">&amp;</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Instances</span><span class="p">{},</span>
+<span class="p">}</span>
+<span class="nx">world</span><span class="p">.</span><span class="nx">Nodes</span> <span class="p">=</span> <span class="nb">append</span><span class="p">(</span><span class="nx">world</span><span class="p">.</span><span class="nx">Nodes</span><span class="p">,</span> <span class="nx">forest</span><span class="p">)</span>
+<span class="nf">plantForest</span><span class="p">(</span><span class="nx">world</span><span class="p">,</span> <span class="nx">forest</span><span class="p">.</span><span class="nx">Instances</span><span class="p">,</span> <span class="mi">300</span><span class="p">)</span>
+</code></pre>
+
+<p>The tree is a cone:</p>
+<pre><code class="language-go"><span class="c1">// cone is a tree: a cone of a radius and a height standing on the origin.</span>
+<span class="kd">func</span> <span class="nf">cone</span><span class="p">(</span><span class="nx">radius</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">float32</span><span class="p">,</span> <span class="nx">color</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">)</span> <span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Mesh</span> <span class="p">{</span>
+	<span class="kd">const</span> <span class="nx">sides</span> <span class="p">=</span> <span class="mi">8</span>
+	<span class="nx">mesh</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Mesh</span><span class="p">{</span><span class="nx">Name</span><span class="p">:</span> <span class="s">&#34;tree&#34;</span><span class="p">,</span> <span class="nx">Material</span><span class="p">:</span> <span class="o">&amp;</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Material</span><span class="p">{</span><span class="nx">Kind</span><span class="p">:</span> <span class="nx">scene</span><span class="p">.</span><span class="nx">KindLit</span><span class="p">,</span> <span class="nx">BaseColor</span><span class="p">:</span> <span class="nx">color</span><span class="p">}}</span>
+	<span class="nx">mesh</span><span class="p">.</span><span class="nx">Positions</span> <span class="p">=</span> <span class="nb">append</span><span class="p">(</span><span class="nx">mesh</span><span class="p">.</span><span class="nx">Positions</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="nx">height</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="c1">// the tip</span>
+	<span class="k">for</span> <span class="nx">side</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">sides</span> <span class="p">{</span>
+		<span class="nx">angle</span> <span class="o">:=</span> <span class="nb">float64</span><span class="p">(</span><span class="nx">side</span><span class="p">)</span> <span class="o">/</span> <span class="nx">sides</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">*</span> <span class="nx">math</span><span class="p">.</span><span class="nx">Pi</span>
+		<span class="nx">mesh</span><span class="p">.</span><span class="nx">Positions</span> <span class="p">=</span> <span class="nb">append</span><span class="p">(</span><span class="nx">mesh</span><span class="p">.</span><span class="nx">Positions</span><span class="p">,</span> <span class="nx">radius</span><span class="o">*</span><span class="nb">float32</span><span class="p">(</span><span class="nx">math</span><span class="p">.</span><span class="nf">Cos</span><span class="p">(</span><span class="nx">angle</span><span class="p">)),</span> <span class="mi">0</span><span class="p">,</span> <span class="nx">radius</span><span class="o">*</span><span class="nb">float32</span><span class="p">(</span><span class="nx">math</span><span class="p">.</span><span class="nf">Sin</span><span class="p">(</span><span class="nx">angle</span><span class="p">)))</span>
+	<span class="p">}</span>
+	<span class="k">for</span> <span class="nx">side</span> <span class="o">:=</span> <span class="k">range</span> <span class="nb">uint32</span><span class="p">(</span><span class="nx">sides</span><span class="p">)</span> <span class="p">{</span>
+		<span class="nx">mesh</span><span class="p">.</span><span class="nx">Indices</span> <span class="p">=</span> <span class="nb">append</span><span class="p">(</span><span class="nx">mesh</span><span class="p">.</span><span class="nx">Indices</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="o">+</span><span class="p">(</span><span class="nx">side</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">%</span><span class="nx">sides</span><span class="p">,</span> <span class="mi">1</span><span class="o">+</span><span class="nx">side</span><span class="p">)</span>
+	<span class="p">}</span>
+	<span class="nx">mesh</span><span class="p">.</span><span class="nf">ComputeNormals</span><span class="p">()</span>
+	<span class="k">return</span> <span class="nx">mesh</span>
+<span class="p">}</span>
+</code></pre>
+
+<p>Each tree is a transform built from a position, a rotation (a quaternion; <code>{0, 0, 0, 1}</code> is none)
+and a scale, and a colour that multiplies the mesh&rsquo;s own (white leaves it as it is):</p>
+<pre><code class="language-go"><span class="c1">// plant adds a tree of a size to the forest, standing at a point.</span>
+<span class="kd">func</span> <span class="nf">plant</span><span class="p">(</span><span class="nx">forest</span> <span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Instances</span><span class="p">,</span> <span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">z</span><span class="p">,</span> <span class="nx">size</span> <span class="kt">float32</span><span class="p">)</span> <span class="p">{</span>
+	<span class="nx">placement</span> <span class="o">:=</span> <span class="nx">graphics</span><span class="p">.</span><span class="nf">FromTranslationRotationScale</span><span class="p">(</span>
+		<span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">z</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span>          <span class="c1">// where</span>
+		<span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span>          <span class="c1">// no rotation (a quaternion)</span>
+		<span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="nx">size</span><span class="p">,</span> <span class="nx">size</span><span class="p">,</span> <span class="nx">size</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span> <span class="c1">// how big</span>
+	<span class="p">)</span>
+	<span class="nx">forest</span><span class="p">.</span><span class="nx">Transforms</span> <span class="p">=</span> <span class="nb">append</span><span class="p">(</span><span class="nx">forest</span><span class="p">.</span><span class="nx">Transforms</span><span class="p">,</span> <span class="nx">placement</span><span class="p">)</span>
+	<span class="nx">forest</span><span class="p">.</span><span class="nx">Colors</span> <span class="p">=</span> <span class="nb">append</span><span class="p">(</span><span class="nx">forest</span><span class="p">.</span><span class="nx">Colors</span><span class="p">,</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">})</span> <span class="c1">// white keeps the mesh&#39;s colour</span>
+	<span class="nx">forest</span><span class="p">.</span><span class="nx">Dirty</span> <span class="p">=</span> <span class="kc">true</span>                                              <span class="c1">// added one: upload them all again</span>
+<span class="p">}</span>
+</code></pre>
+
+<p>The forest is planted where the hill is above the shore, and not on the lighthouse&rsquo;s doorstep, so
+of three hundred tries a little over two hundred grow:</p>
+<pre><code class="language-go"><span class="c1">// plantForest plants trees at random places on the hill, above the shore and away from the tower.</span>
+<span class="kd">func</span> <span class="nf">plantForest</span><span class="p">(</span><span class="nx">world</span> <span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Scene</span><span class="p">,</span> <span class="nx">forest</span> <span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Instances</span><span class="p">,</span> <span class="nx">count</span> <span class="kt">int</span><span class="p">)</span> <span class="p">{</span>
+	<span class="nx">random</span> <span class="o">:=</span> <span class="nx">rand</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span><span class="nx">rand</span><span class="p">.</span><span class="nf">NewPCG</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span> <span class="c1">// the same forest every run</span>
+	<span class="k">for</span> <span class="k">range</span> <span class="nx">count</span> <span class="p">{</span>
+		<span class="nx">x</span><span class="p">,</span> <span class="nx">z</span> <span class="o">:=</span> <span class="nx">random</span><span class="p">.</span><span class="nf">Float32</span><span class="p">()</span><span class="o">*</span><span class="mi">50</span><span class="o">-</span><span class="mi">25</span><span class="p">,</span> <span class="nx">random</span><span class="p">.</span><span class="nf">Float32</span><span class="p">()</span><span class="o">*</span><span class="mi">50</span><span class="o">-</span><span class="mi">25</span>
+		<span class="nx">height</span><span class="p">,</span> <span class="nx">onGround</span> <span class="o">:=</span> <span class="nx">world</span><span class="p">.</span><span class="nf">GroundHeight</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="nx">z</span><span class="p">)</span>
+		<span class="k">if</span> <span class="p">!</span><span class="nx">onGround</span> <span class="o">||</span> <span class="nx">height</span> <span class="p">&lt;</span> <span class="mi">1</span> <span class="o">||</span> <span class="nx">math</span><span class="p">.</span><span class="nf">Hypot</span><span class="p">(</span><span class="nb">float64</span><span class="p">(</span><span class="nx">x</span><span class="p">),</span> <span class="nb">float64</span><span class="p">(</span><span class="nx">z</span><span class="p">))</span> <span class="p">&lt;</span> <span class="mi">6</span> <span class="p">{</span>
+			<span class="k">continue</span>
+		<span class="p">}</span>
+		<span class="nf">plant</span><span class="p">(</span><span class="nx">forest</span><span class="p">,</span> <span class="nx">x</span><span class="p">,</span> <span class="nx">height</span><span class="p">,</span> <span class="nx">z</span><span class="p">,</span> <span class="mf">0.7</span><span class="o">+</span><span class="nx">random</span><span class="p">.</span><span class="nf">Float32</span><span class="p">()</span><span class="o">*</span><span class="mf">0.6</span><span class="p">)</span>
+	<span class="p">}</span>
+<span class="p">}</span>
+</code></pre>
+
+<p><img src="./images/tutorial/tutorial-2.jpg" alt="The lamp on top of the tower, among the trees" /></p>
+
+<h3 id="telling-the-renderer-what-changed">Telling the renderer what changed</h3>
+
+<p>The renderer uploads meshes and instances to the graphics card once. When you change them later,
+say so, or it keeps drawing the old ones:</p>
+
+<table>
+<thead>
+<tr>
+<th>You changed</th>
+<th>Do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>A node&rsquo;s <code>Transform</code> or <code>Hidden</code></td>
+<td>Nothing: read every frame</td>
+</tr>
+
+<tr>
+<td>Instances added, removed, or most of them moved</td>
+<td><code>instances.Dirty = true</code></td>
+</tr>
+
+<tr>
+<td>A few instances</td>
+<td><code>instances.MarkChanged(3, 17)</code>: only those are uploaded</td>
+</tr>
+
+<tr>
+<td>A mesh&rsquo;s positions, colours or indices</td>
+<td><code>mesh.Dirty = true</code></td>
+</tr>
+
+<tr>
+<td>A walkable mesh</td>
+<td>Also <code>world.InvalidateGround()</code>, so <code>GroundHeight</code> sees it</td>
+</tr>
+</tbody>
+</table>
+<p>Forests of a hundred thousand trees stay fast: instances are kept in cells, cells out of sight are
+skipped, and a mesh with simpler versions (<code>Mesh.Details</code>) uses them far away
+(<a href="./guides/architecture">architecture</a>).</p>
+
+<h4 id="checkpoint">Checkpoint</h4>
+
+<p>The lamp on top of the tower turns, about a turn every four seconds, and a forest of cones covers the hill but not the tower&rsquo;s doorstep.</p>
+
+<p><img src="./images/tutorial/quest/achievement-clockmaker.svg" alt="Achievement unlocked: Clockmaker" /></p>
+
+<h2 id="what-you-learnt">What you learnt</h2>
+
+<ul>
+<li>The update function runs at a fixed step on the drawing goroutine: change the scene there.</li>
+<li>Children inherit their parent&rsquo;s transform.</li>
+<li>Instancing draws one mesh many times; <code>Dirty</code> and <code>MarkChanged</code> tell the renderer what changed.</li>
+</ul>
+
+<h2 id="bonus-optional">Bonus (optional)</h2>
+
+<p>Make the trees different: tint each a slightly different green, and turn each about its trunk by a
+random angle.</p>
+
+<details>
+<summary>🔓 Show the solution</summary>
+
+A rotation of an angle about the vertical axis is the quaternion `{0, sin(angle/2), 0,
+cos(angle/2)}`:
+
+```go
+turn := random.Float64() * 2 * math.Pi
+rotation := graphics.Vec4{0, float32(math.Sin(turn / 2)), 0, float32(math.Cos(turn / 2))}
+shade := 0.8 + random.Float32()*0.4
+forest.Colors = append(forest.Colors, graphics.Vec4{shade, 1, shade, 1})
+```
+
+</details>
+
+<hr>
+
+<p><a href="./the-quest/meshes-and-nodes">← Lesson 1</a> · <a href="./the-quest/light-sky-and-water">Lesson 3: light, sky and water →</a></p>

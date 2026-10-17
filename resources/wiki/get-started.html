@@ -1,0 +1,167 @@
+<h1 id="get-started">Get started</h1>
+
+<p>This page takes you from nothing to a window showing a 3D scene you built in Go, in about fifteen
+minutes. You need to know a little Go (packages, functions, structs); you need no graphics
+experience.</p>
+
+<p><strong>What you will do</strong></p>
+
+<ol>
+<li>Install Go and a C compiler, which the window needs.</li>
+<li>Get go-renderer and open its sample island.</li>
+<li>Write a program of your own that shows a box on a square of grass.</li>
+</ol>
+
+<blockquote>
+<p>⚠️ go-renderer is an educational project, not a finished product: its API still changes from one
+week to the next. Pin the commit you build against.</p>
+</blockquote>
+
+<h2 id="1-install-the-tools">1. Install the tools</h2>
+
+<table>
+<thead>
+<tr>
+<th>You need</th>
+<th>Why</th>
+<th>How</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><strong>Go 1.25</strong> or later</td>
+<td>The language</td>
+<td><a href="https://go.dev/dl/" target="_blank">go.dev/dl</a>, then <code>go version</code></td>
+</tr>
+
+<tr>
+<td><strong>A C compiler</strong></td>
+<td>The window (GLFW) and OpenGL are reached through cgo</td>
+<td>Linux: <code>gcc</code>; macOS: <code>xcode-select --install</code>; Windows: <a href="https://www.mingw-w64.org/" target="_blank">MinGW-w64</a> on the <code>PATH</code></td>
+</tr>
+
+<tr>
+<td><strong>OpenGL 4.1</strong> and its headers</td>
+<td>What draws on Linux and Windows (macOS draws through Metal)</td>
+<td>Linux (Debian, Ubuntu): <code>sudo apt install libgl1-mesa-dev xorg-dev</code>; Fedora: <code>sudo dnf install mesa-libGL-devel libXcursor-devel libXrandr-devel libXinerama-devel libXi-devel libXxf86vm-devel</code></td>
+</tr>
+</tbody>
+</table>
+<p>Check cgo is on: <code>go env CGO_ENABLED</code> should print <code>1</code>.</p>
+
+<h2 id="2-get-go-renderer-and-open-the-sample">2. Get go-renderer and open the sample</h2>
+
+<p>go-renderer is not published as versioned modules yet. Clone it into a folder that will hold your
+own programs too; later on, go-ui and go-ui-android go beside it.</p>
+<pre><code class="language-bash">mkdir workspace <span class="o">&amp;&amp;</span> <span class="nb">cd</span> workspace
+git clone https://github.com/akrck02/go-renderer
+<span class="nb">cd</span> go-renderer
+go run ./cmd/visor -sample island
+</code></pre>
+
+<p>A window opens on a small made-up island. Drag with the left button to turn around it, scroll to
+come closer, press <code>Tab</code> to walk on it and <code>N</code> to jump to the night. Every control is in
+<a href="./guides/viewer">the viewer&rsquo;s page</a>.</p>
+
+<blockquote>
+<p>💡 <strong>No display?</strong> On a server or in a container, <code>-capture island.png</code> draws one frame into a
+picture instead, and <code>xvfb-run go run ./cmd/visor -sample island -capture island.png</code> gives it a
+screen to draw on.</p>
+</blockquote>
+
+<h2 id="3-your-first-scene">3. Your first scene</h2>
+
+<p>Make a module beside go-renderer, and point it at your copy:</p>
+<pre><code class="language-bash"><span class="nb">cd</span> .. <span class="o">&amp;&amp;</span> mkdir first-scene <span class="o">&amp;&amp;</span> <span class="nb">cd</span> first-scene
+go mod init example.com/first-scene
+go mod edit -require github.com/akrck02/go-renderer@v0.0.0 -replace github.com/akrck02/go-renderer<span class="o">=</span>../go-renderer
+</code></pre>
+
+<p>Write <code>main.go</code>:</p>
+<pre><code class="language-go"><span class="kn">package</span> <span class="nx">main</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+	<span class="s">&#34;log&#34;</span>
+
+	<span class="s">&#34;github.com/akrck02/go-renderer/graphics&#34;</span>
+	<span class="s">&#34;github.com/akrck02/go-renderer/scene&#34;</span>
+	<span class="s">&#34;github.com/akrck02/go-renderer/viewer&#34;</span>
+<span class="p">)</span>
+
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+	<span class="nx">world</span> <span class="o">:=</span> <span class="nx">scene</span><span class="p">.</span><span class="nf">New</span><span class="p">()</span> <span class="c1">// an empty scene with a sun and a sky</span>
+
+	<span class="nx">ground</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Mesh</span><span class="p">{</span>
+		<span class="nx">Positions</span><span class="p">:</span> <span class="p">[]</span><span class="kt">float32</span><span class="p">{</span><span class="o">-</span><span class="mi">20</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">20</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">20</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="o">-</span><span class="mi">20</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">20</span><span class="p">},</span> <span class="c1">// x, y, z of four corners</span>
+		<span class="nx">Indices</span><span class="p">:</span>   <span class="p">[]</span><span class="kt">uint32</span><span class="p">{</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">},</span>                                 <span class="c1">// two triangles</span>
+		<span class="nx">Material</span><span class="p">:</span>  <span class="o">&amp;</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Material</span><span class="p">{</span><span class="nx">Kind</span><span class="p">:</span> <span class="nx">scene</span><span class="p">.</span><span class="nx">KindLit</span><span class="p">,</span> <span class="nx">BaseColor</span><span class="p">:</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="mf">0.3</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="mi">1</span><span class="p">}},</span>
+		<span class="nx">Ground</span><span class="p">:</span>    <span class="kc">true</span><span class="p">,</span> <span class="c1">// the walker can stand on it</span>
+	<span class="p">}</span>
+	<span class="nx">ground</span><span class="p">.</span><span class="nf">ComputeNormals</span><span class="p">()</span>
+
+	<span class="nx">world</span><span class="p">.</span><span class="nx">Nodes</span> <span class="p">=</span> <span class="nb">append</span><span class="p">(</span><span class="nx">world</span><span class="p">.</span><span class="nx">Nodes</span><span class="p">,</span> <span class="o">&amp;</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Node</span><span class="p">{</span><span class="nx">Name</span><span class="p">:</span> <span class="s">&#34;ground&#34;</span><span class="p">,</span> <span class="nx">Transform</span><span class="p">:</span> <span class="nx">graphics</span><span class="p">.</span><span class="nf">Identity</span><span class="p">(),</span> <span class="nx">Mesh</span><span class="p">:</span> <span class="nx">ground</span><span class="p">})</span>
+
+	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">viewer</span><span class="p">.</span><span class="nf">Run</span><span class="p">(</span><span class="nx">world</span><span class="p">,</span> <span class="nx">viewer</span><span class="p">.</span><span class="nf">DefaultOptions</span><span class="p">(),</span> <span class="s">&#34;First scene&#34;</span><span class="p">,</span> <span class="kc">nil</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+		<span class="nx">log</span><span class="p">.</span><span class="nf">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+	<span class="p">}</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-bash">go mod tidy
+go run .
+</code></pre>
+
+<p>A green square in the sunlight: that is a scene. Three ideas carry everything else in go-renderer:</p>
+
+<ul>
+<li>A <strong><code>scene.Scene</code></strong> holds what there is to draw: <strong>nodes</strong> placed in the world, each with a
+<strong>mesh</strong> (triangles) and a <strong>material</strong> (how its surface is shaded), and an <strong>environment</strong> (sun,
+sky, fog, water).</li>
+<li>You describe the scene once; the renderer uploads it to the graphics card and draws it every
+frame. This is a <em>retained</em> scene: to change it, you change the structs.</li>
+<li><strong><code>viewer.Run</code></strong> opens the window, gives you cameras and draws until the window closes.</li>
+</ul>
+
+<p><img src="./images/tutorial/tutorial-1.jpg" alt="The first lesson&rsquo;s island: a white tower on a green hill" /></p>
+
+<h2 id="where-next">Where next</h2>
+
+<table>
+<thead>
+<tr>
+<th>If you want to…</th>
+<th>Read</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Learn step by step, building an island with a lighthouse, a forest, the sea and labels</td>
+<td><a href="./the-quest/the-quest">The tutorial</a></td>
+</tr>
+
+<tr>
+<td>Understand how it fits together</td>
+<td><a href="./guides/architecture">Architecture</a></td>
+</tr>
+
+<tr>
+<td>Look up a type or a function</td>
+<td><a href="./reference/packages">The reference</a></td>
+</tr>
+
+<tr>
+<td>Put buttons and panels over your scene</td>
+<td><a href="https://github.com/akrck02/go-ui" target="_blank">go-ui</a></td>
+</tr>
+
+<tr>
+<td>Open a scene made in Blender or go-scene-builder</td>
+<td><a href="./the-quest/scenes-from-files">Lesson 6: scenes from files</a></td>
+</tr>
+</tbody>
+</table>
+
+<hr>
+
+<p><a href="./overview">← Documentation</a> · <a href="./the-quest/the-quest">Tutorial →</a></p>

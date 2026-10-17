@@ -1,0 +1,227 @@
+<h1 id="in-a-web-browser">🌐 In a web browser</h1>
+
+<p><strong>Status:</strong> a first step (October 2026). The sample island and its labels draw in a browser
+through WebGL2, and go-ui interfaces run there too (see go-ui&rsquo;s <code>docs/web.md</code>). The desktop is
+unchanged. What is still missing is listed at the end.</p>
+
+<p align="center">
+  <img alt="The sample island in a browser: forests, the river, the harbour house and its label" src="../images/web-island.jpg" width="360">
+</p>
+<pre><code class="language-bash"><span class="nv">GOOS</span><span class="o">=</span>js <span class="nv">GOARCH</span><span class="o">=</span>wasm go build -o cmd/web-island/island.wasm ./cmd/web-island
+cp <span class="s2">&#34;</span><span class="k">$(</span>go env GOROOT<span class="k">)</span><span class="s2">/lib/wasm/wasm_exec.js&#34;</span> cmd/web-island/
+python3 -m http.server -d cmd/web-island <span class="m">8080</span>      <span class="c1"># then open http://localhost:8080</span>
+</code></pre>
+
+<p>Drag to turn around the island, drag with the right button to move, turn the wheel to come
+closer.</p>
+
+<h2 id="what-was-already-portable">What was already portable</h2>
+
+<p>Most of go-renderer is plain Go and builds for WebAssembly as it is: the scene (<code>scene</code>), the
+frame planning (<code>sceneplan</code>), cameras (<code>camera</code>), glTF loading (<code>loaders</code>), input (<code>input</code>), the
+2D draw lists (<code>draw2d</code>) and the overlay painter with its atlas and fonts (<code>opengl/overlay</code>, which
+rasterises on the processor and embeds its fonts with <code>go:embed</code>). Only three packages are tied to
+the desktop, through GLFW and cgo: <code>opengl</code>, <code>windowloop</code> and <code>viewer</code>.</p>
+
+<p>So the browser needed three things: <strong>a window</strong> (a canvas and its events), <strong>a loop</strong> that does
+not use GLFW, and <strong>a renderer</strong> that speaks WebGL2.</p>
+
+<h2 id="how-it-fits-together">How it fits together</h2>
+
+<p align="center">
+  <img alt="Your program, the same scene, camera and update function as on the desktop, runs in a canvas (browser: its events, requestAnimationFrame) or in a NativeActivity (android: its window, touches, a thread); both draw through gles, renderers written once in GLSL ES 1.00 over gles.Functions. The clock and update step are shared with the desktop (frameloop)" src="../images/platforms.svg" width="880">
+</p>
+
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>What it does</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Your program</td>
+<td>The same scene, camera and update function as on the desktop</td>
+</tr>
+
+<tr>
+<td><code>browser</code> (js only)</td>
+<td>The canvas, its events → <code>input.State</code>, <code>requestAnimationFrame</code>, WebGL2</td>
+</tr>
+
+<tr>
+<td><code>gles</code></td>
+<td><code>FlatRenderer</code> and <code>SceneRenderer</code>, in GLSL ES 1.00, over <code>gles.Functions</code></td>
+</tr>
+
+<tr>
+<td><code>frameloop</code></td>
+<td>The fixed-step clock, shared with <code>windowloop</code></td>
+</tr>
+
+<tr>
+<td><code>overlay</code>, <code>scene</code>, <code>camera</code>…</td>
+<td>Unchanged</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="gles-renderers-written-once-for-opengl-es"><code>gles</code>: renderers written once for OpenGL ES</h3>
+
+<p>Browsers draw with WebGL2 (OpenGL ES 3.0) and Android phones with OpenGL ES. So the renderers are
+written once, in package <code>gles</code>, against a small interface, <code>gles.Functions</code>: about forty calls
+to make shaders, buffers and textures and to draw. Each platform implements it:</p>
+
+<table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Implementation</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Browser</td>
+<td><code>browser.WebGL</code>, over the canvas&rsquo;s <code>WebGL2RenderingContext</code> through <code>syscall/js</code></td>
+</tr>
+
+<tr>
+<td>Android</td>
+<td><code>android.GL</code>, direct calls into the phone&rsquo;s OpenGL ES (<a href="./guides/android">on Android</a>)</td>
+</tr>
+
+<tr>
+<td>Tests</td>
+<td>a fake that records the calls, so the renderers are tested on any computer, without a display</td>
+</tr>
+</tbody>
+</table>
+<p><code>gles.FlatRenderer</code> paints a <code>draw2d.List</code> on a plain background, like <code>opengl.FlatRenderer</code>: the
+same atlas, one draw call. <code>gles.SceneRenderer</code> draws a scene in its <strong>simplest form</strong>: lit meshes
+with vertex colours, instances, the light of the time of day (<code>Environment.Daylight</code>), fog,
+translucent water and, over everything, the overlay. What a frame draws is still decided by
+<code>sceneplan</code>, so culling and levels of detail work as on the desktop.</p>
+
+<p>They use <strong>only what OpenGL ES 2.0 has</strong> (plus 32-bit indices, which every current phone has),
+because the first Android step went through <code>golang.org/x/mobile/gl</code>, which knows no newer
+function, and some phones may still give only that; WebGL2 accepts all of it. So the shaders are GLSL ES 1.00, there are no vertex array
+objects (each draw describes its vertices, a handful of calls), the atlas is a <code>LUMINANCE</code>
+texture, and the normal matrix is worked out on the processor (GLSL ES 1.00 has no <code>inverse</code>).</p>
+
+<p>Each rectangle of the overlay is six vertices, and OpenGL ES 2 cannot draw instances either. A
+call per instance was the first try, and it was far too slow on a phone: the sample island&rsquo;s
+forest made about a thousand draw calls, eight thousand calls through the bindings, and a frame
+took half a second on the emulator. Now each batch of instances the planner hands over (a level
+of detail of a group of cells) becomes <strong>one mesh on the processor</strong>, every copy placed and
+tinted, made again only when the batch changes; the island is 16 draw calls a frame. True
+instancing, which WebGL2 and OpenGL ES 3 have, would save the memory of the copies, as a later
+step behind the same interface.</p>
+
+<p>Each call is costly too: a browser crosses into JavaScript at each, and x/mobile&rsquo;s bindings crossed
+to their own thread every three calls (go-renderer&rsquo;s own <code>android</code> package calls OpenGL ES directly). So a program remembers what each uniform holds and sends
+only values that changed, and the vertex attributes are switched on once. On a phone dragging the
+island, a frame went from about 12.5 to 8.7 ms.</p>
+
+<h3 id="browser-the-canvas-as-a-window"><code>browser</code>: the canvas as a window</h3>
+
+<ul>
+<li><strong>Size and density.</strong> The canvas fills its place in the page; its drawing buffer is that size
+times <code>devicePixelRatio</code>, so text is rasterised at its real pixel size. As on the desktop, the
+cursor is in layout pixels (<code>WindowWidth</code>) and drawing in device pixels (<code>FramebufferWidth</code>).</li>
+<li><strong>Input.</strong> Pointer events (mouse, pen and touch alike), the wheel and the keyboard fill an
+<code>input.State</code>. A finger is also the pointer, as on Android (<code>input.TouchPointer</code>), and every
+finger on the screen is listed in <code>State.Touches</code>, for gestures. Keys follow their place on the keyboard (<code>KeyboardEvent.code</code>), as GLFW&rsquo;s do;
+typed characters come from <code>KeyboardEvent.key</code>. The canvas takes the focus when pressed, and lets
+go of held keys when it loses it.</li>
+<li><strong>Clipboard.</strong> Copied text is kept by the page and offered to the system clipboard; pasting takes
+what the browser&rsquo;s paste event brings. Reading the system clipboard at any other time needs a
+permission, so it is not done.</li>
+<li><strong>The loop.</strong> <code>browser.Run</code> is <code>windowloop.Run</code>&rsquo;s twin: the same fixed-step clock (now in
+<code>frameloop</code>, shared by both), the same drawing on demand. It asks for an animation frame only
+when something happens (an event, a size change, <code>RequestFrame</code>, <code>browser.Wake</code>), so a page left
+alone does nothing at all: measured, no frames in two seconds of idling, and two after moving
+the pointer once (the frame and its follow-up).</li>
+<li><strong>Inside a page&rsquo;s own application.</strong> A program can be one screen of a larger web application,
+drawing in a canvas the page gives it (<code>Options.Canvas</code> in go-ui). When the page takes that screen
+away, it asks the program to stop (<code>browser.Stop</code>): <code>Run</code> returns after one more frame, and every
+listener the canvas added (the document&rsquo;s paste among them) and its size observer come off the
+page, so nothing calls into a program that has exited. Opening the screen again starts the
+program again.</li>
+</ul>
+
+<h2 id="why-this-route">Why this route</h2>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>For</th>
+<th>Against</th>
+<th>Choice</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Go, <code>GOOS=js GOARCH=wasm</code>, WebGL2 through <code>syscall/js</code></td>
+<td>The same compiler and standard library; <code>go:embed</code> and the fonts work; WebGL2 is in every browser; the same shaders as Android</td>
+<td>A large file (below); each call into JavaScript has a small cost</td>
+<td><strong>Chosen</strong></td>
+</tr>
+
+<tr>
+<td>Go with WebGPU</td>
+<td>A modern interface, close to Metal</td>
+<td>Not in every browser yet; new shaders in WGSL; the hand-written <code>webgpu</code> package is the author&rsquo;s</td>
+<td>Later</td>
+</tr>
+
+<tr>
+<td>TinyGo</td>
+<td>Much smaller files</td>
+<td>Partial support for reflection and <code>go:embed</code>, which the fonts and the glTF loader use; a second compiler to keep working</td>
+<td>Not now</td>
+</tr>
+
+<tr>
+<td>Software rendering to a 2D canvas</td>
+<td>No GPU needed</td>
+<td>Far too slow for the scene</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Size.</strong> The island is a 5.4 MB <code>.wasm</code> file, about 1.8 MB compressed with gzip, which web
+servers usually do on the fly. The fonts and icons are inside it, so the page loads nothing else.</p>
+
+<h2 id="testing">Testing</h2>
+
+<ul>
+<li><code>go test ./gles ./frameloop</code> on any computer: the renderers against the fake (shaders are
+GLSL ES 1.00 with nothing newer, one draw call for an interface, the atlas and meshes uploaded only when they
+change).</li>
+<li><code>GOOS=js GOARCH=wasm go test ./browser ./gles</code> runs the browser package&rsquo;s own tests under
+Node.js (key, wheel and button mapping); it needs <code>$(go env GOROOT)/lib/wasm</code> in the <code>PATH</code>.</li>
+<li>In a browser: the island, turning and zooming, and the idle check above, were looked at in
+Chromium on macOS. Other browsers, phones and tablets have not been tried yet.</li>
+</ul>
+
+<h2 id="not-yet">Not yet</h2>
+
+<ul>
+<li>The full scene renderer in WebGL2: shadows, the sky dome with stars and clouds, waves and tides,
+patterns, wind and snow. It is a translation of the desktop shaders to GLSL ES, a larger piece of
+work.</li>
+<li>True instanced drawing, so that very large forests do not cost a copy of each mesh.</li>
+<li>Loading <code>.glb</code> files in the page (<code>fetch</code>, then <code>loaders</code> on the bytes).</li>
+<li>Locking the pointer for the walking camera, the on-screen keyboard, and the system clipboard
+at any time.</li>
+<li>WebGPU, and smaller files with TinyGo.</li>
+</ul>
+
+<hr>
+
+<p><a href="./overview">← All the documentation</a></p>

@@ -1,0 +1,193 @@
+<h1 id="graphics">graphics</h1>
+<pre><code class="language-go"><span class="kn">import</span> <span class="s">&#34;github.com/akrck02/go-renderer/graphics&#34;</span>
+</code></pre>
+
+<h3 id="constants-and-variables">Constants and variables</h3>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="nx">LocalSpace</span>  <span class="p">=</span> <span class="mi">0</span>
+	<span class="nx">WorldSpace</span>  <span class="p">=</span> <span class="mi">1</span>
+	<span class="nx">CameraSpace</span> <span class="p">=</span> <span class="mi">2</span>
+<span class="p">)</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">ConstellationFragmentShader</span> <span class="p">=</span> <span class="err">…</span>
+</code></pre>
+
+<p>ConstellationFragmentShader colors constellation lines and round stars, fading with daylight.</p>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">ConstellationVertexShader</span> <span class="p">=</span> <span class="err">…</span>
+</code></pre>
+
+<p>ConstellationVertexShader places constellation stars and lines on the sky sphere: directions turn with the night sky and are drawn at the far plane around the camera.</p>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">DepthOnlyFragmentShader</span> <span class="p">=</span> <span class="err">…</span>
+</code></pre>
+
+<p>DepthOnlyFragmentShader writes only depth; it pairs with SceneVertexShader for the shadow and seabed passes.</p>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">FragmentShaderSource</span> <span class="p">=</span> <span class="err">…</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">OverlayFragmentShader</span> <span class="p">=</span> <span class="err">…</span>
+</code></pre>
+
+<p>OverlayFragmentShader paints the colour where the atlas (a grey coverage mask: glyphs, icons, rounded corners) covers.</p>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">OverlayVertexShader</span> <span class="p">=</span> <span class="err">…</span>
+</code></pre>
+
+<p>OverlayVertexShader places the overlay&rsquo;s rectangles, given in screen pixels from the top-left corner, and passes on where they read the atlas and the pictures (in their pixels; a picture position below zero reads no picture) and their colour.</p>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">SceneFragmentShader</span> <span class="p">=</span> <span class="err">…</span>
+</code></pre>
+
+<p>SceneFragmentShader shades by material kind: 0 lit, 1 unlit, 2 water, 3 waterfall, 4 glow; lit and glowing materials can carry a procedural surface pattern (see scene.Pattern).</p>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">SceneVertexShader</span> <span class="p">=</span> <span class="err">…</span>
+</code></pre>
+
+<p>SceneVertexShader transforms meshes and GPU instances.</p>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">SkyFragmentShader</span> <span class="p">=</span> <span class="err">…</span>
+</code></pre>
+
+<p>SkyFragmentShader paints the sky for any time of day: a day gradient with the sun, a twilight glow, a night with procedural stars and a moon with phases, and a cloud layer over both.</p>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">SkyVertexShader</span> <span class="p">=</span> <span class="err">…</span>
+</code></pre>
+
+<p>SkyVertexShader draws a full-screen triangle at the far plane.</p>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">VertexShaderSource</span> <span class="p">=</span> <span class="err">…</span>
+</code></pre>
+
+<h3 id="coordinatespace">CoordinateSpace</h3>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">CoordinateSpace</span> <span class="kt">int</span>
+</code></pre>
+
+<h3 id="mat4">Mat4</h3>
+
+<p>Mat4 represents a 4x4 matrix flattened into a column-major 16-element array. Allows direct, zero-allocation memory copying into Vulkan, OpenGL, or Metal buffers.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Mat4</span> <span class="p">[</span><span class="mi">16</span><span class="p">]</span><span class="kt">float32</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func FromTranslationRotationScale(translation Vec4, rotation Vec4, scale Vec4) Mat4</code></td>
+<td>FromTranslationRotationScale builds a matrix from a translation, a rotation quaternion (x, y, z, w) and a scale.</td>
+</tr>
+
+<tr>
+<td><code>func Identity() Mat4</code></td>
+<td>Identity returns a 4x4 identity matrix.</td>
+</tr>
+
+<tr>
+<td><code>func LookAt(eye, center, up Vec4) Mat4</code></td>
+<td>LookAt creates a Right-Handed View Matrix.</td>
+</tr>
+
+<tr>
+<td><code>func OrthographicOpenGL(left, right, bottom, top, near, far float32) Mat4</code></td>
+<td>OrthographicOpenGL creates an orthographic projection for OpenGL (depth mapped to [-1, 1]).</td>
+</tr>
+
+<tr>
+<td><code>func PerspectiveMetal(fovyRad, aspect, near, far float64) Mat4</code></td>
+<td>PerspectiveMetal creates a Projection Matrix tailored for Apple&rsquo;s Metal API.</td>
+</tr>
+
+<tr>
+<td><code>func PerspectiveOpenGL(fovyRad, aspect, near, far float64) Mat4</code></td>
+<td>PerspectiveOpenGL creates a Projection Matrix tailored for OpenGL.</td>
+</tr>
+
+<tr>
+<td><code>func PerspectiveVulkan(fovyRad, aspect, near, far float64) Mat4</code></td>
+<td>PerspectiveVulkan creates a Projection Matrix tailored for Vulkan.</td>
+</tr>
+
+<tr>
+<td><code>func Rotate(axis Vec4, rad float64) Mat4</code></td>
+<td>Rotate returns a rotation matrix around an arbitrary axis.</td>
+</tr>
+
+<tr>
+<td><code>func RotateX(rad float64) Mat4</code></td>
+<td>RotateX returns a rotation matrix around the X axis (in radians).</td>
+</tr>
+
+<tr>
+<td><code>func RotateY(rad float64) Mat4</code></td>
+<td>RotateY returns a rotation matrix around the Y axis (in radians).</td>
+</tr>
+
+<tr>
+<td><code>func Scale(v Vec4) Mat4</code></td>
+<td>Scale returns a scaling matrix using a Vec4.</td>
+</tr>
+
+<tr>
+<td><code>func Translate(v Vec4) Mat4</code></td>
+<td>Translate returns a translation matrix using a Vec4 (ignoring W component).</td>
+</tr>
+
+<tr>
+<td><code>func (m Mat4) Apply(v Vec4) Vec4</code></td>
+<td>Apply transforms a Vec4 using the matrix (m * v).</td>
+</tr>
+
+<tr>
+<td><code>func (m Mat4) Inverse() (Mat4, bool)</code></td>
+<td>Inverse returns the inverse of a 4x4 matrix and false when it is singular.</td>
+</tr>
+
+<tr>
+<td><code>func (a Mat4) Multiply(b Mat4) Mat4</code></td>
+<td>Multiply multiplies two 4x4 matrices (A * B).</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="vec4">Vec4</h3>
+
+<p>Vec4 represents a 4D vector or 3D coordinate with padding [X, Y, Z, W]. Aligns perfectly to 16 bytes, matching GPU hardware expectations across all APIs.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Vec4</span> <span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="kt">float32</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func Move(vertices []Vec4, delta Vec4) []Vec4</code></td>
+<td>Move applies a translation to a slice of Vec4 vertices.</td>
+</tr>
+
+<tr>
+<td><code>func (v Vec4) Add(other Vec4) Vec4</code></td>
+<td>Add returns a new Vec4 that is the sum of v and other.</td>
+</tr>
+
+<tr>
+<td><code>func (v Vec4) Cross(other Vec4) Vec4</code></td>
+<td>Cross computes the 3D cross product of two Vec4 vectors (W component is ignored).</td>
+</tr>
+
+<tr>
+<td><code>func (v Vec4) Dot(other Vec4) float32</code></td>
+<td>Dot computes the 3D dot product of two vectors (ignoring W).</td>
+</tr>
+
+<tr>
+<td><code>func (v Vec4) Normalize() Vec4</code></td>
+<td>Normalize returns the unit vector of a Vec4.</td>
+</tr>
+</tbody>
+</table>
+
+<hr>
+
+<p><a href="./reference/packages">← Reference</a> · generated from the doc comments by <code>generate.py</code></p>

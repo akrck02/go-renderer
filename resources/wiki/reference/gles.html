@@ -1,0 +1,225 @@
+<h1 id="gles">gles</h1>
+<pre><code class="language-go"><span class="kn">import</span> <span class="s">&#34;github.com/akrck02/go-renderer/gles&#34;</span>
+</code></pre>
+
+<p>Package gles draws go-renderer&rsquo;s flat interfaces and a simple 3D scene through
+OpenGL ES, the graphics interface both browsers (as WebGL2) and Android phones
+offer. It makes no graphics calls of its own: it talks to a small interface,
+Functions, that each platform implements (the browser package through
+syscall/js, an Android window through golang.org/x/mobile/gl). So the renderers
+are written once, in plain Go with no cgo, and tested on any computer with a
+fake.</p>
+
+<p>It uses only what OpenGL ES 2.0 has, plus 32-bit indices (an extension every
+current phone has): golang.org/x/mobile/gl knows nothing newer on Android,
+and WebGL2 accepts it all. So the shaders are GLSL ES 1.00, there are no vertex
+array objects (each draw describes its vertices) and the atlas is a LUMINANCE
+texture.</p>
+
+<p>Desktop programs keep using the opengl and metal packages; nothing here replaces
+them.</p>
+
+<h3 id="buffer">Buffer</h3>
+
+<p>Handles name objects the graphics driver keeps. 0 is never a valid one.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Buffer</span> <span class="kt">uint32</span>
+</code></pre>
+
+<h3 id="enum">Enum</h3>
+
+<p>Enum is an OpenGL ES constant. The values are the ones the OpenGL ES 3.0 and WebGL2 specifications give, so every implementation passes them through unchanged.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Enum</span> <span class="kt">uint32</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="nx">Triangles</span> <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0004</span>
+
+	<span class="nx">ColorBufferBit</span> <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x00004000</span>
+	<span class="nx">DepthBufferBit</span> <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x00000100</span>
+
+	<span class="nx">Blend</span>     <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0BE2</span>
+	<span class="nx">DepthTest</span> <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0B71</span>
+
+	<span class="nx">One</span>              <span class="nx">Enum</span> <span class="p">=</span> <span class="mi">1</span>
+	<span class="nx">SourceAlpha</span>      <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0302</span>
+	<span class="nx">OneMinusSrcAlpha</span> <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0303</span>
+	<span class="nx">LessOrEqual</span>      <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0203</span>
+
+	<span class="nx">ArrayBuffer</span>        <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x8892</span>
+	<span class="nx">ElementArrayBuffer</span> <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x8893</span>
+	<span class="nx">StaticDraw</span>         <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x88E4</span>
+	<span class="nx">StreamDraw</span>         <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x88E0</span>
+
+	<span class="nx">Float</span>          <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x1406</span>
+	<span class="nx">UnsignedByte</span>   <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x1401</span>
+	<span class="nx">UnsignedInt</span>    <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x1405</span>
+	<span class="nx">VertexShader</span>   <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x8B31</span>
+	<span class="nx">FragmentShader</span> <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x8B30</span>
+
+	<span class="nx">Texture2D</span>        <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0DE1</span>
+	<span class="nx">Texture0</span>         <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x84C0</span>
+	<span class="nx">TextureMinFilter</span> <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x2801</span>
+	<span class="nx">TextureMagFilter</span> <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x2800</span>
+	<span class="nx">TextureWrapS</span>     <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x2802</span>
+	<span class="nx">TextureWrapT</span>     <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x2803</span>
+	<span class="nx">Linear</span>           <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x2601</span>
+	<span class="nx">ClampToEdge</span>      <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x812F</span>
+	<span class="nx">Luminance</span>        <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x1909</span>
+	<span class="nx">RGBA</span>             <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x1908</span>
+	<span class="nx">UnpackAlignment</span>  <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0CF5</span>
+<span class="p">)</span>
+</code></pre>
+
+<p>The constants the renderers use.</p>
+
+<h3 id="flatrenderer">FlatRenderer</h3>
+
+<p>FlatRenderer draws a 2D draw list on a plain background, with no scene, sky or camera: the window of an application that is only an interface. It does what opengl.FlatRenderer does on the desktop, with the same atlas and one draw call per frame. Create and use it where the graphics context lives.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">FlatRenderer</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func NewFlatRenderer(functions Functions) (*FlatRenderer, error)</code></td>
+<td>NewFlatRenderer compiles the shaders and prepares the atlas.</td>
+</tr>
+
+<tr>
+<td><code>func (renderer *FlatRenderer) Draw(list *draw2d.List, background draw2d.Color, width, height int, scale float32)</code></td>
+<td>Draw clears the framebuffer (width × height pixels) to the background colour and paints the list.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="functions">Functions</h3>
+
+<p>Functions is the part of OpenGL ES 2.0 the renderers need. An implementation must be used from the goroutine (and thread) that owns the graphics context.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Functions</span> <span class="kd">interface</span> <span class="p">{</span>
+	<span class="nf">CreateShader</span><span class="p">(</span><span class="nx">stage</span> <span class="nx">Enum</span><span class="p">)</span> <span class="nx">Shader</span>
+	<span class="nf">ShaderSource</span><span class="p">(</span><span class="nx">shader</span> <span class="nx">Shader</span><span class="p">,</span> <span class="nx">source</span> <span class="kt">string</span><span class="p">)</span>
+	<span class="nf">CompileShader</span><span class="p">(</span><span class="nx">shader</span> <span class="nx">Shader</span><span class="p">)</span>
+	<span class="c1">// ShaderCompiled reports whether the last compilation worked, and the compiler&#39;s log.</span>
+	<span class="nf">ShaderCompiled</span><span class="p">(</span><span class="nx">shader</span> <span class="nx">Shader</span><span class="p">)</span> <span class="p">(</span><span class="kt">bool</span><span class="p">,</span> <span class="kt">string</span><span class="p">)</span>
+	<span class="nf">DeleteShader</span><span class="p">(</span><span class="nx">shader</span> <span class="nx">Shader</span><span class="p">)</span>
+
+	<span class="nf">CreateProgram</span><span class="p">()</span> <span class="nx">Program</span>
+	<span class="nf">AttachShader</span><span class="p">(</span><span class="nx">program</span> <span class="nx">Program</span><span class="p">,</span> <span class="nx">shader</span> <span class="nx">Shader</span><span class="p">)</span>
+	<span class="nf">LinkProgram</span><span class="p">(</span><span class="nx">program</span> <span class="nx">Program</span><span class="p">)</span>
+	<span class="c1">// ProgramLinked reports whether the last link worked, and the linker&#39;s log.</span>
+	<span class="nf">ProgramLinked</span><span class="p">(</span><span class="nx">program</span> <span class="nx">Program</span><span class="p">)</span> <span class="p">(</span><span class="kt">bool</span><span class="p">,</span> <span class="kt">string</span><span class="p">)</span>
+	<span class="c1">// BindAttribLocation gives an attribute its index; it takes effect at the next link.</span>
+	<span class="nf">BindAttribLocation</span><span class="p">(</span><span class="nx">program</span> <span class="nx">Program</span><span class="p">,</span> <span class="nx">index</span> <span class="kt">uint32</span><span class="p">,</span> <span class="nx">name</span> <span class="kt">string</span><span class="p">)</span>
+	<span class="nf">UseProgram</span><span class="p">(</span><span class="nx">program</span> <span class="nx">Program</span><span class="p">)</span>
+	<span class="nf">UniformLocation</span><span class="p">(</span><span class="nx">program</span> <span class="nx">Program</span><span class="p">,</span> <span class="nx">name</span> <span class="kt">string</span><span class="p">)</span> <span class="nx">Uniform</span>
+
+	<span class="nf">Uniform1i</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">value</span> <span class="kt">int32</span><span class="p">)</span>
+	<span class="nf">Uniform1f</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">value</span> <span class="kt">float32</span><span class="p">)</span>
+	<span class="nf">Uniform2f</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">first</span><span class="p">,</span> <span class="nx">second</span> <span class="kt">float32</span><span class="p">)</span>
+	<span class="nf">Uniform3f</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">first</span><span class="p">,</span> <span class="nx">second</span><span class="p">,</span> <span class="nx">third</span> <span class="kt">float32</span><span class="p">)</span>
+	<span class="nf">Uniform4f</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">first</span><span class="p">,</span> <span class="nx">second</span><span class="p">,</span> <span class="nx">third</span><span class="p">,</span> <span class="nx">fourth</span> <span class="kt">float32</span><span class="p">)</span>
+	<span class="nf">UniformMatrix3</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">matrix</span> <span class="p">[</span><span class="mi">9</span><span class="p">]</span><span class="kt">float32</span><span class="p">)</span>
+	<span class="nf">UniformMatrix4</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">matrix</span> <span class="p">[</span><span class="mi">16</span><span class="p">]</span><span class="kt">float32</span><span class="p">)</span>
+
+	<span class="nf">CreateBuffer</span><span class="p">()</span> <span class="nx">Buffer</span>
+	<span class="nf">BindBuffer</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">buffer</span> <span class="nx">Buffer</span><span class="p">)</span>
+	<span class="c1">// BufferData replaces a buffer&#39;s contents with these bytes.</span>
+	<span class="nf">BufferData</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">data</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">,</span> <span class="nx">usage</span> <span class="nx">Enum</span><span class="p">)</span>
+
+	<span class="nf">EnableVertexAttribArray</span><span class="p">(</span><span class="nx">index</span> <span class="kt">uint32</span><span class="p">)</span>
+	<span class="nf">DisableVertexAttribArray</span><span class="p">(</span><span class="nx">index</span> <span class="kt">uint32</span><span class="p">)</span>
+	<span class="c1">// VertexAttribPointer describes attribute index in the bound array buffer: size values of</span>
+	<span class="c1">// type kind each, stride bytes apart, the first offset bytes in.</span>
+	<span class="nf">VertexAttribPointer</span><span class="p">(</span><span class="nx">index</span> <span class="kt">uint32</span><span class="p">,</span> <span class="nx">size</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">kind</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">normalized</span> <span class="kt">bool</span><span class="p">,</span> <span class="nx">stride</span><span class="p">,</span> <span class="nx">offset</span> <span class="kt">int</span><span class="p">)</span>
+
+	<span class="nf">CreateTexture</span><span class="p">()</span> <span class="nx">Texture</span>
+	<span class="nf">ActiveTexture</span><span class="p">(</span><span class="nx">unit</span> <span class="nx">Enum</span><span class="p">)</span>
+	<span class="nf">BindTexture</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">texture</span> <span class="nx">Texture</span><span class="p">)</span>
+	<span class="nf">TexParameteri</span><span class="p">(</span><span class="nx">target</span><span class="p">,</span> <span class="nx">name</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">value</span> <span class="kt">int32</span><span class="p">)</span>
+	<span class="nf">PixelStorei</span><span class="p">(</span><span class="nx">name</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">value</span> <span class="kt">int32</span><span class="p">)</span>
+	<span class="nf">TexImage2D</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">level</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">internalFormat</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">format</span><span class="p">,</span> <span class="nx">kind</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">pixels</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span>
+	<span class="c1">// TexSubImage2D replaces a rectangle of the bound texture&#39;s pixels, given row after row.</span>
+	<span class="nf">TexSubImage2D</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">level</span><span class="p">,</span> <span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">format</span><span class="p">,</span> <span class="nx">kind</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">pixels</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span>
+
+	<span class="nf">Viewport</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">int</span><span class="p">)</span>
+	<span class="nf">ClearColor</span><span class="p">(</span><span class="nx">red</span><span class="p">,</span> <span class="nx">green</span><span class="p">,</span> <span class="nx">blue</span><span class="p">,</span> <span class="nx">alpha</span> <span class="kt">float32</span><span class="p">)</span>
+	<span class="nf">Clear</span><span class="p">(</span><span class="nx">mask</span> <span class="nx">Enum</span><span class="p">)</span>
+	<span class="nf">Enable</span><span class="p">(</span><span class="nx">capability</span> <span class="nx">Enum</span><span class="p">)</span>
+	<span class="nf">Disable</span><span class="p">(</span><span class="nx">capability</span> <span class="nx">Enum</span><span class="p">)</span>
+	<span class="nf">BlendFuncSeparate</span><span class="p">(</span><span class="nx">sourceColor</span><span class="p">,</span> <span class="nx">destinationColor</span><span class="p">,</span> <span class="nx">sourceAlpha</span><span class="p">,</span> <span class="nx">destinationAlpha</span> <span class="nx">Enum</span><span class="p">)</span>
+	<span class="nf">DepthMask</span><span class="p">(</span><span class="nx">write</span> <span class="kt">bool</span><span class="p">)</span>
+	<span class="nf">DepthFunc</span><span class="p">(</span><span class="nx">function</span> <span class="nx">Enum</span><span class="p">)</span>
+
+	<span class="nf">DrawArrays</span><span class="p">(</span><span class="nx">mode</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">first</span><span class="p">,</span> <span class="nx">count</span> <span class="kt">int</span><span class="p">)</span>
+	<span class="nf">DrawElements</span><span class="p">(</span><span class="nx">mode</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">count</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">kind</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">offset</span> <span class="kt">int</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="program">Program</h3>
+
+<p>Handles name objects the graphics driver keeps. 0 is never a valid one.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Program</span> <span class="kt">uint32</span>
+</code></pre>
+
+<h3 id="scenerenderer">SceneRenderer</h3>
+
+<p>SceneRenderer draws a scene.Scene in its simplest form: lit meshes and instances, the light of the time of day, fog, translucent water and, over them, the overlay (labels, header, notices and the program&rsquo;s draw list). What a frame draws (culling, levels of detail, order) is planned by sceneplan, like on the desktop. It is a first step, not the desktop renderer: there are no shadows, sky dome, procedural patterns, waves, wind or snow. OpenGL ES 2 cannot draw instances, so each batch of instances is made into one mesh on the processor, again only when it changes.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">SceneRenderer</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// OverlayScale is framebuffer pixels per layout pixel, so labels and interfaces keep their</span>
+	<span class="c1">// size on a high-density screen (0 = 1).</span>
+	<span class="nx">OverlayScale</span> <span class="kt">float32</span>
+
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func NewSceneRenderer(functions Functions) (*SceneRenderer, error)</code></td>
+<td>NewSceneRenderer compiles the shaders and prepares the overlay&rsquo;s atlas.</td>
+</tr>
+
+<tr>
+<td><code>func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int)</code></td>
+<td>Draw draws a frame of the scene seen by the camera, in a framebuffer of width × height pixels.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="shader">Shader</h3>
+
+<p>Handles name objects the graphics driver keeps. 0 is never a valid one.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Shader</span> <span class="kt">uint32</span>
+</code></pre>
+
+<h3 id="texture">Texture</h3>
+
+<p>Handles name objects the graphics driver keeps. 0 is never a valid one.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Texture</span> <span class="kt">uint32</span>
+</code></pre>
+
+<h3 id="uniform">Uniform</h3>
+
+<p>Uniform is where a program reads a uniform value; -1 when the program has none of that name (the compiler drops uniforms it does not use).</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Uniform</span> <span class="kt">int32</span>
+</code></pre>
+
+<hr>
+
+<p><a href="./reference/packages">← Reference</a> · generated from the doc comments by <code>generate.py</code></p>

@@ -1,0 +1,261 @@
+<h1 id="opengl-overlay">opengl/overlay</h1>
+<pre><code class="language-go"><span class="kn">import</span> <span class="s">&#34;github.com/akrck02/go-renderer/opengl/overlay&#34;</span>
+</code></pre>
+
+<p>Package overlay lays out the scene&rsquo;s overlay (labels over the world, the header
+and the notices, see scene.Overlay) as textured rectangles in screen pixels,
+ready for a backend to draw with one texture: the Atlas, which holds the glyphs
+of the text, the Lucide icons and the corners of the rounded pills. It does no
+drawing itself and needs no graphics context, so it can be tested anywhere;
+the OpenGL scene renderer uploads its atlas and draws its quads.</p>
+
+<h3 id="functions">Functions</h3>
+
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func UseFonts(fonts Fonts)</code></td>
+<td>UseFonts makes text draw in other fonts, such as a brand&rsquo;s.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="constants-and-variables">Constants and variables</h3>
+<pre><code class="language-go"><span class="kd">var</span> <span class="nx">FontFolders</span> <span class="p">=</span> <span class="nf">defaultFontFolders</span><span class="p">()</span>
+</code></pre>
+
+<p>FontFolders are where the system&rsquo;s fonts are looked for, for characters the program&rsquo;s fonts lack: Android&rsquo;s own, or the usual folders of the desktop&rsquo;s system.</p>
+<pre><code class="language-go"><span class="kd">var</span> <span class="nx">PrebuiltCharacters</span> <span class="p">=</span> <span class="nf">prebuiltCharacters</span><span class="p">()</span>
+</code></pre>
+
+<p>PrebuiltCharacters are drawn into the atlas as soon as a face is first used, so the first frames with text do not stop to draw them one by one: ASCII, Latin-1 and a few common signs.</p>
+
+<h3 id="atlas">Atlas</h3>
+
+<p>Atlas is one grey image holding everything the overlay draws: the glyphs of the text, the icons and the rounded corners of the pills. Every picture is a coverage mask (0 = empty, 255 = covered) that the backend tints when it draws it, so a single texture and a single draw call paint the whole overlay. Pictures are added when first needed and never move; when the image is full it doubles in size (keeping what it had in the same place). Version changes whenever pixels change, so the backend knows to upload the image again.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Atlas</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Image</span>   <span class="o">*</span><span class="nx">image</span><span class="p">.</span><span class="nx">Alpha</span>
+	<span class="nx">Version</span> <span class="kt">int</span>
+
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func NewAtlas() *Atlas</code></td>
+<td>NewAtlas returns an empty atlas.</td>
+</tr>
+
+<tr>
+<td><code>func (atlas *Atlas) Size() int</code></td>
+<td>Size returns the side of the square image, in pixels.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="entry">Entry</h3>
+
+<p>Entry is a picture in the atlas: where its pixels are, and where to draw them relative to a pen position (for glyphs, the dot on the baseline).</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Entry</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Bounds</span>  <span class="nx">image</span><span class="p">.</span><span class="nx">Rectangle</span> <span class="c1">// pixels in the atlas</span>
+	<span class="nx">Offset</span>  <span class="nx">image</span><span class="p">.</span><span class="nx">Point</span>     <span class="c1">// top-left corner of the picture relative to the pen</span>
+	<span class="nx">Advance</span> <span class="kt">float32</span>         <span class="c1">// how far the pen moves after a glyph, in pixels</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="fonts">Fonts</h3>
+
+<p>Fonts are the TrueType or OpenType fonts text is drawn with, one per weight; an empty one keeps the default (the Go fonts).</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Fonts</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Regular</span><span class="p">,</span> <span class="nx">Medium</span><span class="p">,</span> <span class="nx">Bold</span><span class="p">,</span> <span class="nx">Mono</span> <span class="p">[]</span><span class="kt">byte</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="frame">Frame</h3>
+
+<p>Frame is what the layout needs to know about the frame being drawn.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Frame</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">ViewProjection</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Mat4</span> <span class="c1">// the camera&#39;s projection times its view</span>
+	<span class="nx">Width</span><span class="p">,</span> <span class="nx">Height</span>  <span class="kt">int</span>           <span class="c1">// framebuffer size in pixels</span>
+	<span class="nx">Scale</span>          <span class="kt">float32</span>       <span class="c1">// framebuffer pixels per layout pixel: 2 on a high-density screen; 0 = 1</span>
+	<span class="nx">VerticalScale</span>  <span class="kt">float32</span>       <span class="c1">// the scene&#39;s vertical exaggeration; 0 = 1</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="measurer">Measurer</h3>
+
+<p>Measurer measures text the way the painter draws it, without an atlas or a graphics context, so an interface library can lay out its controls before the frame is drawn. It implements draw2d.Measurer.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Measurer</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func NewMeasurer() (*Measurer, error)</code></td>
+<td>NewMeasurer parses the embedded fonts.</td>
+</tr>
+
+<tr>
+<td><code>func (measurer *Measurer) HasIcon(name string) bool</code></td>
+<td>HasIcon tells whether Lucide has an icon of this name.</td>
+</tr>
+
+<tr>
+<td><code>func (measurer *Measurer) MeasureText(text string, size float32, weight draw2d.Weight, scale float32) draw2d.TextMetrics</code></td>
+<td>MeasureText measures a line at a size in layout pixels on a screen of a density (see draw2d.Measurer).</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="painter">Painter</h3>
+
+<p>Painter lays out overlays frame after frame, keeping the atlas and the fonts between frames. It is used from one goroutine, the one that draws.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Painter</span> <span class="kd">struct</span> <span class="p">{</span>
+
+	<span class="c1">// Warn reports a problem once (an unknown icon name); nil = the standard logger.</span>
+	<span class="nx">Warn</span> <span class="kd">func</span><span class="p">(</span><span class="nx">message</span> <span class="kt">string</span><span class="p">)</span>
+
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func NewPainter() (*Painter, error)</code></td>
+<td>NewPainter parses the embedded fonts and prepares an empty atlas.</td>
+</tr>
+
+<tr>
+<td><code>func (painter *Painter) Atlas() *Atlas</code></td>
+<td>Atlas returns the image the quads point into.</td>
+</tr>
+
+<tr>
+<td><code>func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]graphics.Mat4, frame Frame) []Quad</code></td>
+<td>Paint lays out the whole overlay for a frame.</td>
+</tr>
+
+<tr>
+<td><code>func (painter *Painter) Pictures() *Pictures</code></td>
+<td>Pictures returns the image pictured quads read their colours from.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="pictures">Pictures</h3>
+
+<p>Pictures is the second atlas: the colours of the images a draw list shows (photos, a video&rsquo;s frames), side by side in one RGBA image. A picture&rsquo;s quads read their colours here and their coverage (the rounded corners) in the grey Atlas, so images are drawn in the same single draw call as everything else. A picture is copied in the first time it is drawn, and copied again into the same place when it changes (draw2d.Image.Changed). When no room is left, the image grows; at its largest, it is emptied and holds only the pictures of the frame being drawn. A backend uploads what changed: the whole image after it grew or was emptied, else only the areas pictures were copied into. The image is made with the first picture: an interface without any needs none.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Pictures</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Image</span> <span class="o">*</span><span class="nx">image</span><span class="p">.</span><span class="nx">NRGBA</span>
+
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func NewPictures() *Pictures</code></td>
+<td>NewPictures returns an empty picture atlas, with no image yet.</td>
+</tr>
+
+<tr>
+<td><code>func (pictures *Pictures) Pending() (whole bool, areas []image.Rectangle)</code></td>
+<td>Pending tells what to upload: the whole image, or only some areas of it (none when nothing changed).</td>
+</tr>
+
+<tr>
+<td><code>func (pictures *Pictures) Size() int</code></td>
+<td>Size returns the side of the square image, in pixels: 0 before the first picture.</td>
+</tr>
+
+<tr>
+<td><code>func (pictures *Pictures) Uploaded()</code></td>
+<td>Uploaded forgets what Pending told.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="projection">Projection</h3>
+
+<p>Projection is where a point of the world falls on screen.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Projection</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">X</span><span class="p">,</span> <span class="nx">Y</span>    <span class="kt">float32</span> <span class="c1">// pixels from the top-left corner</span>
+	<span class="nx">Depth</span>   <span class="kt">float32</span> <span class="c1">// -1 at the near plane, 1 at the far plane: smaller is nearer</span>
+	<span class="nx">Visible</span> <span class="kt">bool</span>    <span class="c1">// in front of the camera and inside the screen</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func Project(point graphics.Vec4, frame Frame) Projection</code></td>
+<td>Project places a world point on screen, applying the vertical exaggeration as the scene shaders do.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="quad">Quad</h3>
+
+<p>Quad is a rectangle of the atlas drawn on screen with a colour: the atlas gives the coverage, the colour the paint. A quad of an image also reads its colours in the Pictures, which the colour then tints. Coordinates are pixels, with the origin at the top-left corner.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Quad</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Screen</span> <span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="kt">float32</span> <span class="c1">// left, top, right, bottom on screen</span>
+	<span class="nx">Atlas</span>  <span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="kt">float32</span> <span class="c1">// left, top, right, bottom in the atlas</span>
+	<span class="nx">Color</span>  <span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="kt">float32</span> <span class="c1">// straight RGBA; its alpha multiplies the coverage</span>
+	<span class="c1">// Picture is where the quad reads its colours in the Pictures (left, top, right, bottom), when</span>
+	<span class="c1">// Pictured.</span>
+	<span class="nx">Picture</span>  <span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="kt">float32</span>
+	<span class="nx">Pictured</span> <span class="kt">bool</span>
+<span class="p">}</span>
+</code></pre>
+
+<hr>
+
+<p><a href="./reference/packages">← Reference</a> · generated from the doc comments by <code>generate.py</code></p>

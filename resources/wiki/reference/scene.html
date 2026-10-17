@@ -1,0 +1,695 @@
+<h1 id="scene">scene</h1>
+<pre><code class="language-go"><span class="kn">import</span> <span class="s">&#34;github.com/akrck02/go-renderer/scene&#34;</span>
+</code></pre>
+
+<p>Package scene is a retained, backend-independent description of a 3D scene:
+nodes with transforms, meshes with per-vertex normals and colors, materials,
+GPU instancing and the environment (sun, sky, fog, water).</p>
+
+<p>Backends upload meshes once and draw them every frame. Simulations can change
+geometry or instances later and mark them Dirty so the backend uploads them
+again.</p>
+
+<h3 id="functions">Functions</h3>
+
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func ColorFromHex(text string) (graphics.Vec4, bool)</code></td>
+<td>ColorFromHex reads a colour written as on a web page, &ldquo;#rrggbb&rdquo; (or &ldquo;#rgb&rdquo;), into the 0–1 range with alpha 1.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="constants-and-variables">Constants and variables</h3>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">DefaultMaximumNotices</span> <span class="p">=</span> <span class="mi">5</span>
+</code></pre>
+
+<p>DefaultMaximumNotices is how many notices are shown at once when the overlay does not say.</p>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">DefaultNoticeDuration</span> <span class="p">=</span> <span class="mf">6.0</span>
+</code></pre>
+
+<p>DefaultNoticeDuration is how long a notice stays when the overlay does not say.</p>
+
+<h3 id="clouds">Clouds</h3>
+
+<p>Clouds is a procedural cloud layer.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Clouds</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Coverage</span> <span class="kt">float32</span> <span class="c1">// share of the sky covered (0 = clear)</span>
+	<span class="nx">Color</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">Speed</span>    <span class="kt">float32</span>       <span class="c1">// drift in cloud-texture units per second</span>
+	<span class="nx">Scale</span>    <span class="kt">float32</span>       <span class="c1">// size of the cloud pattern (larger = bigger clouds)</span>
+	<span class="nx">Offset</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// how far the clouds have drifted (x, z), moved by a simulation</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="constellation">Constellation</h3>
+
+<p>Constellation is a figure of stars joined by lines, fixed to the night sky.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Constellation</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Name</span>  <span class="kt">string</span>
+	<span class="nx">Stars</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// directions as seen at midnight (the sun at the lowest point of its circle)</span>
+	<span class="nx">Lines</span> <span class="p">[][</span><span class="mi">2</span><span class="p">]</span><span class="kt">int</span>        <span class="c1">// pairs of indices into Stars</span>
+	<span class="nx">Color</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="daylight">Daylight</h3>
+
+<p>Daylight is the state of the sky at the current sun height: the colors to paint and the single directional light (sun or moon) that lights and shadows the scene. Backends compute it once per frame with Environment.Daylight.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Daylight</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">DayAmount</span>      <span class="kt">float32</span> <span class="c1">// 1 in full day, 0 at night</span>
+	<span class="nx">TwilightAmount</span> <span class="kt">float32</span> <span class="c1">// 1 with the sun on the horizon, 0 far from it</span>
+	<span class="nx">Zenith</span>         <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">Horizon</span>        <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">Fog</span>            <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">SkyLight</span>       <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// ambient light from the sky</span>
+	<span class="nx">GroundLight</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// ambient light bounced from the ground</span>
+	<span class="nx">SunVisible</span>     <span class="kt">float32</span>       <span class="c1">// how much of the sun disc is above the horizon</span>
+	<span class="nx">LightDirection</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// towards the light that shades the scene</span>
+	<span class="nx">LightColor</span>     <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">MoonDirection</span>  <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">StarRotation</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Mat4</span> <span class="c1">// turns world directions into celestial directions</span>
+	<span class="nx">Brightness</span>     <span class="kt">float32</span>       <span class="c1">// overall light level (1 day, low at night) for materials that are not lit</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="detaillevel">DetailLevel</h3>
+
+<p>DetailLevel is a simpler version of a mesh. It replaces the finer versions when the model looks smaller on screen than ScreenSize, a fraction of the screen height (0.05 = a twentieth of it).</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">DetailLevel</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Mesh</span>       <span class="o">*</span><span class="nx">Mesh</span>
+	<span class="nx">ScreenSize</span> <span class="kt">float32</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="environment">Environment</h3>
+
+<p>Environment holds the lighting and atmosphere.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Environment</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">SunDirection</span>  <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// towards the sun, normalized</span>
+	<span class="nx">SunColor</span>      <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">SkyZenith</span>     <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">SkyHorizon</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">GroundAmbient</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">Ambient</span>       <span class="kt">float32</span>
+	<span class="nx">FogColor</span>      <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">FogNear</span>       <span class="kt">float32</span>
+	<span class="nx">FogFar</span>        <span class="kt">float32</span> <span class="c1">// 0 = no fog</span>
+	<span class="nx">Water</span>         <span class="o">*</span><span class="nx">Water</span>
+	<span class="nx">VerticalScale</span> <span class="kt">float32</span> <span class="c1">// vertical exaggeration applied to the whole scene (0 = 1)</span>
+	<span class="nx">Sky</span>           <span class="o">*</span><span class="nx">Sky</span>    <span class="c1">// sky over the day and night (nil = DefaultSky)</span>
+	<span class="nx">Wind</span>          <span class="nx">Wind</span>
+	<span class="nx">Snow</span>          <span class="o">*</span><span class="nx">Snow</span>         <span class="c1">// snow on the ground above a height (nil = none)</span>
+	<span class="nx">FoliageTint</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// colour foliage materials take (alpha = how much; zero = none): the season&#39;s</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func DefaultEnvironment() Environment</code></td>
+<td>DefaultEnvironment returns a daylight environment.</td>
+</tr>
+
+<tr>
+<td><code>func (environment Environment) Daylight() Daylight</code></td>
+<td>Daylight computes the sky and the lighting for the current sun direction.</td>
+</tr>
+
+<tr>
+<td><code>func (environment Environment) EffectiveSky() *Sky</code></td>
+<td>EffectiveSky returns the sky, or the default sky when unset.</td>
+</tr>
+
+<tr>
+<td><code>func (environment Environment) EffectiveVerticalScale() float32</code></td>
+<td>EffectiveVerticalScale returns the vertical scale, treating 0 as 1.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="headerline">HeaderLine</h3>
+
+<p>HeaderLine is one line of the header in the top-left corner of the screen.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">HeaderLine</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Icon</span> <span class="kt">string</span>
+	<span class="nx">Text</span> <span class="kt">string</span>
+	<span class="nx">Tint</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// colour of the icon (alpha 0 = the default text colour)</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="instances">Instances</h3>
+
+<p>Instances draws a mesh many times with a transform and a color per instance. After changing instances, a simulation either sets Dirty (instances were added or removed, or most of them changed: everything is prepared again) or lists the changed ones with MarkChanged (only those are uploaded). The backend clears both.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Instances</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Transforms</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Mat4</span>
+	<span class="nx">Colors</span>     <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">Dirty</span>      <span class="kt">bool</span>
+	<span class="nx">Changed</span>    <span class="p">[]</span><span class="kt">int</span> <span class="c1">// indices changed since the last draw</span>
+	<span class="nx">GPU</span>        <span class="kt">any</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (instances *Instances) MarkChanged(indices ...int)</code></td>
+<td>MarkChanged records that these instances changed their transform or color.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="label">Label</h3>
+
+<p>Label is a small tag drawn above something in the world: an icon, a text and an optional badge under them. It keeps the same size on screen however far the camera is.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Label</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Node anchors the label to a node: it follows the node&#39;s world transform and hides with it.</span>
+	<span class="c1">// When nil, the label stands at Point.</span>
+	<span class="nx">Node</span>  <span class="o">*</span><span class="nx">Node</span>
+	<span class="nx">Point</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// world position of the anchor when there is no Node</span>
+	<span class="c1">// Height lifts the label above its anchor, in world units (the top of a box, for example).</span>
+	<span class="nx">Height</span> <span class="kt">float32</span>
+	<span class="nx">Text</span>   <span class="kt">string</span>
+	<span class="nx">Icon</span>   <span class="kt">string</span> <span class="c1">// name of a Lucide icon (https://lucide.dev), drawn before the text or alone</span>
+	<span class="nx">Badge</span>  <span class="kt">string</span> <span class="c1">// a short text in a small pill under the label</span>
+	<span class="c1">// Tint colours the icon and the badge, as a screen colour (see ColorFromHex); alpha 0 = the</span>
+	<span class="c1">// default text colour. The text itself stays dark on a light pill, so it always reads well.</span>
+	<span class="nx">Tint</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">Hidden</span> <span class="kt">bool</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (label *Label) IsEmpty() bool</code></td>
+<td>IsEmpty tells whether the label has nothing to draw.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="levelvariation">LevelVariation</h3>
+
+<p>LevelVariation raises and lowers a water surface with one harmonic that differs from place to place: at each point the offset is InPhase·cos(Angle) + InQuadrature·sin(Angle), which is Amplitude·cos(Angle − Phase) with InPhase = Amplitude·cos(Phase) and InQuadrature = Amplitude·sin(Phase). A simulation moves Angle (tides advance it a full turn per period); the grids stay the same. Outside the area the values of the nearest edge apply.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">LevelVariation</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">MinimumX</span><span class="p">,</span> <span class="nx">MinimumZ</span> <span class="kt">float32</span> <span class="c1">// corner of the area (world units)</span>
+	<span class="nx">MaximumX</span><span class="p">,</span> <span class="nx">MaximumZ</span> <span class="kt">float32</span> <span class="c1">// opposite corner; grid values sit at cell centres</span>
+	<span class="nx">Columns</span><span class="p">,</span> <span class="nx">Rows</span>      <span class="kt">int</span>
+	<span class="nx">InPhase</span>            <span class="p">[]</span><span class="kt">float32</span> <span class="c1">// Rows×Columns, row by row from MinimumZ; heights in world units</span>
+	<span class="nx">InQuadrature</span>       <span class="p">[]</span><span class="kt">float32</span>
+	<span class="nx">Angle</span>              <span class="kt">float32</span> <span class="c1">// radians</span>
+	<span class="nx">Dirty</span>              <span class="kt">bool</span>    <span class="c1">// the grids changed: backends upload them again</span>
+	<span class="nx">GPU</span>                <span class="kt">any</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (variation *LevelVariation) OffsetAt(x, z float32) float32</code></td>
+<td>OffsetAt returns the height of the surface above the water level at a point.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="material">Material</h3>
+
+<p>Material describes how a mesh is shaded.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Material</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Name</span>        <span class="kt">string</span>
+	<span class="nx">Kind</span>        <span class="nx">MaterialKind</span>
+	<span class="nx">BaseColor</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// linear RGBA multiplied with vertex colors</span>
+	<span class="nx">DoubleSided</span> <span class="kt">bool</span>
+	<span class="nx">Transparent</span> <span class="kt">bool</span>
+	<span class="nx">Sway</span>        <span class="kt">float32</span> <span class="c1">// how much the wind bends the mesh (0 = rigid); for plants modelled with height 1</span>
+	<span class="nx">DepthBias</span>   <span class="kt">float32</span> <span class="c1">// pulls the surface towards the camera by this share of its distance, so thin surfaces</span>
+	<span class="c1">// lying on terrain (rivers, roads) stay visible over the terrain&#39;s simpler far versions; 0 = none</span>
+	<span class="nx">Pattern</span>      <span class="nx">Pattern</span> <span class="c1">// procedural surface pattern of lit and glowing materials</span>
+	<span class="nx">PatternScale</span> <span class="kt">float32</span> <span class="c1">// size of one pattern cell (a stone, a course, a shingle) in world units</span>
+	<span class="nx">Foliage</span>      <span class="kt">bool</span>    <span class="c1">// takes the environment&#39;s FoliageTint (leaves that change with the seasons)</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="materialkind">MaterialKind</h3>
+
+<p>MaterialKind selects the shading model.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">MaterialKind</span> <span class="kt">int</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="nx">KindLit</span>       <span class="nx">MaterialKind</span> <span class="p">=</span> <span class="kc">iota</span> <span class="c1">// diffuse sun + sky ambient + fog</span>
+	<span class="nx">KindUnlit</span>                         <span class="c1">// flat color (+ fog)</span>
+	<span class="nx">KindWater</span>                         <span class="c1">// animated water surface</span>
+	<span class="nx">KindWaterfall</span>                     <span class="c1">// animated, translucent falling water</span>
+	<span class="nx">KindGlow</span>                          <span class="c1">// lit by day; shines with its own colour in the dark (glowing flowers, lamps)</span>
+<span class="p">)</span>
+</code></pre>
+
+<h3 id="mesh">Mesh</h3>
+
+<p>Mesh is triangle geometry. Positions and normals are xyz triples, colors rgba quads (linear). Indices are optional: without them every three vertices form a triangle.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Mesh</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Name</span>      <span class="kt">string</span>
+	<span class="nx">Positions</span> <span class="p">[]</span><span class="kt">float32</span>
+	<span class="nx">Normals</span>   <span class="p">[]</span><span class="kt">float32</span>
+	<span class="nx">Colors</span>    <span class="p">[]</span><span class="kt">float32</span>
+	<span class="nx">Indices</span>   <span class="p">[]</span><span class="kt">uint32</span>
+	<span class="nx">Material</span>  <span class="o">*</span><span class="nx">Material</span>
+	<span class="nx">Details</span>   <span class="p">[]</span><span class="nx">DetailLevel</span> <span class="c1">// simpler versions for when the mesh looks small, from finer to coarser</span>
+	<span class="nx">Ground</span>    <span class="kt">bool</span>          <span class="c1">// walkable surface (used by GroundHeight)</span>
+	<span class="nx">Dirty</span>     <span class="kt">bool</span>          <span class="c1">// geometry changed: backends upload it again</span>
+	<span class="nx">GPU</span>       <span class="kt">any</span>           <span class="c1">// backend handle</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (mesh *Mesh) Bounds() (minimum, maximum graphics.Vec4)</code></td>
+<td>Bounds returns the box around the mesh positions in its own coordinates.</td>
+</tr>
+
+<tr>
+<td><code>func (mesh *Mesh) ComputeNormals()</code></td>
+<td>ComputeNormals fills smooth vertex normals from the triangles (weighted by triangle area).</td>
+</tr>
+
+<tr>
+<td><code>func (mesh *Mesh) ForEachTriangle(visit func(first, second, third uint32))</code></td>
+<td>ForEachTriangle calls visit with the vertex indices of every triangle.</td>
+</tr>
+
+<tr>
+<td><code>func (mesh *Mesh) Level(index int) *Mesh</code></td>
+<td>Level returns a version of the mesh: 0 is the mesh itself, 1 the first detail level, and so on.</td>
+</tr>
+
+<tr>
+<td><code>func (mesh *Mesh) LevelCount() int</code></td>
+<td>LevelCount returns how many versions the mesh has, itself included.</td>
+</tr>
+
+<tr>
+<td><code>func (mesh *Mesh) LevelForScreenSize(screenSize float32) int</code></td>
+<td>LevelForScreenSize returns the index of the version to draw for a model of this apparent size: the coarsest level whose ScreenSize is still larger than it.</td>
+</tr>
+
+<tr>
+<td><code>func (mesh *Mesh) Top() float32</code></td>
+<td>Top returns the highest y of the mesh&rsquo;s vertices (0 for an empty mesh), to lift a label above it.</td>
+</tr>
+
+<tr>
+<td><code>func (mesh *Mesh) Vertex(index uint32) graphics.Vec4</code></td>
+<td>Vertex returns the position of a vertex.</td>
+</tr>
+
+<tr>
+<td><code>func (mesh *Mesh) VertexCount() int</code></td>
+<td>VertexCount returns the number of vertices.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="moon">Moon</h3>
+
+<p>Moon is a disc with phases that also lights the scene at night.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Moon</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Direction</span>      <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// towards the moon; zero = opposite the sun</span>
+	<span class="nx">AngularSize</span>    <span class="kt">float32</span>       <span class="c1">// apparent diameter in radians</span>
+	<span class="nx">Color</span>          <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">Phase</span>          <span class="kt">float32</span> <span class="c1">// 0 new, 0.25 first quarter, 0.5 full, 0.75 last quarter</span>
+	<span class="nx">LightIntensity</span> <span class="kt">float32</span> <span class="c1">// moonlight on the scene at full moon, relative to the sun</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="node">Node</h3>
+
+<p>Node places a mesh (optionally instanced) in the world; children inherit the transform.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Node</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Name</span>      <span class="kt">string</span>
+	<span class="nx">Transform</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Mat4</span>
+	<span class="nx">Mesh</span>      <span class="o">*</span><span class="nx">Mesh</span>
+	<span class="nx">Instances</span> <span class="o">*</span><span class="nx">Instances</span>
+	<span class="nx">Children</span>  <span class="p">[]</span><span class="o">*</span><span class="nx">Node</span>
+	<span class="nx">Hidden</span>    <span class="kt">bool</span>
+	<span class="nx">Tags</span>      <span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">any</span> <span class="c1">// free data from the file (glTF extras) for the application</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="notice">Notice</h3>
+
+<p>Notice is a short message shown under the header for a few seconds, newest first.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Notice</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Icon</span>  <span class="kt">string</span>
+	<span class="nx">Text</span>  <span class="kt">string</span>
+	<span class="nx">Tint</span>  <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// colour of the icon (alpha 0 = the default text colour)</span>
+	<span class="nx">Added</span> <span class="kt">float64</span>       <span class="c1">// the overlay&#39;s Clock when the notice was added</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="overlay">Overlay</h3>
+
+<p>Overlay is what is drawn over the 3D view, in screen space: labels that float above things in the world, a header pinned to the top-left corner and short notices under it, and a free drawing on top of everything (Drawing). The overlay itself handles no input: an interface library fills Drawing with its panels and buttons and reads the mouse and keyboard on its own. A program changes it from the viewer&rsquo;s update function, which runs on the same goroutine as the drawing, so no locking is needed. The zero value is an empty overlay ready to use.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Overlay</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Labels</span>  <span class="p">[]</span><span class="o">*</span><span class="nx">Label</span>
+	<span class="nx">Header</span>  <span class="p">[]</span><span class="nx">HeaderLine</span>
+	<span class="nx">Notices</span> <span class="p">[]</span><span class="nx">Notice</span>
+	<span class="c1">// Drawing is drawn last, over the labels, header and notices: flat shapes, text and icons in</span>
+	<span class="c1">// screen space, filled every frame by a program or an interface library. nil = nothing.</span>
+	<span class="nx">Drawing</span> <span class="o">*</span><span class="nx">draw2d</span><span class="p">.</span><span class="nx">List</span>
+	<span class="c1">// Clock counts the seconds the overlay has been shown; the viewer advances it at every step.</span>
+	<span class="c1">// Notices remember the clock reading when they were added, so they fade on the viewer&#39;s time.</span>
+	<span class="nx">Clock</span> <span class="kt">float64</span>
+	<span class="c1">// NoticeDuration is how long a notice stays, in seconds, fading at the end; 0 = DefaultNoticeDuration.</span>
+	<span class="nx">NoticeDuration</span> <span class="kt">float64</span>
+	<span class="c1">// MaximumNotices is how many notices are shown at once, the newest; 0 = DefaultMaximumNotices.</span>
+	<span class="nx">MaximumNotices</span> <span class="kt">int</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (overlay *Overlay) AddLabel(label *Label)</code></td>
+<td>AddLabel shows a label; the caller keeps the pointer to change or remove it later.</td>
+</tr>
+
+<tr>
+<td><code>func (overlay *Overlay) AddNotice(icon, text string, tint graphics.Vec4)</code></td>
+<td>AddNotice shows a message now; it fades after the notice duration.</td>
+</tr>
+
+<tr>
+<td><code>func (overlay *Overlay) Advance(seconds float64)</code></td>
+<td>Advance moves the overlay&rsquo;s clock on and forgets the notices that have faded out.</td>
+</tr>
+
+<tr>
+<td><code>func (overlay *Overlay) IsEmpty() bool</code></td>
+<td>IsEmpty tells whether there is nothing to draw on the overlay.</td>
+</tr>
+
+<tr>
+<td><code>func (overlay *Overlay) RemoveLabel(label *Label)</code></td>
+<td>RemoveLabel stops showing a label.</td>
+</tr>
+
+<tr>
+<td><code>func (overlay *Overlay) VisibleNotices() []VisibleNotice</code></td>
+<td>VisibleNotices returns the notices to draw now, newest first, at most MaximumNotices.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="pattern">Pattern</h3>
+
+<p>Pattern is a procedural surface pattern that modulates a lit material&rsquo;s colour, computed from the world position (no texture): stones, blocks, shingles… It fades out where its cells get too small on screen.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Pattern</span> <span class="kt">int</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="nx">PatternNone</span>     <span class="nx">Pattern</span> <span class="p">=</span> <span class="kc">iota</span>
+	<span class="nx">PatternCobbles</span>          <span class="c1">// irregular paving stones with joints (horizontal surfaces)</span>
+	<span class="nx">PatternMasonry</span>          <span class="c1">// courses of stone blocks with mortar (walls)</span>
+	<span class="nx">PatternPlaster</span>          <span class="c1">// mottled render</span>
+	<span class="nx">PatternShingles</span>         <span class="c1">// overlapping rows of shingles or slates (roofs)</span>
+	<span class="nx">PatternPlanks</span>           <span class="c1">// wooden planks</span>
+	<span class="nx">PatternGrass</span>            <span class="c1">// mottled grass</span>
+<span class="p">)</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func PatternNamed(name string) Pattern</code></td>
+<td>PatternNamed returns the pattern with a name (cobbles, masonry, plaster, shingles, planks, grass); PatternNone for any other name.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="scene-1">Scene</h3>
+
+<p>Scene is the root of a scene.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Scene</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Nodes</span>       <span class="p">[]</span><span class="o">*</span><span class="nx">Node</span>
+	<span class="nx">Environment</span> <span class="nx">Environment</span>
+	<span class="nx">Tags</span>        <span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">any</span>
+	<span class="nx">Overlay</span>     <span class="nx">Overlay</span> <span class="c1">// labels, header and notices drawn over the view</span>
+
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func New() *Scene</code></td>
+<td>New returns an empty scene with the default environment.</td>
+</tr>
+
+<tr>
+<td><code>func (scene *Scene) Bounds() (minimum, maximum graphics.Vec4)</code></td>
+<td>Bounds returns the world-space bounding box of all meshes (instances counted by their origin).</td>
+</tr>
+
+<tr>
+<td><code>func (scene *Scene) GroundHeight(x, z float32) (float32, bool)</code></td>
+<td>GroundHeight returns the highest walkable surface at (x, z), before vertical scaling.</td>
+</tr>
+
+<tr>
+<td><code>func (scene *Scene) InvalidateGround()</code></td>
+<td>InvalidateGround drops the ground index; call it after changing walkable meshes.</td>
+</tr>
+
+<tr>
+<td><code>func (scene *Scene) Walk(visit func(node *Node, world graphics.Mat4))</code></td>
+<td>Walk visits every visible node with its world transform.</td>
+</tr>
+
+<tr>
+<td><code>func (scene *Scene) WorldTransforms(wanted map[*Node]bool) map[*Node]graphics.Mat4</code></td>
+<td>WorldTransforms returns the world transform of every visible node, for anchoring labels.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="sky">Sky</h3>
+
+<p>Sky describes what is drawn behind the scene over a whole day and how it lights the scene at night. The height of the sun decides the time of day: above the horizon it is day, near it twilight, below it night. By default the sky is procedural: the day gradient of the environment, a twilight glow, and a night with stars, a moon and constellations; clouds float over both. Images can replace the day or the night (a skybox): an equirectangular panorama or six cube faces.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Sky</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">NightZenith</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// sky color straight up at night (linear)</span>
+	<span class="nx">NightHorizon</span>  <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// sky color at the horizon at night</span>
+	<span class="nx">NightAmbient</span>  <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// sky light that reaches the scene at night</span>
+	<span class="nx">TwilightColor</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// horizon glow at dawn and dusk</span>
+	<span class="nx">CelestialPole</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// axis the night sky turns around (towards the visible pole)</span>
+
+	<span class="nx">Stars</span>          <span class="nx">Stars</span>
+	<span class="nx">Moon</span>           <span class="o">*</span><span class="nx">Moon</span> <span class="c1">// nil = no moon</span>
+	<span class="nx">Clouds</span>         <span class="nx">Clouds</span>
+	<span class="nx">Constellations</span> <span class="p">[]</span><span class="nx">Constellation</span>
+
+	<span class="nx">DayImage</span>   <span class="o">*</span><span class="nx">SkyImage</span> <span class="c1">// replaces the procedural day sky</span>
+	<span class="nx">NightImage</span> <span class="o">*</span><span class="nx">SkyImage</span> <span class="c1">// replaces the procedural night sky; it turns with the stars</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func DefaultSky() *Sky</code></td>
+<td>DefaultSky returns an Earth-like sky: stars, a full moon opposite the sun and no clouds.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="skyimage">SkyImage</h3>
+
+<p>SkyImage is a skybox: an equirectangular panorama or six cube faces (+X, -X, +Y, -Y, +Z, -Z).</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">SkyImage</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Equirectangular</span> <span class="nx">image</span><span class="p">.</span><span class="nx">Image</span>
+	<span class="nx">Faces</span>           <span class="p">[</span><span class="mi">6</span><span class="p">]</span><span class="nx">image</span><span class="p">.</span><span class="nx">Image</span>
+	<span class="nx">GPU</span>             <span class="kt">any</span> <span class="c1">// backend handle</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (skyImage *SkyImage) IsCube() bool</code></td>
+<td>IsCube reports whether the image is made of six faces.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="snow">Snow</h3>
+
+<p>Snow covers the lit surfaces that face up above a height, blending over a band.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Snow</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Level</span> <span class="kt">float32</span>       <span class="c1">// world units, before vertical scaling</span>
+	<span class="nx">Blend</span> <span class="kt">float32</span>       <span class="c1">// world units over which the snow fades in</span>
+	<span class="nx">Color</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// linear</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="stars">Stars</h3>
+
+<p>Stars is a procedural star field.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Stars</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Density</span>           <span class="kt">float32</span> <span class="c1">// share of the sky cells that hold a star (0 = no stars, 1 = one per cell)</span>
+	<span class="nx">Brightness</span>        <span class="kt">float32</span> <span class="c1">// brightness multiplier</span>
+	<span class="nx">Twinkle</span>           <span class="kt">float32</span> <span class="c1">// amount of twinkling (0 = steady)</span>
+	<span class="nx">DaytimeVisibility</span> <span class="kt">float32</span> <span class="c1">// how visible the stars stay in full daylight (0 = only at night)</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="visiblenotice">VisibleNotice</h3>
+
+<p>VisibleNotice is a notice as it should be drawn now.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">VisibleNotice</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Notice</span>
+	<span class="nx">Opacity</span> <span class="kt">float32</span> <span class="c1">// 1 while fresh, falling to 0 as the notice ends</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="water">Water</h3>
+
+<p>Water is an infinite animated water plane.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Water</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Level</span>      <span class="kt">float32</span>
+	<span class="nx">Shallow</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">Deep</span>       <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">Size</span>       <span class="kt">float32</span>         <span class="c1">// extent of the plane (world units)</span>
+	<span class="nx">WaveLength</span> <span class="kt">float32</span>         <span class="c1">// length of the main wave (world units); 0 = Size / 2000</span>
+	<span class="nx">FloorDepth</span> <span class="kt">float32</span>         <span class="c1">// depth of an opaque floor drawn under the water; 0 = Size / 500</span>
+	<span class="nx">ColorDepth</span> <span class="kt">float32</span>         <span class="c1">// water depth at which the color is about two thirds of the way from Shallow to Deep; 0 = FloorDepth / 8</span>
+	<span class="nx">Variation</span>  <span class="o">*</span><span class="nx">LevelVariation</span> <span class="c1">// raises and lowers the surface over an area (tides, for example); nil = flat</span>
+	<span class="nx">ShoreFade</span>  <span class="kt">float32</span>         <span class="c1">// depth over which the sea fades into the shore; 0 = ColorDepth / 20</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (water *Water) EffectiveColorDepth() float32</code></td>
+<td>EffectiveColorDepth returns the color depth, deriving it from the floor depth when unset.</td>
+</tr>
+
+<tr>
+<td><code>func (water *Water) EffectiveFloorDepth() float32</code></td>
+<td>EffectiveFloorDepth returns the floor depth, deriving it from the size when unset.</td>
+</tr>
+
+<tr>
+<td><code>func (water *Water) EffectiveShoreFade() float32</code></td>
+<td>EffectiveShoreFade returns the shore fade depth, deriving it from the color depth when unset.</td>
+</tr>
+
+<tr>
+<td><code>func (water *Water) EffectiveWaveLength() float32</code></td>
+<td>EffectiveWaveLength returns the wave length, deriving it from the size when unset.</td>
+</tr>
+
+<tr>
+<td><code>func (water *Water) LevelAt(x, z float32) float32</code></td>
+<td>LevelAt returns the height of the water surface at a point.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="wind">Wind</h3>
+
+<p>Wind moves clouds and bends plants (materials with Sway).</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Wind</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Direction</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// horizontal direction the wind blows towards</span>
+	<span class="nx">Strength</span>  <span class="kt">float32</span>       <span class="c1">// 0 calm, 1 strong</span>
+<span class="p">}</span>
+</code></pre>
+
+<hr>
+
+<p><a href="./reference/packages">← Reference</a> · generated from the doc comments by <code>generate.py</code></p>

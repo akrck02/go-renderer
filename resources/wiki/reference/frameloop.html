@@ -1,0 +1,89 @@
+<h1 id="frameloop">frameloop</h1>
+<pre><code class="language-go"><span class="kn">import</span> <span class="s">&#34;github.com/akrck02/go-renderer/frameloop&#34;</span>
+</code></pre>
+
+<p>Package frameloop holds the parts of a window&rsquo;s main loop that do not depend
+on any window system: the fixed-step update clock and the update step itself.
+The desktop loop (windowloop, over GLFW) and the browser loop (browser, over a
+canvas) share them, so an application advances the same way everywhere.</p>
+
+<h3 id="functions">Functions</h3>
+
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func RunUpdateStep(app *models.Application, step float64) error</code></td>
+<td>RunUpdateStep calls the application update once and clears the per-step input deltas.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="clock">Clock</h3>
+
+<p>Clock runs Application.Update at a fixed time step, independent of the frame rate, so that simulations advance the same way on fast and slow machines.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Clock</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func NewClock(step float64) *Clock</code></td>
+<td>NewClock makes a clock of step seconds (<sup>1</sup>&frasl;<sub>60</sub> when 0).</td>
+</tr>
+
+<tr>
+<td><code>func (clock *Clock) Advance(app *models.Application) error</code></td>
+<td>Advance runs as many update steps as the elapsed time requires (at most a quarter of a second worth, so a stall does not trigger a long catch-up).</td>
+</tr>
+
+<tr>
+<td><code>func (clock *Clock) BorrowStep(app *models.Application) error</code></td>
+<td>BorrowStep runs one update step now, taken from the time of the next one: for a frame that has to be laid out again (the window changed size) before a step is due.</td>
+</tr>
+
+<tr>
+<td><code>func (clock *Clock) SleepUntilNextStep()</code></td>
+<td>SleepUntilNextStep waits until the next update step is due.</td>
+</tr>
+
+<tr>
+<td><code>func (clock *Clock) Step() float64</code></td>
+<td>Step is the clock&rsquo;s time step in seconds.</td>
+</tr>
+
+<tr>
+<td><code>func (clock *Clock) StepOnce(app *models.Application) error</code></td>
+<td>StepOnce runs exactly one update step and restarts the clock from now: a loop that draws on demand runs one step per frame, and after a long sleep the clock would otherwise catch up in a burst.</td>
+</tr>
+
+<tr>
+<td><code>func (clock *Clock) Steps() int</code></td>
+<td>Steps is the number of update steps run so far.</td>
+</tr>
+
+<tr>
+<td><code>func (clock *Clock) UntilNextStep() time.Duration</code></td>
+<td>UntilNextStep is how long until the next update step is due.</td>
+</tr>
+</tbody>
+</table>
+
+<hr>
+
+<p><a href="./reference/packages">← Reference</a> · generated from the doc comments by <code>generate.py</code></p>

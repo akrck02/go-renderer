@@ -1,0 +1,352 @@
+<h1 id="optimization-plan">⚡ Optimization plan</h1>
+
+<p>Measured with <code>go run ./cmd/visor -benchmark 120 scene.glb</code> (GPU timer queries per pass, averages
+after a warm-up) on an Apple M4, 2560×1600 framebuffer. Test scene: a 60–90 km island exported by
+a procedural scene generator (terrain, towns, rivers, 87,069 instanced trees, floating islands).</p>
+
+<h2 id="baseline">Baseline</h2>
+
+<table>
+<thead>
+<tr>
+<th>View</th>
+<th>CPU</th>
+<th>GPU shadows</th>
+<th>GPU sky</th>
+<th>GPU scene</th>
+<th>GPU total</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Overview (default orbit)</td>
+<td>20.6 ms</td>
+<td>19.0 ms</td>
+<td>1.1 ms</td>
+<td>20.3 ms</td>
+<td>40.4 ms</td>
+</tr>
+
+<tr>
+<td>Close (<code>-zoom 0.08</code>)</td>
+<td>22.1 ms</td>
+<td>20.9 ms</td>
+<td>1.1 ms</td>
+<td>20.4 ms</td>
+<td>42.4 ms</td>
+</tr>
+
+<tr>
+<td>Walking (<code>-walk</code>)</td>
+<td>21.0 ms</td>
+<td>19.8 ms</td>
+<td>1.5 ms</td>
+<td>19.5 ms</td>
+<td>40.8 ms</td>
+</tr>
+
+<tr>
+<td>Overview, <code>-no-shadows</code></td>
+<td>2.6 ms</td>
+<td>—</td>
+<td>1.5 ms</td>
+<td>20.4 ms</td>
+<td>21.9 ms</td>
+</tr>
+</tbody>
+</table>
+
+<ul>
+<li>Every frame draws <strong>17.5 million triangles</strong> in 16 draw calls, and the same again in the shadow pass.</li>
+<li><strong>Trees are 94 % of them</strong> (16.5 M): 87,069 instances of meshes with 27–260 triangles, drawn
+whole whether they are visible, far away or behind the camera. The terrain is 0.63 M, the sky
+islands 0.21 M, the rest below 0.1 M.</li>
+<li>The cost does not change at 640×400: the renderer is <strong>bound by geometry, not by pixels</strong>.</li>
+<li>With shadows the CPU time jumps from 2.6 to ~21 ms: the driver stalls on the second full-scene
+pass (and the profiler waits for the GPU), so CPU time follows the GPU work.</li>
+<li>Loading takes 55–140 ms and the first frame 25–90 ms (uploads): not a problem today.</li>
+<li>The seabed map costs nothing after the first frame (rendered once); the sky is ~1 ms at full
+resolution.</li>
+</ul>
+
+<p>Result: ~25 fps with shadows, ~45 fps without, in every view.</p>
+
+<h2 id="target">Target</h2>
+
+<p>60 fps with shadows in every view at 2560×1600 on this machine: <strong>GPU total under 12 ms</strong>, leaving
+room for simulations. Every step below is measured with <code>-benchmark</code> on the four views of the
+baseline table, and its row is added to the results section.</p>
+
+<h2 id="phase-1-draw-only-the-trees-that-matter-largest-gain-done">Phase 1: draw only the trees that matter (largest gain) — done</h2>
+
+<ol>
+<li><strong>Levels of detail for instanced meshes.</strong> A mesh can carry simpler versions and the distance
+(in screen size) at which each one is used: full tree near, a low-polygon version (8–30
+triangles) further, a crossed pair of quads or a single billboard far away. Instances are
+sorted into one instance buffer per level each frame (or every few frames), so each level is
+still one draw call. Scene API: <code>Mesh.Levels []DetailLevel{Mesh, ScreenSize}</code>; glTF: the
+exporter writes the simpler meshes and names them in the mesh extras. From the overview almost
+every tree is far: 16.5 M → about 1 M triangles. Expected: scene pass 20 → ~3 ms.</li>
+<li><strong>Spatial chunks and frustum culling.</strong> Split every instanced node into grid cells (1–2 km)
+with a bounding box each, and skip the cells outside the view frustum. Combined with the
+levels of detail, the walking view draws only nearby trees in full. Also cull plain meshes
+by their bounds (terrain split into chunks, see phase 2).</li>
+<li><strong>A cheaper shadow pass.</strong>
+
+<ul>
+<li>Draw only casters that touch the shadow region (it is small in close and walking views).</li>
+<li>Use the lowest level of detail for shadows beyond a short distance.</li>
+<li>Keep the shadow map between frames when the light direction, the snapped region and the
+casters have not changed (static scenes, a still camera); simulations mark it stale.
+Expected: shadows 19 → 2–4 ms.</li>
+</ul></li>
+</ol>
+
+<h3 id="what-was-done-in-phase-1">What was done in phase 1</h3>
+
+<ul>
+<li><code>scene.Mesh.Details</code> holds simpler versions with the apparent size (fraction of the screen
+height) below which each one is used; glTF mesh extras <code>&quot;detail&quot;: [{&quot;mesh&quot;, &quot;screenSize&quot;}]</code>.</li>
+<li>Every instanced node is sorted into a grid of cells (about 64 instances each). Each pass (main
+and shadows) keeps the cells inside its frustum, chooses a level per cell from the apparent size
+of its largest instance at its nearest point, and draws one call per level. Instance buffers are
+uploaded again only when the chosen cells change. Single meshes are culled by their box and use
+their levels too.</li>
+<li>The shadow pass culls against the light&rsquo;s frustum and uses the same level as the main pass: one
+level coarser made tree shadows visibly angular in close views.</li>
+<li>The skill exports two simpler trees: fewer faces (below 3 % of the screen height) and, far away,
+an 8-face crown with a 3-sided trunk (below 0.8 %). Without the trunk the far forest looked
+lighter than before, so it stays.</li>
+<li>Keeping the shadow map between frames was left out: plants bending in the wind change the
+shadows every frame, so it would rarely apply.</li>
+</ul>
+
+<h2 id="phase-2-steady-frame-time-done">Phase 2: steady frame time — done</h2>
+
+<ol>
+<li><strong>Terrain in chunks with levels of detail</strong> (quadtree over the height grid, skirts to hide
+cracks): allows culling and keeps distant terrain cheap when scenes grow (the skill can export
+larger terrains).</li>
+<li><strong>Partial uploads for simulations</strong>: when a few instances move, upload only their range
+(<code>glBufferSubData</code>), and orphan buffers that change every frame, instead of re-uploading
+everything a Dirty flag touches.</li>
+<li><strong>Profile the CPU side</strong> once the GPU is lighter: command collection walks the whole scene
+every frame and uniform setting repeats per draw; cache the command list and world transforms
+of nodes that did not change.</li>
+<li><strong>Sky at lower resolution</strong> if it ever matters (clouds and stars at half resolution, upscaled);
+today it is ~1 ms.</li>
+</ol>
+
+<h3 id="what-was-done-in-phase-2">What was done in phase 2</h3>
+
+<ul>
+<li><strong>Steady measurements first.</strong> With vsync the GPU idles between frames and lowers its speed,
+so the same configuration measured 10–16 ms. Benchmarks now disable vsync and add a second
+round without timer queries; its time between frames is the figure to compare (below).</li>
+<li><strong>Terrain in chunks</strong> (item 4), done in the exporter since the renderer already culls single
+meshes by their box and picks their levels: the skill cuts the height grid into 64×64-cell
+chunks, each with versions keeping one vertex in 2, 4 and 8 (used below 34 %, 17 % and 8.5 %
+of the screen height), and skirts under the edges, deep enough for the largest difference
+between a full and a coarsest edge, so neighbours of different detail leave no cracks. A
+generic quadtree in the renderer was not needed.</li>
+<li><strong>Partial uploads</strong> (item 5): <code>Instances.MarkChanged(indices...)</code> updates only those instances
+in the grid (their cell box grows if they move away) and rewrites only their slot in each batch
+holding them (<code>glBufferSubData</code>). Updating 1,000 of 87,000 instances costs 1.3 ms on the
+processor against 20.3 ms to prepare the grid again (plus a full upload). <code>Dirty</code> still
+prepares everything again when instances are added or removed.</li>
+<li><strong>Processor side</strong> (item 6): without timers it takes 0.7–1.4 ms per frame, so caching the
+command list is not worth it yet.</li>
+<li><strong>Sky</strong> (item 7): instead of a lower resolution (stars are one pixel wide), the sky is drawn
+after the opaque scene with the depth test, so covered pixels cost nothing: 1.1 → 0.2 ms in the
+overview, 1.5 → 0.6 ms walking. Transparent things (water, waterfalls) are drawn after it.</li>
+</ul>
+
+<h2 id="phase-3-size-and-loading-done">Phase 3: size and loading — done</h2>
+
+<ol>
+<li><strong>Smaller files.</strong> The skill&rsquo;s glTF writer now quantizes (<code>KHR_mesh_quantization</code>): colors in
+one byte per channel, normals in one byte per component, 16-bit indices when they fit, and
+positions in 16-bit integers with the center and the scale in the node; instance rotations and
+colors are integers too. Meshes that are instanced keep float positions (the node scale would
+distort every instance), and the levels of a terrain chunk share its box, since they are drawn
+with the same node. The island goes from <strong>76 MB to 33 MB</strong> (19 → 10 MB zipped for sharing).
+
+<ul>
+<li>Two fixes came with it. The renderer transformed normals with the model matrix itself,
+wrong for scales that differ per axis; it now uses the inverse transpose (no measurable
+cost). And with quantized positions the writer must store normals in the mesh&rsquo;s own
+coordinates (world normals multiplied by the node scale, normalized): with world normals the
+terrain looked flatter. After both, renders differ from the float file by under one colour
+level on average.</li>
+<li>Speed does not change (the loader expands to floats) and loading goes from ~60–100 ms to
+~60 ms.</li>
+<li><code>EXT_meshopt_compression</code> was left out: it needs a decoder in Go and would save a few more
+megabytes on a file that zips to 10 MB.</li>
+</ul></li>
+<li><strong>Background loading</strong> was not needed: the scene loads in about 60 ms and uploads in about
+80 ms. It becomes worth it for scenes several times larger.</li>
+</ol>
+
+<h2 id="out-of-scope-for-now">Out of scope for now</h2>
+
+<ul>
+<li>GPU-driven culling with compute shaders: macOS stops at OpenGL 4.1, which has no compute
+shaders. It would come with a Vulkan or Metal backend.</li>
+<li>Changing the look (fewer trees, lower shadow resolution): the goal is the same image, faster.</li>
+</ul>
+
+<h2 id="results">Results</h2>
+
+<p align="center">
+  <img alt="GPU time per frame with shadows, in milliseconds: overview 40.4 at the baseline and 12.3 after phase 1; close 42.4 and 8.9; walking 40.8 and 10.7" src="../images/optimization-results.svg" width="880">
+</p>
+
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>View</th>
+<th>CPU</th>
+<th>GPU shadows</th>
+<th>GPU scene</th>
+<th>GPU total</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Baseline</td>
+<td>Overview</td>
+<td>20.6 ms</td>
+<td>19.0 ms</td>
+<td>20.3 ms</td>
+<td>40.4 ms</td>
+</tr>
+
+<tr>
+<td>Baseline</td>
+<td>Close</td>
+<td>22.1 ms</td>
+<td>20.9 ms</td>
+<td>20.4 ms</td>
+<td>42.4 ms</td>
+</tr>
+
+<tr>
+<td>Baseline</td>
+<td>Walking</td>
+<td>21.0 ms</td>
+<td>19.8 ms</td>
+<td>19.5 ms</td>
+<td>40.8 ms</td>
+</tr>
+
+<tr>
+<td>Phase 1</td>
+<td>Overview</td>
+<td>8.5 ms</td>
+<td>3.7 ms</td>
+<td>6.5 ms</td>
+<td>12.3 ms (10.1 in another run)</td>
+</tr>
+
+<tr>
+<td>Phase 1</td>
+<td>Close</td>
+<td>8.6 ms</td>
+<td>4.3 ms</td>
+<td>2.7 ms</td>
+<td>8.9 ms</td>
+</tr>
+
+<tr>
+<td>Phase 1</td>
+<td>Walking</td>
+<td>9.2 ms</td>
+<td>2.9 ms</td>
+<td>4.3 ms</td>
+<td>10.7 ms</td>
+</tr>
+
+<tr>
+<td>Phase 1</td>
+<td>Overview, no shadows</td>
+<td>5.0 ms</td>
+<td>—</td>
+<td>8.1 ms</td>
+<td>10.7 ms</td>
+</tr>
+</tbody>
+</table>
+<p>Triangles per frame after phase 1: 2.7 M in the overview (was 17.5 M), 1.0 M close, 1.6 M
+walking; shadows 1.1–2.4 M (was 17.5 M). Runs vary by about 2 ms; CPU times include waiting for
+the GPU timers.</p>
+
+<p>From phase 2 on, measured without vsync; the figure is the time between frames in the round
+without timers (the steadiest), with the processor time of that round.</p>
+
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>View</th>
+<th>Processor</th>
+<th>Time between frames</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Phase 1</td>
+<td>Overview</td>
+<td>—</td>
+<td>5.54 ms</td>
+</tr>
+
+<tr>
+<td>Phase 1</td>
+<td>Close</td>
+<td>—</td>
+<td>3.81 ms</td>
+</tr>
+
+<tr>
+<td>Phase 1</td>
+<td>Walking</td>
+<td>—</td>
+<td>3.24 ms</td>
+</tr>
+
+<tr>
+<td>Phase 2</td>
+<td>Overview</td>
+<td>1.35 ms</td>
+<td>4.73 ms (~210 fps)</td>
+</tr>
+
+<tr>
+<td>Phase 2</td>
+<td>Close</td>
+<td>0.87 ms</td>
+<td>3.13 ms (~320 fps)</td>
+</tr>
+
+<tr>
+<td>Phase 2</td>
+<td>Walking</td>
+<td>0.65 ms</td>
+<td>2.46 ms (~400 fps)</td>
+</tr>
+</tbody>
+</table>
+<p>Triangles after phase 2: 2.2 M in the overview, 0.46 M close, 1.15 M walking.</p>
+
+<p>| Phase 3 | Overview | — | 4.81 ms (same as phase 2) |
+| Phase 3 | Walking | — | 2.47 ms (same as phase 2) |</p>
+
+<p>Phase 3 changed the file size, not the speed: 76 → 33 MB, loading ~60 ms.</p>
+
+<hr>
+
+<p><a href="./overview">← All the documentation</a></p>

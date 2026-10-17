@@ -1,0 +1,35 @@
+<h1 id="loaders">loaders</h1>
+<pre><code class="language-go"><span class="kn">import</span> <span class="s">&#34;github.com/akrck02/go-renderer/loaders&#34;</span>
+</code></pre>
+
+<h3 id="functions">Functions</h3>
+
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func LoadGLB(path string) (*models.Model, error)</code></td>
+<td></td>
+</tr>
+
+<tr>
+<td><code>func LoadScene(path string) (*scene.Scene, error)</code></td>
+<td>LoadScene reads a glTF 2.0 file (.glb, or .gltf with external buffers) into a scene.Scene.</td>
+</tr>
+
+<tr>
+<td><code>func ParseSceneGLB(content []byte) (*scene.Scene, error)</code></td>
+<td>ParseSceneGLB reads a scene from the bytes of a .glb file, as LoadScene does from its path: for programs with no file system (a web page) or that carry their scene inside them.</td>
+</tr>
+</tbody>
+</table>
+
+<hr>
+
+<p><a href="./reference/packages">← Reference</a> · generated from the doc comments by <code>generate.py</code></p>

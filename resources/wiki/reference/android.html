@@ -1,0 +1,101 @@
+<h1 id="android">android</h1>
+<pre><code class="language-go"><span class="kn">import</span> <span class="s">&#34;github.com/akrck02/go-renderer/android&#34;</span>
+</code></pre>
+
+<blockquote>
+<p>Built only with <code>GOOS=android</code>.</p>
+</blockquote>
+
+<h3 id="accessiblenode">AccessibleNode</h3>
+
+<p>AccessibleNode is one thing on the screen a screen reader (TalkBack) reads and acts on: a button, a switch, a line of text. The program&rsquo;s interface makes the list in every frame while a screen reader is on (ScreenReaderOn), and ShowAccessibleNodes hands it to Android.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">AccessibleNode</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// ID tells the node apart from one frame to the next: the same while the thing stays, never 0.</span>
+	<span class="nx">ID</span> <span class="kt">int32</span>
+	<span class="c1">// Parent is the node it is inside (a list that scrolls), or 0 for the window.</span>
+	<span class="nx">Parent</span> <span class="kt">int32</span>
+	<span class="c1">// X, Y, Width and Height are where it shows, in layout pixels.</span>
+	<span class="nx">X</span><span class="p">,</span> <span class="nx">Y</span><span class="p">,</span> <span class="nx">Width</span><span class="p">,</span> <span class="nx">Height</span> <span class="kt">float32</span>
+	<span class="c1">// Class is the Android widget it reads as, such as &#34;android.widget.Button&#34;: the screen reader</span>
+	<span class="c1">// says its kind from it (&#34;button&#34;, &#34;switch&#34;).</span>
+	<span class="nx">Class</span>        <span class="kt">string</span>
+	<span class="nx">Label</span><span class="p">,</span> <span class="nx">Value</span> <span class="kt">string</span> <span class="c1">// what it is called, and what it holds (a field&#39;s text)</span>
+
+	<span class="nx">Pressable</span><span class="p">,</span> <span class="nx">LongPressable</span> <span class="kt">bool</span> <span class="c1">// a double tap presses it; a double tap held long-presses it</span>
+	<span class="nx">Checkable</span><span class="p">,</span> <span class="nx">Checked</span>       <span class="kt">bool</span> <span class="c1">// a checkbox, a switch, a radio button, and whether it is on</span>
+	<span class="nx">Selected</span><span class="p">,</span> <span class="nx">Disabled</span>       <span class="kt">bool</span>
+	<span class="nx">Scrollable</span>               <span class="kt">bool</span> <span class="c1">// scrolls, or moves a step: a list, a slider</span>
+	<span class="nx">Editable</span><span class="p">,</span> <span class="nx">Typing</span><span class="p">,</span> <span class="nx">Secret</span> <span class="kt">bool</span> <span class="c1">// a field, whether the keyboard types in it, a password</span>
+	<span class="nx">Heading</span>                  <span class="kt">bool</span>
+
+	<span class="c1">// Minimum, Maximum and Current are a slider&#39;s span and value, when Maximum is above Minimum.</span>
+	<span class="nx">Minimum</span><span class="p">,</span> <span class="nx">Maximum</span><span class="p">,</span> <span class="nx">Current</span> <span class="kt">float32</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="readeraction">ReaderAction</h3>
+
+<p>ReaderAction is what a screen reader asked of which node.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">ReaderAction</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Node</span> <span class="kt">int32</span>
+	<span class="nx">Kind</span> <span class="nx">ReaderActionKind</span>
+	<span class="c1">// Text is a field&#39;s whole new text, for ReaderSetText: what the screen reader typed, pasted or</span>
+	<span class="c1">// spoke into it.</span>
+	<span class="nx">Text</span> <span class="kt">string</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="readeractionkind">ReaderActionKind</h3>
+
+<p>ReaderActionKind is what a screen reader asks of a node, as ScreenReader.java numbers it.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">ReaderActionKind</span> <span class="kt">int</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="nx">ReaderPress</span>     <span class="nx">ReaderActionKind</span> <span class="p">=</span> <span class="kc">iota</span> <span class="o">+</span> <span class="mi">1</span> <span class="c1">// a double tap</span>
+	<span class="nx">ReaderLongPress</span>                             <span class="c1">// a double tap held</span>
+	<span class="nx">ReaderForward</span>                               <span class="c1">// a list scrolls on, a slider goes up a step</span>
+	<span class="nx">ReaderBackward</span>                              <span class="c1">// a list scrolls back, a slider goes down a step</span>
+	<span class="nx">ReaderSetText</span>                               <span class="c1">// a field&#39;s text is replaced by the action&#39;s Text</span>
+<span class="p">)</span>
+</code></pre>
+
+<h3 id="textinput">TextInput</h3>
+
+<p>TextInput is the text of the field being typed in, as the on-screen keyboard sees and edits it. Positions count characters (runes); a composing word is the one the keyboard is still making (a prediction, a Chinese or Japanese reading), shown underlined until the keyboard commits it.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">TextInput</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Text</span>                         <span class="kt">string</span>
+	<span class="nx">SelectionStart</span><span class="p">,</span> <span class="nx">SelectionEnd</span> <span class="kt">int</span> <span class="c1">// the caret when they are equal</span>
+	<span class="nx">ComposingStart</span><span class="p">,</span> <span class="nx">ComposingEnd</span> <span class="kt">int</span> <span class="c1">// equal when nothing is being composed</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="yuvplanes">YUVPlanes</h3>
+
+<p>YUVPlanes is a decoded video picture: a full-size luma plane and two chroma planes of half its width and height, each with how far apart its rows are, and its chroma pixels (1 when a plane holds only its own, 2 when the two are interleaved). Crop is the part that shows.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">YUVPlanes</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Luma</span><span class="p">,</span> <span class="nx">Blue</span><span class="p">,</span> <span class="nx">Red</span>          <span class="p">[]</span><span class="kt">byte</span>
+	<span class="nx">LumaRow</span><span class="p">,</span> <span class="nx">BlueRow</span><span class="p">,</span> <span class="nx">RedRow</span> <span class="kt">int</span>
+	<span class="nx">BluePixel</span><span class="p">,</span> <span class="nx">RedPixel</span>      <span class="kt">int</span>
+	<span class="nx">Crop</span>                     <span class="nx">image</span><span class="p">.</span><span class="nx">Rectangle</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (planes YUVPlanes) ToRGBA(into *image.NRGBA)</code></td>
+<td>ToRGBA turns the picture into straight RGBA, as many pixels as fit into, from the top-left of the crop.</td>
+</tr>
+</tbody>
+</table>
+
+<hr>
+
+<p><a href="./reference/packages">← Reference</a> · generated from the doc comments by <code>generate.py</code></p>

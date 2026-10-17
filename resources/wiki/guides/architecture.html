@@ -1,0 +1,271 @@
+<h1 id="architecture">🧭 Architecture</h1>
+
+<p>go-renderer is a small renderer written in Go to learn how 3D graphics work from the inside. It
+offers two ways to draw:</p>
+
+<ul>
+<li><strong>Immediate mode</strong>: your program says &ldquo;draw this triangle, this image, this model&rdquo; every frame.
+Simple, and good for learning the pipeline.</li>
+<li><strong>A retained scene</strong>: a whole world (terrain, towns, forests, sea, sky) is loaded once from a glTF
+file and the renderer draws it every frame, as fast as it can. This is what the viewer and the
+simulators use.</li>
+</ul>
+
+<p>The renderer only draws. It does not know what a town or a season is: other programs change the
+scene, and it shows the result.</p>
+
+<p align="center">
+  <img alt="Immediate mode: your program's Update and Draw call the hand-written models.Renderer contract, drawn by the software, opengl, vulkan, metal or webgpu backend. A retained scene: glTF 2.0 through loaders into scene and sceneplan, drawn by the scene renderers: opengl and metal on the desktop, gles in browsers and on Android" src="../images/two-ways.svg" width="880">
+</p>
+
+<h2 id="packages">Packages</h2>
+
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Role</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>graphics</code></td>
+<td>Vectors, matrices, coordinate spaces and transformations; the shader sources</td>
+</tr>
+
+<tr>
+<td><code>models</code></td>
+<td>The application loop (<code>Application</code>, a fixed time step before every frame), the <code>Renderer</code> contract and the backend enumeration</td>
+</tr>
+
+<tr>
+<td><code>software</code>, <code>opengl</code>, <code>vulkan</code>, <code>metal</code>, <code>webgpu</code></td>
+<td>Backends behind the contract; OpenGL is the complete one. <code>metal</code> also has <code>FlatWindow</code> and <code>FlatRenderer</code>, which draw a flat interface through Metal on macOS (<a href="./guides/metal">design</a>)</td>
+</tr>
+
+<tr>
+<td><code>sceneplan</code></td>
+<td>Decides what a frame of a scene draws, for any backend: the draw commands in order, culling and levels of detail, instance batches, where the shadow and seabed maps look</td>
+</tr>
+
+<tr>
+<td><code>scene/sample</code></td>
+<td>A made-up island that uses every feature the renderers draw, for tests and comparisons</td>
+</tr>
+
+<tr>
+<td><code>gles</code></td>
+<td>Renderers written once for OpenGL ES (WebGL2 in browsers, Android): a flat <code>FlatRenderer</code> and a simple <code>SceneRenderer</code>, over a small interface each platform implements (<a href="./guides/web">in a browser</a>)</td>
+</tr>
+
+<tr>
+<td><code>browser</code></td>
+<td>Built only for WebAssembly: a canvas as the window, its events as input, WebGL2, and the loop over <code>requestAnimationFrame</code></td>
+</tr>
+
+<tr>
+<td><code>android</code></td>
+<td>Built only for Android: the program as a NativeActivity&rsquo;s shared library, its window, touches and drawing thread, direct OpenGL ES calls (<a href="./guides/android">on Android</a>)</td>
+</tr>
+
+<tr>
+<td><code>frameloop</code></td>
+<td>The fixed-step clock and update step that the desktop and browser loops share</td>
+</tr>
+
+<tr>
+<td><code>windowloop</code></td>
+<td>The window loop both OpenGL and Metal use: GLFW events and input, drawing on demand, the fixed-step clock, redrawing while resizing, the pointer&rsquo;s shape and lock</td>
+</tr>
+
+<tr>
+<td><code>scene</code></td>
+<td>The retained, backend-independent scene, with its overlay (labels, header, notices)</td>
+</tr>
+
+<tr>
+<td><code>loaders</code></td>
+<td>glTF 2.0 loading, including the renderer&rsquo;s extras</td>
+</tr>
+
+<tr>
+<td><code>opengl/overlay</code></td>
+<td>Lays out the overlay as rectangles of one atlas of glyphs, icons and rounded corners (no graphics context needed)</td>
+</tr>
+
+<tr>
+<td><code>draw2d</code></td>
+<td>A list of flat shapes (rounded rectangles, shadows, text, icons, pictures, clips, layers) to paint over the view, filled by a program or an interface library</td>
+</tr>
+
+<tr>
+<td><code>input</code></td>
+<td>A backend-independent snapshot of keyboard and mouse state: held keys and buttons, presses and releases, double clicks, typed characters, clipboard, pointer shape, and what an interface claimed</td>
+</tr>
+
+<tr>
+<td><code>camera</code></td>
+<td>Camera controllers: orbit, walk and map; the ray through a point of the window (<code>RayThrough</code>) and where it meets a plane or the ground</td>
+</tr>
+
+<tr>
+<td><code>viewer</code></td>
+<td>The interactive explorer behind <code>cmd/visor</code></td>
+</tr>
+
+<tr>
+<td><code>cmd/visor</code></td>
+<td>The viewer as a program</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="the-immediate-mode-contract">The immediate-mode contract</h2>
+
+<p>An application implements an update and a draw, and calls the renderer every frame:</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Renderer</span> <span class="kd">interface</span> <span class="p">{</span>
+	<span class="nf">RenderPolygon</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">coordinates</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">,</span> <span class="nx">fill</span> <span class="kt">bool</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="nf">RenderTriangle</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">coordinates</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">,</span> <span class="nx">fill</span> <span class="kt">bool</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="nf">RenderRectangle</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">coordinates</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">float32</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">,</span> <span class="nx">fill</span> <span class="kt">bool</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="nf">RenderImage</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">bytes</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">,</span> <span class="nx">coordinates</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">float32</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="nf">Render3dObject</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">vertices</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="nf">Render3dModel</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">model</span> <span class="o">*</span><span class="nx">Model</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="nf">SetMatrices</span><span class="p">(</span><span class="nx">projection</span><span class="p">,</span> <span class="nx">view</span><span class="p">,</span> <span class="nx">model</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Mat4</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre>
+
+<p>Coordinates can be given in local, world or viewport space; the backend does the transformations.
+<code>models.Application.Update</code> runs at a fixed time step before every frame, so motion does not
+depend on the frame rate.</p>
+
+<p>An application that is mostly still (a window of controls) sets <code>DrawOnDemand</code>: the loop then
+sleeps in <code>glfw.WaitEvents</code> and draws only when input arrives, when the program asked for a frame
+with <code>input.State.RequestFrame</code> (a caret&rsquo;s next blink), or when another goroutine calls
+<code>opengl.Wake</code> (or <code>windowloop.Wake</code>). Each such frame runs one update step, and a frame with input is followed by one
+more so hover looks catch up with a layout that just changed. Idle, it uses no processor. <code>Application.Unchanged</code> lets an application say a frame would repeat
+the last one shown (go-ui compares <code>draw2d.List.Fingerprint</code>), and the loop then neither draws nor
+presents it. In the default, continuous mode a frame is drawn only after an update step, so a
+display faster than the updates does not draw the same picture twice. While a
+window is being resized, it is redrawn from GLFW&rsquo;s refresh callback, since macOS holds the loop
+until the mouse is let go.</p>
+
+<p>This loop lives in <code>windowloop</code> and knows nothing about the graphics interface: <code>windowloop.Run</code>
+takes the window, the application and a function that draws and shows one frame. The OpenGL
+backend and the Metal flat window both use it, so they behave the same way.</p>
+
+<h2 id="the-retained-scene">The retained scene</h2>
+
+<p><code>scene.Scene</code> is a description of a 3D scene that does not depend on any backend:</p>
+
+<ul>
+<li><strong>Nodes</strong> with transforms, children, names and tags (the glTF extras), drawing meshes.</li>
+<li><strong>Meshes</strong> with positions, per-vertex normals and colours, indices and a <strong>material</strong>: <code>lit</code>,
+<code>unlit</code>, <code>water</code> or <code>waterfall</code>, with an optional procedural pattern (cobbles, masonry, plaster,
+shingles, planks, grass), a glow, a sway (how much the wind bends it) and a depth bias.</li>
+<li><strong>Instances</strong>: one mesh drawn many times (GPU instancing), each copy with its transform and tint.</li>
+<li><strong>Levels of detail</strong>: simpler versions of a mesh for when it looks small on screen.</li>
+<li><strong>The environment</strong>: sun, sky, fog, water plane, wind, snow and foliage tint, and the vertical
+exaggeration. <code>scene.Sky</code> describes the sky over a whole day, and <code>Environment.Daylight()</code>
+derives, from the sun&rsquo;s height, the sky colours and the light of the moment (sun by day, moon by
+night).</li>
+</ul>
+
+<p>Meshes and instances can be marked <code>Dirty</code> so a simulation changes them and the backend uploads
+them again; <code>Instances.MarkChanged(indices...)</code> uploads only the instances that changed.
+<code>GroundHeight(x, z)</code> answers the height of the walkable meshes through a grid index.</p>
+
+<h2 id="loading">Loading</h2>
+
+<p><code>loaders.LoadScene</code> reads glTF 2.0 (<code>.glb</code> or <code>.gltf</code>): the node hierarchy, <code>COLOR_0</code>, quantized
+attributes (<code>KHR_mesh_quantization</code>: integer positions, normals, colours and indices),
+<code>EXT_mesh_gpu_instancing</code> (with a <code>_COLOR</code> per instance), and the renderer&rsquo;s
+<a href="./guides/gltf-extras">extras</a>: environment, sky, water, material kinds, levels of detail and walkable
+ground.</p>
+
+<p><code>loaders.ParseSceneGLB</code> reads the same from the bytes of a <code>.glb</code>, for programs with no file system
+(a web page) or that carry their scene inside them.</p>
+
+<h2 id="the-scene-renderers">The scene renderers</h2>
+
+<p>There are two, which draw the same frame: <code>opengl.SceneRenderer</code> and, on macOS, <code>metal.SceneRenderer</code>
+(the viewer chooses with <code>-backend</code>; Metal by default on macOS). What a frame draws is decided once,
+in <code>sceneplan</code>, which makes no graphics calls; each backend only uploads and draws that plan, with
+shaders that are faithful translations of each other. Their captures of the sample island match
+except for rounding and where two surfaces lie in the same plane (<code>cmd/visor</code>&rsquo;s
+<code>TestMetalDrawsTheSceneLikeOpenGL</code>; <a href="./guides/metal">measurements</a>).</p>
+
+<table>
+<tr><th width="50%">OpenGL (<code>-backend opengl</code>)</th><th width="50%">Metal (<code>-backend metal</code>)</th></tr>
+<tr>
+<td><img alt="The sample island drawn through OpenGL" src="../images/backend-opengl.png"></td>
+<td><img alt="The same frame of the sample island drawn through Metal, alike to the eye" src="../images/backend-metal.png"></td>
+</tr>
+<tr><td colspan="2" align="center">The same plan, drawn by each backend: <code>go run ./cmd/visor -sample island -time 10 -backend … -capture frame.png</code></td></tr>
+</table>
+
+<p>Each uploads each mesh once and draws instanced geometry in a single call, so a
+forest of a hundred thousand trees costs a few draw calls. Every frame goes through the same passes:</p>
+
+<p align="center">
+  <img alt="The six passes of a frame in order: 1 culling, what is in view at what detail; 2 shadows, the scene seen from the sun; 3 sky, day, night, stars and clouds; 4 scene, light, fog, patterns, snow and wind; 5 water, depth, waves, tides and foam; 6 overlay, labels, header, notices and drawing" src="../images/frame-passes.svg" width="880">
+</p>
+
+<ol>
+<li><strong>Culling.</strong> Instances are kept in grid cells; cells outside the view frustum are skipped, and
+each cell picks a level of detail by its size on screen.</li>
+<li><strong>Shadows.</strong> A shadow map fitted around the camera target, rendered from the sun, filtered with
+PCF (<code>ShadowSettings</code>).</li>
+<li><strong>Sky.</strong> A procedural day gradient, twilight glow, stars that turn around the celestial pole, a
+moon with phases that lights the night, clouds that drift with the wind, constellations, or
+skybox images (equirectangular panoramas or six cube faces, one for the day and one for the
+night).</li>
+<li><strong>Scene.</strong> Sun or moon light with sky ambient, fog, procedural surface patterns, glowing
+materials, snow on surfaces facing up, the season&rsquo;s tint on foliage, wind sway on plants.</li>
+<li><strong>Water.</strong> Coloured by its depth, read from a top-down depth map of the ground that is rendered
+once per scene (and again when a ground mesh is <code>Dirty</code>); waves, foam on the shore, tides that
+rise and fall differently from place to place, and waterfalls.</li>
+<li><strong>Overlay.</strong> Labels over things in the world, a header and fading notices, and on top of them
+a free 2D drawing (<code>Overlay.Drawing</code>, a <code>draw2d.List</code>), in screen space with one texture atlas
+and one draw call (see <a href="./guides/overlay">the overlay</a>).</li>
+</ol>
+
+<h2 id="input-cameras-and-the-viewer">Input, cameras and the viewer</h2>
+
+<p>The window backend feeds <code>input</code> with a snapshot of the keyboard and the mouse: what is held, and
+what happened since the last update step (keys and buttons that went down or up, keys repeated by
+the system, characters typed, which click of a double click a press was). An interface drawn over
+the view can <strong>claim</strong> the mouse or the keyboard for a step (<code>ClaimMouse</code>, <code>ClaimKeyboard</code>); the
+viewer gives its cameras and shortcuts <code>State.Unclaimed()</code>, a copy without what was claimed, so a
+slider being dragged does not turn the camera. <code>camera.Orbit</code>
+(drag, pan, zoom), <code>camera.Walk</code> (first person on the ground) and <code>camera.Plan</code> (a flat map, from
+above or isometric) turn it into a camera placement.</p>
+
+<p>On a touch screen the first finger is the pointer (<code>input.TouchPointer</code>): it moves the cursor and
+holds the left button, so a tap is a click and a drag turns the orbit. A second finger lets the
+button go, and every finger on the screen is in <code>State.Touches</code>. <code>input.TwoFingers</code> turns two
+fingers, from one step to the next, into a <code>Gesture</code>: how much they spread apart, how much they
+turned and how far their middle moved. <code>Orbit.Gesture</code> follows it as a map does: the ground between
+the fingers stays between them while they pinch, twist and move; <code>Walk.Steer</code> walks as an on-screen stick says and <code>Walk.Turn</code> looks
+around by a finger&rsquo;s movement. The interface&rsquo;s copy (<code>Unclaimed</code>) keeps the touches, so a program
+can tell which finger is on its own control. A camera with an <code>OrthographicHeight</code> is
+drawn without perspective: it shows that many scene units from the bottom to the top of the
+window, and shadows and levels of detail follow that size instead of the distance to the camera.
+The <code>viewer</code> package puts it all together: cameras, sun, fog, shadows, vertical exaggeration,
+headless captures and benchmarks. <code>viewer.Run</code> takes an optional update function called at every
+fixed step, so another program can change the scene while it is shown. Without one, the viewer
+draws on demand: only while input arrives, a key is held or the view is still moving.
+<code>viewer.Edit</code> is for programs that edit the scene: they run at every step with a <code>viewer.View</code>
+that turns the pointer into a point on the ground, and the viewer still draws on demand.</p>
+
+<h2 id="simulations">Simulations</h2>
+
+<p>The renderer draws the scene as it is and knows nothing about simulations. Moving things, wind
+gusts, drifting clouds, the day cycle or growing cities live in the sibling project
+<a href="https://github.com/akrck02/go-simulator" target="_blank">go-simulator</a>, which changes the scene through <code>viewer.Run</code>. The renderer only
+reads the state they leave: node transforms, <code>Environment.Wind</code>, <code>Sky.Clouds.Offset</code>, the sun
+direction, the snow line and the foliage tint.</p>
+
+<hr>
+
+<p><a href="./overview">← All the documentation</a></p>

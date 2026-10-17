@@ -1,0 +1,374 @@
+<h1 id="the-viewer">🔭 The viewer</h1>
+
+<p><code>cmd/visor</code> opens a glTF 2.0 scene (<code>.glb</code> or <code>.gltf</code>) and lets you explore it: fly around it like
+a bird, walk on the ground at eye height, or look at it as a flat map; move the sun to see it at dawn or at night; take a
+picture or measure how fast it draws.</p>
+<pre><code class="language-bash">go run ./cmd/visor scene.glb
+go run ./cmd/visor -walk scene.glb
+go run ./cmd/visor -map scene.glb                 <span class="c1"># a 2D map seen from straight above</span>
+go run ./cmd/visor -isometric scene.glb           <span class="c1"># the same map, at the classic isometric angle</span>
+go run ./cmd/visor -capture frame.png scene.glb   <span class="c1"># one frame to PNG, hidden window</span>
+go run ./cmd/visor -sample island                 <span class="c1"># a built-in made-up island, no file needed</span>
+go run ./cmd/visor -benchmark <span class="m">120</span> scene.glb       <span class="c1"># CPU and GPU times per pass, draw calls, triangles</span>
+</code></pre>
+
+<table>
+<tr><th width="50%">Orbit (the default)</th><th width="50%">Walking (<code>-walk</code>, or <code>Tab</code>)</th></tr>
+<tr>
+<td><img alt="The sample island from the orbit camera: the forest, the summit, the river and the village with its label" src="../images/orbit.png"></td>
+<td>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../images/walk-dark.png">
+  <img alt="At eye height in the village square, facing the harbour house, by day (light theme) or at night (dark theme)" src="../images/walk-light.png">
+</picture>
+</td>
+</tr>
+<tr>
+<td><code>go run ./cmd/visor -sample island</code></td>
+<td><code>-sample island -walk -look-at 20,32 -heading 0 -pitch 14</code>, and <code>-sample night</code> for the night</td>
+</tr>
+</table>
+
+<p>The viewer <strong>draws only when something changes</strong>: a key or button held, the mouse moving the
+camera, a camera easing to a stop, the sun turning, a notice fading, the window resized. In
+between it sleeps and uses no processor or GPU, and the water and clouds stand still until the next
+frame. <code>-continuous</code> draws every frame instead; a program that passes an update function (a
+simulation) and <code>-benchmark</code> always do.</p>
+
+<h3 id="editing-the-scene">Editing the scene</h3>
+
+<p><code>viewer.Edit</code> shows a scene like <code>viewer.Run</code>, for a program that changes it in answer to the user
+(a level editor, a floor plan designer). Its function runs at every step, before the viewer&rsquo;s own
+controls, and receives a <code>viewer.View</code>: the camera that drew the frame the user is looking at and
+the window&rsquo;s size. <code>View.PointOnPlane(x, y, height)</code> and <code>View.PointOnGround(x, y)</code> turn a point of
+the window (the pointer, <code>input.State.CursorX</code> and <code>CursorY</code>) into a point of the scene: on a flat
+floor, or on the walkable ground with its relief. The viewer keeps drawing on demand; a program
+that claims the mouse (<code>input.State.ClaimMouse</code>, as go-ui does over its panels) keeps it from the
+camera for that step. <code>camera.RayThrough</code> is the ray behind both, for any camera.</p>
+<pre><code class="language-go"><span class="nx">viewer</span><span class="p">.</span><span class="nf">Edit</span><span class="p">(</span><span class="nx">world</span><span class="p">,</span> <span class="nx">options</span><span class="p">,</span> <span class="s">&#34;Editor&#34;</span><span class="p">,</span> <span class="kd">func</span><span class="p">(</span><span class="nx">world</span> <span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Scene</span><span class="p">,</span> <span class="nx">state</span> <span class="o">*</span><span class="nx">input</span><span class="p">.</span><span class="nx">State</span><span class="p">,</span> <span class="nx">step</span> <span class="kt">float64</span><span class="p">,</span> <span class="nx">view</span> <span class="nx">viewer</span><span class="p">.</span><span class="nx">View</span><span class="p">)</span> <span class="p">{</span>
+	<span class="k">if</span> <span class="nx">point</span><span class="p">,</span> <span class="nx">onGround</span> <span class="o">:=</span> <span class="nx">view</span><span class="p">.</span><span class="nf">PointOnGround</span><span class="p">(</span><span class="nx">state</span><span class="p">.</span><span class="nx">CursorX</span><span class="p">,</span> <span class="nx">state</span><span class="p">.</span><span class="nx">CursorY</span><span class="p">);</span> <span class="nx">onGround</span> <span class="o">&amp;&amp;</span> <span class="nx">state</span><span class="p">.</span><span class="nf">ButtonReleased</span><span class="p">(</span><span class="nx">input</span><span class="p">.</span><span class="nx">MouseLeft</span><span class="p">)</span> <span class="p">{</span>
+		<span class="nf">placeSomething</span><span class="p">(</span><span class="nx">world</span><span class="p">,</span> <span class="nx">point</span><span class="p">)</span>
+	<span class="p">}</span>
+<span class="p">})</span>
+</code></pre>
+
+<h2 id="orbit-camera-default">Orbit camera (default)</h2>
+
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Left drag</td>
+<td>Rotate around the target</td>
+</tr>
+
+<tr>
+<td>Right drag (or shift + left drag)</td>
+<td>Pan</td>
+</tr>
+
+<tr>
+<td>Scroll</td>
+<td>Zoom</td>
+</tr>
+
+<tr>
+<td><code>←</code> <code>→</code></td>
+<td>Rotate</td>
+</tr>
+
+<tr>
+<td><code>↑</code> <code>↓</code></td>
+<td>Tilt</td>
+</tr>
+
+<tr>
+<td><code>+</code> <code>-</code></td>
+<td>Zoom in or out</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="walking-tab-switches">Walking (<code>Tab</code> switches)</h2>
+
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>W</code> <code>A</code> <code>S</code> <code>D</code></td>
+<td>Move forward, left, back, right</td>
+</tr>
+
+<tr>
+<td><code>↑</code> <code>↓</code></td>
+<td>Move forward or back</td>
+</tr>
+
+<tr>
+<td><code>←</code> <code>→</code></td>
+<td>Turn</td>
+</tr>
+
+<tr>
+<td>Drag with any mouse button</td>
+<td>Look around</td>
+</tr>
+
+<tr>
+<td><code>Shift</code></td>
+<td>Run</td>
+</tr>
+
+<tr>
+<td><code>[</code> <code>]</code></td>
+<td>Walk slower or faster (×1.5 per press)</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="map-m-switches">Map (<code>M</code> switches)</h2>
+
+<p><code>M</code> goes round three views: the orbit camera, a map seen from straight above, and an isometric
+view, then back to the orbit. Both maps use an orthographic camera: nothing gets smaller with
+distance, so lengths and areas can be compared anywhere on screen, as on a printed map. Fog is
+lifted while a map is shown.</p>
+
+<table>
+<tr><th width="50%">From straight above (<code>-map</code>)</th><th width="50%">Isometric (<code>-isometric</code>)</th></tr>
+<tr>
+<td><img alt="The island from straight above, north up, without perspective" src="../images/map.png"></td>
+<td><img alt="The island at the classic isometric angle, without perspective" src="../images/isometric.png"></td>
+</tr>
+</table>
+
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Drag with any mouse button</td>
+<td>Move the map (the ground follows the cursor)</td>
+</tr>
+
+<tr>
+<td><code>←</code> <code>→</code> <code>↑</code> <code>↓</code></td>
+<td>Move the map</td>
+</tr>
+
+<tr>
+<td>Scroll, <code>+</code> <code>-</code></td>
+<td>Zoom</td>
+</tr>
+
+<tr>
+<td><code>Q</code> <code>E</code></td>
+<td>Turn a quarter (the top view starts with north up)</td>
+</tr>
+
+<tr>
+<td><code>Tab</code></td>
+<td>Leave the map and walk</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="sun-sky-and-scene-all-modes">Sun, sky and scene (all modes)</h2>
+
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>J</code> <code>L</code></td>
+<td>Turn the sun</td>
+</tr>
+
+<tr>
+<td><code>I</code> <code>K</code></td>
+<td>Raise or lower the sun (below the horizon it is night)</td>
+</tr>
+
+<tr>
+<td><code>N</code></td>
+<td>Jump between day and night</td>
+</tr>
+
+<tr>
+<td><code>Z</code> <code>X</code></td>
+<td>Less or more vertical exaggeration (orbit only)</td>
+</tr>
+
+<tr>
+<td><code>F</code></td>
+<td>Fog (toggle)</td>
+</tr>
+
+<tr>
+<td><code>O</code></td>
+<td>Shadows (toggle)</td>
+</tr>
+</tbody>
+</table>
+
+<table>
+<tr><th width="50%">Low sun (<code>-sun-elevation 4 -sun-azimuth 270</code>)</th><th width="50%">Night (<code>-night</code>, or <code>-sample night</code>)</th></tr>
+<tr>
+<td><img alt="The island at dusk: long shadows across the forest and a pale sky at the horizon" src="../images/dusk.png"></td>
+<td><img alt="The island at night, lit by the moon, the label still readable" src="../images/night.png"></td>
+</tr>
+</table>
+
+<h2 id="options">Options</h2>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Effect</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>-walk</code></td>
+<td>Start walking on the ground</td>
+</tr>
+
+<tr>
+<td><code>-map</code></td>
+<td>Start with the map seen from above (<code>-zoom</code> and <code>-look-at</code> work too)</td>
+</tr>
+
+<tr>
+<td><code>-isometric</code></td>
+<td>Start with the isometric map</td>
+</tr>
+
+<tr>
+<td><code>-night</code></td>
+<td>Start at night</td>
+</tr>
+
+<tr>
+<td><code>-sun-elevation D</code> / <code>-sun-azimuth D</code></td>
+<td>Place the sun (degrees; negative elevation is below the horizon; azimuth clockwise from north)</td>
+</tr>
+
+<tr>
+<td><code>-zoom F</code></td>
+<td>Initial orbit distance as a fraction of the default (0.1 = ten times closer)</td>
+</tr>
+
+<tr>
+<td><code>-look-at x,z</code></td>
+<td>Start centred on this point, in scene units; with <code>-walk</code>, start walking there</td>
+</tr>
+
+<tr>
+<td><code>-heading D</code></td>
+<td>With <code>-walk</code>, start facing this way: degrees clockwise from north (−z)</td>
+</tr>
+
+<tr>
+<td><code>-pitch D</code></td>
+<td>With <code>-walk</code>, start looking up this many degrees (negative = down)</td>
+</tr>
+
+<tr>
+<td><code>-eye-height H</code></td>
+<td>With <code>-walk</code>, eye height in scene units (0 = a share of the scene size)</td>
+</tr>
+
+<tr>
+<td><code>-walk-speed S</code></td>
+<td>Walking speed in scene units per second (0 = a share of the scene size); <code>[</code> <code>]</code> then change it within a range around it, so a small scene in large units (a plant in kilometres) walks at a person&rsquo;s pace</td>
+</tr>
+
+<tr>
+<td><code>-no-shadows</code></td>
+<td>Start without sun shadows</td>
+</tr>
+
+<tr>
+<td><code>-width</code> / <code>-height</code></td>
+<td>Window size</td>
+</tr>
+
+<tr>
+<td><code>-capture frame.png</code></td>
+<td>Render one frame to a PNG with a hidden window, and exit (the <a href="./guides/overlay">overlay</a> included)</td>
+</tr>
+
+<tr>
+<td><code>-benchmark N</code></td>
+<td>Measure N frames, print CPU and GPU times per pass, draw calls and triangles, and exit</td>
+</tr>
+
+<tr>
+<td><code>-no-vsync</code></td>
+<td>Do not wait for the display; the window title shows the real frames per second</td>
+</tr>
+
+<tr>
+<td><code>-cpu-profile file</code></td>
+<td>Write a CPU profile of the session for <code>go tool pprof</code></td>
+</tr>
+
+<tr>
+<td><code>-continuous</code></td>
+<td>Draw every frame, so the water, clouds and plants in the wind keep moving while nothing else happens</td>
+</tr>
+
+<tr>
+<td><code>-backend B</code></td>
+<td>What draws: <code>automatic</code> (Metal on macOS, OpenGL elsewhere), <code>metal</code> or <code>opengl</code></td>
+</tr>
+
+<tr>
+<td><code>-sample island</code> / <code>-sample night</code></td>
+<td>Open the built-in sample island (package <code>scene/sample</code>) instead of a file</td>
+</tr>
+
+<tr>
+<td><code>-time S</code></td>
+<td>Draw every frame as if S seconds had passed: water and clouds stand still, so captures can be compared</td>
+</tr>
+</tbody>
+</table>
+<p>Other programs reuse these options: <code>viewer.Options.RegisterFlags</code> adds them to any flag set, as
+go-simulator&rsquo;s live simulator does.</p>
+
+<table>
+<tr><th width="50%">With shadows (the default)</th><th width="50%">Without (<code>-no-shadows</code>, or <code>O</code>)</th></tr>
+<tr>
+<td><img alt="The village with the trees and the house casting shadows" src="../images/shadows-on.png"></td>
+<td><img alt="The same view without shadows: flatter, the trees float on the ground" src="../images/shadows-off.png"></td>
+</tr>
+<tr><td colspan="2" align="center"><code>go run ./cmd/visor -sample island -zoom 0.35 -look-at 20,15 -capture frame.png</code></td></tr>
+</table>
+
+<hr>
+
+<p><a href="./overview">← All the documentation</a></p>

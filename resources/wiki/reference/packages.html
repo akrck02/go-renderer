@@ -1,0 +1,261 @@
+<h1 id="reference">Reference</h1>
+
+<p>Every public package, type and function, with the first sentence of its documentation. The pages
+are generated from the doc comments (<code>python3 docs/5-reference/generate.py</code> from the repository&rsquo;s
+root), so they say exactly what <code>go doc</code> says; for the whole comment of anything, run
+<code>go doc github.com/akrck02/go-renderer/scene.Mesh</code> or open the source.</p>
+
+<h2 id="which-package-do-i-need">Which package do I need?</h2>
+
+<table>
+<thead>
+<tr>
+<th>I want to…</th>
+<th>Package</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Show a scene in a window, with cameras, a sun and captures</td>
+<td><a href="./reference/viewer"><code>viewer</code></a></td>
+</tr>
+
+<tr>
+<td>Describe a scene: nodes, meshes, materials, instances, sky, water, labels</td>
+<td><a href="./reference/scene"><code>scene</code></a></td>
+</tr>
+
+<tr>
+<td>Open a <code>.glb</code> or <code>.gltf</code></td>
+<td><a href="./reference/loaders"><code>loaders</code></a></td>
+</tr>
+
+<tr>
+<td>Read the keyboard, the mouse and fingers</td>
+<td><a href="./reference/input"><code>input</code></a></td>
+</tr>
+
+<tr>
+<td>Move a camera myself, or find what is under the pointer</td>
+<td><a href="./reference/camera"><code>camera</code></a></td>
+</tr>
+
+<tr>
+<td>Paint flat shapes, text, icons and pictures over the view</td>
+<td><a href="./reference/draw2d"><code>draw2d</code></a></td>
+</tr>
+
+<tr>
+<td>Vectors, matrices, transforms</td>
+<td><a href="./reference/graphics"><code>graphics</code></a></td>
+</tr>
+
+<tr>
+<td>A made-up island to test with</td>
+<td><a href="./reference/scene-sample"><code>scene/sample</code></a></td>
+</tr>
+
+<tr>
+<td>Draw triangles myself every frame (immediate mode), or run my own loop</td>
+<td><a href="./reference/models"><code>models</code></a></td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="core">Core</h3>
+
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>What it is</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><a href="./reference/scene"><code>scene</code></a></td>
+<td>The retained scene: nodes, meshes, materials, instances, levels of detail, the environment (sun, sky, fog, water, wind, snow) and the overlay (labels, header, notices, a free drawing)</td>
+</tr>
+
+<tr>
+<td><a href="./reference/viewer"><code>viewer</code></a></td>
+<td>The interactive explorer: <code>Run</code> for programs that animate, <code>Edit</code> for programs that change the scene in answer to the person; options and flags</td>
+</tr>
+
+<tr>
+<td><a href="./reference/input"><code>input</code></a></td>
+<td>A snapshot of the keyboard, mouse and touch screen at each step; claims, the clipboard, the pointer&rsquo;s shape, frames asked for</td>
+</tr>
+
+<tr>
+<td><a href="./reference/camera"><code>camera</code></a></td>
+<td>Orbit, walking and map controllers; the ray through a pixel</td>
+</tr>
+
+<tr>
+<td><a href="./reference/draw2d"><code>draw2d</code></a></td>
+<td>A list of flat shapes in layout pixels, which the backends paint over everything</td>
+</tr>
+
+<tr>
+<td><a href="./reference/loaders"><code>loaders</code></a></td>
+<td>glTF 2.0 with the renderer&rsquo;s extras</td>
+</tr>
+
+<tr>
+<td><a href="./reference/graphics"><code>graphics</code></a></td>
+<td><code>Vec4</code>, <code>Mat4</code>, transformations and projections, the shaders&rsquo; sources</td>
+</tr>
+
+<tr>
+<td><a href="./reference/models"><code>models</code></a></td>
+<td>The application loop (<code>Application</code>), the camera, and the immediate-mode <code>Renderer</code> contract</td>
+</tr>
+
+<tr>
+<td><a href="./reference/scene-sample"><code>scene/sample</code></a></td>
+<td>A made-up island that uses every feature, needing no files</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="platforms-and-internals">Platforms and internals</h3>
+
+<p>Programs rarely use these directly: <code>viewer</code> and go-ui&rsquo;s <code>window</code> choose and drive them.</p>
+
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>What it is</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><a href="./reference/opengl"><code>opengl</code></a></td>
+<td>The OpenGL 4.1 backend: the window, the scene renderer, the flat renderer</td>
+</tr>
+
+<tr>
+<td><a href="./reference/opengl-overlay"><code>opengl/overlay</code></a></td>
+<td>Lays the overlay out as quads of one atlas: fonts, icons, the text measurer</td>
+</tr>
+
+<tr>
+<td><a href="./reference/metal"><code>metal</code></a></td>
+<td>Metal on macOS: flat and scene windows and renderers</td>
+</tr>
+
+<tr>
+<td><a href="./reference/gles"><code>gles</code></a></td>
+<td>Renderers written once for OpenGL ES: WebGL2 in browsers, Android</td>
+</tr>
+
+<tr>
+<td><a href="./reference/browser"><code>browser</code></a></td>
+<td>A canvas as the window, built with <code>GOOS=js GOARCH=wasm</code></td>
+</tr>
+
+<tr>
+<td><a href="./reference/android"><code>android</code></a></td>
+<td>The program as a NativeActivity: window, touches, keyboard, screen reader, built with <code>GOOS=android</code></td>
+</tr>
+
+<tr>
+<td><a href="./reference/windowloop"><code>windowloop</code></a></td>
+<td>The GLFW window loop OpenGL and Metal share</td>
+</tr>
+
+<tr>
+<td><a href="./reference/frameloop"><code>frameloop</code></a></td>
+<td>The fixed-step clock every loop shares</td>
+</tr>
+
+<tr>
+<td><a href="./reference/sceneplan"><code>sceneplan</code></a></td>
+<td>What a frame of a scene draws, worked out once for every backend</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="conventions">Conventions</h2>
+
+<p>These hold across every package.</p>
+
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Rule</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><strong>Axes</strong></td>
+<td>y is up; the ground is the x–z plane; north is −z</td>
+</tr>
+
+<tr>
+<td><strong>Units</strong></td>
+<td>The scene&rsquo;s units are yours (metres, kilometres); some defaults scale with the scene&rsquo;s size</td>
+</tr>
+
+<tr>
+<td><strong>Points and directions</strong></td>
+<td>A <code>Vec4</code> with 1 last is a point, with 0 a direction; colours use it as opacity</td>
+</tr>
+
+<tr>
+<td><strong>Matrices</strong></td>
+<td>Column-major, as OpenGL; <code>a.Multiply(b)</code> applies <code>b</code> first; translation in elements 12, 13, 14</td>
+</tr>
+
+<tr>
+<td><strong>Scene colours</strong></td>
+<td>Linear RGB(A), 0 to 1, lit and gamma-corrected by the renderer</td>
+</tr>
+
+<tr>
+<td><strong>Screen colours</strong></td>
+<td><code>draw2d.Color</code> and the overlay&rsquo;s tints are as seen on screen, not gamma-corrected</td>
+</tr>
+
+<tr>
+<td><strong>Screen positions</strong></td>
+<td><code>draw2d</code> and touches: layout pixels from the top-left corner, multiplied by the screen&rsquo;s density when drawn. <code>input.State.CursorX</code>/<code>CursorY</code> and <code>viewer.View</code>: window pixels</td>
+</tr>
+
+<tr>
+<td><strong>Time</strong></td>
+<td>Update functions run at a fixed step (<sup>1</sup>&frasl;<sub>60</sub> s by default), whatever the frame rate</td>
+</tr>
+
+<tr>
+<td><strong>Goroutines</strong></td>
+<td>Update and edit functions run on the drawing goroutine: change the scene there, with no locks. From another goroutine, wake the window (<code>opengl.Wake</code>) and hand the change over</td>
+</tr>
+
+<tr>
+<td><strong>Uploads</strong></td>
+<td>Meshes and instances are uploaded once; set <code>Dirty</code> (or <code>Instances.MarkChanged</code>) after changing them</td>
+</tr>
+
+<tr>
+<td><strong>Zero values</strong></td>
+<td>A zero field usually means &ldquo;the default&rdquo; (<code>FogFar</code> 0 = no fog, <code>VerticalScale</code> 0 = 1); the field&rsquo;s comment says which</td>
+</tr>
+
+<tr>
+<td><strong>Icons</strong></td>
+<td>By <a href="https://lucide.dev/icons" target="_blank">Lucide</a> name, everywhere</td>
+</tr>
+</tbody>
+</table>
+
+<hr>
+
+<p><a href="./overview">← Documentation</a></p>

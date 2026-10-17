@@ -1,0 +1,402 @@
+<h1 id="sceneplan">sceneplan</h1>
+<pre><code class="language-go"><span class="kn">import</span> <span class="s">&#34;github.com/akrck02/go-renderer/sceneplan&#34;</span>
+</code></pre>
+
+<p>Package sceneplan decides what a frame of a scene.Scene draws, for any graphics
+backend: the draw commands in order, what the camera and the sun see, the level
+of detail of every mesh and group of instances, where the shadow map and the
+seabed map look. It makes no graphics calls; a backend (OpenGL, Metal) draws the
+plan, so both draw the same thing.</p>
+
+<h3 id="functions">Functions</h3>
+
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func BaseColorOf(material *scene.Material) graphics.Vec4</code></td>
+<td>BaseColorOf returns a material&rsquo;s colour, white when it is unset.</td>
+</tr>
+
+<tr>
+<td><code>func CastsShadow(command Command) bool</code></td>
+<td>CastsShadow tells whether a command is drawn into the shadow map.</td>
+</tr>
+
+<tr>
+<td><code>func ColorOrWhite(color graphics.Vec4) graphics.Vec4</code></td>
+<td>ColorOrWhite returns the colour, or white when it is unset.</td>
+</tr>
+
+<tr>
+<td><code>func ConstellationVisibility(sky *scene.Sky, light scene.Daylight) float32</code></td>
+<td>ConstellationVisibility is how much the constellations show: fully at night, faintly by day as much as the stars do.</td>
+</tr>
+
+<tr>
+<td><code>func ElementCount(mesh *scene.Mesh) int</code></td>
+<td>ElementCount is how many vertices a mesh&rsquo;s draw call reads: its indices, or its vertices when it has none.</td>
+</tr>
+
+<tr>
+<td><code>func InterleaveHarmonics(variation *scene.LevelVariation) []float32</code></td>
+<td>InterleaveHarmonics packs the in-phase and in-quadrature grids of a water level variation as two channels of one texture.</td>
+</tr>
+
+<tr>
+<td><code>func InterleaveVertices(mesh *scene.Mesh) []float32</code></td>
+<td>InterleaveVertices packs position, normal and colour per vertex (white when there are no colours), computing the normals first when the mesh has none.</td>
+</tr>
+
+<tr>
+<td><code>func IsTransparent(material *scene.Material) bool</code></td>
+<td>IsTransparent tells whether a material is blended over what is behind it.</td>
+</tr>
+
+<tr>
+<td><code>func LineColor(color graphics.Vec4) graphics.Vec4</code></td>
+<td>LineColor is the colour a constellation&rsquo;s lines are drawn with: its own, more transparent.</td>
+</tr>
+
+<tr>
+<td><code>func PackInstances(instances *scene.Instances) []float32</code></td>
+<td>PackInstances writes the matrix and the colour of every instance (white when missing).</td>
+</tr>
+
+<tr>
+<td><code>func ScaleOrOne(value float32) float32</code></td>
+<td>ScaleOrOne returns the value, or 1 when it is not positive.</td>
+</tr>
+
+<tr>
+<td><code>func ShallowColorOf(water *scene.Water) graphics.Vec4</code></td>
+<td>ShallowColorOf is the colour of shallow water, with a default when it is unset.</td>
+</tr>
+
+<tr>
+<td><code>func WaveLengthFor(water *scene.Water) float32</code></td>
+<td>WaveLengthFor is the length of the sea&rsquo;s main wave, 1 without water.</td>
+</tr>
+
+<tr>
+<td><code>func WindDirection(wind scene.Wind) (float32, float32)</code></td>
+<td>WindDirection is the horizontal direction of the wind, normalised, as x and z.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="constants-and-variables">Constants and variables</h3>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">FloatsPerInstance</span> <span class="p">=</span> <span class="mi">20</span>
+</code></pre>
+
+<p>FloatsPerInstance is the size of an instance on the GPU: its matrix 16 (column by column) and its colour 4.</p>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">FloatsPerVertex</span> <span class="p">=</span> <span class="mi">10</span>
+</code></pre>
+
+<p>FloatsPerVertex is the size of a vertex on the GPU: position 3, normal 3, colour 4.</p>
+
+<h3 id="batch">Batch</h3>
+
+<p>Batch is one draw call of an instanced node: a version of its mesh and the instances drawn with it.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Batch</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Mesh</span>   <span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Mesh</span>
+	<span class="nx">Count</span>  <span class="kt">int</span>
+	<span class="nx">Handle</span> <span class="kt">any</span> <span class="c1">// what the backend&#39;s BatchStore returned</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="batchstore">BatchStore</h3>
+
+<p>BatchStore keeps the GPU buffers of instance batches for a backend. The planner decides which instances go in each batch; the store holds them where the GPU reads them.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">BatchStore</span> <span class="kd">interface</span> <span class="p">{</span>
+	<span class="c1">// FillBatch puts packed instances (FloatsPerInstance values each) in a batch drawn with mesh,</span>
+	<span class="c1">// a version of the instanced mesh, and returns the batch. handle is the batch it had for this</span>
+	<span class="c1">// level before (nil the first time); the store may reuse it or make a new one.</span>
+	<span class="nf">FillBatch</span><span class="p">(</span><span class="nx">handle</span> <span class="kt">any</span><span class="p">,</span> <span class="nx">mesh</span> <span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Mesh</span><span class="p">,</span> <span class="nx">packed</span> <span class="p">[]</span><span class="kt">float32</span><span class="p">)</span> <span class="kt">any</span>
+	<span class="c1">// RewriteInstances replaces instances of a batch, starting at position (counted in instances).</span>
+	<span class="nf">RewriteInstances</span><span class="p">(</span><span class="nx">handle</span> <span class="kt">any</span><span class="p">,</span> <span class="nx">position</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">packed</span> <span class="p">[]</span><span class="kt">float32</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="cameramatrices">CameraMatrices</h3>
+
+<p>CameraMatrices are the matrices of one frame, in OpenGL&rsquo;s clip space (depth from -1 to 1); a backend with another clip space converts them.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">CameraMatrices</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Projection</span><span class="p">,</span> <span class="nx">View</span><span class="p">,</span> <span class="nx">ViewProjection</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Mat4</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func ComputeCameraMatrices(camera models.Camera, width, height int) CameraMatrices</code></td>
+<td>ComputeCameraMatrices returns the camera&rsquo;s matrices for a framebuffer of this size.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="command">Command</h3>
+
+<p>Command is one node to draw this frame.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Command</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Node</span>                  <span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Node</span>
+	<span class="nx">World</span>                 <span class="nx">graphics</span><span class="p">.</span><span class="nx">Mat4</span>
+	<span class="nx">Material</span>              <span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Material</span>
+	<span class="nx">SquaredCameraDistance</span> <span class="kt">float32</span>
+	<span class="nx">Transparent</span>           <span class="kt">bool</span>
+	<span class="nx">SeaSurface</span>            <span class="kt">bool</span> <span class="c1">// the environment&#39;s water plane: the only surface the level variation moves</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="frame">Frame</h3>
+
+<p>Frame is the plan of one frame.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Frame</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Matrices</span>    <span class="nx">CameraMatrices</span>
+	<span class="nx">Light</span>       <span class="nx">scene</span><span class="p">.</span><span class="nx">Daylight</span>
+	<span class="nx">View</span>        <span class="nx">Viewpoint</span> <span class="c1">// what the camera sees</span>
+	<span class="nx">Opaque</span>      <span class="p">[]</span><span class="nx">Command</span> <span class="c1">// drawn first, in order</span>
+	<span class="nx">Transparent</span> <span class="p">[]</span><span class="nx">Command</span> <span class="c1">// drawn after the sky, farthest first</span>
+	<span class="nx">Commands</span>    <span class="p">[]</span><span class="nx">Command</span> <span class="c1">// all of them, opaque first</span>
+	<span class="nx">Shadow</span>      <span class="nx">ShadowPlan</span>
+	<span class="nx">Seabed</span>      <span class="nx">SeabedPlan</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="framestatistics">FrameStatistics</h3>
+
+<p>FrameStatistics describes the last frame drawn by a scene renderer. Counts are always filled; times only when the renderer is profiling.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">FrameStatistics</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">DrawCalls</span>       <span class="kt">int</span> <span class="c1">// main pass</span>
+	<span class="nx">ShadowDrawCalls</span> <span class="kt">int</span>
+	<span class="nx">Triangles</span>       <span class="kt">int</span> <span class="c1">// main pass, instances included</span>
+	<span class="nx">ShadowTriangles</span> <span class="kt">int</span>
+	<span class="nx">Instances</span>       <span class="kt">int</span> <span class="c1">// instances drawn in the main pass</span>
+
+	<span class="nx">CPU</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Duration</span> <span class="c1">// time spent drawing on the processor (without waiting for the GPU)</span>
+	<span class="nx">GPU</span> <span class="nx">PassTimes</span>     <span class="c1">// time spent by the GPU on each pass</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="linerange">LineRange</h3>
+
+<p>LineRange is the part of the constellation buffer that holds one constellation&rsquo;s lines, with its colour.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">LineRange</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">First</span><span class="p">,</span> <span class="nx">Count</span> <span class="kt">int32</span>
+	<span class="nx">Color</span>        <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func ConstellationVertices(constellations []scene.Constellation) (vertices []float32, pointCount int32, lineRanges []LineRange)</code></td>
+<td>ConstellationVertices lays out every star first (drawn as points) and then the line segments of each constellation, three floats (a direction) per vertex.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="pass">Pass</h3>
+
+<p>Pass identifies the passes that choose their own visible parts and levels of detail.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Pass</span> <span class="kt">int</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="nx">MainPass</span> <span class="nx">Pass</span> <span class="p">=</span> <span class="kc">iota</span>
+	<span class="nx">ShadowPass</span>
+<span class="p">)</span>
+</code></pre>
+
+<h3 id="passtimes">PassTimes</h3>
+
+<p>PassTimes are GPU durations of the passes of one frame.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">PassTimes</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Seabed</span><span class="p">,</span> <span class="nx">Shadows</span><span class="p">,</span> <span class="nx">Sky</span><span class="p">,</span> <span class="nx">Scene</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Duration</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (times PassTimes) Total() time.Duration</code></td>
+<td>Total returns the sum of the pass durations.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="planner">Planner</h3>
+
+<p>Planner plans the frames of one renderer. It remembers what does not change between frames: the boxes of meshes, the grids of instances and the batches the backend keeps for them, the water meshes, the size of the scene.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Planner</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func NewPlanner(batches BatchStore) *Planner</code></td>
+<td>NewPlanner makes a planner whose instance batches live in batches.</td>
+</tr>
+
+<tr>
+<td><code>func (planner *Planner) Count(which Pass, mesh *scene.Mesh, instances int)</code></td>
+<td>Count records a draw call of a mesh in a pass, with this many instances (0 for a single copy).</td>
+</tr>
+
+<tr>
+<td><code>func (planner *Planner) InstanceBatches(command Command, view Viewpoint, which Pass) []Batch</code></td>
+<td>InstanceBatches returns the batches to draw for an instanced node from a viewpoint: its visible cells, one batch per level of detail.</td>
+</tr>
+
+<tr>
+<td><code>func (planner *Planner) MeshToDraw(command Command, view Viewpoint) (*scene.Mesh, bool)</code></td>
+<td>MeshToDraw returns the version of a single (not instanced) mesh to draw from a viewpoint, at the level of detail its apparent size calls for, and false when it is outside the view.</td>
+</tr>
+
+<tr>
+<td><code>func (planner *Planner) Plan(world *scene.Scene, camera models.Camera, width, height int, shadows ShadowSettings) Frame</code></td>
+<td>Plan plans a frame of the scene from the camera, for a framebuffer of this size.</td>
+</tr>
+
+<tr>
+<td><code>func (planner *Planner) Statistics(processorTime time.Duration) FrameStatistics</code></td>
+<td>Statistics returns the counts of the frame planned last, with the processor time it took.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="seabedplan">SeabedPlan</h3>
+
+<p>SeabedPlan says whether the seabed map, the depth of the ground seen from above over the whole scene, must be drawn again this frame. The water shader reads it to know how deep the water is.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">SeabedPlan</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Redraw</span>    <span class="kt">bool</span> <span class="c1">// the scene is new or its ground changed</span>
+	<span class="nx">Available</span> <span class="kt">bool</span> <span class="c1">// there is ground to draw</span>
+	<span class="nx">Region</span>    <span class="nx">SeabedRegion</span>
+	<span class="nx">Casters</span>   <span class="p">[]</span><span class="nx">Command</span> <span class="c1">// what to draw into the map, whole and without culling</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="seabedregion">SeabedRegion</h3>
+
+<p>SeabedRegion is the box the seabed map sees from straight above: its projection (OpenGL clip space) and the heights at depth 0 and 1.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">SeabedRegion</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">ViewProjection</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Mat4</span>
+	<span class="nx">Top</span><span class="p">,</span> <span class="nx">Bottom</span>    <span class="kt">float32</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="shadowplan">ShadowPlan</h3>
+
+<p>ShadowPlan is where the shadow map looks this frame.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">ShadowPlan</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Enabled</span> <span class="kt">bool</span>
+	<span class="nx">Region</span>  <span class="nx">ShadowRegion</span>
+	<span class="nx">View</span>    <span class="nx">Viewpoint</span> <span class="c1">// what the sun sees, at one level of detail coarser</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="shadowregion">ShadowRegion</h3>
+
+<p>ShadowRegion is what the lighting pass needs to look up the shadow map.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">ShadowRegion</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">LightView</span><span class="p">,</span> <span class="nx">LightProjection</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Mat4</span> <span class="c1">// OpenGL clip space</span>
+	<span class="nx">TexelSize</span>                  <span class="kt">float32</span>       <span class="c1">// in shadow map coordinates</span>
+	<span class="nx">NormalOffset</span>               <span class="kt">float32</span>       <span class="c1">// in world units</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (region ShadowRegion) LightViewProjection() graphics.Mat4</code></td>
+<td>LightViewProjection is the light&rsquo;s projection times its view.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="shadowsettings">ShadowSettings</h3>
+
+<p>ShadowSettings controls the sun shadows. A single shadow map covers a square region around the camera target. The region grows with the distance between the camera and its target, so a far view shadows the whole scene coarsely and a close (or walking) view gets sharp shadows nearby.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">ShadowSettings</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Enabled</span>                 <span class="kt">bool</span>
+	<span class="nx">Resolution</span>              <span class="kt">int32</span>   <span class="c1">// texels per side of the shadow map (0 = 4096)</span>
+	<span class="nx">MinimumExtent</span>           <span class="kt">float32</span> <span class="c1">// smallest half-size of the region in world units (0 = 1% of the scene)</span>
+	<span class="nx">MaximumExtent</span>           <span class="kt">float32</span> <span class="c1">// largest half-size (0 = the whole scene)</span>
+	<span class="nx">ExtentPerCameraDistance</span> <span class="kt">float32</span> <span class="c1">// half-size per unit of camera distance (0 = 1.2)</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func DefaultShadowSettings() ShadowSettings</code></td>
+<td>DefaultShadowSettings returns enabled shadows with automatic sizes.</td>
+</tr>
+
+<tr>
+<td><code>func (settings ShadowSettings) EffectiveResolution() int32</code></td>
+<td>EffectiveResolution is the shadow map&rsquo;s texels per side.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="viewpoint">Viewpoint</h3>
+
+<p>Viewpoint is what decides which parts of the scene are drawn and how detailed they are.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Viewpoint</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<hr>
+
+<p><a href="./reference/packages">← Reference</a> · generated from the doc comments by <code>generate.py</code></p>

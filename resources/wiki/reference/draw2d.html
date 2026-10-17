@@ -1,0 +1,339 @@
+<h1 id="draw2d">draw2d</h1>
+<pre><code class="language-go"><span class="kn">import</span> <span class="s">&#34;github.com/akrck02/go-renderer/draw2d&#34;</span>
+</code></pre>
+
+<p>Package draw2d is a list of flat shapes to draw over the 3D view, in screen
+space: rounded rectangles with a border, soft shadows, lines of text and icons,
+each optionally clipped to a rectangle and placed on a layer. A program (or
+an interface library) fills a List every frame; a backend paints it on top of
+everything else.</p>
+
+<p>Coordinates are layout pixels with the origin at the top-left corner of the
+window: the same units as the cursor in input.State. The backend multiplies them
+by the screen&rsquo;s density (2 on a high-density screen), so a 13-pixel text has the
+same size on every screen and stays sharp.</p>
+
+<p>The package does no drawing and needs no graphics context: it is plain data,
+easy to build and to check in tests.</p>
+
+<h3 id="constants-and-variables">Constants and variables</h3>
+<pre><code class="language-go"><span class="kd">var</span> <span class="nx">Transparent</span> <span class="p">=</span> <span class="nx">Color</span><span class="p">{}</span>
+</code></pre>
+
+<p>Transparent paints nothing.</p>
+
+<h3 id="color">Color</h3>
+
+<p>Color is a straight (not premultiplied) RGBA colour, each channel from 0 to 1, as seen on screen: it is not gamma-corrected like the lit scene.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Color</span> <span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="kt">float32</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func Hex(text string) Color</code></td>
+<td>Hex reads a colour written as &ldquo;#rrggbb&rdquo; or &ldquo;#rrggbbaa&rdquo;.</td>
+</tr>
+
+<tr>
+<td><code>func ParseHex(text string) (Color, error)</code></td>
+<td>ParseHex reads a colour written as &ldquo;#rrggbb&rdquo; or &ldquo;#rrggbbaa&rdquo;.</td>
+</tr>
+
+<tr>
+<td><code>func (color Color) IsVisible() bool</code></td>
+<td>IsVisible tells whether the colour paints anything.</td>
+</tr>
+
+<tr>
+<td><code>func (color Color) Mix(other Color, amount float32) Color</code></td>
+<td>Mix blends towards another colour: 0 keeps this one, 1 gives the other.</td>
+</tr>
+
+<tr>
+<td><code>func (color Color) WithAlpha(opacity float32) Color</code></td>
+<td>WithAlpha returns the colour with its alpha multiplied by an opacity.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="command">Command</h3>
+
+<p>Command is one shape of the list. Only the fields of its kind are used; keeping every kind in one flat struct lets a list be reused frame after frame without allocating.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Command</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Kind</span>    <span class="nx">Kind</span>
+	<span class="nx">Area</span>    <span class="nx">Rect</span> <span class="c1">// the rectangle, the shadow&#39;s caster, the icon&#39;s square</span>
+	<span class="nx">Layer</span>   <span class="kt">int</span>  <span class="c1">// higher layers cover lower ones; within a layer, later commands cover earlier ones</span>
+	<span class="nx">Clip</span>    <span class="nx">Rect</span> <span class="c1">// nothing is drawn outside it, when HasClip</span>
+	<span class="nx">HasClip</span> <span class="kt">bool</span>
+
+	<span class="nx">Radius</span>      <span class="kt">float32</span> <span class="c1">// rectangle and shadow: corner radius</span>
+	<span class="nx">Fill</span>        <span class="nx">Color</span>   <span class="c1">// rectangle: inside; shadow, text, icon: their colour</span>
+	<span class="nx">Border</span>      <span class="nx">Color</span>   <span class="c1">// rectangle: the outline</span>
+	<span class="nx">BorderWidth</span> <span class="kt">float32</span> <span class="c1">// rectangle: outline thickness, inside the area</span>
+	<span class="nx">Blur</span>        <span class="kt">float32</span> <span class="c1">// shadow: how far it fades out; Area is the caster grown by it and moved down</span>
+
+	<span class="nx">Text</span>     <span class="kt">string</span>  <span class="c1">// text: the line; icon: the icon&#39;s name</span>
+	<span class="nx">Size</span>     <span class="kt">float32</span> <span class="c1">// text and icon: size in layout pixels (the font&#39;s em square)</span>
+	<span class="nx">Weight</span>   <span class="nx">Weight</span>  <span class="c1">// text</span>
+	<span class="nx">Baseline</span> <span class="kt">float32</span> <span class="c1">// text: y of the baseline; the line starts at Area.X</span>
+
+	<span class="nx">Picture</span> <span class="o">*</span><span class="nx">Image</span> <span class="c1">// image: what it shows; Fill tints it (white shows it as it is)</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="image">Image</h3>
+
+<p>Image is a picture a list draws: a photo, a map tile, a video&rsquo;s frame. A program makes one for each picture it shows and keeps it between frames, so the backend uploads its pixels once. To show other pixels in it (the next frame of a video), the program writes them into Pixels and calls Changed.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Image</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Pixels are the picture&#39;s colours, not premultiplied by their opacity.</span>
+	<span class="nx">Pixels</span> <span class="o">*</span><span class="nx">image</span><span class="p">.</span><span class="nx">NRGBA</span>
+
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func DecodeImage(reader io.Reader) (*Image, error)</code></td>
+<td>DecodeImage reads a PNG, JPEG or GIF picture (a file the program embeds, a download) into an Image.</td>
+</tr>
+
+<tr>
+<td><code>func NewBlankImage(width, height int) *Image</code></td>
+<td>NewBlankImage makes an Image of a size, transparent, for pixels the program writes itself (a video&rsquo;s frames).</td>
+</tr>
+
+<tr>
+<td><code>func NewImage(picture image.Image) *Image</code></td>
+<td>NewImage makes an Image of a decoded picture (image.Decode&rsquo;s PNG, JPEG or GIF), turning its colours into straight RGBA.</td>
+</tr>
+
+<tr>
+<td><code>func (picture *Image) Changed()</code></td>
+<td>Changed tells the backend that Pixels hold another picture of the same size, to upload again.</td>
+</tr>
+
+<tr>
+<td><code>func (picture *Image) ID() uint64</code></td>
+<td>ID tells images apart for the life of the program.</td>
+</tr>
+
+<tr>
+<td><code>func (picture *Image) Size() (width, height int)</code></td>
+<td>Size is the picture&rsquo;s width and height in pixels.</td>
+</tr>
+
+<tr>
+<td><code>func (picture *Image) Version() uint64</code></td>
+<td>Version counts the times the picture changed (Changed).</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="kind">Kind</h3>
+
+<p>Kind says what a command draws.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Kind</span> <span class="kt">int</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="nx">RectangleKind</span> <span class="nx">Kind</span> <span class="p">=</span> <span class="kc">iota</span> <span class="c1">// a rounded rectangle with a fill and a border</span>
+	<span class="nx">ShadowKind</span>                <span class="c1">// a soft shadow under a rounded rectangle</span>
+	<span class="nx">TextKind</span>                  <span class="c1">// one line of text</span>
+	<span class="nx">IconKind</span>                  <span class="c1">// one icon</span>
+	<span class="nx">ImageKind</span>                 <span class="c1">// a picture covering a rounded rectangle</span>
+<span class="p">)</span>
+</code></pre>
+
+<h3 id="list">List</h3>
+
+<p>List collects the commands of a frame. The zero value is an empty list ready to use.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">List</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Commands</span> <span class="p">[]</span><span class="nx">Command</span>
+
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (list *List) Fingerprint(seed maphash.Seed) uint64</code></td>
+<td>Fingerprint sums up everything the list draws in one number: two lists with the same fingerprint draw the same picture (barring a hash collision).</td>
+</tr>
+
+<tr>
+<td><code>func (list *List) Icon(name string, x, y, size float32, color Color)</code></td>
+<td>Icon draws an icon by name (a Lucide icon, <a href="https://lucide.dev" target="_blank">https://lucide.dev</a>) filling a square of size pixels whose top-left corner is at (x, y).</td>
+</tr>
+
+<tr>
+<td><code>func (list *List) Image(picture *Image, area Rect, radius float32, tint Color)</code></td>
+<td>Image draws a picture covering a rounded rectangle: scaled to fill it, and cropped evenly at the sides or at the top and bottom when their shapes differ, as photos fill cards and avatars.</td>
+</tr>
+
+<tr>
+<td><code>func (list *List) IsEmpty() bool</code></td>
+<td>IsEmpty tells whether the list has nothing to draw.</td>
+</tr>
+
+<tr>
+<td><code>func (list *List) PopClip()</code></td>
+<td>PopClip returns to the clip before the last PushClip.</td>
+</tr>
+
+<tr>
+<td><code>func (list *List) PushClip(area Rect)</code></td>
+<td>PushClip limits the following commands to a rectangle, inside the current clip if there is one.</td>
+</tr>
+
+<tr>
+<td><code>func (list *List) Rectangle(area Rect, radius float32, fill, border Color, borderWidth float32)</code></td>
+<td>Rectangle draws a rounded rectangle: fill inside, and a border of a width drawn inside the area.</td>
+</tr>
+
+<tr>
+<td><code>func (list *List) Reset()</code></td>
+<td>Reset empties the list, keeping its memory for the next frame.</td>
+</tr>
+
+<tr>
+<td><code>func (list *List) SetLayer(layer int)</code></td>
+<td>SetLayer makes the following commands go on a layer: for example 0 for panels, 1 for menus that open over them and 2 for tooltips.</td>
+</tr>
+
+<tr>
+<td><code>func (list *List) Shadow(area Rect, radius, blur, offsetY float32, color Color)</code></td>
+<td>Shadow draws a soft shadow for a rounded rectangle, fading out over blur pixels on every side and falling offsetY pixels below it.</td>
+</tr>
+
+<tr>
+<td><code>func (list *List) Text(text string, x, baseline, size float32, weight Weight, color Color)</code></td>
+<td>Text draws one line of text starting at x, with its baseline at baseline.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="measurer">Measurer</h3>
+
+<p>Measurer measures text the way the backend draws it, so that what is laid out is what is painted. scale is the screen&rsquo;s density (framebuffer pixels per layout pixel): text is drawn at size·scale pixels, whose widths do not always scale exactly.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Measurer</span> <span class="kd">interface</span> <span class="p">{</span>
+	<span class="nf">MeasureText</span><span class="p">(</span><span class="nx">text</span> <span class="kt">string</span><span class="p">,</span> <span class="nx">size</span> <span class="kt">float32</span><span class="p">,</span> <span class="nx">weight</span> <span class="nx">Weight</span><span class="p">,</span> <span class="nx">scale</span> <span class="kt">float32</span><span class="p">)</span> <span class="nx">TextMetrics</span>
+	<span class="c1">// HasIcon tells whether an icon name is known to the backend.</span>
+	<span class="nf">HasIcon</span><span class="p">(</span><span class="nx">name</span> <span class="kt">string</span><span class="p">)</span> <span class="kt">bool</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="rect">Rect</h3>
+
+<p>Rect is an area of the screen: its top-left corner and its size, in layout pixels.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Rect</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">X</span><span class="p">,</span> <span class="nx">Y</span><span class="p">,</span> <span class="nx">Width</span><span class="p">,</span> <span class="nx">Height</span> <span class="kt">float32</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (rect Rect) Bottom() float32</code></td>
+<td>Bottom is the y of the rectangle&rsquo;s bottom edge.</td>
+</tr>
+
+<tr>
+<td><code>func (rect Rect) Contains(x, y float32) bool</code></td>
+<td>Contains tells whether a point is inside the rectangle (left and top edges included).</td>
+</tr>
+
+<tr>
+<td><code>func (rect Rect) Inset(amount float32) Rect</code></td>
+<td>Inset shrinks the rectangle by an amount on every side.</td>
+</tr>
+
+<tr>
+<td><code>func (rect Rect) Intersect(other Rect) Rect</code></td>
+<td>Intersect returns the area two rectangles share; it is empty when they do not overlap.</td>
+</tr>
+
+<tr>
+<td><code>func (rect Rect) IsEmpty() bool</code></td>
+<td>IsEmpty tells whether the rectangle covers no area.</td>
+</tr>
+
+<tr>
+<td><code>func (rect Rect) Right() float32</code></td>
+<td>Right is the x of the rectangle&rsquo;s right edge.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="textmetrics">TextMetrics</h3>
+
+<p>TextMetrics are the measures of a line of text, in layout pixels.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">TextMetrics</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Width</span>   <span class="kt">float32</span> <span class="c1">// how far the line reaches from its start</span>
+	<span class="nx">Ascent</span>  <span class="kt">float32</span> <span class="c1">// from the baseline up to the top of the tallest letters</span>
+	<span class="nx">Descent</span> <span class="kt">float32</span> <span class="c1">// from the baseline down to the bottom of the lowest letters</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (metrics TextMetrics) Height() float32</code></td>
+<td>Height is the line&rsquo;s height: ascent plus descent.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="weight">Weight</h3>
+
+<p>Weight is how heavy a text is drawn.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Weight</span> <span class="kt">int</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="nx">Regular</span> <span class="nx">Weight</span> <span class="p">=</span> <span class="kc">iota</span> <span class="c1">// body text</span>
+	<span class="nx">Medium</span>                <span class="c1">// labels that should stand out a little</span>
+	<span class="nx">Bold</span>                  <span class="c1">// titles</span>
+	<span class="nx">Mono</span>                  <span class="c1">// codes and keys, in a monospaced face, so they stand apart from words</span>
+<span class="p">)</span>
+</code></pre>
+
+<hr>
+
+<p><a href="./reference/packages">← Reference</a> · generated from the doc comments by <code>generate.py</code></p>
