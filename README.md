@@ -24,11 +24,7 @@ go run ./cmd/visor -sample island         # a built-in made-up island
 
 ## Documentation
 
-New here? [Get started](docs/get-started.md), then follow [the tutorial](docs/tutorial/README.md):
-six lessons that build an island with a lighthouse. The [reference](docs/reference/README.md) lists
-every package.
-
-Everything is in [docs/](docs/README.md): [architecture](docs/architecture.md),
+Everything is in [docs/](docs/README.md): [get started](docs/get-started.md), [the tutorial](docs/tutorial/README.md), [the reference](docs/reference/README.md), [architecture](docs/architecture.md),
 [the viewer](docs/viewer.md), [the overlay](docs/overlay.md), [in a web browser](docs/web.md), [on Android](docs/android.md), [Metal](docs/metal.md), [glTF extras](docs/gltf-extras.md),
 [optimization plan](docs/optimization-plan.md) and [roadmap](docs/roadmap.md).
 
