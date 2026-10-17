@@ -1,3 +1,5 @@
+<p align="center"><img alt="" src="docs/images/logo.svg" width="120"></p>
+
 <div align="center">
 
 # Go renderer
@@ -91,7 +93,7 @@ go run ./cmd/visor -sample island -capture frame.png   # one frame to a PNG, in 
 
 It needs a display with OpenGL 4.1 (or Metal on macOS), and the OpenGL, X11/Wayland and GLFW
 build headers, since the window goes through GLFW and cgo. Every control and option is in
-[the viewer](docs/viewer.md).
+[the viewer](docs/4-guides/2-viewer.md).
 
 ## 🔍 How it works
 
@@ -102,7 +104,7 @@ build headers, since the window goes through GLFW and cgo. Every control and opt
 What a frame draws (culling, levels of detail, instance batches, shadows, sky, water, the overlay)
 is decided once, in plain Go; each backend only uploads and draws that plan. Next to it sits the
 original, hand-written immediate-mode contract, where a program says "draw this triangle" every
-frame. [More on the architecture →](docs/architecture.md)
+frame. [More on the architecture →](docs/4-guides/1-architecture.md)
 
 ## 🎯 Goals
 
@@ -112,17 +114,19 @@ frame. [More on the architecture →](docs/architecture.md)
 
 ## 📚 Documentation
 
+New here? Start with the [overview](docs/1-overview.md), then [get started](docs/2-get-started.md) and [the quest](docs/3-the-quest/0-the-quest.md). Every package is in [the reference](docs/5-reference/0-packages.md).
+
 | | |
 |---|---|
-| [Architecture](docs/architecture.md) | The two ways to draw, the packages, the retained scene, the passes of a frame. |
-| [The viewer](docs/viewer.md) | `cmd/visor`: every control, key and option, with a picture of each view. |
-| [The overlay](docs/overlay.md) | Labels, the header and notices over the 3D view, and free 2D drawing (`draw2d`). |
-| [glTF extras](docs/gltf-extras.md) | What the renderer reads from a scene's extras: sky, water, materials, labels. |
-| [In a web browser](docs/web.md) | The island through WebGL2, and the renderers shared with phones. |
-| [On Android](docs/android.md) | A program as an Android app: its own activity, the keyboard, screen readers. |
-| [Metal](docs/metal.md) | The Metal backend on macOS: why, how it fits, what was measured. |
-| [Optimization plan](docs/optimization-plan.md) | Measurements and the plan that guided the performance work. |
-| [Roadmap](docs/roadmap.md) | Goals for the next versions. |
+| [Architecture](docs/4-guides/1-architecture.md) | The two ways to draw, the packages, the retained scene, the passes of a frame. |
+| [The viewer](docs/4-guides/2-viewer.md) | `cmd/visor`: every control, key and option, with a picture of each view. |
+| [The overlay](docs/4-guides/3-overlay.md) | Labels, the header and notices over the 3D view, and free 2D drawing (`draw2d`). |
+| [glTF extras](docs/4-guides/4-gltf-extras.md) | What the renderer reads from a scene's extras: sky, water, materials, labels. |
+| [In a web browser](docs/4-guides/5-web.md) | The island through WebGL2, and the renderers shared with phones. |
+| [On Android](docs/4-guides/6-android.md) | A program as an Android app: its own activity, the keyboard, screen readers. |
+| [Metal](docs/4-guides/7-metal.md) | The Metal backend on macOS: why, how it fits, what was measured. |
+| [Optimization plan](docs/6-project/1-optimization-plan.md) | Measurements and the plan that guided the performance work. |
+| [Roadmap](docs/6-project/2-roadmap.md) | Goals for the next versions. |
 
 Simulations (moving things, weather, growing towns) live in the sibling project
 [go-simulator](https://github.com/akrck02/go-simulator), which changes the scene while the viewer shows it.

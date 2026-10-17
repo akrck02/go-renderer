@@ -97,8 +97,8 @@ Built after the flat path, in the same way:
 <table>
 <tr><th width="50%">OpenGL</th><th width="50%">Metal</th></tr>
 <tr>
-<td><img alt="The sample island drawn through OpenGL" src="images/backend-opengl.png"></td>
-<td><img alt="The same frame drawn through Metal, alike to the eye" src="images/backend-metal.png"></td>
+<td><img alt="The sample island drawn through OpenGL" src="../images/backend-opengl.png"></td>
+<td><img alt="The same frame drawn through Metal, alike to the eye" src="../images/backend-metal.png"></td>
 </tr>
 <tr><td colspan="2" align="center">The sample island at a fixed time (<code>-time 10</code>), captured through each backend with <code>-backend opengl</code> and <code>-backend metal</code>.</td></tr>
 </table>
@@ -141,7 +141,7 @@ Android keeps its own small OpenGL ES flat renderer, as planned in go-ui's `docs
 ## How it fits together
 
 <p align="center">
-  <img alt="An interface (a draw2d.List, what go-ui draws) goes through the painter (opengl/overlay: quads of one atlas, plain Go), then to metal.FlatRenderer on macOS or opengl.FlatRenderer elsewhere; one window loop (windowloop) serves both: GLFW events, drawing on demand, resizing" src="images/metal-stack.svg" width="880">
+  <img alt="An interface (a draw2d.List, what go-ui draws) goes through the painter (opengl/overlay: quads of one atlas, plain Go), then to metal.FlatRenderer on macOS or opengl.FlatRenderer elsewhere; one window loop (windowloop) serves both: GLFW events, drawing on demand, resizing" src="../images/metal-stack.svg" width="880">
 </p>
 
 | Layer | What it does |
@@ -275,4 +275,4 @@ It was estimated at three to four days. Each step kept the OpenGL path working.
 
 ---
 
-[← All the documentation](README.md)
+[← All the documentation](../1-overview.md)

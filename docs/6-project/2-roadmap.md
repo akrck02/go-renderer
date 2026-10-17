@@ -18,4 +18,4 @@ These are the goals for the next versions of the library. The feature implementa
 
 ---
 
-[← All the documentation](README.md)
+[← All the documentation](../1-overview.md)

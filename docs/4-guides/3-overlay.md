@@ -5,7 +5,7 @@ lighthouse just switch on? The **overlay** answers those questions with small, l
 over the 3D view, a header pinned to the top-left corner and short notices that fade away.
 
 <p align="center">
-  <img alt="Where each part goes: the header in a card at the top-left corner with one line per pinned item, notices under it (newest first, fading after a few seconds), and a label (an icon and a text in a light pill, with a badge under it) above the thing it belongs to" src="images/overlay-layout.svg" width="880">
+  <img alt="Where each part goes: the header in a card at the top-left corner with one line per pinned item, notices under it (newest first, fading after a few seconds), and a label (an icon and a text in a light pill, with a badge under it) above the thing it belongs to" src="../images/overlay-layout.svg" width="880">
 </p>
 
 It is **visual only**: nothing on it can be clicked. It is part of the scene (`Scene.Overlay`), so
@@ -15,7 +15,7 @@ include it.
 ## Labels
 
 <p align="center">
-  <img alt="A real label from the sample island: a house icon and the text Harbour house in a white pill, the badge open under it, above the house it belongs to" src="images/label.png" width="360">
+  <img alt="A real label from the sample island: a house icon and the text Harbour house in a white pill, the badge open under it, above the house it belongs to" src="../images/label.png" width="360">
 </p>
 
 A `scene.Label` floats above something in the world:
@@ -67,7 +67,7 @@ update function can add, change and remove labels, lines and notices freely, wit
 
 ## From a glTF file
 
-A file can carry labels too, in its node extras (see [glTF extras](gltf-extras.md)): `label`,
+A file can carry labels too, in its node extras (see [glTF extras](4-gltf-extras.md)): `label`,
 `icon`, `badge`, `label_color` and `pinned`. It is a handy way to try the overlay with `cmd/visor`
 alone.
 
@@ -185,4 +185,4 @@ window to a background colour and paints a draw list, with the same atlas and on
 
 ---
 
-[← All the documentation](README.md)
+[← All the documentation](../1-overview.md)

@@ -9,7 +9,7 @@ what was tested.
 ## How it fits together
 
 <p align="center">
-  <img alt="Your program runs in a NativeActivity (package android: its window, touches, a drawing thread) and draws through gles, the renderers written once in GLSL ES 1.00 over gles.Functions, shared with the browser canvas" src="images/platforms.svg" width="880">
+  <img alt="Your program runs in a NativeActivity (package android: its window, touches, a drawing thread) and draws through gles, the renderers written once in GLSL ES 1.00 over gles.Functions, shared with the browser canvas" src="../images/platforms.svg" width="880">
 </p>
 
 | Layer | What it does |
@@ -80,7 +80,7 @@ The first step used `golang.org/x/mobile` (gomobile), which gives a Go program a
 surface and its events with no Java. It worked, with two costs:
 
 - Its OpenGL bindings are compiled against the OpenGL ES **2** headers, and it asks for a version 2
-  context. go-renderer's `gles` keeps to OpenGL ES 2 for that reason (see [in a web browser](web.md)),
+  context. go-renderer's `gles` keeps to OpenGL ES 2 for that reason (see [in a web browser](5-web.md)),
   which WebGL2 also accepts.
 - Each OpenGL call goes to another thread through a channel, three at a time. A CPU profile taken on
   the phone found it was about **two thirds** of what a frame cost: `runtime.futex` 34 %, `libc` 17 %,
@@ -238,4 +238,4 @@ ScreenReader.java         a virtual view per node, answering TalkBack; its focus
 
 ---
 
-[← All the documentation](README.md)
+[← All the documentation](../1-overview.md)
