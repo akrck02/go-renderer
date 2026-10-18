@@ -89,7 +89,7 @@ if err := viewer.Edit(world, options, "Island", edit); err != nil {
 
 > 📝 **Interfaces and the camera.** When a panel is under the pointer, the camera should not turn
 > while you drag a slider in it. An interface **claims** the mouse (`state.ClaimMouse()`) and the
-> viewer then gives its cameras `state.Unclaimed()`, a copy without it. go-ui does this for you.
+> viewer then gives its cameras `state.Unclaimed()`, a copy without it. Go UI does this for you.
 
 `view` can also move the cameras: `view.FrameGround(minimumX, minimumZ, maximumX, maximumZ)` shows
 a rectangle of ground whole, and `view.ZoomBy(2)` comes twice as close, as zoom buttons would.

@@ -7,10 +7,10 @@ experience.
 **What you will do**
 
 1. Install Go and a C compiler, which the window needs.
-2. Get go-renderer and open its sample island.
+2. Get Go Renderer and open its sample island.
 3. Write a program of your own that shows a box on a square of grass.
 
-> ⚠️ go-renderer is an educational project, not a finished product: its API still changes from one
+> ⚠️ Go Renderer is an educational project, not a finished product: its API still changes from one
 > week to the next. Pin the commit you build against.
 
 ## 1. Install the tools
@@ -23,10 +23,10 @@ experience.
 
 Check cgo is on: `go env CGO_ENABLED` should print `1`.
 
-## 2. Get go-renderer and open the sample
+## 2. Get Go Renderer and open the sample
 
-go-renderer is not published as versioned modules yet. Clone it into a folder that will hold your
-own programs too; later on, go-ui and go-ui-android go beside it.
+Go Renderer is not published as versioned modules yet. Clone it into a folder that will hold your
+own programs too; later on, Go UI and Go UI for Android go beside it.
 
 ```bash
 mkdir workspace && cd workspace
@@ -45,7 +45,7 @@ come closer, press `Tab` to walk on it and `N` to jump to the night. Every contr
 
 ## 3. Your first scene
 
-Make a module beside go-renderer, and point it at your copy:
+Make a module beside Go Renderer, and point it at your copy:
 
 ```bash
 cd .. && mkdir first-scene && cd first-scene
@@ -90,7 +90,7 @@ go mod tidy
 go run .
 ```
 
-A green square in the sunlight: that is a scene. Three ideas carry everything else in go-renderer:
+A green square in the sunlight: that is a scene. Three ideas carry everything else in Go Renderer:
 
 - A **`scene.Scene`** holds what there is to draw: **nodes** placed in the world, each with a
   **mesh** (triangles) and a **material** (how its surface is shaded), and an **environment** (sun,
@@ -108,8 +108,8 @@ A green square in the sunlight: that is a scene. Three ideas carry everything el
 | Learn step by step, building an island with a lighthouse, a forest, the sea and labels | [The tutorial](3-the-quest/0-the-quest.md) |
 | Understand how it fits together | [Architecture](4-guides/1-architecture.md) |
 | Look up a type or a function | [The reference](5-reference/0-packages.md) |
-| Put buttons and panels over your scene | [go-ui](https://github.com/akrck02/go-ui) |
-| Open a scene made in Blender or go-scene-builder | [Lesson 6: scenes from files](3-the-quest/6-scenes-from-files.md) |
+| Put buttons and panels over your scene | [Go UI](https://github.com/akrck02/go-ui) |
+| Open a scene made in Blender or Go Scene Builder | [Lesson 6: scenes from files](3-the-quest/6-scenes-from-files.md) |
 
 ---
 
