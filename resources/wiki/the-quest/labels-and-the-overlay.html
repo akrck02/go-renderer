@@ -2,7 +2,7 @@
 
 <p>A 3D view often needs words: the name of a place, the time, a message that something happened. In
 this lesson you put a <strong>label</strong> over the lighthouse, a <strong>header</strong> in the corner, a <strong>notice</strong> that
-fades, and a small card drawn with <strong><code>draw2d</code></strong>, go-renderer&rsquo;s flat drawing.</p>
+fades, and a small card drawn with <strong><code>draw2d</code></strong>, Go Renderer&rsquo;s flat drawing.</p>
 
 <table>
 <thead>
@@ -66,7 +66,7 @@ newest first:</p>
 <p>Labels and notices are fixed shapes. For anything else, <code>Overlay.Drawing</code> takes a <code>draw2d.List</code>:
 rounded rectangles, soft shadows, lines of text, icons and pictures, in <strong>layout pixels</strong> from the
 window&rsquo;s top-left corner (the renderer multiplies them on a high-density screen, so text stays
-sharp). It is the same list go-ui fills with its panels and buttons.</p>
+sharp). It is the same list Go UI fills with its panels and buttons.</p>
 <pre><code class="language-go"><span class="nx">card</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">draw2d</span><span class="p">.</span><span class="nx">List</span><span class="p">{}</span>
 <span class="nx">world</span><span class="p">.</span><span class="nx">Overlay</span><span class="p">.</span><span class="nx">Drawing</span> <span class="p">=</span> <span class="nx">card</span>
 <span class="nf">drawWindCard</span><span class="p">(</span><span class="nx">card</span><span class="p">,</span> <span class="nx">world</span><span class="p">.</span><span class="nx">Environment</span><span class="p">.</span><span class="nx">Wind</span><span class="p">.</span><span class="nx">Strength</span><span class="p">)</span>
@@ -92,7 +92,7 @@ function: <code>Reset</code> keeps the list&rsquo;s memory, so a frame allocates
 
 <blockquote>
 <p>📝 <strong>Buttons?</strong> <code>draw2d</code> paints; it does not know about the mouse. For panels, buttons, fields and
-lists that react, use <a href="https://github.com/akrck02/go-ui" target="_blank">go-ui</a>, which fills this same list.</p>
+lists that react, use <a href="https://github.com/akrck02/go-ui" target="_blank">Go UI</a>, which fills this same list.</p>
 </blockquote>
 
 <h4 id="checkpoint">Checkpoint</h4>

@@ -1,6 +1,6 @@
 <h1 id="architecture">🧭 Architecture</h1>
 
-<p>go-renderer is a small renderer written in Go to learn how 3D graphics work from the inside. It
+<p>Go Renderer is a small renderer written in Go to learn how 3D graphics work from the inside. It
 offers two ways to draw:</p>
 
 <ul>
@@ -144,7 +144,7 @@ sleeps in <code>glfw.WaitEvents</code> and draws only when input arrives, when t
 with <code>input.State.RequestFrame</code> (a caret&rsquo;s next blink), or when another goroutine calls
 <code>opengl.Wake</code> (or <code>windowloop.Wake</code>). Each such frame runs one update step, and a frame with input is followed by one
 more so hover looks catch up with a layout that just changed. Idle, it uses no processor. <code>Application.Unchanged</code> lets an application say a frame would repeat
-the last one shown (go-ui compares <code>draw2d.List.Fingerprint</code>), and the loop then neither draws nor
+the last one shown (Go UI compares <code>draw2d.List.Fingerprint</code>), and the loop then neither draws nor
 presents it. In the default, continuous mode a frame is drawn only after an update step, so a
 display faster than the updates does not draw the same picture twice. While a
 window is being resized, it is redrawn from GLFW&rsquo;s refresh callback, since macOS holds the loop
@@ -262,7 +262,7 @@ that turns the pointer into a point on the ground, and the viewer still draws on
 
 <p>The renderer draws the scene as it is and knows nothing about simulations. Moving things, wind
 gusts, drifting clouds, the day cycle or growing cities live in the sibling project
-<a href="https://github.com/akrck02/go-simulator" target="_blank">go-simulator</a>, which changes the scene through <code>viewer.Run</code>. The renderer only
+<a href="https://github.com/akrck02/go-simulator" target="_blank">Go Simulator</a>, which changes the scene through <code>viewer.Run</code>. The renderer only
 reads the state they leave: node transforms, <code>Environment.Wind</code>, <code>Sky.Clouds.Offset</code>, the sun
 direction, the snow line and the foliage tint.</p>
 

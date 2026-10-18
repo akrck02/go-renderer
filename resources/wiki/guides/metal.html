@@ -1,6 +1,6 @@
 <h1 id="metal-a-backend-for-flat-drawing">🍎 Metal: a backend for flat drawing</h1>
 
-<p><strong>Status:</strong> built (October 2026): the flat path, which go-ui&rsquo;s window draws through on macOS by
+<p><strong>Status:</strong> built (October 2026): the flat path, which Go UI&rsquo;s window draws through on macOS by
 default, and the 3D scene renderer, which the viewer draws through on macOS by default (see <em>The 3D
 scene renderer</em> below). This page started as the design; <em>What was built</em> and <em>Measured</em> say how it turned
 out. Pending a look on screen: live resizing by dragging an edge, and a second screen with another
@@ -74,7 +74,7 @@ rectangle: a frame still being drawn keeps reading the old texture, and the atla
 when glyphs or corners are added. Uploading only the changed rectangle is left for later, as on
 the OpenGL path.</li>
 <li><strong>The OpenGL path keeps its six vertices per quad</strong> for now; moving it to the same instances is
-step 5 of go-ui&rsquo;s performance audit.</li>
+step 5 of Go UI&rsquo;s performance audit.</li>
 </ul>
 
 <h2 id="measured">Measured</h2>
@@ -83,7 +83,7 @@ step 5 of go-ui&rsquo;s performance audit.</li>
 screen.</p>
 
 <p><strong>Captures:</strong> the register application captured through both backends differs in fewer than 1 %
-of its pixels, by at most <sup>1</sup>&frasl;<sub>255</sub> in a channel (the colour rounded to a byte), light and dark. go-ui&rsquo;s
+of its pixels, by at most <sup>1</sup>&frasl;<sub>255</sub> in a channel (the colour rounded to a byte), light and dark. Go UI&rsquo;s
 <code>cmd/app</code> test <code>TestMetalDrawsLikeOpenGL</code> checks it.</p>
 
 <p><strong>The register application, idle (drawing on demand):</strong></p>
@@ -239,7 +239,7 @@ instances every frame.</p>
 
 <h2 id="scope">Scope</h2>
 
-<p><strong>First:</strong> the flat path, <code>FlatRenderer</code> — everything an interface-only window needs (go-ui&rsquo;s
+<p><strong>First:</strong> the flat path, <code>FlatRenderer</code> — everything an interface-only window needs (Go UI&rsquo;s
 <code>window</code> package). It is small: about 25 OpenGL calls, two short shaders, one atlas texture and one
 draw call a frame.</p>
 
@@ -274,12 +274,12 @@ decision of its own (see <em>Options</em>).</p>
 </tr>
 </tbody>
 </table>
-<p>Android keeps its own small OpenGL ES flat renderer, as planned in go-ui&rsquo;s <code>docs/android.md</code>.</p>
+<p>Android keeps its own small OpenGL ES flat renderer, as planned in Go UI&rsquo;s <code>docs/android.md</code>.</p>
 
 <h2 id="how-it-fits-together">How it fits together</h2>
 
 <p align="center">
-  <img alt="An interface (a draw2d.List, what go-ui draws) goes through the painter (opengl/overlay: quads of one atlas, plain Go), then to metal.FlatRenderer on macOS or opengl.FlatRenderer elsewhere; one window loop (windowloop) serves both: GLFW events, drawing on demand, resizing" src="./images/metal-stack.svg" width="880">
+  <img alt="An interface (a draw2d.List, what Go UI draws) goes through the painter (opengl/overlay: quads of one atlas, plain Go), then to metal.FlatRenderer on macOS or opengl.FlatRenderer elsewhere; one window loop (windowloop) serves both: GLFW events, drawing on demand, resizing" src="./images/metal-stack.svg" width="880">
 </p>
 
 <table>
@@ -292,7 +292,7 @@ decision of its own (see <em>Options</em>).</p>
 
 <tbody>
 <tr>
-<td>go-ui window</td>
+<td>Go UI window</td>
 <td>Chooses the backend: Metal on macOS, OpenGL elsewhere (<code>-backend</code> to force one)</td>
 </tr>
 
@@ -407,7 +407,7 @@ pass unchanged.</p>
 the OpenGL path does with <code>ReadPixels</code>. The same frame captured through both backends must match
 within a small tolerance. That comparison is the main test of the port.</p>
 
-<h3 id="5-choosing-the-backend-go-ui">5. Choosing the backend (go-ui)</h3>
+<h3 id="5-choosing-the-backend-go-ui">5. Choosing the backend (Go UI)</h3>
 
 <ul>
 <li><code>window.Options.Backend</code>: <code>Automatic</code> (Metal on macOS when a device exists, else OpenGL), <code>Metal</code> or
@@ -445,7 +445,7 @@ within a small tolerance. That comparison is the main test of the port.</p>
 
 <tr>
 <td>2</td>
-<td>The shared loop; go-ui backend choice; live resize in a transaction; moving between screens</td>
+<td>The shared loop; Go UI backend choice; live resize in a transaction; moving between screens</td>
 <td>The register runs on Metal, resizes without stretching or flicker, and its CPU, GPU and memory are measured against OpenGL</td>
 <td>Done; resizing and a second screen still need a look on screen</td>
 </tr>

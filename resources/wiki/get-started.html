@@ -8,12 +8,12 @@ experience.</p>
 
 <ol>
 <li>Install Go and a C compiler, which the window needs.</li>
-<li>Get go-renderer and open its sample island.</li>
+<li>Get Go Renderer and open its sample island.</li>
 <li>Write a program of your own that shows a box on a square of grass.</li>
 </ol>
 
 <blockquote>
-<p>⚠️ go-renderer is an educational project, not a finished product: its API still changes from one
+<p>⚠️ Go Renderer is an educational project, not a finished product: its API still changes from one
 week to the next. Pin the commit you build against.</p>
 </blockquote>
 
@@ -50,10 +50,10 @@ week to the next. Pin the commit you build against.</p>
 </table>
 <p>Check cgo is on: <code>go env CGO_ENABLED</code> should print <code>1</code>.</p>
 
-<h2 id="2-get-go-renderer-and-open-the-sample">2. Get go-renderer and open the sample</h2>
+<h2 id="2-get-go-renderer-and-open-the-sample">2. Get Go Renderer and open the sample</h2>
 
-<p>go-renderer is not published as versioned modules yet. Clone it into a folder that will hold your
-own programs too; later on, go-ui and go-ui-android go beside it.</p>
+<p>Go Renderer is not published as versioned modules yet. Clone it into a folder that will hold your
+own programs too; later on, Go UI and Go UI for Android go beside it.</p>
 <pre><code class="language-bash">mkdir workspace <span class="o">&amp;&amp;</span> <span class="nb">cd</span> workspace
 git clone https://github.com/akrck02/go-renderer
 <span class="nb">cd</span> go-renderer
@@ -72,7 +72,7 @@ screen to draw on.</p>
 
 <h2 id="3-your-first-scene">3. Your first scene</h2>
 
-<p>Make a module beside go-renderer, and point it at your copy:</p>
+<p>Make a module beside Go Renderer, and point it at your copy:</p>
 <pre><code class="language-bash"><span class="nb">cd</span> .. <span class="o">&amp;&amp;</span> mkdir first-scene <span class="o">&amp;&amp;</span> <span class="nb">cd</span> first-scene
 go mod init example.com/first-scene
 go mod edit -require github.com/akrck02/go-renderer@v0.0.0 -replace github.com/akrck02/go-renderer<span class="o">=</span>../go-renderer
@@ -111,7 +111,7 @@ go mod edit -require github.com/akrck02/go-renderer@v0.0.0 -replace github.com/a
 go run .
 </code></pre>
 
-<p>A green square in the sunlight: that is a scene. Three ideas carry everything else in go-renderer:</p>
+<p>A green square in the sunlight: that is a scene. Three ideas carry everything else in Go Renderer:</p>
 
 <ul>
 <li>A <strong><code>scene.Scene</code></strong> holds what there is to draw: <strong>nodes</strong> placed in the world, each with a
@@ -152,11 +152,11 @@ frame. This is a <em>retained</em> scene: to change it, you change the structs.<
 
 <tr>
 <td>Put buttons and panels over your scene</td>
-<td><a href="https://github.com/akrck02/go-ui" target="_blank">go-ui</a></td>
+<td><a href="https://github.com/akrck02/go-ui" target="_blank">Go UI</a></td>
 </tr>
 
 <tr>
-<td>Open a scene made in Blender or go-scene-builder</td>
+<td>Open a scene made in Blender or Go Scene Builder</td>
 <td><a href="./the-quest/scenes-from-files">Lesson 6: scenes from files</a></td>
 </tr>
 </tbody>

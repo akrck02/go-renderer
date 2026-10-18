@@ -1,9 +1,9 @@
 <h1 id="on-android">📱 On Android</h1>
 
-<p><strong>Status:</strong> a first step (October 2026). Package <code>android</code> runs a go-renderer program as an Android
-application: go-ui&rsquo;s interfaces, and the 3D scene under them, draw on an Android 16 emulator and on a
+<p><strong>Status:</strong> a first step (October 2026). Package <code>android</code> runs a Go Renderer program as an Android
+application: Go UI&rsquo;s interfaces, and the 3D scene under them, draw on an Android 16 emulator and on a
 Pixel 6 Pro. There is no golang.org/x/mobile, and no Java but one small class for screen readers:
-the program is a shared library that Android&rsquo;s own <code>NativeActivity</code> loads. go-ui&rsquo;s <code>docs/android.md</code> has the screenshots, the build and
+the program is a shared library that Android&rsquo;s own <code>NativeActivity</code> loads. Go UI&rsquo;s <code>docs/android.md</code> has the screenshots, the build and
 what was tested.</p>
 
 <h2 id="how-it-fits-together">How it fits together</h2>
@@ -27,7 +27,7 @@ what was tested.</p>
 </tr>
 
 <tr>
-<td>go-ui window</td>
+<td>Go UI window</td>
 <td><code>window.Run</code>: an interface, and a scene under it</td>
 </tr>
 
@@ -148,7 +148,7 @@ surface and its events with no Java. It worked, with two costs:</p>
 
 <ul>
 <li>Its OpenGL bindings are compiled against the OpenGL ES <strong>2</strong> headers, and it asks for a version 2
-context. go-renderer&rsquo;s <code>gles</code> keeps to OpenGL ES 2 for that reason (see <a href="./guides/web">in a web browser</a>),
+context. Go Renderer&rsquo;s <code>gles</code> keeps to OpenGL ES 2 for that reason (see <a href="./guides/web">in a web browser</a>),
 which WebGL2 also accepts.</li>
 <li>Each OpenGL call goes to another thread through a channel, three at a time. A CPU profile taken on
 the phone found it was about <strong>two thirds</strong> of what a frame cost: <code>runtime.futex</code> 34 %, <code>libc</code> 17 %,
@@ -168,7 +168,7 @@ the phone found it was about <strong>two thirds</strong> of what a frame cost: <
 
 <tbody>
 <tr>
-<td>Dragging the sample island for 10 s (go-ui&rsquo;s example)</td>
+<td>Dragging the sample island for 10 s (Go UI&rsquo;s example)</td>
 <td>82 % of a core</td>
 <td><strong>41 %</strong></td>
 </tr>
@@ -199,13 +199,13 @@ instanced drawing can come later behind the same <code>gles.Functions</code>.</p
 <code>android.app.NativeActivity</code>, with <code>android.app.lib_name</code> set to <code>program</code>. For a screen reader it
 also holds <code>classes.dex</code>, compiled from <code>android/java/ScreenReader.java</code> (<code>javac</code>, then the build
 tools&rsquo; <code>d8</code>), and says <code>android:hasCode=&quot;true&quot;</code>; without it, the program runs with no screen reader.
-go-ui-android&rsquo;s <code>go-ui-apk</code> does it all with the Android SDK&rsquo;s tools. The 16 KB alignment is what
+Go UI for Android&rsquo;s <code>go-ui-apk</code> does it all with the Android SDK&rsquo;s tools. The 16 KB alignment is what
 phones with 16 KB memory pages (Android 15 and later) need.</p>
 
 <h2 id="typing-and-notifications">Typing and notifications</h2>
 
 <p><strong>The on-screen keyboard.</strong> <code>ShowKeyboard(typing)</code> brings the keyboard up while a text field is typed
-in and puts it away after (go-ui&rsquo;s window calls it with <code>Context.Typing</code>). NativeActivity&rsquo;s own call
+in and puts it away after (Go UI&rsquo;s window calls it with <code>Context.Typing</code>). NativeActivity&rsquo;s own call
 for it does nothing on recent Androids, so the window&rsquo;s <code>InputMethodManager</code> is asked through JNI,
 with the NDK&rsquo;s call as a fallback. A finger coming down while typing asks again, for a person who
 put the keyboard away and touched the field to have it back. Every key, from either keyboard, is
@@ -281,7 +281,7 @@ processor reads: green noise. The sound is not played yet.</p>
 
 <p><strong>The back gesture.</strong> Android&rsquo;s back (the gesture from a side, or the button) is the program&rsquo;s:
 the window records it (<code>State.PressBack</code>), and the part of the program the person is in answers it
-(<code>State.TakeBack</code>, go-ui&rsquo;s <code>Context.Back</code>): a dialog closes, a screen goes back to the one before.
+(<code>State.TakeBack</code>, Go UI&rsquo;s <code>Context.Back</code>): a dialog closes, a screen goes back to the one before.
 A back nobody answers sends the program to the background (<code>moveTaskToBack</code>), as a phone&rsquo;s own
 applications do at their first screen; it comes back as it was. When the on-screen keyboard is up,
 the back puts it away first, as everywhere on Android.</p>

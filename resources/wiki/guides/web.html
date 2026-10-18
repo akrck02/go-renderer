@@ -1,7 +1,7 @@
 <h1 id="in-a-web-browser">🌐 In a web browser</h1>
 
 <p><strong>Status:</strong> a first step (October 2026). The sample island and its labels draw in a browser
-through WebGL2, and go-ui interfaces run there too (see go-ui&rsquo;s <code>docs/web.md</code>). The desktop is
+through WebGL2, and Go UI interfaces run there too (see Go UI&rsquo;s <code>docs/web.md</code>). The desktop is
 unchanged. What is still missing is listed at the end.</p>
 
 <p align="center">
@@ -17,7 +17,7 @@ closer.</p>
 
 <h2 id="what-was-already-portable">What was already portable</h2>
 
-<p>Most of go-renderer is plain Go and builds for WebAssembly as it is: the scene (<code>scene</code>), the
+<p>Most of Go Renderer is plain Go and builds for WebAssembly as it is: the scene (<code>scene</code>), the
 frame planning (<code>sceneplan</code>), cameras (<code>camera</code>), glTF loading (<code>loaders</code>), input (<code>input</code>), the
 2D draw lists (<code>draw2d</code>) and the overlay painter with its atlas and fonts (<code>opengl/overlay</code>, which
 rasterises on the processor and embeds its fonts with <code>go:embed</code>). Only three packages are tied to
@@ -121,7 +121,7 @@ instancing, which WebGL2 and OpenGL ES 3 have, would save the memory of the copi
 step behind the same interface.</p>
 
 <p>Each call is costly too: a browser crosses into JavaScript at each, and x/mobile&rsquo;s bindings crossed
-to their own thread every three calls (go-renderer&rsquo;s own <code>android</code> package calls OpenGL ES directly). So a program remembers what each uniform holds and sends
+to their own thread every three calls (Go Renderer&rsquo;s own <code>android</code> package calls OpenGL ES directly). So a program remembers what each uniform holds and sends
 only values that changed, and the vertex attributes are switched on once. On a phone dragging the
 island, a frame went from about 12.5 to 8.7 ms.</p>
 
@@ -145,7 +145,7 @@ when something happens (an event, a size change, <code>RequestFrame</code>, <cod
 alone does nothing at all: measured, no frames in two seconds of idling, and two after moving
 the pointer once (the frame and its follow-up).</li>
 <li><strong>Inside a page&rsquo;s own application.</strong> A program can be one screen of a larger web application,
-drawing in a canvas the page gives it (<code>Options.Canvas</code> in go-ui). When the page takes that screen
+drawing in a canvas the page gives it (<code>Options.Canvas</code> in Go UI). When the page takes that screen
 away, it asks the program to stop (<code>browser.Stop</code>): <code>Run</code> returns after one more frame, and every
 listener the canvas added (the document&rsquo;s paste among them) and its size observer come off the
 page, so nothing calls into a program that has exited. Opening the screen again starts the

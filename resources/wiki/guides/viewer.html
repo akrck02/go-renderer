@@ -43,7 +43,7 @@ controls, and receives a <code>viewer.View</code>: the camera that drew the fram
 the window&rsquo;s size. <code>View.PointOnPlane(x, y, height)</code> and <code>View.PointOnGround(x, y)</code> turn a point of
 the window (the pointer, <code>input.State.CursorX</code> and <code>CursorY</code>) into a point of the scene: on a flat
 floor, or on the walkable ground with its relief. The viewer keeps drawing on demand; a program
-that claims the mouse (<code>input.State.ClaimMouse</code>, as go-ui does over its panels) keeps it from the
+that claims the mouse (<code>input.State.ClaimMouse</code>, as Go UI does over its panels) keeps it from the
 camera for that step. <code>camera.RayThrough</code> is the ray behind both, for any camera.</p>
 <pre><code class="language-go"><span class="nx">viewer</span><span class="p">.</span><span class="nf">Edit</span><span class="p">(</span><span class="nx">world</span><span class="p">,</span> <span class="nx">options</span><span class="p">,</span> <span class="s">&#34;Editor&#34;</span><span class="p">,</span> <span class="kd">func</span><span class="p">(</span><span class="nx">world</span> <span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Scene</span><span class="p">,</span> <span class="nx">state</span> <span class="o">*</span><span class="nx">input</span><span class="p">.</span><span class="nx">State</span><span class="p">,</span> <span class="nx">step</span> <span class="kt">float64</span><span class="p">,</span> <span class="nx">view</span> <span class="nx">viewer</span><span class="p">.</span><span class="nx">View</span><span class="p">)</span> <span class="p">{</span>
 	<span class="k">if</span> <span class="nx">point</span><span class="p">,</span> <span class="nx">onGround</span> <span class="o">:=</span> <span class="nx">view</span><span class="p">.</span><span class="nf">PointOnGround</span><span class="p">(</span><span class="nx">state</span><span class="p">.</span><span class="nx">CursorX</span><span class="p">,</span> <span class="nx">state</span><span class="p">.</span><span class="nx">CursorY</span><span class="p">);</span> <span class="nx">onGround</span> <span class="o">&amp;&amp;</span> <span class="nx">state</span><span class="p">.</span><span class="nf">ButtonReleased</span><span class="p">(</span><span class="nx">input</span><span class="p">.</span><span class="nx">MouseLeft</span><span class="p">)</span> <span class="p">{</span>
@@ -358,7 +358,7 @@ lifted while a map is shown.</p>
 </tbody>
 </table>
 <p>Other programs reuse these options: <code>viewer.Options.RegisterFlags</code> adds them to any flag set, as
-go-simulator&rsquo;s live simulator does.</p>
+Go Simulator&rsquo;s live simulator does.</p>
 
 <table>
 <tr><th width="50%">With shadows (the default)</th><th width="50%">Without (<code>-no-shadows</code>, or <code>O</code>)</th></tr>

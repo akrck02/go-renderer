@@ -31,7 +31,7 @@ program.</p>
 
 <p><a href="https://www.khronos.org/gltf/" target="_blank">glTF 2.0</a> is the open format for 3D scenes: nodes, meshes and
 materials, in a <code>.gltf</code> (JSON beside its binary buffers) or a single <code>.glb</code>. Blender exports it
-(<em>File → Export → glTF 2.0</em>), and so does go-scene-builder, which turns a 2D map and a relief into
+(<em>File → Export → glTF 2.0</em>), and so does Go Scene Builder, which turns a 2D map and a relief into
 a whole scene.</p>
 
 <h2 id="opening-a-file">Opening a file</h2>
@@ -53,7 +53,7 @@ comes from materials, vertex colours and the procedural patterns.</p>
 <h2 id="extras-what-gltf-cannot-say">Extras: what glTF cannot say</h2>
 
 <p>glTF has no word for the tide, the walkable ground or a label. It lets any object carry free JSON,
-its <strong>extras</strong>, and go-renderer reads its own there. In Blender, <em>custom properties</em> become extras
+its <strong>extras</strong>, and Go Renderer reads its own there. In Blender, <em>custom properties</em> become extras
 when <em>Include → Custom Properties</em> is ticked in the exporter.</p>
 
 <table>
@@ -142,7 +142,7 @@ on it. To animate a node, find it by name:</p>
 
 <h4 id="checkpoint">Checkpoint</h4>
 
-<p><code>go run ./cmd/visor island.glb</code> opens a scene made elsewhere (Blender, go-scene-builder), and its labels, sea and walkable ground come with it.</p>
+<p><code>go run ./cmd/visor island.glb</code> opens a scene made elsewhere (Blender, Go Scene Builder), and its labels, sea and walkable ground come with it.</p>
 
 <p><img src="./images/tutorial/quest/achievement-librarian.svg" alt="Achievement unlocked: Librarian" /></p>
 
@@ -194,11 +194,11 @@ secondLamp.Transform = graphics.Translate(graphics.Vec4{0, 5, 0, 1}).Multiply(gr
 
 <h2 id="where-next">Where next</h2>
 
-<p>You have used every part of go-renderer a program usually needs. From here:</p>
+<p>You have used every part of Go Renderer a program usually needs. From here:</p>
 
 <ul>
 <li><strong>Put an interface over the island</strong>: panels, buttons, sliders, with
-<a href="https://github.com/akrck02/go-ui" target="_blank">go-ui</a>. Its own tutorial starts where this one ends.</li>
+<a href="https://github.com/akrck02/go-ui" target="_blank">Go UI</a>. Its own tutorial starts where this one ends.</li>
 <li><strong>Run it elsewhere</strong>: <a href="./guides/web">in a web browser</a> and <a href="./guides/android">on Android</a>.</li>
 <li><strong>Understand the inside</strong>: <a href="./guides/architecture">architecture</a>, the <a href="./guides/overlay">overlay</a>, and
 how a frame is planned and drawn.</li>
