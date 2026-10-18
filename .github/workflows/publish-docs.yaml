@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: akrck02/papiro-deploy@main
         with:
-          title: "go-renderer"
+          title: "Go Renderer"
           description: "A tiny, educational graphics renderer in Go"
           logo: "./docs/images/logo.svg"
           accent: "#2BB3A3"

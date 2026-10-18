@@ -1,6 +1,6 @@
 # 🧭 Architecture
 
-go-renderer is a small renderer written in Go to learn how 3D graphics work from the inside. It
+Go Renderer is a small renderer written in Go to learn how 3D graphics work from the inside. It
 offers two ways to draw:
 
 - **Immediate mode**: your program says "draw this triangle, this image, this model" every frame.
@@ -64,7 +64,7 @@ sleeps in `glfw.WaitEvents` and draws only when input arrives, when the program 
 with `input.State.RequestFrame` (a caret's next blink), or when another goroutine calls
 `opengl.Wake` (or `windowloop.Wake`). Each such frame runs one update step, and a frame with input is followed by one
 more so hover looks catch up with a layout that just changed. Idle, it uses no processor. `Application.Unchanged` lets an application say a frame would repeat
-the last one shown (go-ui compares `draw2d.List.Fingerprint`), and the loop then neither draws nor
+the last one shown (Go UI compares `draw2d.List.Fingerprint`), and the loop then neither draws nor
 presents it. In the default, continuous mode a frame is drawn only after an update step, so a
 display faster than the updates does not draw the same picture twice. While a
 window is being resized, it is redrawn from GLFW's refresh callback, since macOS holds the loop
@@ -178,7 +178,7 @@ that turns the pointer into a point on the ground, and the viewer still draws on
 
 The renderer draws the scene as it is and knows nothing about simulations. Moving things, wind
 gusts, drifting clouds, the day cycle or growing cities live in the sibling project
-[go-simulator](https://github.com/akrck02/go-simulator), which changes the scene through `viewer.Run`. The renderer only
+[Go Simulator](https://github.com/akrck02/go-simulator), which changes the scene through `viewer.Run`. The renderer only
 reads the state they leave: node transforms, `Environment.Wind`, `Sky.Clouds.Offset`, the sun
 direction, the snow line and the foliage tint.
 

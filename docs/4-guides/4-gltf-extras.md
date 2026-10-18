@@ -2,7 +2,7 @@
 
 glTF describes geometry and materials, but not things like the sky at night, the tide or which
 surfaces you can walk on. The renderer reads those from the file's *extras*: free JSON that glTF
-allows on scenes, nodes, meshes and materials. Any program that writes glTF (go-scene-builder does)
+allows on scenes, nodes, meshes and materials. Any program that writes glTF (Go Scene Builder does)
 can use them.
 
 <table>

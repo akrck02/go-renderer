@@ -17,7 +17,7 @@ glTF is a **shipping container for 3D**: every tool packs it the same way, so th
 
 [glTF 2.0](https://www.khronos.org/gltf/) is the open format for 3D scenes: nodes, meshes and
 materials, in a `.gltf` (JSON beside its binary buffers) or a single `.glb`. Blender exports it
-(*File → Export → glTF 2.0*), and so does go-scene-builder, which turns a 2D map and a relief into
+(*File → Export → glTF 2.0*), and so does Go Scene Builder, which turns a 2D map and a relief into
 a whole scene.
 
 ## Opening a file
@@ -41,7 +41,7 @@ comes from materials, vertex colours and the procedural patterns.
 ## Extras: what glTF cannot say
 
 glTF has no word for the tide, the walkable ground or a label. It lets any object carry free JSON,
-its **extras**, and go-renderer reads its own there. In Blender, *custom properties* become extras
+its **extras**, and Go Renderer reads its own there. In Blender, *custom properties* become extras
 when *Include → Custom Properties* is ticked in the exporter.
 
 | On | Extra | Becomes |
@@ -103,7 +103,7 @@ The buffers must be inside the file, as a `.glb`'s are; a `.gltf` with separate 
 
 #### Checkpoint
 
-`go run ./cmd/visor island.glb` opens a scene made elsewhere (Blender, go-scene-builder), and its labels, sea and walkable ground come with it.
+`go run ./cmd/visor island.glb` opens a scene made elsewhere (Blender, Go Scene Builder), and its labels, sea and walkable ground come with it.
 
 ![Achievement unlocked: Librarian](../images/tutorial/quest/achievement-librarian.svg)
 
@@ -151,10 +151,10 @@ secondLamp.Transform = graphics.Translate(graphics.Vec4{0, 5, 0, 1}).Multiply(gr
 
 ## Where next
 
-You have used every part of go-renderer a program usually needs. From here:
+You have used every part of Go Renderer a program usually needs. From here:
 
 - **Put an interface over the island**: panels, buttons, sliders, with
-  [go-ui](https://github.com/akrck02/go-ui). Its own tutorial starts where this one ends.
+  [Go UI](https://github.com/akrck02/go-ui). Its own tutorial starts where this one ends.
 - **Run it elsewhere**: [in a web browser](../4-guides/5-web.md) and [on Android](../4-guides/6-android.md).
 - **Understand the inside**: [architecture](../4-guides/1-architecture.md), the [overlay](../4-guides/3-overlay.md), and
   how a frame is planned and drawn.

@@ -45,7 +45,7 @@ controls, and receives a `viewer.View`: the camera that drew the frame the user 
 the window's size. `View.PointOnPlane(x, y, height)` and `View.PointOnGround(x, y)` turn a point of
 the window (the pointer, `input.State.CursorX` and `CursorY`) into a point of the scene: on a flat
 floor, or on the walkable ground with its relief. The viewer keeps drawing on demand; a program
-that claims the mouse (`input.State.ClaimMouse`, as go-ui does over its panels) keeps it from the
+that claims the mouse (`input.State.ClaimMouse`, as Go UI does over its panels) keeps it from the
 camera for that step. `camera.RayThrough` is the ray behind both, for any camera.
 
 ```go
@@ -147,7 +147,7 @@ lifted while a map is shown.
 | `-time S` | Draw every frame as if S seconds had passed: water and clouds stand still, so captures can be compared |
 
 Other programs reuse these options: `viewer.Options.RegisterFlags` adds them to any flag set, as
-go-simulator's live simulator does.
+Go Simulator's live simulator does.
 
 <table>
 <tr><th width="50%">With shadows (the default)</th><th width="50%">Without (<code>-no-shadows</code>, or <code>O</code>)</th></tr>

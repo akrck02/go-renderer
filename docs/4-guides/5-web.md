@@ -1,7 +1,7 @@
 # 🌐 In a web browser
 
 **Status:** a first step (October 2026). The sample island and its labels draw in a browser
-through WebGL2, and go-ui interfaces run there too (see go-ui's `docs/web.md`). The desktop is
+through WebGL2, and Go UI interfaces run there too (see Go UI's `docs/web.md`). The desktop is
 unchanged. What is still missing is listed at the end.
 
 <p align="center">
@@ -19,7 +19,7 @@ closer.
 
 ## What was already portable
 
-Most of go-renderer is plain Go and builds for WebAssembly as it is: the scene (`scene`), the
+Most of Go Renderer is plain Go and builds for WebAssembly as it is: the scene (`scene`), the
 frame planning (`sceneplan`), cameras (`camera`), glTF loading (`loaders`), input (`input`), the
 2D draw lists (`draw2d`) and the overlay painter with its atlas and fonts (`opengl/overlay`, which
 rasterises on the processor and embeds its fonts with `go:embed`). Only three packages are tied to
@@ -76,7 +76,7 @@ instancing, which WebGL2 and OpenGL ES 3 have, would save the memory of the copi
 step behind the same interface.
 
 Each call is costly too: a browser crosses into JavaScript at each, and x/mobile's bindings crossed
-to their own thread every three calls (go-renderer's own `android` package calls OpenGL ES directly). So a program remembers what each uniform holds and sends
+to their own thread every three calls (Go Renderer's own `android` package calls OpenGL ES directly). So a program remembers what each uniform holds and sends
 only values that changed, and the vertex attributes are switched on once. On a phone dragging the
 island, a frame went from about 12.5 to 8.7 ms.
 
@@ -99,7 +99,7 @@ island, a frame went from about 12.5 to 8.7 ms.
   alone does nothing at all: measured, no frames in two seconds of idling, and two after moving
   the pointer once (the frame and its follow-up).
 - **Inside a page's own application.** A program can be one screen of a larger web application,
-  drawing in a canvas the page gives it (`Options.Canvas` in go-ui). When the page takes that screen
+  drawing in a canvas the page gives it (`Options.Canvas` in Go UI). When the page takes that screen
   away, it asks the program to stop (`browser.Stop`): `Run` returns after one more frame, and every
   listener the canvas added (the document's paste among them) and its size observer come off the
   page, so nothing calls into a program that has exited. Opening the screen again starts the
