@@ -1,6 +1,8 @@
 package opengl
 
 import (
+	"log"
+
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
@@ -20,16 +22,19 @@ type overlayRenderer struct {
 	picturesTexture           uint32
 	picturesSize              int // the side of the pictures on the GPU; 0 before any
 	vertices                  []float32
+	blur                      *backdropBlur // made the first time a frame has a backdrop
 }
 
-// floatsPerOverlayVertex: screen position 2, atlas position 2, colour 4, picture position 2.
-const floatsPerOverlayVertex = 10
+// floatsPerOverlayVertex: screen position 2, atlas position 2, colour 4, picture position 2,
+// backdrop 1.
+const floatsPerOverlayVertex = 11
 
 // overlayTextureUnit and picturesTextureUnit are free of the scene's textures (shadows, seabed,
 // level variation, sky).
 const (
 	overlayTextureUnit  = 8
 	picturesTextureUnit = 9
+	blurredTextureUnit  = 10
 )
 
 func newOverlayRenderer() (*overlayRenderer, error) {
@@ -62,6 +67,8 @@ func (renderer *overlayRenderer) describeVertexLayout() {
 	gl.VertexAttribPointerWithOffset(2, 4, gl.FLOAT, false, stride, 4*bytesPerFloat)
 	gl.EnableVertexAttribArray(3)
 	gl.VertexAttribPointerWithOffset(3, 2, gl.FLOAT, false, stride, 8*bytesPerFloat)
+	gl.EnableVertexAttribArray(4)
+	gl.VertexAttribPointerWithOffset(4, 1, gl.FLOAT, false, stride, 10*bytesPerFloat)
 	gl.BindVertexArray(0)
 }
 
@@ -93,8 +100,36 @@ func (renderer *overlayRenderer) drawQuads(quads []overlay.Quad, width, height i
 	renderer.uploadAtlas()
 	renderer.uploadPictures()
 	renderer.fillVertices(quads)
-	renderer.drawVertices(width, height)
+	// without backdrops this is one draw call; each snapshot cuts it in two around a blur
+	drawn := 0
+	for _, snapshot := range renderer.painter.Snapshots() {
+		renderer.drawVertices(drawn, snapshot.At, width, height)
+		if !renderer.takeSnapshot(width, height, snapshot.Blur) {
+			break // no blur on this machine: the backdrops show nothing, the panels over them stay
+		}
+		drawn = snapshot.At
+	}
+	renderer.drawVertices(drawn, len(quads), width, height)
 	gl.ActiveTexture(gl.TEXTURE0) // the other passes bind their textures on the first unit
+}
+
+// takeSnapshot blurs the frame so far for the backdrops that follow; false when the blur's shaders
+// could not be made, which is then said once and not tried again.
+func (renderer *overlayRenderer) takeSnapshot(width, height int, deviation float32) bool {
+	if renderer.blur == nil {
+		blur, err := newBackdropBlur()
+		if err != nil {
+			log.Print("backdrop blur unavailable: ", err)
+			renderer.blur = &backdropBlur{} // a blur with no program: not tried again
+			return false
+		}
+		renderer.blur = blur
+	}
+	if renderer.blur.program == nil {
+		return false
+	}
+	renderer.blur.snapshot(width, height, deviation, blurredTextureUnit)
+	return true
 }
 
 // anchoredNodes lists the nodes labels follow, so only their transforms are worked out.
@@ -158,8 +193,8 @@ func (renderer *overlayRenderer) uploadPictures() {
 	pictures.Uploaded()
 }
 
-// fillVertices turns every quad into two triangles: position, atlas position, colour and picture
-// position (-1 for a quad that shows no picture).
+// fillVertices turns every quad into two triangles: position, atlas position, colour, picture
+// position (-1 for a quad that shows no picture) and whether it shows the blurred backdrop.
 func (renderer *overlayRenderer) fillVertices(quads []overlay.Quad) {
 	vertices := renderer.vertices[:0]
 	corners := [6][2]int{{0, 0}, {0, 2}, {2, 2}, {0, 0}, {2, 2}, {2, 0}} // edges: 0 left or top, 2 right or bottom
@@ -168,10 +203,14 @@ func (renderer *overlayRenderer) fillVertices(quads []overlay.Quad) {
 		if quad.Pictured {
 			picture = quad.Picture
 		}
+		backdrop := float32(0)
+		if quad.Backdrop {
+			backdrop = 1
+		}
 		for _, corner := range corners {
 			x, y := corner[0], corner[1]
 			vertices = append(vertices, quad.Screen[x], quad.Screen[y+1], quad.Atlas[x], quad.Atlas[y+1],
-				quad.Color[0], quad.Color[1], quad.Color[2], quad.Color[3], picture[x], picture[y+1])
+				quad.Color[0], quad.Color[1], quad.Color[2], quad.Color[3], picture[x], picture[y+1], backdrop)
 		}
 	}
 	renderer.vertices = vertices
@@ -179,7 +218,14 @@ func (renderer *overlayRenderer) fillVertices(quads []overlay.Quad) {
 	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*bytesPerFloat, gl.Ptr(vertices), gl.STREAM_DRAW)
 }
 
-func (renderer *overlayRenderer) drawVertices(width, height int) {
+// verticesPerQuad: two triangles.
+const verticesPerQuad = 6
+
+// drawVertices draws the quads from first up to (not including) last.
+func (renderer *overlayRenderer) drawVertices(first, last, width, height int) {
+	if last <= first {
+		return
+	}
 	program := renderer.program
 	gl.UseProgram(program.handle)
 	gl.Uniform2f(program.location("screenSize"), float32(width), float32(height))
@@ -188,12 +234,13 @@ func (renderer *overlayRenderer) drawVertices(width, height int) {
 	program.setInteger("atlas", overlayTextureUnit)
 	gl.Uniform2f(program.location("picturesSize"), float32(renderer.picturesSize), float32(renderer.picturesSize))
 	program.setInteger("pictures", picturesTextureUnit)
+	program.setInteger("blurred", blurredTextureUnit)
 	gl.Disable(gl.DEPTH_TEST)
 	gl.DepthMask(false)
 	gl.Enable(gl.BLEND)
 	gl.BlendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
 	gl.BindVertexArray(renderer.vertexArray)
-	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(renderer.vertices)/floatsPerOverlayVertex))
+	gl.DrawArrays(gl.TRIANGLES, int32(first*verticesPerQuad), int32((last-first)*verticesPerQuad))
 	gl.BindVertexArray(0)
 	gl.Disable(gl.BLEND)
 	gl.DepthMask(true)

@@ -22,6 +22,9 @@ func (painter *Painter) paintDrawing(list *draw2d.List, scale float32) {
 	painter.preparePictures(list, scale)
 	for _, index := range painter.drawingOrder(list) {
 		command := &list.Commands[index]
+		if command.Kind == draw2d.BackdropKind {
+			painter.askForSnapshot(command, scale)
+		}
 		first := len(painter.quads)
 		painter.paintCommand(command, scale)
 		if command.HasClip {
@@ -55,6 +58,38 @@ func (painter *Painter) paintCommand(command *draw2d.Command, scale float32) {
 		painter.paintIcon(command, scale)
 	case draw2d.ImageKind:
 		painter.paintImage(command, scale)
+	case draw2d.BackdropKind:
+		painter.paintBackdrop(command, scale)
+	}
+}
+
+// noSnapshotLayer is no layer at all: no snapshot was taken yet in this frame.
+const noSnapshotLayer = math.MinInt
+
+// askForSnapshot makes sure the backdrop's layer has a snapshot taken just before it: the first
+// backdrop of a layer asks for one, the others of the layer read it, taking the widest blur.
+func (painter *Painter) askForSnapshot(command *draw2d.Command, scale float32) {
+	blur := command.Blur * scale
+	if command.Layer == painter.snapshotLayer {
+		last := &painter.snapshots[len(painter.snapshots)-1]
+		last.Blur = max(last.Blur, blur)
+		return
+	}
+	painter.snapshots = append(painter.snapshots, Snapshot{At: len(painter.quads), Blur: blur})
+	painter.snapshotLayer = command.Layer
+}
+
+// paintBackdrop lays out a backdrop like a filled rounded rectangle, whose quads read the blurred
+// snapshot instead of a colour.
+func (painter *Painter) paintBackdrop(command *draw2d.Command, scale float32) {
+	area := screenArea(command.Area, scale)
+	if area.width() <= 0 || area.height() <= 0 {
+		return
+	}
+	first := len(painter.quads)
+	painter.paintFill(area, cornerPixels(command.Radius, area, scale), [4]float32{1, 1, 1, 1})
+	for index := first; index < len(painter.quads); index++ {
+		painter.quads[index].Backdrop = true
 	}
 }
 
