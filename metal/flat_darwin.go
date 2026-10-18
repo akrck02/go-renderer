@@ -21,14 +21,15 @@ import (
 
 // FlatRenderer draws a 2D draw list on a plain background through Metal: the window of an
 // application that is only an interface. It shares the OpenGL path's painter, so both draw the
-// same quads of the same atlas; here each quad is one 36-byte instance and a frame is one draw
-// call. Create and use it on the main thread.
+// same quads of the same atlas; here each quad is one 52-byte instance and a frame is one draw
+// call, or one more around each snapshot of a frosted layer. Create and use it on the main thread.
 type FlatRenderer struct {
 	handle       unsafe.Pointer
 	painter      *overlay.Painter
 	layer        scene.Overlay
 	atlasVersion int
 	instances    []instance
+	snapshots    []snapshot // where the frame is blurred for the backdrops after it
 	// capturing draws frames into an off-screen picture (captured) instead of the window.
 	capturing bool
 	captured  *image.NRGBA
@@ -62,13 +63,15 @@ func (renderer *FlatRenderer) Draw(list *draw2d.List, background draw2d.Color, w
 	quads := renderer.painter.Paint(&renderer.layer, nil, overlay.Frame{Width: width, Height: height, Scale: scale})
 	renderer.uploadAtlas()
 	renderer.uploadPictures()
-	renderer.instances = packInstances(quads, renderer.instances)
+	renderer.instances = packInstances(quads, renderer.instances, true)
+	renderer.snapshots = packSnapshots(renderer.painter.Snapshots(), renderer.snapshots)
 	colour := [4]C.float{C.float(background[0]), C.float(background[1]), C.float(background[2]), 1}
 	if renderer.capturing {
 		renderer.capture(&colour[0], width, height)
 		return
 	}
-	C.flatRendererDraw(renderer.handle, renderer.instancePointer(), C.int(len(renderer.instances)), &colour[0], C.int(width), C.int(height))
+	C.flatRendererDraw(renderer.handle, renderer.instancePointer(), C.int(len(renderer.instances)),
+		renderer.snapshotPointer(), C.int(len(renderer.snapshots)), &colour[0], C.int(width), C.int(height))
 }
 
 // Close lets go of the layer's GPU resources.
@@ -109,6 +112,13 @@ func (renderer *FlatRenderer) uploadPictures() {
 	pictures.Uploaded()
 }
 
+func (renderer *FlatRenderer) snapshotPointer() *C.flatSnapshot {
+	if len(renderer.snapshots) == 0 {
+		return nil
+	}
+	return (*C.flatSnapshot)(unsafe.Pointer(&renderer.snapshots[0]))
+}
+
 func (renderer *FlatRenderer) instancePointer() *C.flatInstance {
 	if len(renderer.instances) == 0 {
 		return nil
@@ -119,7 +129,8 @@ func (renderer *FlatRenderer) instancePointer() *C.flatInstance {
 // capture draws the frame off screen and keeps it as a picture, turning Metal's BGRA into RGBA.
 func (renderer *FlatRenderer) capture(background *C.float, width, height int) {
 	picture := image.NewNRGBA(image.Rect(0, 0, width, height))
-	C.flatRendererCapture(renderer.handle, renderer.instancePointer(), C.int(len(renderer.instances)), background,
+	C.flatRendererCapture(renderer.handle, renderer.instancePointer(), C.int(len(renderer.instances)),
+		renderer.snapshotPointer(), C.int(len(renderer.snapshots)), background,
 		C.int(width), C.int(height), (*C.uint8_t)(unsafe.Pointer(&picture.Pix[0])))
 	swapRedAndBlue(picture)
 	renderer.captured = picture

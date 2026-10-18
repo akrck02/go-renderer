@@ -53,8 +53,13 @@ const (
 	Linear           Enum = 0x2601
 	ClampToEdge      Enum = 0x812F
 	Luminance        Enum = 0x1909
+	RGB              Enum = 0x1907
 	RGBA             Enum = 0x1908
 	UnpackAlignment  Enum = 0x0CF5
+	Nearest          Enum = 0x2600
+
+	FramebufferTarget Enum = 0x8D40
+	ColorAttachment0  Enum = 0x8CE0
 )
 
 // Handles name objects the graphics driver keeps. 0 is never a valid one.
@@ -63,6 +68,8 @@ type (
 	Program uint32
 	Buffer  uint32
 	Texture uint32
+	// Framebuffer 0 is the screen's own: it can be bound, though no call made it.
+	Framebuffer uint32
 )
 
 // Uniform is where a program reads a uniform value; -1 when the program has none of that name
@@ -116,6 +123,17 @@ type Functions interface {
 	TexImage2D(target Enum, level int, internalFormat Enum, width, height int, format, kind Enum, pixels []byte)
 	// TexSubImage2D replaces a rectangle of the bound texture's pixels, given row after row.
 	TexSubImage2D(target Enum, level, x, y, width, height int, format, kind Enum, pixels []byte)
+	// CopyTexSubImage2D copies a rectangle of the bound framebuffer (x, y from its bottom left)
+	// into the bound texture at xOffset, yOffset.
+	CopyTexSubImage2D(target Enum, level, xOffset, yOffset, x, y, width, height int)
+	DeleteTexture(texture Texture)
+
+	// Framebuffers let a pass draw into a texture: the backdrop's blur. TexImage2D with no pixels
+	// makes the texture they draw into.
+	CreateFramebuffer() Framebuffer
+	BindFramebuffer(target Enum, framebuffer Framebuffer)
+	FramebufferTexture2D(target, attachment, textureTarget Enum, texture Texture, level int)
+	DeleteFramebuffer(framebuffer Framebuffer)
 
 	Viewport(x, y, width, height int)
 	ClearColor(red, green, blue, alpha float32)

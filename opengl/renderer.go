@@ -230,7 +230,9 @@ func CompileShader(
 ) (uint32, error) {
 	shader := gl.CreateShader(shaderType)
 
-	csources, free := gl.Strs(source)
+	// gl.Strs copies the text without a closing zero, and with no lengths OpenGL reads until it
+	// finds one: whatever follows in memory became part of the shader, now and then.
+	csources, free := gl.Strs(source + "\x00")
 	gl.ShaderSource(shader, 1, csources, nil)
 	free()
 	gl.CompileShader(shader)
