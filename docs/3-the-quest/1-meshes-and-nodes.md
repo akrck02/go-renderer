@@ -13,7 +13,7 @@ A mesh is **a tent made of triangles**: a list of poles (the vertices) and which
 
 ## Coordinates
 
-go-renderer's world has **y up**. The ground lies in the x–z plane, and north is towards −z (the
+Go Renderer's world has **y up**. The ground lies in the x–z plane, and north is towards −z (the
 viewer's map shows it at the top). Units are whatever you decide: in this tutorial one unit is a
 metre, so the tower is eight metres tall.
 

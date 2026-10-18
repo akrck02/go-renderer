@@ -9,7 +9,7 @@ before it and ends with something you can run.
 
 ![The island at the end of lesson 4: a lighthouse among trees, a label over it, a header, a notice and a card of the program's own](../images/tutorial/tutorial-4.jpg)
 
-**Before you start**, follow [Get started](../2-get-started.md): Go, a C compiler and go-renderer
+**Before you start**, follow [Get started](../2-get-started.md): Go, a C compiler and Go Renderer
 cloned beside your module. Each lesson takes ten to twenty minutes.
 
 Every lesson has the same shape, as in a quest: **the idea** in everyday words, **the code**, a **checkpoint** to know it works, a **bonus** with its solution folded, and an **achievement** to unlock. A final challenge waits at the end of lesson 6.

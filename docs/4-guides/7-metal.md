@@ -1,6 +1,6 @@
 # 🍎 Metal: a backend for flat drawing
 
-**Status:** built (October 2026): the flat path, which go-ui's window draws through on macOS by
+**Status:** built (October 2026): the flat path, which Go UI's window draws through on macOS by
 default, and the 3D scene renderer, which the viewer draws through on macOS by default (see *The 3D
 scene renderer* below). This page started as the design; *What was built* and *Measured* say how it turned
 out. Pending a look on screen: live resizing by dragging an edge, and a second screen with another
@@ -29,7 +29,7 @@ with the display.
 | The window's loop through Metal, and one-frame captures | `metal/flat_window_darwin.go` (`FlatWindow`) |
 | The loop both backends share | `windowloop` (moved out of `opengl`, which now calls it) |
 | `ErrUnavailable`, and a `FlatWindow` that returns it outside macOS | `metal/flat.go`, `metal/flat_other.go` |
-| Choosing the backend: `Options.Backend`, `-backend automatic|metal|opengl`, falling back to OpenGL | go-ui `window` |
+| Choosing the backend: `Options.Backend`, `-backend automatic|metal|opengl`, falling back to OpenGL | Go UI `window` |
 
 Where it differs from the design below:
 
@@ -42,7 +42,7 @@ Where it differs from the design below:
   when glyphs or corners are added. Uploading only the changed rectangle is left for later, as on
   the OpenGL path.
 - **The OpenGL path keeps its six vertices per quad** for now; moving it to the same instances is
-  step 5 of go-ui's performance audit.
+  step 5 of Go UI's performance audit.
 
 ## Measured
 
@@ -50,7 +50,7 @@ On a laptop with an Apple M4 and a 60 Hz screen, macOS 26, a 1280 × 800 window 
 screen.
 
 **Captures:** the register application captured through both backends differs in fewer than 1 %
-of its pixels, by at most 1/255 in a channel (the colour rounded to a byte), light and dark. go-ui's
+of its pixels, by at most 1/255 in a channel (the colour rounded to a byte), light and dark. Go UI's
 `cmd/app` test `TestMetalDrawsLikeOpenGL` checks it.
 
 **The register application, idle (drawing on demand):**
@@ -120,7 +120,7 @@ instances every frame.
 
 ## Scope
 
-**First:** the flat path, `FlatRenderer` — everything an interface-only window needs (go-ui's
+**First:** the flat path, `FlatRenderer` — everything an interface-only window needs (Go UI's
 `window` package). It is small: about 25 OpenGL calls, two short shaders, one atlas texture and one
 draw call a frame.
 
@@ -136,17 +136,17 @@ decision of its own (see *Options*).
 | Metal through `purego` (no cgo) | How Ebitengine does it. No gain while GLFW needs cgo anyway, and the bindings are ours to write. |
 | WebGPU through wgpu-native | One renderer for Metal, Vulkan, OpenGL ES and Direct3D, with WGSL shaders: attractive for the 3D renderer and Android. A large native library and young Go bindings. **Reconsider when porting the 3D renderer.** |
 
-Android keeps its own small OpenGL ES flat renderer, as planned in go-ui's `docs/android.md`.
+Android keeps its own small OpenGL ES flat renderer, as planned in Go UI's `docs/android.md`.
 
 ## How it fits together
 
 <p align="center">
-  <img alt="An interface (a draw2d.List, what go-ui draws) goes through the painter (opengl/overlay: quads of one atlas, plain Go), then to metal.FlatRenderer on macOS or opengl.FlatRenderer elsewhere; one window loop (windowloop) serves both: GLFW events, drawing on demand, resizing" src="../images/metal-stack.svg" width="880">
+  <img alt="An interface (a draw2d.List, what Go UI draws) goes through the painter (opengl/overlay: quads of one atlas, plain Go), then to metal.FlatRenderer on macOS or opengl.FlatRenderer elsewhere; one window loop (windowloop) serves both: GLFW events, drawing on demand, resizing" src="../images/metal-stack.svg" width="880">
 </p>
 
 | Layer | What it does |
 |---|---|
-| go-ui window | Chooses the backend: Metal on macOS, OpenGL elsewhere (`-backend` to force one) |
+| Go UI window | Chooses the backend: Metal on macOS, OpenGL elsewhere (`-backend` to force one) |
 | `draw2d.List` | Unchanged: what an interface draws |
 | overlay painter | Unchanged: turns the list into quads of one atlas (plain Go, no OpenGL) |
 | `metal.FlatRenderer` | **New:** uploads the atlas and the quads, one draw call, presents the drawable |
@@ -227,7 +227,7 @@ The existing hand-written `metal.Metal` and `metal.MetalRenderer` stubs (the imm
 the OpenGL path does with `ReadPixels`. The same frame captured through both backends must match
 within a small tolerance. That comparison is the main test of the port.
 
-### 5. Choosing the backend (go-ui)
+### 5. Choosing the backend (Go UI)
 
 - `window.Options.Backend`: `Automatic` (Metal on macOS when a device exists, else OpenGL), `Metal` or
   `OpenGL`.
@@ -240,7 +240,7 @@ within a small tolerance. That comparison is the main test of the port.
 |---|---|---|---|
 | 0 | GLFW window with no OpenGL context, a `CAMetalLayer`, clear to a colour, drawing on demand, a capture | A window shows the background, sleeps while idle, and `-capture` writes the colour | Done |
 | 1 | `metal.FlatRenderer`: pipeline, atlas, instanced quads, shaders | The register application's capture matches the OpenGL one within 1/255 per channel, light and dark | Done |
-| 2 | The shared loop; go-ui backend choice; live resize in a transaction; moving between screens | The register runs on Metal, resizes without stretching or flicker, and its CPU, GPU and memory are measured against OpenGL | Done; resizing and a second screen still need a look on screen |
+| 2 | The shared loop; Go UI backend choice; live resize in a transaction; moving between screens | The register runs on Metal, resizes without stretching or flicker, and its CPU, GPU and memory are measured against OpenGL | Done; resizing and a second screen still need a look on screen |
 | 3 | Docs, tests, README disclosure | `go vet` and `go test` pass in both repositories; this page says what was measured | Done |
 
 It was estimated at three to four days. Each step kept the OpenGL path working.

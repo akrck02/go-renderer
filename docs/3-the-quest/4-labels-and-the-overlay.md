@@ -2,7 +2,7 @@
 
 A 3D view often needs words: the name of a place, the time, a message that something happened. In
 this lesson you put a **label** over the lighthouse, a **header** in the corner, a **notice** that
-fades, and a small card drawn with **`draw2d`**, go-renderer's flat drawing.
+fades, and a small card drawn with **`draw2d`**, Go Renderer's flat drawing.
 
 | Mission | Pieces | Time |
 |---|---|---|
@@ -56,7 +56,7 @@ func treeCount(forest *scene.Instances) string {
 Labels and notices are fixed shapes. For anything else, `Overlay.Drawing` takes a `draw2d.List`:
 rounded rectangles, soft shadows, lines of text, icons and pictures, in **layout pixels** from the
 window's top-left corner (the renderer multiplies them on a high-density screen, so text stays
-sharp). It is the same list go-ui fills with its panels and buttons.
+sharp). It is the same list Go UI fills with its panels and buttons.
 
 ```go
 card := &draw2d.List{}
@@ -85,7 +85,7 @@ function: `Reset` keeps the list's memory, so a frame allocates nothing.
 ![Labels, the header, a notice and the wind card over the island](../images/tutorial/tutorial-4.jpg)
 
 > 📝 **Buttons?** `draw2d` paints; it does not know about the mouse. For panels, buttons, fields and
-> lists that react, use [go-ui](https://github.com/akrck02/go-ui), which fills this same list.
+> lists that react, use [Go UI](https://github.com/akrck02/go-ui), which fills this same list.
 
 #### Checkpoint
 

@@ -129,7 +129,7 @@ New here? Start with the [overview](docs/1-overview.md), then [get started](docs
 | [Roadmap](docs/6-project/2-roadmap.md) | Goals for the next versions. |
 
 Simulations (moving things, weather, growing towns) live in the sibling project
-[go-simulator](https://github.com/akrck02/go-simulator), which changes the scene while the viewer shows it.
+[Go Simulator](https://github.com/akrck02/go-simulator), which changes the scene while the viewer shows it.
 
 ## Licence
 
