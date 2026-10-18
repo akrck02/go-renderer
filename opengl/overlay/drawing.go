@@ -113,6 +113,9 @@ func (painter *Painter) paintImage(command *draw2d.Command, scale float32) {
 	first := len(painter.quads)
 	painter.paintFill(area, cornerPixels(command.Radius, area, scale), colourOf(command.Fill))
 	painter.pictureQuads(first, area, coverCrop(bounds, area))
+	for index := first; index < len(painter.quads); index++ {
+		painter.quads[index].Sharp = command.Picture.Sharp
+	}
 }
 
 // pictureQuads gives the quads from first on the colours of a part of the picture atlas, source,

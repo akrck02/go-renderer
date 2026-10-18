@@ -67,6 +67,13 @@ static C3D_Tex* newPicturesTexture(int size) {
 	return texture;
 }
 
+// setPicturesFilter reads the pictures at the nearest pixel (pixel art) or blended between pixels;
+// the texture's binding carries it to the GPU.
+static void setPicturesFilter(C3D_Tex* texture, int nearest) {
+	GPU_TEXTURE_FILTER_PARAM filter = nearest ? GPU_NEAREST : GPU_LINEAR;
+	C3D_TexSetFilter(texture, filter, filter);
+}
+
 // prepareOverlay sets what the overlay's rectangles share: the atlas on texture unit 0, the
 // pictures (when there are any) on unit 1, blended over what is behind, with no depth test.
 static void prepareOverlay(C3D_Tex* atlas, C3D_Tex* pictures) {
@@ -234,6 +241,25 @@ type paintedList struct {
 	memory                    linearBuffer
 	vertices                  linearBuffer // memory, once it holds the corners; empty when it does not
 	runs                      []quadRun
+	sharp                     bool // a picture of the list is read at the nearest pixel
+}
+
+// anySharp tells whether a quad reads its picture at the nearest pixel.
+func anySharp(quads []overlay.Quad) bool {
+	for _, quad := range quads {
+		if quad.Pictured && quad.Sharp {
+			return true
+		}
+	}
+	return false
+}
+
+// boolToInt is 1 for true and 0 for false, as C wants a flag.
+func boolToInt(flag bool) int {
+	if flag {
+		return 1
+	}
+	return 0
 }
 
 // linearBuffer is linear memory the GPU reads vertices from, kept and grown from frame to frame.
@@ -303,6 +329,10 @@ func (renderer *FlatRenderer) paint(surface Surface, list *draw2d.List) {
 	renderer.shader.Use()
 	// Pixels from the top-left corner: y grows downwards, so top and bottom are swapped.
 	SetMatrix(renderer.projection, OrthographicTilt(0, float32(width), float32(height), 0, 0, 1))
+	if renderer.pictures != nil {
+		// one filter for the whole texture: a list with a sharp picture reads all of them sharp
+		C.setPicturesFilter(renderer.pictures, C.int(boolToInt(painted.sharp)))
+	}
 	C.prepareOverlay(renderer.texture, renderer.pictures)
 	C.describeQuads(painted.vertices.data)
 	for _, run := range painted.runs {
@@ -343,6 +373,7 @@ func (renderer *FlatRenderer) paintList(painted *paintedList, width, height int)
 		}
 	}
 	painted.runs = writeQuadVertices(unsafe.Slice((*float32)(buffer.data), floats), painted.runs, quads, renderer.textureSize, renderer.picturesSize)
+	painted.sharp = anySharp(quads)
 	C.flush(buffer.data, C.u32(floats*4))
 	painted.vertices = *buffer
 	painted.width, painted.height = width, height
