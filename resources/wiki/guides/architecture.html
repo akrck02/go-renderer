@@ -15,7 +15,7 @@ simulators use.</li>
 scene, and it shows the result.</p>
 
 <p align="center">
-  <img alt="Immediate mode: your program's Update and Draw call the hand-written models.Renderer contract, drawn by the software, opengl, vulkan, metal or webgpu backend. A retained scene: glTF 2.0 through loaders into scene and sceneplan, drawn by the scene renderers: opengl and metal on the desktop, gles in browsers and on Android" src="../images/two-ways.svg" width="880">
+  <img alt="Immediate mode: your program's Update and Draw call the hand-written models.Renderer contract, drawn by the software, opengl, vulkan, metal or webgpu backend. A retained scene: glTF 2.0 through loaders into scene and sceneplan, drawn by the scene renderers: opengl and metal on the desktop, gles in browsers and on Android" src="./images/two-ways.svg" width="880">
 </p>
 
 <h2 id="packages">Packages</h2>
@@ -198,8 +198,8 @@ except for rounding and where two surfaces lie in the same plane (<code>cmd/viso
 <table>
 <tr><th width="50%">OpenGL (<code>-backend opengl</code>)</th><th width="50%">Metal (<code>-backend metal</code>)</th></tr>
 <tr>
-<td><img alt="The sample island drawn through OpenGL" src="../images/backend-opengl.png"></td>
-<td><img alt="The same frame of the sample island drawn through Metal, alike to the eye" src="../images/backend-metal.png"></td>
+<td><img alt="The sample island drawn through OpenGL" src="./images/backend-opengl.png"></td>
+<td><img alt="The same frame of the sample island drawn through Metal, alike to the eye" src="./images/backend-metal.png"></td>
 </tr>
 <tr><td colspan="2" align="center">The same plan, drawn by each backend: <code>go run ./cmd/visor -sample island -time 10 -backend … -capture frame.png</code></td></tr>
 </table>
@@ -208,7 +208,7 @@ except for rounding and where two surfaces lie in the same plane (<code>cmd/viso
 forest of a hundred thousand trees costs a few draw calls. Every frame goes through the same passes:</p>
 
 <p align="center">
-  <img alt="The six passes of a frame in order: 1 culling, what is in view at what detail; 2 shadows, the scene seen from the sun; 3 sky, day, night, stars and clouds; 4 scene, light, fog, patterns, snow and wind; 5 water, depth, waves, tides and foam; 6 overlay, labels, header, notices and drawing" src="../images/frame-passes.svg" width="880">
+  <img alt="The six passes of a frame in order: 1 culling, what is in view at what detail; 2 shadows, the scene seen from the sun; 3 sky, day, night, stars and clouds; 4 scene, light, fog, patterns, snow and wind; 5 water, depth, waves, tides and foam; 6 overlay, labels, header, notices and drawing" src="./images/frame-passes.svg" width="880">
 </p>
 
 <ol>

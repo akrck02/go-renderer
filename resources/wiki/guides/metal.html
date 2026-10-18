@@ -178,8 +178,8 @@ that can be compared.</li>
 <table>
 <tr><th width="50%">OpenGL</th><th width="50%">Metal</th></tr>
 <tr>
-<td><img alt="The sample island drawn through OpenGL" src="../images/backend-opengl.png"></td>
-<td><img alt="The same frame drawn through Metal, alike to the eye" src="../images/backend-metal.png"></td>
+<td><img alt="The sample island drawn through OpenGL" src="./images/backend-opengl.png"></td>
+<td><img alt="The same frame drawn through Metal, alike to the eye" src="./images/backend-metal.png"></td>
 </tr>
 <tr><td colspan="2" align="center">The sample island at a fixed time (<code>-time 10</code>), captured through each backend with <code>-backend opengl</code> and <code>-backend metal</code>.</td></tr>
 </table>
@@ -279,7 +279,7 @@ decision of its own (see <em>Options</em>).</p>
 <h2 id="how-it-fits-together">How it fits together</h2>
 
 <p align="center">
-  <img alt="An interface (a draw2d.List, what go-ui draws) goes through the painter (opengl/overlay: quads of one atlas, plain Go), then to metal.FlatRenderer on macOS or opengl.FlatRenderer elsewhere; one window loop (windowloop) serves both: GLFW events, drawing on demand, resizing" src="../images/metal-stack.svg" width="880">
+  <img alt="An interface (a draw2d.List, what go-ui draws) goes through the painter (opengl/overlay: quads of one atlas, plain Go), then to metal.FlatRenderer on macOS or opengl.FlatRenderer elsewhere; one window loop (windowloop) serves both: GLFW events, drawing on demand, resizing" src="./images/metal-stack.svg" width="880">
 </p>
 
 <table>

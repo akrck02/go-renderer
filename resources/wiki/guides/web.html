@@ -5,7 +5,7 @@ through WebGL2, and go-ui interfaces run there too (see go-ui&rsquo;s <code>docs
 unchanged. What is still missing is listed at the end.</p>
 
 <p align="center">
-  <img alt="The sample island in a browser: forests, the river, the harbour house and its label" src="../images/web-island.jpg" width="360">
+  <img alt="The sample island in a browser: forests, the river, the harbour house and its label" src="./images/web-island.jpg" width="360">
 </p>
 <pre><code class="language-bash"><span class="nv">GOOS</span><span class="o">=</span>js <span class="nv">GOARCH</span><span class="o">=</span>wasm go build -o cmd/web-island/island.wasm ./cmd/web-island
 cp <span class="s2">&#34;</span><span class="k">$(</span>go env GOROOT<span class="k">)</span><span class="s2">/lib/wasm/wasm_exec.js&#34;</span> cmd/web-island/
@@ -29,7 +29,7 @@ not use GLFW, and <strong>a renderer</strong> that speaks WebGL2.</p>
 <h2 id="how-it-fits-together">How it fits together</h2>
 
 <p align="center">
-  <img alt="Your program, the same scene, camera and update function as on the desktop, runs in a canvas (browser: its events, requestAnimationFrame) or in a NativeActivity (android: its window, touches, a thread); both draw through gles, renderers written once in GLSL ES 1.00 over gles.Functions. The clock and update step are shared with the desktop (frameloop)" src="../images/platforms.svg" width="880">
+  <img alt="Your program, the same scene, camera and update function as on the desktop, runs in a canvas (browser: its events, requestAnimationFrame) or in a NativeActivity (android: its window, touches, a thread); both draw through gles, renderers written once in GLSL ES 1.00 over gles.Functions. The clock and update step are shared with the desktop (frameloop)" src="./images/platforms.svg" width="880">
 </p>
 
 <table>
