@@ -28,6 +28,7 @@ type Quad struct {
 	// Pictured.
 	Picture  [4]float32
 	Pictured bool
+	Sharp    bool // the picture is read at the nearest pixel (draw2d.Image's Sharp)
 }
 
 // Frame is what the layout needs to know about the frame being drawn.

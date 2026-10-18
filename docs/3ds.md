@@ -84,6 +84,9 @@ as alpha, blue, green, red); their rectangles multiply the picture by their colo
 coverage, which rounds their corners. Rectangles are drawn in runs, with or without a picture, in
 the list's order, so what is painted over what stays the same. Both atlases have to stay within
 the chip's 1024 × 1024 pixels, and a picture that changes uploads the whole pictures atlas again.
+The chip has no fragment shader to read one picture sharp and another blended, so a sharp picture
+(`draw2d.Image`'s `Sharp`, for pixel art) makes its whole list read the pictures atlas at the
+nearest pixel: a game's top screen is sharp, the interface below stays smooth.
 
 <p align="center">
   <img alt="The emulator's two screens: the village of the sample island above, in the morning; below, a dark blue go-ui panel titled Sample island with the tabs View, Light and Figures, Light chosen, a time of day slider at 10:00 and a fog switch, on" src="images/3ds-interface.png" width="420">
