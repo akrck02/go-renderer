@@ -15,6 +15,7 @@ jobs:
           title: "go-renderer"
           description: "A tiny, educational graphics renderer in Go"
           logo: "./docs/images/logo.svg"
+          accent: "#2BB3A3"
           path: "./docs"
           isObsidianProject: false
           showFooter: true
