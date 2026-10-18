@@ -26,6 +26,7 @@ uniform vec2 picturesSize;
 varying vec2 atlasCoordinate;
 varying vec2 pictureCoordinate;
 varying float sharp;
+varying vec2 pictureTexel;
 varying vec4 color;
 
 void main() {
@@ -36,6 +37,7 @@ void main() {
     sharp = picture.x >= 65536.0 ? 1.0 : 0.0; // graphics.SharpPictureOffset: read at the nearest pixel
     picture.x -= sharp * 65536.0;
     pictureCoordinate = picture.x < 0.0 ? vec2(-1.0) : picture / picturesSize;
+    pictureTexel = 1.0 / picturesSize; // a uniform of the fragment shader would get another precision: the program would not link
     color = vertexColor;
 }
 `
@@ -47,10 +49,10 @@ precision mediump float;
 varying vec2 atlasCoordinate;
 varying vec2 pictureCoordinate;
 varying float sharp;
+varying vec2 pictureTexel;
 varying vec4 color;
 uniform sampler2D atlas;
 uniform sampler2D pictures;
-uniform vec2 picturesSize;
 
 void main() {
     float coverage = texture2D(atlas, atlasCoordinate).r;
@@ -58,7 +60,7 @@ void main() {
     if (pictureCoordinate.x >= 0.0) {
         vec2 read = pictureCoordinate;
         if (sharp > 0.5) {
-            read = (floor(read * picturesSize) + 0.5) / picturesSize; // the middle of the nearest pixel
+            read = (floor(read / pictureTexel) + 0.5) * pictureTexel; // the middle of the nearest pixel
         }
         painted *= texture2D(pictures, read);
     }
