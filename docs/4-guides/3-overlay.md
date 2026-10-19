@@ -239,6 +239,54 @@ Not done yet: Metal blurs a flat interface's backdrops but not those over a 3D s
 leaves out (the panels show unblurred); and the snapshot is the whole frame, where copying only
 the area under the panels would save more on large windows.
 
+### Light: 2D lights
+
+A 2D game looks flat until something is lit: a lamp's warm circle in a dark room, a sign that
+glows. Painting a halo over the picture cannot do it, because light also has to *darken* what it
+does not reach. So lights work the way Unity's 2D lights do: they are added together into a
+**picture of light**, which starts at an ambient colour, and then the frame is **multiplied** by it.
+
+```go
+white := draw2d.Color{1, 1, 1, 1}
+drawing.Image(room, draw2d.Rect{Width: 400, Height: 240}, 0, white)        // what is lit
+drawing.PointLight(200, 120, 20, 80, draw2d.Hex("#ffeeaa"))                // full within 20 px, gone at 80
+drawing.SpriteLight(signGlow, draw2d.Rect{X: 40, Y: 30, Width: 64, Height: 32}, white)
+drawing.Lighting(draw2d.Color{0.6, 0.6, 0.8, 0.7})                         // the ambient: a dim blue
+drawing.Text("Score 10", 8, 20, 16, draw2d.Medium, white)                  // after it: unlit
+```
+
+`Lighting` lights everything drawn before it, with the lights added since the last `Lighting`.
+What comes after it, such as the interface, keeps its own colours. A colour's alpha is its
+**intensity**: an ambient of `{1, 1, 1, 1}` leaves everything as it is, and an alpha of 0.5 halves it.
+
+**Light can brighten too.** Light is kept at half: 0.5 in the picture of light leaves a colour as
+it is, and 1 makes it twice as bright. The multiply counts the light twice (it blends the frame by
+the light *and* the light by the frame). So a lamp in daylight still shows, up to twice the
+brightness, with no extra cost.
+
+**How it is drawn.** As with backdrops, the painter only marks where each `Lighting` falls
+(`Painter.Lightings`), and lays the lights out apart from the other quads (`Painter.Lights`). At
+each lighting the backend:
+
+1. clears a picture of light, at half the screen's resolution, to the ambient;
+2. adds the lights into it, one square each. A point light's shader fades it smoothly from its
+   inner radius to its outer one, and a sprite light shines through its picture;
+3. draws the picture of light over the whole frame with the multiplying blend.
+
+**What it costs**:
+
+- **Nothing, without lights.** A list with no `Lighting` draws as before.
+- **Half the resolution** for the picture of light, a quarter of the pixels: light is soft, and
+  nobody sees the difference.
+- **Three steps per lighting**, however many lights it has: a clear, one draw call for all its
+  lights, and a full-screen multiply.
+- **The texture is kept**, and made again only when the window changes size.
+
+Measured as the backdrops were (llvmpipe, 1280 × 760), a frame of twenty panels takes 1.1 ms,
+and 3.0 ms with eight lights. A graphics card does the same work in a fraction of that.
+
+Not done yet: OpenGL ES, Metal and the 3DS draw lists with lights unlit.
+
 ---
 
 [← All the documentation](../1-overview.md)

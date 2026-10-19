@@ -23,6 +23,7 @@ type overlayRenderer struct {
 	picturesSize              int // the side of the pictures on the GPU; 0 before any
 	vertices                  []float32
 	blur                      *backdropBlur // made the first time a frame has a backdrop
+	lights                    *lightLayer   // made the first time a frame has lights
 }
 
 // floatsPerOverlayVertex: screen position 2, atlas position 2, colour 4, picture position 2,
@@ -94,23 +95,58 @@ func (renderer *overlayRenderer) drawFlat(layer *scene.Overlay, width, height in
 }
 
 func (renderer *overlayRenderer) drawQuads(quads []overlay.Quad, width, height int) {
-	if len(quads) == 0 {
+	snapshots, lightings := renderer.painter.Snapshots(), renderer.painter.Lightings()
+	if len(quads) == 0 && len(lightings) == 0 {
 		return
 	}
 	renderer.uploadAtlas()
 	renderer.uploadPictures()
-	renderer.fillVertices(quads)
-	// without backdrops this is one draw call; each snapshot cuts it in two around a blur
+	if len(quads) > 0 {
+		renderer.fillVertices(quads)
+	}
+	if len(lightings) > 0 && !renderer.prepareLights() {
+		lightings = nil // no lights on this machine: the frame is drawn unlit
+	}
+	// without backdrops nor lights this is one draw call; each snapshot or lighting cuts it in two
 	drawn := 0
-	for _, snapshot := range renderer.painter.Snapshots() {
-		renderer.drawVertices(drawn, snapshot.At, width, height)
-		if !renderer.takeSnapshot(width, height, snapshot.Blur) {
-			break // no blur on this machine: the backdrops show nothing, the panels over them stay
+	for len(snapshots) > 0 || len(lightings) > 0 {
+		if len(lightings) > 0 && (len(snapshots) == 0 || lightings[0].At <= snapshots[0].At) {
+			renderer.drawVertices(drawn, lightings[0].At, width, height)
+			renderer.lights.light(lightings[0], width, height, renderer.picturesSize)
+			drawn, lightings = lightings[0].At, lightings[1:]
+			continue
 		}
-		drawn = snapshot.At
+		renderer.drawVertices(drawn, snapshots[0].At, width, height)
+		drawn = snapshots[0].At
+		blurred := renderer.takeSnapshot(width, height, snapshots[0].Blur)
+		snapshots = snapshots[1:]
+		if !blurred {
+			snapshots = nil // no blur on this machine: the backdrops show nothing, the panels over them stay
+		}
 	}
 	renderer.drawVertices(drawn, len(quads), width, height)
 	gl.ActiveTexture(gl.TEXTURE0) // the other passes bind their textures on the first unit
+}
+
+// prepareLights makes the light layer the first time a frame has lights and fills its vertices;
+// false when its shaders could not be made, which is then said once and not tried again.
+func (renderer *overlayRenderer) prepareLights() bool {
+	if renderer.lights == nil {
+		lights, err := newLightLayer()
+		if err != nil {
+			log.Print("2D lights unavailable: ", err)
+			renderer.lights = &lightLayer{} // a layer with no program: not tried again
+			return false
+		}
+		renderer.lights = lights
+	}
+	if renderer.lights.addProgram == nil {
+		return false
+	}
+	if lights := renderer.painter.Lights(); len(lights) > 0 {
+		renderer.lights.fillVertices(lights)
+	}
+	return true
 }
 
 // takeSnapshot blurs the frame so far for the backdrops that follow; false when the blur's shaders
@@ -128,6 +164,7 @@ func (renderer *overlayRenderer) takeSnapshot(width, height int, deviation float
 	if renderer.blur.program == nil {
 		return false
 	}
+	gl.ActiveTexture(gl.TEXTURE0 + blurredTextureUnit) // new targets bind their textures here, not over the atlas
 	renderer.blur.snapshot(width, height, deviation, blurredTextureUnit)
 	return true
 }

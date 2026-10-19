@@ -77,6 +77,9 @@ Image is a picture a list draws: a photo, a map tile, a video's frame. A program
 type Image struct {
 	// Pixels are the picture's colours, not premultiplied by their opacity.
 	Pixels *image.NRGBA
+	// Sharp draws the picture scaled to the nearest pixel, as pixel art wants, instead of blended
+	// between pixels. On the 3DS it holds for every picture of a frame that shows a sharp one.
+	Sharp bool
 
 	// Has unexported fields.
 }
@@ -102,12 +105,15 @@ type Kind int
 
 ```go
 const (
-	RectangleKind Kind = iota // a rounded rectangle with a fill and a border
-	ShadowKind                // a soft shadow under a rounded rectangle
-	TextKind                  // one line of text
-	IconKind                  // one icon
-	ImageKind                 // a picture covering a rounded rectangle
-	BackdropKind              // what is behind a rounded rectangle, blurred: frosted glass
+	RectangleKind   Kind = iota // a rounded rectangle with a fill and a border
+	ShadowKind                  // a soft shadow under a rounded rectangle
+	TextKind                    // one line of text
+	IconKind                    // one icon
+	ImageKind                   // a picture covering a rounded rectangle
+	BackdropKind                // what is behind a rounded rectangle, blurred: frosted glass
+	PointLightKind              // a disc of light: Area the square round its outer radius, Radius its inner one, Fill its colour (alpha: intensity)
+	SpriteLightKind             // a picture shining as a light over Area, tinted by Fill (alpha: intensity)
+	LightingKind                // lights what was drawn before it with the lights before it, over an ambient colour (Fill)
 )
 ```
 
@@ -130,12 +136,15 @@ type List struct {
 | `func (list *List) Icon(name string, x, y, size float32, color Color)` | Icon draws an icon by name (a Lucide icon, https://lucide.dev) filling a square of size pixels whose top-left corner is at (x, y). |
 | `func (list *List) Image(picture *Image, area Rect, radius float32, tint Color)` | Image draws a picture covering a rounded rectangle: scaled to fill it, and cropped evenly at the sides or at the top and bottom when their shapes differ, as photos fill cards and avatars. |
 | `func (list *List) IsEmpty() bool` | IsEmpty tells whether the list has nothing to draw. |
+| `func (list *List) Lighting(ambient Color)` | Lighting lights what was drawn before it in the list, in its layer and those under it, with the lights added since the last Lighting, over an ambient colour (its alpha, the ambient's intensity: 1 is plain daylight, less dims what no light reaches). |
+| `func (list *List) PointLight(x, y, inner, outer float32, color Color)` | PointLight adds a disc of light round a point (x, y): full inside inner, fading to nothing at outer, in layout pixels, of a colour whose alpha is its intensity. |
 | `func (list *List) PopClip()` | PopClip returns to the clip before the last PushClip. |
 | `func (list *List) PushClip(area Rect)` | PushClip limits the following commands to a rectangle, inside the current clip if there is one. |
 | `func (list *List) Rectangle(area Rect, radius float32, fill, border Color, borderWidth float32)` | Rectangle draws a rounded rectangle: fill inside, and a border of a width drawn inside the area. |
 | `func (list *List) Reset()` | Reset empties the list, keeping its memory for the next frame. |
 | `func (list *List) SetLayer(layer int)` | SetLayer makes the following commands go on a layer: for example 0 for panels, 1 for menus that open over them and 2 for tooltips. |
 | `func (list *List) Shadow(area Rect, radius, blur, offsetY float32, color Color)` | Shadow draws a soft shadow for a rounded rectangle, fading out over blur pixels on every side and falling offsetY pixels below it. |
+| `func (list *List) SpriteLight(picture *Image, area Rect, color Color)` | SpriteLight adds a picture shining as a light over an area, tinted by a colour whose alpha is its intensity: a lamp's glow, a sign that shines. |
 | `func (list *List) Text(text string, x, baseline, size float32, weight Weight, color Color)` | Text draws one line of text starting at x, with its baseline at baseline. |
 
 ### Measurer
