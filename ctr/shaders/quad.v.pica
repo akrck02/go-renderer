@@ -1,0 +1,34 @@
+; ctr's overlay shader: rectangles of the overlay's atlas, placed in screen pixels by an
+; orthographic projection, with their atlas position, colour and picture position passed on. The
+; colour stages multiply the colour's alpha by the atlas's coverage, and a picture's colours by the
+; colour (flat.go).
+
+.fvec projection[4]
+
+.constf numbers(0.0, 1.0, -0.5, 0.0)
+.alias ones   numbers.yyyy
+.alias middle numbers.zzzz ; halfway in depth, well inside the clip range
+
+.out outPosition position
+.out outTexture  texcoord0
+.out outColour   color
+.out outPicture  texcoord1
+
+.alias inPosition v0 ; x, y in pixels
+.alias inTexture  v1
+.alias inColour   v2
+.alias inPicture  v3
+
+.proc main
+	mov r0.xy, inPosition
+	mov r0.z, middle
+	mov r0.w, ones
+	dp4 outPosition.x, projection[0], r0
+	dp4 outPosition.y, projection[1], r0
+	dp4 outPosition.z, projection[2], r0
+	dp4 outPosition.w, projection[3], r0
+	mov outTexture, inTexture
+	mov outColour, inColour
+	mov outPicture, inPicture
+	end
+.end

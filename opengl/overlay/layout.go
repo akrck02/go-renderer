@@ -28,6 +28,7 @@ type Quad struct {
 	// Pictured.
 	Picture  [4]float32
 	Pictured bool
+	Sharp    bool // the picture is read at the nearest pixel (draw2d.Image's Sharp)
 }
 
 // Frame is what the layout needs to know about the frame being drawn.
@@ -53,6 +54,7 @@ type Painter struct {
 	occupied []rectangle
 	order    []int // the drawing's commands sorted by layer, reused every frame
 	shown    []*draw2d.Image
+	runes    []rune // a text's characters, reused: converting every text every frame is garbage
 }
 
 // NewPainter parses the embedded fonts and prepares an empty atlas.

@@ -171,7 +171,10 @@ A picture is a `draw2d.Image`: `draw2d.DecodeImage(reader)` reads a PNG, JPEG or
 program embeds), `draw2d.NewImage(picture)` takes an `image.Image`, and `draw2d.NewBlankImage`
 makes one whose pixels the program writes itself. Keep it between frames: its pixels are uploaded
 once. To show other pixels in it (a video's next frame), write them into `Pixels` and call
-`Changed`; only its own area is uploaded again.
+`Changed`; only its own area is uploaded again. Pixel art sets `Sharp`: scaled up, its pixels stay
+square blocks instead of blending into their neighbours. The shaders read such a picture at the
+middle of its nearest pixel; the quads say so by adding `graphics.SharpPictureOffset` to their
+picture position, so every other picture is read as before and the vertices keep their layout.
 
 Pictures sit side by side in a second atlas, of colours (`overlay.Pictures`, RGBA, made with the
 first picture). A picture's quads read their colours there and their coverage in the grey atlas,

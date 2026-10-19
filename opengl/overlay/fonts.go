@@ -179,10 +179,19 @@ func (loaded *fonts) metrics(name faceName, size int) faceMetrics {
 
 // glyph returns the picture of a character in a face, drawing it into the atlas the first time.
 // The entry's offset places the picture relative to the dot on the baseline.
+// A glyph already drawn is found without making the closure that draws it: TinyGo keeps a
+// closure's captured values on the heap, and text asks for every glyph every frame.
 func (painter *Painter) glyph(name faceName, size int, character rune) Entry {
 	key := entryKey{kind: glyphEntry, face: name, size: size, character: character}
+	if entry, found := painter.atlas.entries[key]; found {
+		return entry
+	}
+	return painter.drawGlyph(key)
+}
+
+func (painter *Painter) drawGlyph(key entryKey) Entry {
 	return painter.atlas.lookup(key, func() (*image.Alpha, Entry) {
-		return rasteriseGlyph(painter.fonts.faceFor(name, size, character), character)
+		return rasteriseGlyph(painter.fonts.faceFor(key.face, key.size, key.character), key.character)
 	})
 }
 

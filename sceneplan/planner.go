@@ -7,6 +7,7 @@ package sceneplan
 import (
 	"math"
 
+	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/scene"
 )
@@ -15,6 +16,10 @@ import (
 // the boxes of meshes, the grids of instances and the batches the backend keeps for them, the
 // water meshes, the size of the scene.
 type Planner struct {
+	// WaterGridDivisions is the number of cells per side of the water surface (0 = 256). Fewer
+	// suit GPUs that draw few triangles and no waves, such as the 3DS's.
+	WaterGridDivisions int
+
 	batches          BatchStore
 	meshMeasures     map[*scene.Mesh]*meshMeasure
 	instancedDetails map[*scene.Instances]*instancedDetail
@@ -27,6 +32,14 @@ type Planner struct {
 	sceneHeight      float32 // vertical span of the measured scene (before vertical scaling)
 	seabedFor        *scene.Scene
 	seabed           SeabedPlan
+
+	// reused from frame to frame, so planning makes no garbage: a frame's commands hold until
+	// the next Plan
+	commands   []Command
+	ground     []Command
+	opaque     []Command
+	walkCamera models.Camera
+	collectOne func(node *scene.Node, transform graphics.Mat4) // made once: a closure made every frame is garbage
 }
 
 // NewPlanner makes a planner whose instance batches live in batches.

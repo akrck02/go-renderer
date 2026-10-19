@@ -25,7 +25,7 @@ type SeabedPlan struct {
 
 // planSeabed decides whether the seabed map must be drawn again, and around what.
 func (planner *Planner) planSeabed(world *scene.Scene, commands []Command) SeabedPlan {
-	casters := seabedCasters(commands)
+	casters := planner.seabedCasters(commands)
 	if planner.seabedFor == world && !anyMeshDirty(casters) {
 		return SeabedPlan{Available: planner.seabed.Available, Region: planner.seabed.Region}
 	}
@@ -41,9 +41,9 @@ func (planner *Planner) planSeabed(world *scene.Scene, commands []Command) Seabe
 }
 
 // seabedCasters returns the walkable ground, or every opaque lit mesh when nothing is marked
-// as ground.
-func seabedCasters(commands []Command) []Command {
-	var ground, opaque []Command
+// as ground, in the planner's own lists: they hold until the next call.
+func (planner *Planner) seabedCasters(commands []Command) []Command {
+	ground, opaque := planner.ground[:0], planner.opaque[:0]
 	for _, command := range commands {
 		if command.Transparent || command.Material.Kind != scene.KindLit {
 			continue
@@ -53,6 +53,7 @@ func seabedCasters(commands []Command) []Command {
 			ground = append(ground, command)
 		}
 	}
+	planner.ground, planner.opaque = ground, opaque // kept for the next frame's lists
 	if len(ground) > 0 {
 		return ground
 	}

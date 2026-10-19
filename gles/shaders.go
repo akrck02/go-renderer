@@ -25,13 +25,19 @@ uniform vec2 atlasSize;
 uniform vec2 picturesSize;
 varying vec2 atlasCoordinate;
 varying vec2 pictureCoordinate;
+varying float sharp;
+varying vec2 pictureTexel;
 varying vec4 color;
 
 void main() {
     vec2 normalized = screenPosition / screenSize;
     gl_Position = vec4(normalized.x * 2.0 - 1.0, 1.0 - normalized.y * 2.0, 0.0, 1.0);
     atlasCoordinate = atlasPosition / atlasSize;
-    pictureCoordinate = picturePosition.x < 0.0 ? vec2(-1.0) : picturePosition / picturesSize;
+    vec2 picture = picturePosition;
+    sharp = picture.x >= 65536.0 ? 1.0 : 0.0; // graphics.SharpPictureOffset: read at the nearest pixel
+    picture.x -= sharp * 65536.0;
+    pictureCoordinate = picture.x < 0.0 ? vec2(-1.0) : picture / picturesSize;
+    pictureTexel = 1.0 / picturesSize; // a uniform of the fragment shader would get another precision: the program would not link
     color = vertexColor;
 }
 `
@@ -42,6 +48,8 @@ const quadFragmentShader = `#version 100
 precision mediump float;
 varying vec2 atlasCoordinate;
 varying vec2 pictureCoordinate;
+varying float sharp;
+varying vec2 pictureTexel;
 varying vec4 color;
 uniform sampler2D atlas;
 uniform sampler2D pictures;
@@ -50,7 +58,11 @@ void main() {
     float coverage = texture2D(atlas, atlasCoordinate).r;
     vec4 painted = color;
     if (pictureCoordinate.x >= 0.0) {
-        painted *= texture2D(pictures, pictureCoordinate);
+        vec2 read = pictureCoordinate;
+        if (sharp > 0.5) {
+            read = (floor(read / pictureTexel) + 0.5) * pictureTexel; // the middle of the nearest pixel
+        }
+        painted *= texture2D(pictures, read);
     }
     gl_FragColor = vec4(painted.rgb, painted.a * coverage);
 }
