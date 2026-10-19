@@ -67,7 +67,47 @@ func (painter *Painter) paintCommand(command *draw2d.Command, scale float32) {
 		painter.paintImage(command, scale)
 	case draw2d.BackdropKind:
 		painter.paintBackdrop(command, scale)
+	case draw2d.PointLightKind:
+		painter.paintPointLight(command, scale)
+	case draw2d.SpriteLightKind:
+		painter.paintSpriteLight(command, scale)
+	case draw2d.LightingKind:
+		painter.paintLighting(command)
 	}
+}
+
+// paintPointLight lays out a disc of light as a light quad over its square.
+func (painter *Painter) paintPointLight(command *draw2d.Command, scale float32) {
+	area := command.Area
+	half := area.Width / 2
+	painter.lights = append(painter.lights, LightQuad{
+		Screen: [4]float32{area.X * scale, area.Y * scale, (area.X + area.Width) * scale, (area.Y + area.Height) * scale},
+		Color:  colourOf(command.Fill), Inner: command.Radius / half,
+	})
+}
+
+// paintSpriteLight lays out a picture shining as a light over its area.
+func (painter *Painter) paintSpriteLight(command *draw2d.Command, scale float32) {
+	bounds, found := painter.pictures.bounds(command.Picture)
+	if !found {
+		return
+	}
+	area := command.Area
+	painter.lights = append(painter.lights, LightQuad{
+		Screen:   [4]float32{area.X * scale, area.Y * scale, (area.X + area.Width) * scale, (area.Y + area.Height) * scale},
+		Color:    colourOf(command.Fill),
+		Picture:  [4]float32{float32(bounds.Min.X), float32(bounds.Min.Y), float32(bounds.Max.X), float32(bounds.Max.Y)},
+		Pictured: true,
+	})
+}
+
+// paintLighting asks the backend to light what was drawn so far with the lights since the last
+// lighting.
+func (painter *Painter) paintLighting(command *draw2d.Command) {
+	painter.lightings = append(painter.lightings, Lighting{
+		At: len(painter.quads), First: painter.lit, Last: len(painter.lights), Ambient: colourOf(command.Fill),
+	})
+	painter.lit = len(painter.lights)
 }
 
 // noSnapshotLayer is no layer at all: no snapshot was taken yet in this frame.
@@ -107,7 +147,7 @@ func (painter *Painter) preparePictures(list *draw2d.List, scale float32) {
 	for index := range list.Commands {
 		command := &list.Commands[index]
 		switch {
-		case command.Kind == draw2d.ImageKind && command.Picture != nil:
+		case (command.Kind == draw2d.ImageKind || command.Kind == draw2d.SpriteLightKind) && command.Picture != nil:
 			shown = append(shown, command.Picture)
 		case command.Kind == draw2d.TextKind:
 			shown = painter.emojiPictures(command, scale, shown)
