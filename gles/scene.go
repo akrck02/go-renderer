@@ -40,7 +40,7 @@ func NewSceneRenderer(functions Functions) (*SceneRenderer, error) {
 		return nil, err
 	}
 	return &SceneRenderer{functions: functions, program: shaders, quads: quads,
-		planner: sceneplan.NewPlanner(instanceStore{})}, nil
+		planner: sceneplan.NewPlanner(sceneplan.MergingStore{})}, nil
 }
 
 // Draw draws a frame of the scene seen by the camera, in a framebuffer of width × height pixels.
@@ -129,13 +129,13 @@ func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view scene
 // for their cell: each batch in one call, as one mesh holding all its copies.
 func (renderer *SceneRenderer) drawInstances(command sceneplan.Command, view sceneplan.Viewpoint) {
 	for _, batch := range renderer.planner.InstanceBatches(command, view, sceneplan.MainPass) {
-		instances, _ := batch.Handle.(*instanceBatch)
+		instances, _ := batch.Handle.(*sceneplan.MergedBatch)
 		if instances == nil || batch.Count == 0 {
 			continue
 		}
 		renderer.setModel(command.World)
 		renderer.program.setVector4("tint", graphics.Vec4{1, 1, 1, 1})
-		renderer.drawMesh(instances.mergedFor(batch.Mesh, batch.Count))
+		renderer.drawMesh(instances.MergedFor(batch.Mesh, batch.Count))
 		renderer.planner.Count(sceneplan.MainPass, batch.Mesh, batch.Count)
 	}
 }
@@ -143,22 +143,7 @@ func (renderer *SceneRenderer) drawInstances(command sceneplan.Command, view sce
 // setModel sets the model matrix and the normal matrix that goes with it.
 func (renderer *SceneRenderer) setModel(model graphics.Mat4) {
 	renderer.program.setMatrix("model", model)
-	renderer.program.setMatrix3("normalMatrix", normalMatrix(model))
-}
-
-// normalMatrix is the inverse transpose of a model matrix's rotation and scale: what turns normals
-// so they stay perpendicular to surfaces scaled differently along each axis.
-func normalMatrix(model graphics.Mat4) [9]float32 {
-	inverse, invertible := model.Inverse()
-	if !invertible {
-		inverse = graphics.Identity()
-	}
-	// the transpose of the inverse's upper 3 × 3, column by column
-	return [9]float32{
-		inverse[0], inverse[4], inverse[8],
-		inverse[1], inverse[5], inverse[9],
-		inverse[2], inverse[6], inverse[10],
-	}
+	renderer.program.setMatrix3("normalMatrix", sceneplan.NormalMatrix(model))
 }
 
 func (renderer *SceneRenderer) drawMesh(mesh *scene.Mesh) {
@@ -220,105 +205,6 @@ func describeSceneVertexLayout(functions Functions) {
 	functions.VertexAttribPointer(0, 3, Float, false, stride, 0)
 	functions.VertexAttribPointer(1, 3, Float, false, stride, 3*4)
 	functions.VertexAttribPointer(2, 4, Float, false, stride, 6*4)
-}
-
-// instanceBatch keeps a batch's packed instances, and the batch as one mesh: OpenGL ES 2 cannot
-// draw instances, and a draw call per copy is far too slow (a forest is thousands of calls, each
-// a trip through x/mobile's or the browser's bindings). The mesh is made again only when the
-// batch changes.
-type instanceBatch struct {
-	packed []float32
-	merged *scene.Mesh // every copy placed and tinted; nil or stale when the batch changed
-	stale  bool
-	// mesh and count are what merged was made from
-	mesh  *scene.Mesh
-	count int
-}
-
-// mergedFor returns the batch's first count instances of mesh as one mesh, making it when needed.
-func (batch *instanceBatch) mergedFor(mesh *scene.Mesh, count int) *scene.Mesh {
-	if batch.merged != nil && !batch.stale && batch.mesh == mesh && batch.count == count {
-		return batch.merged
-	}
-	if batch.merged == nil {
-		batch.merged = &scene.Mesh{Name: mesh.Name + " (instances)"}
-	}
-	mergeInstances(batch.merged, mesh, batch.packed, count)
-	batch.merged.Dirty = true // upload it again, into the same buffers
-	batch.stale, batch.mesh, batch.count = false, mesh, count
-	return batch.merged
-}
-
-// mergeInstances fills into with count copies of mesh, each placed by its instance's matrix,
-// its normals turned with it and its colours tinted by the instance's colour.
-func mergeInstances(into, mesh *scene.Mesh, packed []float32, count int) {
-	if len(mesh.Normals) != len(mesh.Positions) {
-		mesh.ComputeNormals()
-	}
-	vertices := mesh.VertexCount()
-	into.Positions, into.Normals = into.Positions[:0], into.Normals[:0]
-	into.Colors, into.Indices = into.Colors[:0], into.Indices[:0]
-	for instance := range count {
-		values := packed[instance*sceneplan.FloatsPerInstance:]
-		placement, tint := graphics.Mat4(values[0:16]), graphics.Vec4(values[16:20])
-		turn := normalMatrix(placement)
-		for vertex := range vertices {
-			into.Positions = appendPoint(into.Positions, placement.Apply(mesh.Vertex(uint32(vertex))))
-			into.Normals = appendNormal(into.Normals, turn, mesh.Normals[3*vertex:3*vertex+3])
-			into.Colors = appendTinted(into.Colors, mesh.Colors, vertex, tint)
-		}
-		first := uint32(instance * vertices)
-		for _, index := range mesh.Indices {
-			into.Indices = append(into.Indices, first+index)
-		}
-	}
-}
-
-func appendPoint(values []float32, point graphics.Vec4) []float32 {
-	return append(values, point[0], point[1], point[2])
-}
-
-// appendNormal turns a normal by a normal matrix (column by column) and keeps it of unit length.
-func appendNormal(values []float32, turn [9]float32, normal []float32) []float32 {
-	x := turn[0]*normal[0] + turn[3]*normal[1] + turn[6]*normal[2]
-	y := turn[1]*normal[0] + turn[4]*normal[1] + turn[7]*normal[2]
-	z := turn[2]*normal[0] + turn[5]*normal[1] + turn[8]*normal[2]
-	length := float32(math.Sqrt(float64(x*x + y*y + z*z)))
-	if length == 0 {
-		return append(values, 0, 1, 0)
-	}
-	return append(values, x/length, y/length, z/length)
-}
-
-// appendTinted is a vertex's colour (white when the mesh has none) times the instance's tint.
-func appendTinted(values, colors []float32, vertex int, tint graphics.Vec4) []float32 {
-	color := [4]float32{1, 1, 1, 1}
-	if len(colors) >= 4*(vertex+1) {
-		color = [4]float32(colors[4*vertex : 4*vertex+4])
-	}
-	return append(values, color[0]*tint[0], color[1]*tint[1], color[2]*tint[2], color[3]*tint[3])
-}
-
-// instanceStore keeps the planner's instance batches for SceneRenderer.
-type instanceStore struct{}
-
-func (instanceStore) FillBatch(handle any, mesh *scene.Mesh, packed []float32) any {
-	batch, _ := handle.(*instanceBatch)
-	if batch == nil {
-		batch = &instanceBatch{}
-	}
-	batch.packed = append(batch.packed[:0], packed...)
-	batch.stale = true
-	return batch
-}
-
-func (instanceStore) RewriteInstances(handle any, position int, packed []float32) {
-	batch, _ := handle.(*instanceBatch)
-	if batch == nil {
-		return
-	}
-	copy(batch.packed[position*sceneplan.FloatsPerInstance:], packed)
-	batch.stale = true
 }
 
 // linearToScreen turns a linear colour into the screen's gamma, as the scene shader does.

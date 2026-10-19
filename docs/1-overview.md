@@ -59,6 +59,7 @@ The menu on the left (or the files in `docs/`) follows this order.
 - [In a web browser](4-guides/5-web.md)
 - [On Android](4-guides/6-android.md)
 - [Metal](4-guides/7-metal.md)
+- [On the Nintendo 3DS](4-guides/8-3ds.md)
 
 **Reference**
 
@@ -90,6 +91,8 @@ The menu on the left (or the files in `docs/`) follows this order.
   scene renderer (shadows, sky, waves) on phones. See [on Android](4-guides/6-android.md#not-yet).
 - **Browsers and phones both:** true instanced drawing (WebGL2, OpenGL ES 3), so very large
   forests do not cost a copy of each mesh.
+- **On the Nintendo 3DS:** the scene renderer's full look, textures, the overlay, input and loading
+  scenes from the SD card. See [on the Nintendo 3DS](4-guides/8-3ds.md#not-yet).
 - **Metal:** a look on screen at live resizing and at a second screen with another scale; sky
   images and simulations that move instances every frame are not tested yet. See [Metal](4-guides/7-metal.md).
 - **The immediate-mode contract:** OpenGL is its only complete backend; the others are the goals of

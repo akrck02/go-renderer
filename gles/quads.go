@@ -2,6 +2,7 @@ package gles
 
 import (
 	"image"
+	"log"
 
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/opengl/overlay"
@@ -9,8 +10,8 @@ import (
 )
 
 // floatsPerQuadVertex is a corner of a rectangle: screen position 2, atlas position 2, colour 4,
-// picture position 2.
-const floatsPerQuadVertex = 10
+// picture position 2, backdrop 1.
+const floatsPerQuadVertex = 11
 
 // atlasTextureUnit and picturesTextureUnit are where the overlay's two atlases are bound; the
 // scene uses no textures.
@@ -19,9 +20,12 @@ const (
 	picturesTextureUnit = 1
 )
 
-// pictureAttribute is the attribute only the quads read: it is on while they draw, and off for
-// the scene's program, which reads three.
-const pictureAttribute = 3
+// pictureAttribute and backdropAttribute are the attributes only the quads read: they are on while
+// the quads draw, and off for the scene's program, which reads three.
+const (
+	pictureAttribute  = 3
+	backdropAttribute = 4
+)
 
 // quadPass paints the overlay (labels, header, notices and a draw2d list) as rectangles of one
 // atlas, in one draw call. It is the OpenGL overlay renderer's last steps, for OpenGL ES: the
@@ -44,6 +48,9 @@ type quadPass struct {
 	picturesSize    int
 	areaPixels      []byte // a changed area's rows, one after another, for uploading
 	vertices        []float32
+	// blur takes the backdrops' snapshots; made the first time a frame has one, and left with
+	// no program when its shaders cannot be made, so it is not tried again
+	blur *backdropBlur
 }
 
 func newQuadPass(functions Functions) (*quadPass, error) {
@@ -76,6 +83,8 @@ func (pass *quadPass) describeVertexLayout() {
 	functions.VertexAttribPointer(2, 4, Float, false, stride, 4*4)
 	functions.EnableVertexAttribArray(pictureAttribute)
 	functions.VertexAttribPointer(pictureAttribute, 2, Float, false, stride, 8*4)
+	functions.EnableVertexAttribArray(backdropAttribute)
+	functions.VertexAttribPointer(backdropAttribute, 1, Float, false, stride, 10*4)
 }
 
 // switchAttributesOn turns on the three vertex attributes both programs read; they stay on.
@@ -123,7 +132,34 @@ func (pass *quadPass) drawQuads(quads []overlay.Quad, width, height int) {
 	pass.uploadAtlas()
 	pass.uploadPictures()
 	pass.fillVertices(quads)
-	pass.drawVertices(width, height)
+	// without backdrops this is one draw call; each snapshot cuts it in two around a blur
+	drawn := 0
+	for _, snapshot := range pass.painter.Snapshots() {
+		pass.drawVertices(drawn, snapshot.At, width, height)
+		if !pass.takeSnapshot(width, height, snapshot.Blur) {
+			break // no blur here: the backdrops show nothing, the panels over them stay
+		}
+		drawn = snapshot.At
+	}
+	pass.drawVertices(drawn, len(quads), width, height)
+}
+
+// takeSnapshot blurs the frame so far for the backdrops that follow; false when the blur's shaders
+// could not be made.
+func (pass *quadPass) takeSnapshot(width, height int, deviation float32) bool {
+	if pass.blur == nil {
+		blur, err := newBackdropBlur(pass.functions)
+		if err != nil {
+			log.Print("backdrop blur unavailable: ", err)
+			blur = &backdropBlur{}
+		}
+		pass.blur = blur
+	}
+	if pass.blur.program == nil {
+		return false
+	}
+	pass.blur.snapshot(width, height, deviation)
+	return true
 }
 
 // uploadAtlas sends the atlas to the GPU when glyphs, icons or corners were added to it.
@@ -192,18 +228,26 @@ func (pass *quadPass) fillVertices(quads []overlay.Quad) {
 	pass.functions.BufferData(ArrayBuffer, floatBytes(pass.vertices), StreamDraw)
 }
 
-// appendQuadVertices writes six corners per rectangle: position, atlas position, colour and
-// picture position (-1 for a quad that shows no picture).
+// appendQuadVertices writes six corners per rectangle: position, atlas position, colour, picture
+// position (-1 for a quad that shows no picture) and whether it shows the blurred backdrop.
 func appendQuadVertices(vertices []float32, quads []overlay.Quad) []float32 {
 	for _, quad := range quads {
 		picture := [4]float32{-1, -1, -1, -1}
 		if quad.Pictured {
 			picture = quad.Picture
 		}
+		if quad.Pictured && quad.Sharp {
+			picture[0] += graphics.SharpPictureOffset
+			picture[2] += graphics.SharpPictureOffset
+		}
+		backdrop := float32(0)
+		if quad.Backdrop {
+			backdrop = 1
+		}
 		for _, corner := range quadCorners {
 			x, y := corner[0], corner[1] // 0 for the left or top edge, 2 for the right or bottom
 			vertices = append(vertices, quad.Screen[x], quad.Screen[y+1], quad.Atlas[x], quad.Atlas[y+1],
-				quad.Color[0], quad.Color[1], quad.Color[2], quad.Color[3], picture[x], picture[y+1])
+				quad.Color[0], quad.Color[1], quad.Color[2], quad.Color[3], picture[x], picture[y+1], backdrop)
 		}
 	}
 	return vertices
@@ -213,8 +257,17 @@ func appendQuadVertices(vertices []float32, quads []overlay.Quad) []float32 {
 // top, 2 right or bottom), into a quad's left, top, right, bottom.
 var quadCorners = [6][2]int{{0, 0}, {0, 2}, {2, 2}, {0, 0}, {2, 2}, {2, 0}}
 
-func (pass *quadPass) drawVertices(width, height int) {
+// cornersPerQuad: two triangles.
+const cornersPerQuad = 6
+
+// drawVertices draws the quads from first up to (not including) last.
+func (pass *quadPass) drawVertices(first, last, width, height int) {
+	if last <= first {
+		return
+	}
 	functions := pass.functions
+	functions.ActiveTexture(Texture0 + atlasTextureUnit) // a blur in between used this unit
+	functions.BindTexture(Texture2D, pass.atlasTexture)
 	pass.program.use()
 	pass.program.setVector2("screenSize", float32(width), float32(height))
 	size := float32(pass.painter.Atlas().Size())
@@ -222,14 +275,17 @@ func (pass *quadPass) drawVertices(width, height int) {
 	pass.program.setInteger("atlas", atlasTextureUnit)
 	pass.program.setVector2("picturesSize", float32(pass.picturesSize), float32(pass.picturesSize))
 	pass.program.setInteger("pictures", picturesTextureUnit)
+	pass.program.setInteger("blurred", blurredTextureUnit)
+	pass.program.setVector2("frameSize", float32(width), float32(height))
 	functions.Disable(DepthTest)
 	functions.DepthMask(false)
 	functions.Enable(Blend)
 	functions.BlendFuncSeparate(SourceAlpha, OneMinusSrcAlpha, One, OneMinusSrcAlpha)
 	functions.BindBuffer(ArrayBuffer, pass.vertexBuffer)
 	pass.describeVertexLayout()
-	functions.DrawArrays(Triangles, 0, len(pass.vertices)/floatsPerQuadVertex)
+	functions.DrawArrays(Triangles, first*cornersPerQuad, (last-first)*cornersPerQuad)
 	functions.DisableVertexAttribArray(pictureAttribute)
+	functions.DisableVertexAttribArray(backdropAttribute)
 	functions.Disable(Blend)
 	functions.DepthMask(true)
 }

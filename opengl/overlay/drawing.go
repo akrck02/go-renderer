@@ -22,6 +22,9 @@ func (painter *Painter) paintDrawing(list *draw2d.List, scale float32) {
 	painter.preparePictures(list, scale)
 	for _, index := range painter.drawingOrder(list) {
 		command := &list.Commands[index]
+		if command.Kind == draw2d.BackdropKind {
+			painter.askForSnapshot(command, scale)
+		}
 		first := len(painter.quads)
 		painter.paintCommand(command, scale)
 		if command.HasClip {
@@ -33,13 +36,20 @@ func (painter *Painter) paintDrawing(list *draw2d.List, scale float32) {
 // drawingOrder lists the commands by layer, keeping their order within a layer.
 func (painter *Painter) drawingOrder(list *draw2d.List) []int {
 	order := painter.order[:0]
+	sorted := true
 	for index := range list.Commands {
 		order = append(order, index)
+		if index > 0 && list.Commands[index].Layer < list.Commands[index-1].Layer {
+			sorted = false
+		}
+	}
+	painter.order = order
+	if sorted {
+		return order // most lists are drawn layer by layer already: no sort, no closure
 	}
 	sort.SliceStable(order, func(first, second int) bool {
 		return list.Commands[order[first]].Layer < list.Commands[order[second]].Layer
 	})
-	painter.order = order
 	return order
 }
 
@@ -55,6 +65,38 @@ func (painter *Painter) paintCommand(command *draw2d.Command, scale float32) {
 		painter.paintIcon(command, scale)
 	case draw2d.ImageKind:
 		painter.paintImage(command, scale)
+	case draw2d.BackdropKind:
+		painter.paintBackdrop(command, scale)
+	}
+}
+
+// noSnapshotLayer is no layer at all: no snapshot was taken yet in this frame.
+const noSnapshotLayer = math.MinInt
+
+// askForSnapshot makes sure the backdrop's layer has a snapshot taken just before it: the first
+// backdrop of a layer asks for one, the others of the layer read it, taking the widest blur.
+func (painter *Painter) askForSnapshot(command *draw2d.Command, scale float32) {
+	blur := command.Blur * scale
+	if command.Layer == painter.snapshotLayer {
+		last := &painter.snapshots[len(painter.snapshots)-1]
+		last.Blur = max(last.Blur, blur)
+		return
+	}
+	painter.snapshots = append(painter.snapshots, Snapshot{At: len(painter.quads), Blur: blur})
+	painter.snapshotLayer = command.Layer
+}
+
+// paintBackdrop lays out a backdrop like a filled rounded rectangle, whose quads read the blurred
+// snapshot instead of a colour.
+func (painter *Painter) paintBackdrop(command *draw2d.Command, scale float32) {
+	area := screenArea(command.Area, scale)
+	if area.width() <= 0 || area.height() <= 0 {
+		return
+	}
+	first := len(painter.quads)
+	painter.paintFill(area, cornerPixels(command.Radius, area, scale), [4]float32{1, 1, 1, 1})
+	for index := first; index < len(painter.quads); index++ {
+		painter.quads[index].Backdrop = true
 	}
 }
 
@@ -79,8 +121,11 @@ func (painter *Painter) preparePictures(list *draw2d.List, scale float32) {
 
 // emojiPictures adds the pictures of a text's emoji to a list.
 func (painter *Painter) emojiPictures(command *draw2d.Command, scale float32, shown []*draw2d.Image) []*draw2d.Image {
+	if isASCII(command.Text) {
+		return shown // no emoji in it: most texts
+	}
 	face, size := faceForWeight(command.Weight), max(pixels(command.Size, scale), 1)
-	text := []rune(command.Text)
+	text := painter.runesOf(command.Text)
 	for index, character := range text {
 		if emoji, coloured := painter.fonts.colourFor(face, size, character, askedAsEmoji(text, index)); coloured {
 			shown = append(shown, emoji.picture)
@@ -103,6 +148,9 @@ func (painter *Painter) paintImage(command *draw2d.Command, scale float32) {
 	first := len(painter.quads)
 	painter.paintFill(area, cornerPixels(command.Radius, area, scale), colourOf(command.Fill))
 	painter.pictureQuads(first, area, coverCrop(bounds, area))
+	for index := first; index < len(painter.quads); index++ {
+		painter.quads[index].Sharp = command.Picture.Sharp
+	}
 }
 
 // pictureQuads gives the quads from first on the colours of a part of the picture atlas, source,
@@ -181,7 +229,7 @@ func (painter *Painter) paintBorder(area rectangle, radius, width int, colour [4
 		return
 	}
 	width = min(width, area.width()/2, area.height()/2)
-	edges := []rectangle{
+	edges := [4]rectangle{ // an array: a slice here would be garbage every border
 		{area.left, area.top, area.right, area.top + width},
 		{area.left, area.bottom - width, area.right, area.bottom},
 		{area.left, area.top + width, area.left + width, area.bottom - width},
@@ -208,7 +256,7 @@ func (painter *Painter) paintText(command *draw2d.Command, scale float32) {
 	colour := colourOf(command.Fill)
 	// an emoji keeps its own colours, faded as the text is
 	emojiColour := colourOf(draw2d.Color{1, 1, 1, command.Fill[3]})
-	text := []rune(command.Text)
+	text := painter.runesOf(command.Text)
 	for index, character := range text {
 		if invisible(character) {
 			continue
@@ -357,4 +405,24 @@ func (measurer *Measurer) MeasureText(text string, size float32, weight draw2d.W
 func (measurer *Measurer) HasIcon(name string) bool {
 	_, found := lucide.Codepoint(name)
 	return found
+}
+
+// runesOf is a text's characters in a slice the painter keeps: valid until the next call.
+func (painter *Painter) runesOf(text string) []rune {
+	runes := painter.runes[:0]
+	for _, character := range text {
+		runes = append(runes, character)
+	}
+	painter.runes = runes
+	return runes
+}
+
+// isASCII tells whether a text is plain ASCII, without looking at it character by character.
+func isASCII(text string) bool {
+	for index := 0; index < len(text); index++ {
+		if text[index] >= 0x80 {
+			return false
+		}
+	}
+	return true
 }

@@ -41,7 +41,7 @@ func (renderer *SceneRenderer) drawOverlay(encoder unsafe.Pointer, world *scene.
 	}
 	renderer.uploadAtlas()
 	renderer.uploadPictures()
-	layer.instances = packInstances(quads, layer.instances)
+	layer.instances = packInstances(quads, layer.instances, false) // TODO(akrck02): blur backdrops over a 3D scene in Metal too
 	renderer.uploadOverlayInstances()
 	size := float32(layer.painter.Atlas().Size())
 	picturesSize := float32(layer.picturesSize)

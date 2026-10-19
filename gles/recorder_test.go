@@ -17,6 +17,7 @@ type recorder struct {
 	attributes         []string
 	uniformValues      int
 	enables            int
+	snapshots          int // frames copied into a texture: one per backdrop snapshot
 }
 
 type recordedDraw struct {
@@ -85,14 +86,23 @@ func (fake *recorder) TexImage2D(Enum, int, Enum, int, int, Enum, Enum, []byte) 
 func (fake *recorder) TexSubImage2D(Enum, int, int, int, int, int, Enum, Enum, []byte) {
 	fake.textureAreaUploads++
 }
-func (fake *recorder) Viewport(int, int, int, int)                   {}
-func (fake *recorder) ClearColor(float32, float32, float32, float32) {}
-func (fake *recorder) Clear(Enum)                                    {}
-func (fake *recorder) Enable(Enum)                                   {}
-func (fake *recorder) Disable(Enum)                                  {}
-func (fake *recorder) BlendFuncSeparate(Enum, Enum, Enum, Enum)      {}
-func (fake *recorder) DepthMask(bool)                                {}
-func (fake *recorder) DepthFunc(Enum)                                {}
+func (fake *recorder) CopyTexSubImage2D(Enum, int, int, int, int, int, int, int) { fake.snapshots++ }
+func (fake *recorder) DeleteTexture(Texture)                                     {}
+func (fake *recorder) CreateFramebuffer() Framebuffer {
+	fake.nextHandle++
+	return Framebuffer(fake.nextHandle)
+}
+func (fake *recorder) BindFramebuffer(Enum, Framebuffer)                   {}
+func (fake *recorder) FramebufferTexture2D(Enum, Enum, Enum, Texture, int) {}
+func (fake *recorder) DeleteFramebuffer(Framebuffer)                       {}
+func (fake *recorder) Viewport(int, int, int, int)                         {}
+func (fake *recorder) ClearColor(float32, float32, float32, float32)       {}
+func (fake *recorder) Clear(Enum)                                          {}
+func (fake *recorder) Enable(Enum)                                         {}
+func (fake *recorder) Disable(Enum)                                        {}
+func (fake *recorder) BlendFuncSeparate(Enum, Enum, Enum, Enum)            {}
+func (fake *recorder) DepthMask(bool)                                      {}
+func (fake *recorder) DepthFunc(Enum)                                      {}
 func (fake *recorder) DrawArrays(_ Enum, _ int, count int) {
 	fake.draws = append(fake.draws, recordedDraw{count: count})
 }

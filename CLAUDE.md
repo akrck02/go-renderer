@@ -2,7 +2,7 @@
 
 A tiny, educational graphics renderer in Go: an immediate-mode `Renderer` contract with several
 backends, plus a retained glTF scene, an OpenGL scene renderer and a viewer (`cmd/visor`). Start
-with `docs/architecture.md`; the viewer controls are in `docs/viewer.md`.
+with `docs/4-guides/1-architecture.md`; the viewer controls are in `docs/4-guides/2-viewer.md`.
 
 ## Commands
 
