@@ -120,6 +120,7 @@ type Painter struct {
 | `func (painter *Painter) Atlas() *Atlas` | Atlas returns the image the quads point into. |
 | `func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]graphics.Mat4, frame Frame) []Quad` | Paint lays out the whole overlay for a frame. |
 | `func (painter *Painter) Pictures() *Pictures` | Pictures returns the image pictured quads read their colours from. |
+| `func (painter *Painter) Snapshots() []Snapshot` | Snapshots lists where, in the quads Paint just gave, the backend takes and blurs a picture of the frame so far; empty when nothing on screen is frosted, which then costs nothing. |
 
 ### Pictures
 
@@ -169,6 +170,20 @@ type Quad struct {
 	// Pictured.
 	Picture  [4]float32
 	Pictured bool
+	// Backdrop quads show the blurred picture of what was drawn before them (see Snapshot), cut
+	// by the atlas's coverage, instead of their colour.
+	Backdrop bool
+}
+```
+
+### Snapshot
+
+Snapshot asks the backend, before it draws the quad at At, to take a picture of everything drawn so far and blur it by Blur screen pixels (a standard deviation): the backdrop quads after it read that picture. There is one per layer that has backdrops, so many glass panels cost one blur.
+
+```go
+type Snapshot struct {
+	At   int
+	Blur float32
 }
 ```
 

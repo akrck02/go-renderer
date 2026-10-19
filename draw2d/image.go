@@ -17,7 +17,10 @@ import (
 // calls Changed.
 type Image struct {
 	// Pixels are the picture's colours, not premultiplied by their opacity.
-	Pixels  *image.NRGBA
+	Pixels *image.NRGBA
+	// Sharp draws the picture scaled to the nearest pixel, as pixel art wants, instead of blended
+	// between pixels. On the 3DS it holds for every picture of a frame that shows a sharp one.
+	Sharp   bool
 	id      uint64
 	version uint64
 }

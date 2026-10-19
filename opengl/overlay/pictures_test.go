@@ -123,3 +123,24 @@ func TestALargePictureIsScaledDown(t *testing.T) {
 		t.Fatalf("a 4000×1000 picture is kept at %d×%d; want %d×512", width, height, maximumPictureSide)
 	}
 }
+
+func TestASharpPictureMarksItsQuadsSharp(t *testing.T) {
+	var list draw2d.List
+	pixelArt, photograph := stripes(16, 16), stripes(16, 16)
+	pixelArt.Sharp = true
+	list.Image(pixelArt, draw2d.Rect{X: 0, Y: 0, Width: 64, Height: 64}, 0, white)
+	list.Image(photograph, draw2d.Rect{X: 100, Y: 0, Width: 64, Height: 64}, 0, white)
+	sharp, blended := 0, 0
+	for _, quad := range paintList(t, &list, 1) {
+		switch {
+		case !quad.Pictured:
+		case quad.Sharp:
+			sharp++
+		default:
+			blended++
+		}
+	}
+	if sharp == 0 || blended == 0 {
+		t.Fatalf("%d sharp and %d blended pictured quads", sharp, blended)
+	}
+}

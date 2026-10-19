@@ -15,6 +15,7 @@ const (
 	TextKind                  // one line of text
 	IconKind                  // one icon
 	ImageKind                 // a picture covering a rounded rectangle
+	BackdropKind              // what is behind a rounded rectangle, blurred: frosted glass
 )
 
 // Command is one shape of the list. Only the fields of its kind are used; keeping every kind in
@@ -30,7 +31,7 @@ type Command struct {
 	Fill        Color   // rectangle: inside; shadow, text, icon: their colour
 	Border      Color   // rectangle: the outline
 	BorderWidth float32 // rectangle: outline thickness, inside the area
-	Blur        float32 // shadow: how far it fades out; Area is the caster grown by it and moved down
+	Blur        float32 // shadow: how far it fades out; Area is the caster grown by it and moved down. Backdrop: how far what is behind spreads (a standard deviation, as CSS's blur())
 
 	Text     string  // text: the line; icon: the icon's name
 	Size     float32 // text and icon: size in layout pixels (the font's em square)
@@ -162,6 +163,18 @@ func (list *List) Shadow(area Rect, radius, blur, offsetY float32, color Color) 
 	}
 	shadowed := Rect{X: area.X - blur, Y: area.Y - blur + offsetY, Width: area.Width + 2*blur, Height: area.Height + 2*blur}
 	list.add(Command{Kind: ShadowKind, Area: shadowed, Radius: radius, Blur: blur, Fill: color})
+}
+
+// Backdrop shows, inside a rounded rectangle, what was drawn behind it, blurred: the frosted glass
+// under a translucent panel, whose Rectangle comes next, over it. blur is how far each point
+// spreads, in layout pixels. The first backdrop of a layer takes a picture of everything drawn so
+// far, and every backdrop of that layer reads it, so a layer of many panels costs one blur; a
+// panel does not blur another of its own layer. A backend that cannot blur leaves it out.
+func (list *List) Backdrop(area Rect, radius, blur float32) {
+	if area.IsEmpty() || blur <= 0 {
+		return
+	}
+	list.add(Command{Kind: BackdropKind, Area: area, Radius: radius, Blur: blur})
 }
 
 // Text draws one line of text starting at x, with its baseline at baseline. Characters the font

@@ -4,6 +4,13 @@
 import "github.com/akrck02/go-renderer/graphics"
 ```
 
+### Functions
+
+| Function | |
+|---|---|
+| `func BackdropHalvings(deviation float32) int` | BackdropHalvings is how many times a snapshot is halved before it is blurred, for a standard deviation in screen pixels: until the deviation is a couple of texels, which the taps cover. |
+| `func BackdropWeights(deviation float32) [BackdropTaps + 1]float32` | BackdropWeights are the blur's weights for a standard deviation in texels: the centre's, then each tap's on one side, adding up to one over the whole kernel. |
+
 ### Constants and variables
 
 ```go
@@ -13,6 +20,24 @@ const (
 	CameraSpace = 2
 )
 ```
+
+```go
+const BackdropBlurShader = …
+```
+
+BackdropBlurShader is one pass of a separable Gaussian blur: along step, a texel is the weighted sum of itself and BackdropTaps texels on each side.
+
+```go
+const BackdropTaps = 4
+```
+
+BackdropTaps is how many texels each pass of the backdrop's blur reads on each side of a texel: with the picture shrunk first (see the backends), a few taps blur as widely as many would.
+
+```go
+const BackdropVertexShader = …
+```
+
+BackdropVertexShader covers the target with one triangle made from the vertex number alone, so a blur pass needs no vertex buffer.
 
 ```go
 const ConstellationFragmentShader = …

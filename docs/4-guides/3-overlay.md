@@ -171,7 +171,10 @@ A picture is a `draw2d.Image`: `draw2d.DecodeImage(reader)` reads a PNG, JPEG or
 program embeds), `draw2d.NewImage(picture)` takes an `image.Image`, and `draw2d.NewBlankImage`
 makes one whose pixels the program writes itself. Keep it between frames: its pixels are uploaded
 once. To show other pixels in it (a video's next frame), write them into `Pixels` and call
-`Changed`; only its own area is uploaded again.
+`Changed`; only its own area is uploaded again. Pixel art sets `Sharp`: scaled up, its pixels stay
+square blocks instead of blending into their neighbours. The shaders read such a picture at the
+middle of its nearest pixel; the quads say so by adding `graphics.SharpPictureOffset` to their
+picture position, so every other picture is read as before and the vertices keep their layout.
 
 Pictures sit side by side in a second atlas, of colours (`overlay.Pictures`, RGBA, made with the
 first picture). A picture's quads read their colours there and their coverage in the grey atlas,
@@ -182,6 +185,59 @@ the pictures of the frame being drawn.
 
 A program that is only an interface, with no scene, uses `opengl.FlatRenderer`: it clears the
 window to a background colour and paints a draw list, with the same atlas and one draw call.
+
+### Frosted glass: backdrops
+
+A translucent panel over a busy picture reads better when what is behind it is blurred, as frosted
+glass. `Backdrop` asks for that, just before the panel's own rectangle:
+
+```go
+panel := draw2d.Rect{X: 24, Y: 24, Width: 280, Height: 160}
+drawing.Backdrop(panel, 12, 24)                                        // blur what is behind by 24 pixels
+drawing.Rectangle(panel, 12, draw2d.Hex("#ffffff10"), draw2d.Transparent, 0) // the pane over it
+```
+
+The panel's area now shows the frame behind it, blurred, with the pane's faint white on top.
+
+**How it is drawn.** The painter does not blur anything itself. It marks the backdrop's quads, and
+before the first backdrop of each layer it asks the backend for a **snapshot**
+(`Painter.Snapshots`). The backend stops drawing there, copies the frame so far, shrinks it to half
+a few times and blurs the smallest copy in two passes, across and down. Then it goes on drawing,
+and every backdrop of that layer reads the blurred copy where it sits on screen.
+
+**What it costs**, and how that is kept small:
+
+- **Nothing, without backdrops.** A list with none is still one draw call, with one more value per
+  vertex.
+- **One blur per layer, not per panel.** Ten panels of one layer share a snapshot. The price is
+  that a panel does not blur another panel of its own layer; a dialog, on a layer above, blurs the
+  panels under it.
+- **The blur runs on a small picture.** For a 24-pixel blur the copy is halved four times, to a
+  sixteenth of the screen's side, so the blur itself works on under half a percent of the pixels;
+  halving is a cheap, smooth average of four pixels into one. What is left is moving the frame
+  once: on OpenGL it is halved straight from the frame (a multisampled frame is copied first), on
+  OpenGL ES 2 copied first, as ES 2 cannot copy and shrink at once.
+- **The textures are kept.** They are made the first time and again only when the window changes
+  size.
+- **Metal** reads the drawable directly, which needs the layer's `framebufferOnly` off on every
+  frame: a small cost of its own, frosted or not.
+
+Measured with OpenGL drawn by the processor (llvmpipe, no graphics card: the slowest case), a
+frame of ten frosted panels over stripes, against the same frame without backdrops:
+
+| Window | Without backdrops | With backdrops |
+|---|---|---|
+| 1280 × 760 | 3.1 ms | 5.1 ms |
+| 2560 × 1520 | 7.0 ms | 13.5 ms |
+
+A graphics card does the same work in a fraction of that. An interface that draws only when
+something changes, as go-ui's window does, pays it only on the frames it draws; over a 3D scene,
+which draws every frame, it is paid every frame. A blur of 0 asks for no backdrop at all, so a
+system that asks for less transparency costs nothing.
+
+Not done yet: Metal blurs a flat interface's backdrops but not those over a 3D scene, which it
+leaves out (the panels show unblurred); and the snapshot is the whole frame, where copying only
+the area under the panels would save more on large windows.
 
 ---
 

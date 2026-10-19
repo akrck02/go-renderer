@@ -235,8 +235,39 @@ func (webgl *WebGL) PixelStorei(name gles.Enum, value int32) {
 }
 
 func (webgl *WebGL) TexImage2D(target gles.Enum, level int, internalFormat gles.Enum, width, height int, format, kind gles.Enum, pixels []byte) {
+	source := js.Null() // no pixels: an empty texture to draw into, which WebGL wants as null
+	if pixels != nil {
+		source = webgl.bytes(pixels)
+	}
 	webgl.context.Call("texImage2D", uint32(target), level, uint32(internalFormat), width, height, 0,
-		uint32(format), uint32(kind), webgl.bytes(pixels))
+		uint32(format), uint32(kind), source)
+}
+
+func (webgl *WebGL) CopyTexSubImage2D(target gles.Enum, level, xOffset, yOffset, x, y, width, height int) {
+	webgl.context.Call("copyTexSubImage2D", uint32(target), level, xOffset, yOffset, x, y, width, height)
+}
+
+func (webgl *WebGL) DeleteTexture(texture gles.Texture) {
+	webgl.context.Call("deleteTexture", webgl.object(uint32(texture)))
+	delete(webgl.objects, uint32(texture))
+}
+
+func (webgl *WebGL) CreateFramebuffer() gles.Framebuffer {
+	return gles.Framebuffer(webgl.keep(webgl.context.Call("createFramebuffer")))
+}
+
+func (webgl *WebGL) BindFramebuffer(target gles.Enum, framebuffer gles.Framebuffer) {
+	webgl.context.Call("bindFramebuffer", uint32(target), webgl.object(uint32(framebuffer)))
+}
+
+func (webgl *WebGL) FramebufferTexture2D(target, attachment, textureTarget gles.Enum, texture gles.Texture, level int) {
+	webgl.context.Call("framebufferTexture2D", uint32(target), uint32(attachment), uint32(textureTarget),
+		webgl.object(uint32(texture)), level)
+}
+
+func (webgl *WebGL) DeleteFramebuffer(framebuffer gles.Framebuffer) {
+	webgl.context.Call("deleteFramebuffer", webgl.object(uint32(framebuffer)))
+	delete(webgl.objects, uint32(framebuffer))
 }
 
 func (webgl *WebGL) TexSubImage2D(target gles.Enum, level, x, y, width, height int, format, kind gles.Enum, pixels []byte) {
