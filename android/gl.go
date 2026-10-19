@@ -17,6 +17,9 @@ static void program_log(GLuint program, char *buffer, GLsizei size) { glGetProgr
 
 static GLuint one_buffer(void) { GLuint name = 0; glGenBuffers(1, &name); return name; }
 static GLuint one_texture(void) { GLuint name = 0; glGenTextures(1, &name); return name; }
+static GLuint one_framebuffer(void) { GLuint name = 0; glGenFramebuffers(1, &name); return name; }
+static void delete_texture(GLuint name) { glDeleteTextures(1, &name); }
+static void delete_framebuffer(GLuint name) { glDeleteFramebuffers(1, &name); }
 static GLint shader_status(GLuint shader, GLenum which) { GLint value = 0; glGetShaderiv(shader, which, &value); return value; }
 static GLint program_status(GLuint program, GLenum which) { GLint value = 0; glGetProgramiv(program, which, &value); return value; }
 
@@ -178,6 +181,27 @@ func (GL) PixelStorei(name gles.Enum, value int32) { C.glPixelStorei(C.GLenum(na
 func (GL) TexImage2D(target gles.Enum, level int, internalFormat gles.Enum, width, height int, format, kind gles.Enum, pixels []byte) {
 	C.glTexImage2D(C.GLenum(target), C.GLint(level), C.GLint(internalFormat), C.GLsizei(width), C.GLsizei(height), 0,
 		C.GLenum(format), C.GLenum(kind), bytesOf(pixels))
+}
+
+func (GL) CopyTexSubImage2D(target gles.Enum, level, xOffset, yOffset, x, y, width, height int) {
+	C.glCopyTexSubImage2D(C.GLenum(target), C.GLint(level), C.GLint(xOffset), C.GLint(yOffset), C.GLint(x), C.GLint(y),
+		C.GLsizei(width), C.GLsizei(height))
+}
+
+func (GL) DeleteTexture(texture gles.Texture) { C.delete_texture(C.GLuint(texture)) }
+
+func (GL) CreateFramebuffer() gles.Framebuffer { return gles.Framebuffer(C.one_framebuffer()) }
+
+func (GL) BindFramebuffer(target gles.Enum, framebuffer gles.Framebuffer) {
+	C.glBindFramebuffer(C.GLenum(target), C.GLuint(framebuffer))
+}
+
+func (GL) FramebufferTexture2D(target, attachment, textureTarget gles.Enum, texture gles.Texture, level int) {
+	C.glFramebufferTexture2D(C.GLenum(target), C.GLenum(attachment), C.GLenum(textureTarget), C.GLuint(texture), C.GLint(level))
+}
+
+func (GL) DeleteFramebuffer(framebuffer gles.Framebuffer) {
+	C.delete_framebuffer(C.GLuint(framebuffer))
 }
 
 func (GL) TexSubImage2D(target gles.Enum, level, x, y, width, height int, format, kind gles.Enum, pixels []byte) {

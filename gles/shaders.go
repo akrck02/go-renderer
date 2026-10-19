@@ -8,8 +8,9 @@ package gles
 
 // The attributes both programs read, by index.
 var (
-	quadAttributes  = []string{"screenPosition", "atlasPosition", "vertexColor", "picturePosition"}
-	sceneAttributes = []string{"vertexPosition", "vertexNormal", "vertexColor"}
+	quadAttributes     = []string{"screenPosition", "atlasPosition", "vertexColor", "picturePosition", "backdropFlag"}
+	backdropAttributes = []string{"corner"}
+	sceneAttributes    = []string{"vertexPosition", "vertexNormal", "vertexColor"}
 )
 
 // quadVertexShader places the overlay's rectangles, given in screen pixels from the top-left
@@ -20,6 +21,7 @@ attribute vec2 screenPosition;
 attribute vec2 atlasPosition;
 attribute vec4 vertexColor;
 attribute vec2 picturePosition;
+attribute float backdropFlag;
 uniform vec2 screenSize;
 uniform vec2 atlasSize;
 uniform vec2 picturesSize;
@@ -28,6 +30,7 @@ varying vec2 pictureCoordinate;
 varying float sharp;
 varying vec2 pictureTexel;
 varying vec4 color;
+varying float backdrop;
 
 void main() {
     vec2 normalized = screenPosition / screenSize;
@@ -39,11 +42,13 @@ void main() {
     pictureCoordinate = picture.x < 0.0 ? vec2(-1.0) : picture / picturesSize;
     pictureTexel = 1.0 / picturesSize; // a uniform of the fragment shader would get another precision: the program would not link
     color = vertexColor;
+    backdrop = backdropFlag;
 }
 `
 
 // quadFragmentShader paints the colour where the atlas (a grey coverage mask: glyphs, icons,
-// rounded corners) covers; an image's quads take their colours from the pictures, tinted by it.
+// rounded corners) covers; an image's quads take their colours from the pictures, tinted by it,
+// and a backdrop's from the blurred snapshot of the frame, where the quad is on screen.
 const quadFragmentShader = `#version 100
 precision mediump float;
 varying vec2 atlasCoordinate;
@@ -51,8 +56,11 @@ varying vec2 pictureCoordinate;
 varying float sharp;
 varying vec2 pictureTexel;
 varying vec4 color;
+varying float backdrop;
 uniform sampler2D atlas;
 uniform sampler2D pictures;
+uniform sampler2D blurred;
+uniform vec2 frameSize; // the screen's size: screenSize is highp to the vertex stage, so not shared
 
 void main() {
     float coverage = texture2D(atlas, atlasCoordinate).r;
@@ -63,6 +71,9 @@ void main() {
             read = (floor(read / pictureTexel) + 0.5) * pictureTexel; // the middle of the nearest pixel
         }
         painted *= texture2D(pictures, read);
+    }
+    if (backdrop > 0.5) {
+        painted = vec4(texture2D(blurred, gl_FragCoord.xy / frameSize).rgb, 1.0);
     }
     gl_FragColor = vec4(painted.rgb, painted.a * coverage);
 }
@@ -150,5 +161,36 @@ void main() {
         color.rgb = mix(color.rgb, fogColor, fogAmount);
     }
     gl_FragColor = vec4(pow(max(color.rgb, vec3(0.0)), vec3(1.0 / 2.2)), color.a);
+}
+`
+
+// backdropVertexShader covers the target with two triangles, their corners from 0 to 1.
+const backdropVertexShader = `#version 100
+attribute vec2 corner;
+varying vec2 coordinate;
+
+void main() {
+    coordinate = corner;
+    gl_Position = vec4(corner * 2.0 - 1.0, 0.0, 1.0);
+}
+`
+
+// backdropBlurShader is one pass of a separable Gaussian blur along step: a texel is the weighted
+// sum of itself and four texels on each side (graphics.BackdropTaps). With the centre's weight one
+// and the others zero, read between texels, it averages four texels into one: a halving.
+const backdropBlurShader = `#version 100
+precision mediump float;
+varying vec2 coordinate;
+uniform sampler2D source;
+uniform vec2 step;
+uniform float weights[5];
+
+void main() {
+    vec4 sum = texture2D(source, coordinate) * weights[0];
+    for (int tap = 1; tap <= 4; tap++) {
+        sum += texture2D(source, coordinate + step * float(tap)) * weights[tap];
+        sum += texture2D(source, coordinate - step * float(tap)) * weights[tap];
+    }
+    gl_FragColor = sum;
 }
 `

@@ -67,17 +67,22 @@ type WebGL struct {
 | `func (webgl *WebGL) AttachShader(program gles.Program, shader gles.Shader)` |  |
 | `func (webgl *WebGL) BindAttribLocation(program gles.Program, index uint32, name string)` |  |
 | `func (webgl *WebGL) BindBuffer(target gles.Enum, buffer gles.Buffer)` |  |
+| `func (webgl *WebGL) BindFramebuffer(target gles.Enum, framebuffer gles.Framebuffer)` |  |
 | `func (webgl *WebGL) BindTexture(target gles.Enum, texture gles.Texture)` |  |
 | `func (webgl *WebGL) BlendFuncSeparate(sourceColor, destinationColor, sourceAlpha, destinationAlpha gles.Enum)` |  |
 | `func (webgl *WebGL) BufferData(target gles.Enum, data []byte, usage gles.Enum)` |  |
 | `func (webgl *WebGL) Clear(mask gles.Enum)` |  |
 | `func (webgl *WebGL) ClearColor(red, green, blue, alpha float32)` |  |
 | `func (webgl *WebGL) CompileShader(shader gles.Shader)` |  |
+| `func (webgl *WebGL) CopyTexSubImage2D(target gles.Enum, level, xOffset, yOffset, x, y, width, height int)` |  |
 | `func (webgl *WebGL) CreateBuffer() gles.Buffer` |  |
+| `func (webgl *WebGL) CreateFramebuffer() gles.Framebuffer` |  |
 | `func (webgl *WebGL) CreateProgram() gles.Program` |  |
 | `func (webgl *WebGL) CreateShader(stage gles.Enum) gles.Shader` |  |
 | `func (webgl *WebGL) CreateTexture() gles.Texture` |  |
+| `func (webgl *WebGL) DeleteFramebuffer(framebuffer gles.Framebuffer)` |  |
 | `func (webgl *WebGL) DeleteShader(shader gles.Shader)` |  |
+| `func (webgl *WebGL) DeleteTexture(texture gles.Texture)` |  |
 | `func (webgl *WebGL) DepthFunc(function gles.Enum)` |  |
 | `func (webgl *WebGL) DepthMask(write bool)` |  |
 | `func (webgl *WebGL) Disable(capability gles.Enum)` |  |
@@ -86,6 +91,7 @@ type WebGL struct {
 | `func (webgl *WebGL) DrawElements(mode gles.Enum, count int, kind gles.Enum, offset int)` |  |
 | `func (webgl *WebGL) Enable(capability gles.Enum)` |  |
 | `func (webgl *WebGL) EnableVertexAttribArray(index uint32)` |  |
+| `func (webgl *WebGL) FramebufferTexture2D(target, attachment, textureTarget gles.Enum, texture gles.Texture, level int)` |  |
 | `func (webgl *WebGL) LinkProgram(program gles.Program)` |  |
 | `func (webgl *WebGL) PixelStorei(name gles.Enum, value int32)` |  |
 | `func (webgl *WebGL) ProgramLinked(program gles.Program) (bool, string)` |  |
