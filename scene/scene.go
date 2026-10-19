@@ -123,7 +123,11 @@ type Node struct {
 	Instances *Instances
 	Children  []*Node
 	Hidden    bool
-	Tags      map[string]any // free data from the file (glTF extras) for the application
+	// Moving says the node's transform changes often, turning as well as moving: a ship, a
+	// vehicle. Backends that work a mesh's light out once for each way it is turned (ctr, on the
+	// 3DS) light a moving node on the GPU every frame instead.
+	Moving bool
+	Tags   map[string]any // free data from the file (glTF extras) for the application
 }
 
 // Water is an infinite animated water plane.

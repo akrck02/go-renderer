@@ -23,8 +23,13 @@ type SeabedPlan struct {
 	Casters   []Command // what to draw into the map, whole and without culling
 }
 
-// planSeabed decides whether the seabed map must be drawn again, and around what.
+// planSeabed decides whether the seabed map must be drawn again, and around what. Without water
+// there is no seabed to draw: measuring the casters, every lit mesh when none is ground, again
+// whenever one changes, would cost a scene of moving meshes most of a frame on a slow processor.
 func (planner *Planner) planSeabed(world *scene.Scene, commands []Command) SeabedPlan {
+	if world.Environment.Water == nil {
+		return SeabedPlan{}
+	}
 	casters := planner.seabedCasters(commands)
 	if planner.seabedFor == world && !anyMeshDirty(casters) {
 		return SeabedPlan{Available: planner.seabed.Available, Region: planner.seabed.Region}
