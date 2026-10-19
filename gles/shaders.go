@@ -194,3 +194,64 @@ void main() {
     gl_FragColor = sum;
 }
 `
+
+// lightAttributes are what the lights' program reads, by index.
+var lightAttributes = []string{"screenPosition", "cornerPosition", "lightColor", "picturePosition", "innerShare"}
+
+// lightVertexShader places a light's square, given in screen pixels from the top-left corner, as
+// graphics.LightVertexShader does.
+const lightVertexShader = `#version 100
+attribute vec2 screenPosition;
+attribute vec2 cornerPosition;
+attribute vec4 lightColor;
+attribute vec2 picturePosition;
+attribute float innerShare;
+uniform vec2 screenSize;
+uniform vec2 picturesSize;
+varying vec2 offset;
+varying vec4 color;
+varying vec2 pictureCoordinate;
+varying float inner;
+
+void main() {
+    vec2 normalized = screenPosition / screenSize;
+    gl_Position = vec4(normalized.x * 2.0 - 1.0, 1.0 - normalized.y * 2.0, 0.0, 1.0);
+    offset = cornerPosition;
+    color = lightColor;
+    pictureCoordinate = picturePosition.x < 0.0 ? vec2(-1.0) : picturePosition / picturesSize;
+    inner = innerShare;
+}
+`
+
+// lightFragmentShader is how much light a light adds, at half, as graphics.LightFragmentShader.
+const lightFragmentShader = `#version 100
+precision mediump float;
+varying vec2 offset;
+varying vec4 color;
+varying vec2 pictureCoordinate;
+varying float inner;
+uniform sampler2D pictures;
+
+void main() {
+    vec3 shape;
+    if (pictureCoordinate.x >= 0.0) {
+        vec4 picture = texture2D(pictures, pictureCoordinate);
+        shape = picture.rgb * picture.a;
+    } else {
+        shape = vec3(1.0 - smoothstep(min(inner, 0.999), 1.0, length(offset)));
+    }
+    gl_FragColor = vec4(color.rgb * color.a * shape * 0.5, 1.0);
+}
+`
+
+// lightMultiplyShader reads the picture of light over the screen (drawn with
+// backdropVertexShader's corners); the blend multiplies the frame by it twice over.
+const lightMultiplyShader = `#version 100
+precision mediump float;
+varying vec2 coordinate;
+uniform sampler2D light;
+
+void main() {
+    gl_FragColor = vec4(texture2D(light, coordinate).rgb, 1.0);
+}
+`
