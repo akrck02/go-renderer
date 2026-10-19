@@ -34,6 +34,10 @@ type Options struct {
 	// application comes up, the phone locks): Android may end it after that without a word, so it
 	// is the moment to keep what must survive.
 	Hidden func()
+	// Shown is called on the drawing goroutine when the program comes on the screen: at its start,
+	// and back from another application or the lock screen. It is the moment to play again what
+	// Hidden stopped (a sound).
+	Shown func()
 }
 
 // Insets are what the system's bars cover of each edge, in layout pixels.
@@ -81,6 +85,7 @@ type window struct {
 	app      *models.Application
 	draw     func(gl GL, fresh bool) error
 	hidden   func() // the program's, when it leaves the screen (Options.Hidden)
+	shown    func() // and when it comes back (Options.Shown)
 	clock    *frameloop.Clock
 	reader   touches
 	surface  C.surface
@@ -112,7 +117,7 @@ func Run(app *models.Application, options Options, draw func(gl GL, fresh bool) 
 		app.Input.Clipboard = systemClipboard{}
 	}
 	current := &window{app: app, draw: draw, clock: frameloop.NewClock(app.FixedStep), asked: true,
-		interval: time.Second / time.Duration(rate), hidden: options.Hidden}
+		interval: time.Second / time.Duration(rate), hidden: options.Hidden, shown: options.Shown}
 	current.reader.state = app.Input
 	drawing = current
 	done := make(chan error, 1)
@@ -212,6 +217,9 @@ func (current *window) act(news event) {
 		}
 		if news.change == changePaused && current.hidden != nil {
 			current.hidden()
+		}
+		if news.change == changeResumed && current.shown != nil {
+			current.shown()
 		}
 		if news.change == changeContent {
 			current.insetsOK = false // the keyboard came or went: what covers the window's bottom changed
