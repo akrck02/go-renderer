@@ -44,15 +44,24 @@ static C3D_Tex* newDiscTexture(int size, const void* tiled) {
 	return texture;
 }
 
-// beginLights clears the picture of light to the ambient, makes the next draws go to it, and
-// adds what they draw to what is there.
-static void beginLights(C3D_RenderTarget* target, u32 ambient, C3D_Tex* discs, C3D_Tex* pictures) {
-	C3D_RenderTargetClear(target, C3D_CLEAR_COLOR, ambient, 0);
+// beginLights makes the next draws go to the picture of light and fills it with the ambient
+// (0xAABBGGRR) by drawing the canvas's rectangle, then adds what they draw to what is there. It
+// fills by drawing, not by clearing: a clear runs apart from the draws, before all of a frame's,
+// and two lists lit in one frame would both see the last one's ambient.
+static void beginLights(C3D_RenderTarget* target, u32 ambient, u16* canvas, C3D_Tex* discs, C3D_Tex* pictures) {
 	C3D_FrameDrawOn(target);
-	C3D_TexBind(0, discs);
-	if (pictures != NULL) C3D_TexBind(1, pictures);
 	C3D_CullFace(GPU_CULL_NONE);
 	C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
+	C3D_TexEnv* first = C3D_GetTexEnv(0);
+	C3D_TexEnvInit(first);
+	C3D_TexEnvSrc(first, C3D_Both, GPU_CONSTANT, 0, 0);
+	C3D_TexEnvFunc(first, C3D_Both, GPU_REPLACE);
+	C3D_TexEnvColor(first, ambient);
+	C3D_TexEnvInit(C3D_GetTexEnv(1));
+	C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_ONE, GPU_ZERO, GPU_ONE, GPU_ZERO);
+	C3D_DrawElements(GPU_TRIANGLES, 6, C3D_UNSIGNED_SHORT, canvas);
+	C3D_TexBind(0, discs);
+	if (pictures != NULL) C3D_TexBind(1, pictures);
 	C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_ONE, GPU_ONE, GPU_ONE, GPU_ONE);
 }
 
@@ -120,11 +129,7 @@ static void multiplyByLight(C3D_Tex* light, u16* indices) {
 */
 import "C"
 
-import (
-	"unsafe"
-
-	"github.com/akrck02/go-renderer/opengl/overlay"
-)
+import "unsafe"
 
 // lightPass draws the 2D lights (see overlay.Lighting) on the PICA200: the lights are added into
 // a picture of light, a texture the GPU draws into, which then multiplies the screen. Its
@@ -159,14 +164,16 @@ func (pass *lightPass) prepare() bool {
 	return true
 }
 
-// light lights what the surface shows with one lighting of a painted list, and leaves the next
-// draws going to the surface again.
-func (renderer *FlatRenderer) light(surface Surface, painted *paintedList, lighting overlay.Lighting, width, height int) {
+// light lights what the surface shows, in its area, with the lighting of a painted list at index,
+// and leaves the next draws going to the surface again.
+func (renderer *FlatRenderer) light(surface Surface, painted *paintedList, index, width, height int) {
+	lighting := painted.lightings[index]
 	pass := &renderer.lights
-	C.beginLights(pass.target, C.u32(ambientColour(lighting.Ambient)), pass.discs, renderer.pictures)
 	// y grows upwards here: a texture drawn into keeps its rows bottom first, as the tiling does
 	SetMatrix(renderer.projection, Orthographic(0, lightCanvasWidth, 0, lightCanvasHeight, 0, 1))
 	C.describeLights(painted.lightVertices.data)
+	canvas := (*C.u16)(indicesFrom(painted.lightCount))
+	C.beginLights(pass.target, C.u32(ambientColour(lighting.Ambient)), canvas, pass.discs, renderer.pictures)
 	for _, run := range painted.lightRuns {
 		first, last := max(run.first, lighting.First), min(run.first+run.count, lighting.Last)
 		if first >= last || run.pictured && renderer.pictures == nil {
@@ -176,25 +183,26 @@ func (renderer *FlatRenderer) light(surface Surface, painted *paintedList, light
 	}
 	surface.resume()
 	SetMatrix(renderer.projection, OrthographicTilt(0, float32(width), float32(height), 0, 0, 1))
-	C.multiplyByLight(pass.texture, (*C.u16)(indicesFrom(painted.lightCount)))
+	C.multiplyByLight(pass.texture, (*C.u16)(indicesFrom(painted.lightCount+1+index)))
 }
 
-// writeLights writes a painted list's lights and lightings, after its quads; false when there is
-// no memory for them, and the list is drawn unlit.
-func (renderer *FlatRenderer) writeLights(painted *paintedList, width, height int) bool {
+// writeLights writes a painted list's lights, and the rectangles of its lightings' areas after
+// them; false when there is no memory for them, and the list is drawn unlit.
+func (renderer *FlatRenderer) writeLights(painted *paintedList) bool {
 	painted.lightings, painted.lightRuns, painted.lightVertices.data = painted.lightings[:0], painted.lightRuns[:0], nil
 	lightings := renderer.painter.Lightings()
 	if len(lightings) == 0 || !renderer.lights.prepare() {
 		return true
 	}
+	lightings = lightings[:min(len(lightings), maxQuadsPerList/2)]
 	lights := renderer.painter.Lights()
-	lights = lights[:min(len(lights), maxQuadsPerList-1)] // room for the screen's rectangle after them
-	floats := (len(lights) + 1) * 4 * floatsPerQuadVertex
+	lights = lights[:min(len(lights), maxQuadsPerList-1-len(lightings))] // room for the canvas's and areas' rectangles
+	floats := (len(lights) + 1 + len(lightings)) * 4 * floatsPerQuadVertex
 	if !growLinear(&painted.lightMemory, floats*4) {
 		return false
 	}
 	vertices := unsafe.Slice((*float32)(painted.lightMemory.data), floats)
-	painted.lightRuns = writeLightVertices(vertices, painted.lightRuns, lights, renderer.picturesSize, width, height)
+	painted.lightRuns = writeLightVertices(vertices, painted.lightRuns, lights, lightings, renderer.picturesSize)
 	flushLinear(painted.lightMemory.data, floats*4)
 	painted.lightVertices, painted.lightCount = painted.lightMemory, len(lights)
 	for _, lighting := range lightings {

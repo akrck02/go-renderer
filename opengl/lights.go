@@ -13,7 +13,7 @@ import (
 type lightLayer struct {
 	addProgram, multiplyProgram *shaderProgram
 	vertexArray, vertexBuffer   uint32
-	emptyArray                  uint32 // the multiply's triangle comes from gl_VertexID
+	emptyArray                  uint32 // the multiply's triangles come from gl_VertexID
 	target                      target
 	vertices                    []float32
 }
@@ -29,7 +29,7 @@ func newLightLayer() (*lightLayer, error) {
 	if err != nil {
 		return nil, err
 	}
-	multiplyProgram, err := newShaderProgram(graphics.BackdropVertexShader, graphics.LightMultiplyShader)
+	multiplyProgram, err := newShaderProgram(graphics.LightAreaVertexShader, graphics.LightMultiplyShader)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,8 @@ func (layer *lightLayer) fillVertices(lights []overlay.LightQuad) {
 	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*bytesPerFloat, gl.Ptr(vertices), gl.STREAM_DRAW)
 }
 
-// light lights what the bound framebuffer (width × height pixels) shows with one lighting. The
+// light lights what the bound framebuffer (width × height pixels) shows with one lighting, in its
+// area. The
 // framebuffer and viewport are as they were when it returns; blending is off.
 func (layer *lightLayer) light(lighting overlay.Lighting, width, height int, picturesSize int) {
 	var drawn int32
@@ -87,11 +88,14 @@ func (layer *lightLayer) light(lighting overlay.Lighting, width, height int, pic
 	gl.UseProgram(layer.multiplyProgram.handle)
 	gl.BindTexture(gl.TEXTURE_2D, layer.target.texture)
 	layer.multiplyProgram.setInteger("light", lightTextureUnit)
+	area := lighting.Area
+	gl.Uniform4f(layer.multiplyProgram.location("area"), area[0], area[1], area[2], area[3])
+	gl.Uniform2f(layer.multiplyProgram.location("screenSize"), float32(width), float32(height))
 	gl.Enable(gl.BLEND)
 	// frame × light + light × frame: twice the light, so half is neutral; the frame's alpha stays
 	gl.BlendFuncSeparate(gl.DST_COLOR, gl.SRC_COLOR, gl.ZERO, gl.ONE)
 	gl.BindVertexArray(layer.emptyArray)
-	gl.DrawArrays(gl.TRIANGLES, 0, 3)
+	gl.DrawArrays(gl.TRIANGLES, 0, verticesPerQuad)
 	gl.BindVertexArray(0)
 	gl.Disable(gl.BLEND)
 	gl.DepthMask(true)

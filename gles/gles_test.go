@@ -17,6 +17,7 @@ func TestShadersAreOpenGLESTwo(t *testing.T) {
 		"scene vertex": sceneVertexShader, "scene fragment": sceneFragmentShader,
 		"backdrop vertex": backdropVertexShader, "backdrop fragment": backdropBlurShader,
 		"light vertex": lightVertexShader, "light fragment": lightFragmentShader, "light multiply fragment": lightMultiplyShader,
+		"light area vertex": lightAreaVertexShader,
 	} {
 		if !strings.HasPrefix(source, "#version 100\n") {
 			t.Errorf("%s shader does not start with the GLSL ES 1.00 version line", name)

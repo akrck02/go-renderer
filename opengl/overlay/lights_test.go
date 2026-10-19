@@ -31,7 +31,7 @@ func TestAPointLightIsASquareRoundItsCentre(t *testing.T) {
 	if lights[0].Color != [4]float32{1, 0.9, 0.6, 1.5} {
 		t.Fatalf("the light's colour is %v", lights[0].Color)
 	}
-	if len(lightings) != 1 || lightings[0] != (Lighting{At: 0, First: 0, Last: 1, Ambient: [4]float32{1, 1, 1, 0.72}}) {
+	if len(lightings) != 1 || lightings[0] != (Lighting{At: 0, First: 0, Last: 1, Ambient: [4]float32{1, 1, 1, 0.72}, Area: [4]float32{0, 0, 800, 600}}) {
 		t.Fatalf("the lighting is %+v", lightings)
 	}
 }
@@ -80,5 +80,20 @@ func TestNothingLitCostsNothing(t *testing.T) {
 	_, lights, lightings := paintWithLights(t, &list, 1)
 	if len(lights) != 0 || len(lightings) != 0 {
 		t.Fatalf("an unlit list has %d lights and %d lightings", len(lights), len(lightings))
+	}
+}
+
+func TestALightingLightsItsClipOrTheWholeFrame(t *testing.T) {
+	var list draw2d.List
+	list.Lighting(draw2d.Color{1, 1, 1, 1})
+	list.PushClip(draw2d.Rect{X: 100, Y: 50, Width: 200, Height: 100})
+	list.Lighting(draw2d.Color{1, 1, 1, 1})
+	list.PopClip()
+	_, _, lightings := paintWithLights(t, &list, 2)
+	if whole := lightings[0].Area; whole != [4]float32{0, 0, 800, 600} {
+		t.Errorf("a lighting with no clip lights %v, not the whole frame", whole)
+	}
+	if clipped := lightings[1].Area; clipped != [4]float32{200, 100, 600, 300} {
+		t.Errorf("a lighting under a clip lights %v, not the clip in screen pixels", clipped)
 	}
 }

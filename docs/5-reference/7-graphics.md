@@ -63,6 +63,12 @@ const FragmentShaderSource = …
 ```
 
 ```go
+const LightAreaVertexShader = …
+```
+
+LightAreaVertexShader covers the area a lighting lights (in screen pixels from the top-left corner: left, top, right, bottom) with two triangles made from the vertex number alone, and passes on where the picture of light is read there.
+
+```go
 const LightFragmentShader = …
 ```
 
@@ -72,7 +78,7 @@ LightFragmentShader is how much light a light adds, at half: its colour times it
 const LightMultiplyShader = …
 ```
 
-LightMultiplyShader reads the picture of light over the whole screen (drawn with BackdropVertexShader's one triangle).
+LightMultiplyShader reads the picture of light over the area lit (drawn with LightAreaVertexShader).
 
 ```go
 const LightVertexShader = …

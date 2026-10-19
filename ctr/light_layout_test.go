@@ -48,13 +48,14 @@ func TestALightTakesTheNearestDisc(t *testing.T) {
 	}
 }
 
-func TestLightVerticesKeepTheLightsAtHalfAndEndWithTheScreen(t *testing.T) {
+func TestLightVerticesKeepTheLightsAtHalfAndEndWithTheAreaLit(t *testing.T) {
 	lights := []overlay.LightQuad{
 		{Screen: [4]float32{10, 10, 50, 50}, Color: [4]float32{1, 0.5, 0, 1}, Inner: 0},
 		{Screen: [4]float32{60, 10, 100, 50}, Color: [4]float32{1, 1, 1, 2}, Picture: [4]float32{0, 0, 32, 32}, Pictured: true},
 	}
-	vertices := make([]float32, (len(lights)+1)*4*floatsPerQuadVertex)
-	runs := writeLightVertices(vertices, nil, lights, 64, 400, 240)
+	lightings := []overlay.Lighting{{Area: [4]float32{0, 0, 400, 240}}}
+	vertices := make([]float32, (len(lights)+2)*4*floatsPerQuadVertex)
+	runs := writeLightVertices(vertices, nil, lights, lightings, 64)
 	if len(runs) != 2 || runs[0].pictured || !runs[1].pictured {
 		t.Fatalf("runs %+v, wanted a disc run then a picture run", runs)
 	}
@@ -65,20 +66,24 @@ func TestLightVerticesKeepTheLightsAtHalfAndEndWithTheScreen(t *testing.T) {
 	if second[4] != 1 || second[8] != 0 || second[2*floatsPerQuadVertex+8] != 0.5 {
 		t.Errorf("the sprite light is %v; wanted twice the intensity at half, and its picture's place", second[:3*floatsPerQuadVertex])
 	}
-	last := vertices[2*4*floatsPerQuadVertex:]
+	canvas := vertices[2*4*floatsPerQuadVertex:]
+	if canvasBottomRight := canvas[2*floatsPerQuadVertex:]; canvasBottomRight[0] != lightCanvasWidth || canvasBottomRight[1] != lightCanvasHeight {
+		t.Errorf("the ambient's rectangle ends at %v; wanted the whole picture of light", canvasBottomRight[:2])
+	}
+	last := vertices[3*4*floatsPerQuadVertex:]
 	// the third corner is the bottom right: the screen's, and how much of the light canvas it covers
 	bottomRight := last[2*floatsPerQuadVertex:]
 	if bottomRight[0] != 400 || bottomRight[1] != 240 || bottomRight[2] != 400.0/512 || bottomRight[3] != 240.0/256 {
-		t.Errorf("the screen's rectangle ends at %v", bottomRight[:4])
+		t.Errorf("the lit area's rectangle ends at %v", bottomRight[:4])
 	}
 }
 
 func TestTheAmbientIsClearedAtHalf(t *testing.T) {
-	if colour := ambientColour([4]float32{1, 1, 1, 1}); colour != 0x808080ff {
-		t.Errorf("white daylight clears to %08x, wanted 808080ff", colour)
+	if colour := ambientColour([4]float32{1, 1, 1, 1}); colour != 0xff808080 {
+		t.Errorf("white daylight fills with %08x, wanted ff808080", colour)
 	}
 	if colour := ambientColour([4]float32{1, 0, 0, 2}); colour != 0xff0000ff {
-		t.Errorf("a red at twice the intensity clears to %08x, wanted ff0000ff", colour)
+		t.Errorf("a red at twice the intensity fills with %08x, wanted ff0000ff (alpha, blue, green, red)", colour)
 	}
 }
 

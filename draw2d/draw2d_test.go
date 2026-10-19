@@ -149,12 +149,13 @@ func TestLightsThatCannotShineAreLeftOut(t *testing.T) {
 	}
 }
 
-func TestLightingIsKeptUnderAClip(t *testing.T) {
+func TestALightingUnderAClipLightsOnlyTheClip(t *testing.T) {
 	var list List
-	list.PushClip(Rect{X: 100, Y: 100, Width: 10, Height: 10})
+	clip := Rect{X: 100, Y: 100, Width: 10, Height: 10}
+	list.PushClip(clip)
 	list.Lighting(Color{1, 1, 1, 1})
 	list.PopClip()
-	if len(list.Commands) != 1 || list.Commands[0].HasClip {
+	if len(list.Commands) != 1 || !list.Commands[0].HasClip || list.Commands[0].Clip != clip {
 		t.Fatalf("a lighting under a clip became %+v", list.Commands)
 	}
 }

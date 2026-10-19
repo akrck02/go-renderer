@@ -208,10 +208,12 @@ func (list *List) SpriteLight(picture *Image, area Rect, color Color) {
 
 // Lighting lights what was drawn before it in the list, in its layer and those under it, with the
 // lights added since the last Lighting, over an ambient colour (its alpha, the ambient's intensity:
-// 1 is plain daylight, less dims what no light reaches).
+// 1 is plain daylight, less dims what no light reaches). Inside a clip it lights only the clip:
+// a scene's view lit inside an interface leaves the interface around it as it is.
 func (list *List) Lighting(ambient Color) {
-	// not list.add: a clip cuts what is drawn, and lighting draws nothing of its own to cut
-	list.Commands = append(list.Commands, Command{Kind: LightingKind, Fill: ambient, Layer: list.layer})
+	// not list.add: a clip that hides everything still lights nothing, but is no reason to drop it
+	clip, clipped := list.currentClip()
+	list.Commands = append(list.Commands, Command{Kind: LightingKind, Fill: ambient, Layer: list.layer, Clip: clip, HasClip: clipped})
 }
 
 // Text draws one line of text starting at x, with its baseline at baseline. Characters the font

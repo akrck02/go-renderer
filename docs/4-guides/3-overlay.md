@@ -256,7 +256,8 @@ drawing.Text("Score 10", 8, 20, 16, draw2d.Medium, white)                  // af
 ```
 
 `Lighting` lights everything drawn before it, with the lights added since the last `Lighting`.
-What comes after it, such as the interface, keeps its own colours. A colour's alpha is its
+What comes after it, such as the interface, keeps its own colours. Inside a clip (`PushClip`) it
+lights only the clip: a game's view lit inside an editor leaves the panels around it as they are. A colour's alpha is its
 **intensity**: an ambient of `{1, 1, 1, 1}` leaves everything as it is, and an alpha of 0.5 halves it.
 
 **Light can brighten too.** Light is kept at half: 0.5 in the picture of light leaves a colour as
@@ -271,7 +272,8 @@ each lighting the backend:
 1. clears a picture of light, at half the screen's resolution, to the ambient;
 2. adds the lights into it, one square each. A point light's shader fades it smoothly from its
    inner radius to its outer one, and a sprite light shines through its picture;
-3. draws the picture of light over the whole frame with the multiplying blend.
+3. draws the picture of light over the lighting's area (its clip, or the whole frame) with the
+   multiplying blend.
 
 **What it costs**:
 

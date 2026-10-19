@@ -257,8 +257,8 @@ type paintedList struct {
 	runs                      []quadRun
 	quadCount                 int
 	sharp                     bool // a picture of the list is read at the nearest pixel
-	// the list's lights (lights.go): their corners, then the screen's rectangle, in their own
-	// memory; how they run; and where the list is lit
+	// the list's lights (lights.go): their corners, then a rectangle for each lighting's area, in
+	// their own memory; how they run; and where the list is lit
 	lightMemory   linearBuffer
 	lightVertices linearBuffer // lightMemory, once it holds the corners
 	lightRuns     []quadRun
@@ -355,9 +355,9 @@ func (renderer *FlatRenderer) paint(surface Surface, list *draw2d.List) {
 	}
 	// without lights this is one pass over the runs; each lighting cuts it in two
 	drawn := 0
-	for _, lighting := range painted.lightings {
+	for index, lighting := range painted.lightings {
 		renderer.drawQuads(painted, drawn, lighting.At, width, height)
-		renderer.light(surface, painted, lighting, width, height)
+		renderer.light(surface, painted, index, width, height)
 		drawn = lighting.At
 	}
 	renderer.drawQuads(painted, drawn, painted.quadCount, width, height)
@@ -427,7 +427,7 @@ func (renderer *FlatRenderer) paintList(painted *paintedList, width, height int)
 		flushLinear(painted.memory.data, floats*4)
 	}
 	painted.quadCount, painted.sharp = len(quads), anySharp(quads)
-	if !renderer.writeLights(painted, width, height) {
+	if !renderer.writeLights(painted) {
 		return false
 	}
 	painted.vertices = painted.memory

@@ -26,7 +26,7 @@ type lightLayer struct {
 	addProgram      *program
 	multiplyProgram *program
 	vertexBuffer    Buffer
-	corners         Buffer // two triangles over the whole screen
+	corners         Buffer // two triangles from 0 to 1, stretched over the area lit
 	target          target
 	vertices        []float32
 }
@@ -36,7 +36,7 @@ func newLightLayer(functions Functions) (*lightLayer, error) {
 	if err != nil {
 		return nil, err
 	}
-	multiplyProgram, err := newProgram(functions, backdropVertexShader, lightMultiplyShader, backdropAttributes)
+	multiplyProgram, err := newProgram(functions, lightAreaVertexShader, lightMultiplyShader, backdropAttributes)
 	if err != nil {
 		return nil, err
 	}
@@ -83,6 +83,8 @@ func (layer *lightLayer) light(lighting overlay.Lighting, width, height, picture
 	functions.ActiveTexture(Texture0 + lightTextureUnit)
 	functions.BindTexture(Texture2D, layer.target.texture)
 	layer.multiplyProgram.setInteger("light", lightTextureUnit)
+	layer.multiplyProgram.setVector4("area", graphics.Vec4(lighting.Area))
+	layer.multiplyProgram.setVector2("screenSize", float32(width), float32(height))
 	functions.Enable(Blend)
 	// screen × light + light × screen: twice the light, so half is neutral; the screen's alpha stays
 	functions.BlendFuncSeparate(DestinationColor, SourceColor, Zero, One)

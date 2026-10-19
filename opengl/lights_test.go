@@ -140,6 +140,19 @@ func measuredFrame(lit bool) *draw2d.List {
 	return list
 }
 
+// TestALightingUnderAClipLeavesTheRestOfTheFrame lights the dark inside a clip only: what is drawn
+// outside it, an interface around a scene's view, keeps its colours.
+func TestALightingUnderAClipLeavesTheRestOfTheFrame(test *testing.T) {
+	renderer := openLightTestWindow(test, lightTestSide, lightTestSide)
+	list := &draw2d.List{}
+	list.PushClip(draw2d.Rect{Width: lightTestSide / 2, Height: lightTestSide})
+	list.Lighting(draw2d.Color{0, 0, 0, 1})
+	list.PopClip()
+	renderer.Draw(list, grey, lightTestSide, lightTestSide, 1)
+	checkRedAt(test, "inside the clip, in the dark", 8, lightTestSide/2, 0)
+	checkRedAt(test, "outside the clip", lightTestSide-8, lightTestSide/2, 128)
+}
+
 // openLightTestWindow opens a hidden window with an OpenGL context of a size, and its renderer.
 func openLightTestWindow(test testing.TB, width, height int) *FlatRenderer {
 	test.Helper()
