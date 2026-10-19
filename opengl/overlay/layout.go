@@ -60,6 +60,9 @@ type LightQuad struct {
 type Lighting struct {
 	At, First, Last int
 	Ambient         [4]float32
+	// Area is what it lights on screen (left, top, right, bottom): its list's clip, or the whole
+	// frame.
+	Area [4]float32
 }
 
 // Frame is what the layout needs to know about the frame being drawn.
@@ -93,6 +96,7 @@ type Painter struct {
 	lights    []LightQuad // the lights laid out this frame, in order
 	lightings []Lighting  // where and how this frame's lights light what is under them
 	lit       int         // the first light the next lighting takes
+	frameArea [4]float32  // the whole frame on screen, what a lighting with no clip lights
 }
 
 // NewPainter parses the embedded fonts and prepares an empty atlas.
@@ -121,6 +125,7 @@ func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]gr
 		return painter.quads
 	}
 	scale := frame.scale()
+	painter.frameArea = [4]float32{0, 0, float32(frame.Width), float32(frame.Height)}
 	bottom := painter.paintHeader(overlay.Header, scale)
 	painter.paintNotices(overlay.VisibleNotices(), bottom, scale)
 	painter.paintLabels(overlay.Labels, anchors, frame)

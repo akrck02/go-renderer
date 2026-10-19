@@ -3,7 +3,7 @@
 // Eight 2D lights on the Nintendo 3DS: five coloured panels on the top screen in a dim blue
 // light, lit by a warm lamp, a cold one, a glow shining through a checked picture and a row of
 // five small lamps, with a label drawn after the lighting, unlit. The bottom screen shows the
-// same panels unlit, to compare.
+// same panels unlit, to compare, but for its left half, darkened inside a clip.
 //
 //	tinygo build -target=nintendo3ds -o lights3ds.3dsx ./cmd/lights3ds
 package main
@@ -41,6 +41,9 @@ func main() {
 	lit, unlit := &draw2d.List{}, &draw2d.List{}
 	addPanels(lit)
 	addPanels(unlit)
+	unlit.PushClip(draw2d.Rect{Width: ctr.BottomWidth / 2, Height: ctr.BottomHeight})
+	unlit.Lighting(draw2d.Color{1, 1, 1, 0.5})
+	unlit.PopClip()
 	addLights(lit)
 	lit.Rectangle(draw2d.Rect{X: 8, Y: 200, Width: 120, Height: 32}, 6, draw2d.Hex("#ffffff"), draw2d.Transparent, 0)
 	lit.Text("Unlit, after", 16, 221, 12, draw2d.Medium, draw2d.Hex("#202020"))

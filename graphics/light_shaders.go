@@ -59,8 +59,25 @@ void main() {
 }
 `
 
-// LightMultiplyShader reads the picture of light over the whole screen (drawn with
-// BackdropVertexShader's one triangle). The blend multiplies the frame by it twice over.
+// LightAreaVertexShader covers the area a lighting lights (in screen pixels from the top-left
+// corner: left, top, right, bottom) with two triangles made from the vertex number alone, and
+// passes on where the picture of light is read there.
+const LightAreaVertexShader = `
+#version 410
+uniform vec4 area;
+uniform vec2 screenSize;
+out vec2 coordinate;
+const vec2 corners[6] = vec2[](vec2(0.0, 0.0), vec2(0.0, 1.0), vec2(1.0, 1.0), vec2(0.0, 0.0), vec2(1.0, 1.0), vec2(1.0, 0.0));
+
+void main() {
+    vec2 normalized = mix(area.xy, area.zw, corners[gl_VertexID]) / screenSize;
+    coordinate = vec2(normalized.x, 1.0 - normalized.y);
+    gl_Position = vec4(normalized.x * 2.0 - 1.0, 1.0 - normalized.y * 2.0, 0.0, 1.0);
+}
+`
+
+// LightMultiplyShader reads the picture of light over the area lit (drawn with
+// LightAreaVertexShader). The blend multiplies the frame by it twice over.
 const LightMultiplyShader = `
 #version 410
 in vec2 coordinate;

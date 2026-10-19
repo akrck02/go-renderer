@@ -71,14 +71,15 @@ func discArea(level int) [4]float32 {
 	return [4]float32{left, top, left + side, top + side}
 }
 
-// writeLightVertices writes the corners of the lights, as rectangles of the overlay's layout, and
-// after them the rectangle that lays the picture of light over a screen of width × height pixels.
+// writeLightVertices writes the corners of the lights, as rectangles of the overlay's layout; after
+// them the rectangle that fills the picture of light with an ambient; and after that, for each
+// lighting, the rectangle that lays the picture of light over its area.
 // A point light reads its disc as its first texture, a sprite light its picture as its second;
 // runs group them as the quads' do. Colours are at half, as all light is kept (see
 // overlay.Lighting).
-func writeLightVertices(vertices []float32, runs []quadRun, lights []overlay.LightQuad, picturesSize, width, height int) []quadRun {
+func writeLightVertices(vertices []float32, runs []quadRun, lights []overlay.LightQuad, lightings []overlay.Lighting, picturesSize int) []quadRun {
 	toPictures := 1 / float32(max(picturesSize, 1))
-	_ = vertices[(len(lights)+1)*4*floatsPerQuadVertex-1] // one bounds check for them all
+	_ = vertices[(len(lights)+1+len(lightings))*4*floatsPerQuadVertex-1] // one bounds check for them all
 	for index := range lights {
 		light := &lights[index]
 		if len(runs) == 0 || runs[len(runs)-1].pictured != light.Pictured {
@@ -96,10 +97,14 @@ func writeLightVertices(vertices []float32, runs []quadRun, lights []overlay.Lig
 		colour := halfLight(light.Color)
 		writeRectangle(vertices[index*4*floatsPerQuadVertex:], light.Screen, disc, &colour, picture)
 	}
-	lit := [4]float32{0, 0, float32(width) / lightCanvasWidth, float32(height) / lightCanvasHeight}
 	white := [4]float32{1, 1, 1, 1}
-	screen := [4]float32{0, 0, float32(width), float32(height)}
-	writeRectangle(vertices[len(lights)*4*floatsPerQuadVertex:], screen, lit, &white, [4]float32{})
+	canvas := [4]float32{0, 0, lightCanvasWidth, lightCanvasHeight}
+	writeRectangle(vertices[len(lights)*4*floatsPerQuadVertex:], canvas, [4]float32{}, &white, [4]float32{})
+	for index, lighting := range lightings {
+		area := lighting.Area
+		lit := [4]float32{area[0] / lightCanvasWidth, area[1] / lightCanvasHeight, area[2] / lightCanvasWidth, area[3] / lightCanvasHeight}
+		writeRectangle(vertices[(len(lights)+1+index)*4*floatsPerQuadVertex:], area, lit, &white, [4]float32{})
+	}
 	return runs
 }
 
@@ -124,11 +129,12 @@ func halfLight(colour [4]float32) [4]float32 {
 	return [4]float32{min(ambient[0], 1), min(ambient[1], 1), min(ambient[2], 1), 1}
 }
 
-// ambientColour is the colour the picture of light is cleared to, packed as 0xRRGGBBAA.
+// ambientColour is the colour the picture of light is filled with, packed as the PICA200's
+// constant colours are: 0xAABBGGRR.
 func ambientColour(ambient [4]float32) uint32 {
 	light := halfLight(ambient)
 	channel := func(value float32) uint32 { return uint32(value*255 + 0.5) }
-	return channel(light[0])<<24 | channel(light[1])<<16 | channel(light[2])<<8 | 0xff
+	return 0xff<<24 | channel(light[2])<<16 | channel(light[1])<<8 | channel(light[0])
 }
 
 // Orthographic is citro3d's Mtx_Ortho for a right-handed view: an orthographic projection with

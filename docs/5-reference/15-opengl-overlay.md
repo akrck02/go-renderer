@@ -106,6 +106,9 @@ Lighting asks the backend, before it draws the quad at At, to light everything d
 type Lighting struct {
 	At, First, Last int
 	Ambient         [4]float32
+	// Area is what it lights on screen (left, top, right, bottom): its list's clip, or the whole
+	// frame.
+	Area [4]float32
 }
 ```
 

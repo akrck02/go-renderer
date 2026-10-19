@@ -244,8 +244,24 @@ void main() {
 }
 `
 
-// lightMultiplyShader reads the picture of light over the screen (drawn with
-// backdropVertexShader's corners); the blend multiplies the frame by it twice over.
+// lightAreaVertexShader stretches the corners (from 0 to 1) over the area a lighting lights, in
+// screen pixels from the top-left corner (left, top, right, bottom), and passes on where the
+// picture of light is read there.
+const lightAreaVertexShader = `#version 100
+attribute vec2 corner;
+uniform vec4 area;
+uniform vec2 screenSize;
+varying vec2 coordinate;
+
+void main() {
+    vec2 normalized = mix(area.xy, area.zw, corner) / screenSize;
+    coordinate = vec2(normalized.x, 1.0 - normalized.y);
+    gl_Position = vec4(normalized.x * 2.0 - 1.0, 1.0 - normalized.y * 2.0, 0.0, 1.0);
+}
+`
+
+// lightMultiplyShader reads the picture of light over the area lit (drawn with
+// lightAreaVertexShader); the blend multiplies the frame by it twice over.
 const lightMultiplyShader = `#version 100
 precision mediump float;
 varying vec2 coordinate;

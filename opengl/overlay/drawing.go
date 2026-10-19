@@ -72,7 +72,7 @@ func (painter *Painter) paintCommand(command *draw2d.Command, scale float32) {
 	case draw2d.SpriteLightKind:
 		painter.paintSpriteLight(command, scale)
 	case draw2d.LightingKind:
-		painter.paintLighting(command)
+		painter.paintLighting(command, scale)
 	}
 }
 
@@ -103,9 +103,14 @@ func (painter *Painter) paintSpriteLight(command *draw2d.Command, scale float32)
 
 // paintLighting asks the backend to light what was drawn so far with the lights since the last
 // lighting.
-func (painter *Painter) paintLighting(command *draw2d.Command) {
+func (painter *Painter) paintLighting(command *draw2d.Command, scale float32) {
+	area := painter.frameArea
+	if command.HasClip {
+		clip := command.Clip
+		area = [4]float32{clip.X * scale, clip.Y * scale, clip.Right() * scale, clip.Bottom() * scale}
+	}
 	painter.lightings = append(painter.lightings, Lighting{
-		At: len(painter.quads), First: painter.lit, Last: len(painter.lights), Ambient: colourOf(command.Fill),
+		At: len(painter.quads), First: painter.lit, Last: len(painter.lights), Ambient: colourOf(command.Fill), Area: area,
 	})
 	painter.lit = len(painter.lights)
 }
