@@ -29,6 +29,17 @@ type Quad struct {
 	Picture  [4]float32
 	Pictured bool
 	Sharp    bool // the picture is read at the nearest pixel (draw2d.Image's Sharp)
+	// Backdrop quads show the blurred picture of what was drawn before them (see Snapshot), cut
+	// by the atlas's coverage, instead of their colour.
+	Backdrop bool
+}
+
+// Snapshot asks the backend, before it draws the quad at At, to take a picture of everything drawn
+// so far and blur it by Blur screen pixels (a standard deviation): the backdrop quads after it read
+// that picture. There is one per layer that has backdrops, so many glass panels cost one blur.
+type Snapshot struct {
+	At   int
+	Blur float32
 }
 
 // Frame is what the layout needs to know about the frame being drawn.
@@ -50,11 +61,15 @@ type Painter struct {
 	// Warn reports a problem once (an unknown icon name); nil = the standard logger.
 	Warn func(message string)
 
-	quads    []Quad
-	occupied []rectangle
-	order    []int // the drawing's commands sorted by layer, reused every frame
-	shown    []*draw2d.Image
-	runes    []rune // a text's characters, reused: converting every text every frame is garbage
+	quads     []Quad
+	snapshots []Snapshot
+	// snapshotLayer is the layer of the last snapshot taken in this frame, or noSnapshotLayer.
+	snapshotLayer int
+	occupied      []rectangle
+	order         []int // the drawing's commands sorted by layer, reused every frame
+	shown         []*draw2d.Image
+	runes         []rune // a text's characters, reused: converting every text every frame is garbage
+	runs          []rune // a text's characters, reused: converting every text every frame is garbage
 }
 
 // NewPainter parses the embedded fonts and prepares an empty atlas.
@@ -77,6 +92,7 @@ func (painter *Painter) Pictures() *Pictures { return painter.pictures }
 // The returned slice is reused by the next call.
 func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]graphics.Mat4, frame Frame) []Quad {
 	painter.quads, painter.occupied = painter.quads[:0], painter.occupied[:0]
+	painter.snapshots, painter.snapshotLayer = painter.snapshots[:0], noSnapshotLayer
 	if overlay == nil || frame.Width <= 0 || frame.Height <= 0 {
 		return painter.quads
 	}
@@ -87,6 +103,10 @@ func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]gr
 	painter.paintDrawing(overlay.Drawing, scale)
 	return painter.quads
 }
+
+// Snapshots lists where, in the quads Paint just gave, the backend takes and blurs a picture of the
+// frame so far; empty when nothing on screen is frosted, which then costs nothing.
+func (painter *Painter) Snapshots() []Snapshot { return painter.snapshots }
 
 func (frame Frame) scale() float32 {
 	if frame.Scale <= 0 {

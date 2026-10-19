@@ -58,7 +58,7 @@ type Command struct {
 	Fill        Color   // rectangle: inside; shadow, text, icon: their colour
 	Border      Color   // rectangle: the outline
 	BorderWidth float32 // rectangle: outline thickness, inside the area
-	Blur        float32 // shadow: how far it fades out; Area is the caster grown by it and moved down
+	Blur        float32 // shadow: how far it fades out; Area is the caster grown by it and moved down. Backdrop: how far what is behind spreads (a standard deviation, as CSS's blur())
 
 	Text     string  // text: the line; icon: the icon's name
 	Size     float32 // text and icon: size in layout pixels (the font's em square)
@@ -107,6 +107,7 @@ const (
 	TextKind                  // one line of text
 	IconKind                  // one icon
 	ImageKind                 // a picture covering a rounded rectangle
+	BackdropKind              // what is behind a rounded rectangle, blurred: frosted glass
 )
 ```
 
@@ -124,6 +125,7 @@ type List struct {
 
 | Function or method | |
 |---|---|
+| `func (list *List) Backdrop(area Rect, radius, blur float32)` | Backdrop shows, inside a rounded rectangle, what was drawn behind it, blurred: the frosted glass under a translucent panel, whose Rectangle comes next, over it. |
 | `func (list *List) Fingerprint(seed maphash.Seed) uint64` | Fingerprint sums up everything the list draws in one number: two lists with the same fingerprint draw the same picture (barring a hash collision). |
 | `func (list *List) Icon(name string, x, y, size float32, color Color)` | Icon draws an icon by name (a Lucide icon, https://lucide.dev) filling a square of size pixels whose top-left corner is at (x, y). |
 | `func (list *List) Image(picture *Image, area Rect, radius float32, tint Color)` | Image draws a picture covering a rounded rectangle: scaled to fill it, and cropped evenly at the sides or at the top and bottom when their shapes differ, as photos fill cards and avatars. |

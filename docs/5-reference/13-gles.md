@@ -72,8 +72,13 @@ const (
 	Linear           Enum = 0x2601
 	ClampToEdge      Enum = 0x812F
 	Luminance        Enum = 0x1909
+	RGB              Enum = 0x1907
 	RGBA             Enum = 0x1908
 	UnpackAlignment  Enum = 0x0CF5
+	Nearest          Enum = 0x2600
+
+	FramebufferTarget Enum = 0x8D40
+	ColorAttachment0  Enum = 0x8CE0
 )
 ```
 
@@ -93,6 +98,14 @@ type FlatRenderer struct {
 |---|---|
 | `func NewFlatRenderer(functions Functions) (*FlatRenderer, error)` | NewFlatRenderer compiles the shaders and prepares the atlas. |
 | `func (renderer *FlatRenderer) Draw(list *draw2d.List, background draw2d.Color, width, height int, scale float32)` | Draw clears the framebuffer (width × height pixels) to the background colour and paints the list. |
+
+### Framebuffer
+
+Framebuffer 0 is the screen's own: it can be bound, though no call made it.
+
+```go
+type Framebuffer uint32
+```
 
 ### Functions
 
@@ -144,6 +157,17 @@ type Functions interface {
 	TexImage2D(target Enum, level int, internalFormat Enum, width, height int, format, kind Enum, pixels []byte)
 	// TexSubImage2D replaces a rectangle of the bound texture's pixels, given row after row.
 	TexSubImage2D(target Enum, level, x, y, width, height int, format, kind Enum, pixels []byte)
+	// CopyTexSubImage2D copies a rectangle of the bound framebuffer (x, y from its bottom left)
+	// into the bound texture at xOffset, yOffset.
+	CopyTexSubImage2D(target Enum, level, xOffset, yOffset, x, y, width, height int)
+	DeleteTexture(texture Texture)
+
+	// Framebuffers let a pass draw into a texture: the backdrop's blur. TexImage2D with no pixels
+	// makes the texture they draw into.
+	CreateFramebuffer() Framebuffer
+	BindFramebuffer(target Enum, framebuffer Framebuffer)
+	FramebufferTexture2D(target, attachment, textureTarget Enum, texture Texture, level int)
+	DeleteFramebuffer(framebuffer Framebuffer)
 
 	Viewport(x, y, width, height int)
 	ClearColor(red, green, blue, alpha float32)

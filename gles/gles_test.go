@@ -15,6 +15,7 @@ func TestShadersAreOpenGLESTwo(t *testing.T) {
 	for name, source := range map[string]string{
 		"quad vertex": quadVertexShader, "quad fragment": quadFragmentShader,
 		"scene vertex": sceneVertexShader, "scene fragment": sceneFragmentShader,
+		"backdrop vertex": backdropVertexShader, "backdrop fragment": backdropBlurShader,
 	} {
 		if !strings.HasPrefix(source, "#version 100\n") {
 			t.Errorf("%s shader does not start with the GLSL ES 1.00 version line", name)
@@ -216,9 +217,10 @@ func TestASecondFrameSendsOnlyWhatChanged(t *testing.T) {
 	if fake.uniformValues >= firstValues {
 		t.Fatalf("uniform values sent: %d on the first frame, %d on the same frame again; want fewer", firstValues, fake.uniformValues)
 	}
-	// the three both programs read stay on; the pictures' one goes on for the overlay and off after
-	if fake.enables > 1 {
-		t.Fatalf("vertex attributes switched on %d times again; want only the pictures' one", fake.enables)
+	// the three both programs read stay on; the quads' own two (pictures and backdrop) go on for
+	// the overlay and off after
+	if fake.enables > 2 {
+		t.Fatalf("vertex attributes switched on %d times again; want only the quads' own two", fake.enables)
 	}
 }
 
@@ -244,5 +246,43 @@ func TestAnImageIsDrawnInTheSameCallAndOnlyItsChangesAreSent(t *testing.T) {
 	if fake.textureUploads != 0 || fake.textureAreaUploads != 1 {
 		t.Fatalf("whole uploads %d, area uploads %d after the picture changed; want only its area",
 			fake.textureUploads, fake.textureAreaUploads)
+	}
+}
+
+func TestAFlatListWithoutBackdropsIsOneDrawAndNoSnapshot(t *testing.T) {
+	fake := newRecorder()
+	renderer, err := NewFlatRenderer(fake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var list draw2d.List
+	list.Rectangle(draw2d.Rect{X: 10, Y: 10, Width: 200, Height: 100}, 12, draw2d.Hex("#ffffff20"), draw2d.Transparent, 0)
+	renderer.Draw(&list, draw2d.Hex("#202020"), 800, 600, 1)
+	if len(fake.draws) != 1 || fake.snapshots != 0 {
+		t.Fatalf("no backdrop: one draw and no copy of the frame, got %d draws and %d copies", len(fake.draws), fake.snapshots)
+	}
+}
+
+func TestPanelsOfOneLayerShareOneSnapshot(t *testing.T) {
+	fake := newRecorder()
+	renderer, err := NewFlatRenderer(fake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var list draw2d.List
+	list.Rectangle(draw2d.Rect{X: 0, Y: 0, Width: 800, Height: 600}, 0, draw2d.Hex("#808080"), draw2d.Transparent, 0)
+	for row := float32(0); row < 4; row++ {
+		panel := draw2d.Rect{X: 20, Y: 20 + row*140, Width: 300, Height: 120}
+		list.Backdrop(panel, 12, 24)
+		list.Rectangle(panel, 12, draw2d.Hex("#ffffff20"), draw2d.Transparent, 0)
+	}
+	renderer.Draw(&list, draw2d.Hex("#202020"), 800, 600, 1)
+	if fake.snapshots != 1 {
+		t.Fatalf("four panels of one layer copy the frame once, got %d", fake.snapshots)
+	}
+	// the ground; then the halvings and two blur passes; then the rest of the quads
+	halvings := graphics.BackdropHalvings(24)
+	if len(fake.draws) != 1+halvings+2+1 {
+		t.Fatalf("got %d draws, wanted %d", len(fake.draws), 1+halvings+2+1)
 	}
 }
