@@ -38,7 +38,8 @@ I write most of my code by hand, so I want to be clear about where AI was used h
   left as they were. It also wrote the first step towards browsers and phones: the OpenGL ES
   renderers (`gles`), the browser canvas and loop (`browser`), the Android activity and loop
   (`android`, with its C), the shared clock (`frameloop`) and `cmd/web-island`, and later the
-  screen reader's side on Android (`android/screenreader*`, with the Java class in `android/java`).
+  screen reader's side on Android (`android/screenreader*`, with the Java class in `android/java`),
+  and the first drawing on the Nintendo 3DS (`ctr`, with its C, and `cmd/triangle3ds`).
 
 Commits made with AI carry a `Co-Authored-By: Claude` line.
 
@@ -125,6 +126,7 @@ New here? Start with the [overview](docs/1-overview.md), then [get started](docs
 | [In a web browser](docs/4-guides/5-web.md) | The island through WebGL2, and the renderers shared with phones. |
 | [On Android](docs/4-guides/6-android.md) | A program as an Android app: its own activity, the keyboard, screen readers. |
 | [Metal](docs/4-guides/7-metal.md) | The Metal backend on macOS: why, how it fits, what was measured. |
+| [On the Nintendo 3DS](docs/4-guides/8-3ds.md) | Drawing through the 3DS's PICA200 with citro3d (`ctr`), built with TinyGo. |
 | [Optimization plan](docs/6-project/1-optimization-plan.md) | Measurements and the plan that guided the performance work. |
 | [Roadmap](docs/6-project/2-roadmap.md) | Goals for the next versions. |
 

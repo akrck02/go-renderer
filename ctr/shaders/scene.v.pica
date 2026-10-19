@@ -1,0 +1,144 @@
+; The scene shader of ctr: gles's scene shader done per vertex, since the PICA200 has no fragment
+; shaders. An instruction reads one uniform at most, so ctr works out everything that is the same
+; for the whole frame first (shading.go).
+
+; Per frame
+.fvec viewProjection[4]  ; sceneplan's view-projection, turned into the PICA200's clip space
+.fvec camera             ; xyz: the camera's position
+.fvec sunDirection       ; xyz: towards the light, unit length
+.fvec sunColour
+.fvec ambientGround      ; ground light × ambient
+.fvec ambientSpan        ; (sky - ground) × ambient
+.fvec waterLight         ; water's flat light
+.fvec skyReflection      ; sky × brightness, reflected by water at grazing angles
+.fvec fogColour
+.fvec settings           ; x: vertical scale, y: its inverse, w: brightness
+.fvec fog                ; x: fog near, y: 1 / (far - near), 0 without fog
+
+; Per draw
+.fvec model[4]
+.fvec normalMatrix[3]    ; rows of the inverse transpose of the model's 3 × 3
+.fvec baseColour         ; the material's colour × the node's tint
+.fvec weights            ; x: lit, y: flat, z: water (1 or 0), w: glow
+.fvec minimumAlpha       ; x
+
+.constf numbers(0.0, 1.0, 0.5, 3.0)
+.constf more(2.0, 0.45454545, 0.6, 0.00001)
+.alias zeros    numbers.xxxx
+.alias ones     numbers.yyyy
+.alias halves   numbers.zzzz
+.alias threes   numbers.wwww
+.alias twos     more.xxxx
+.alias oneOverGamma more.yyyy
+.alias reflectionShare more.zzzz
+.alias tiny     more.wwww
+
+.out outPosition position
+.out outColour   color
+
+.alias inPosition v0
+.alias inNormal   v1
+.alias inColour   v2
+
+.proc main
+	; r0 = world position: model × (position, 1), raised by the vertical scale
+	mov r0.xyz, inPosition
+	mov r0.w, ones
+	dp4 r1.x, model[0], r0
+	dp4 r1.y, model[1], r0
+	dp4 r1.z, model[2], r0
+	dp4 r1.w, model[3], r0
+	mul r1.y, settings.xxxx, r1.yyyy
+	dp4 outPosition.x, viewProjection[0], r1
+	dp4 outPosition.y, viewProjection[1], r1
+	dp4 outPosition.z, viewProjection[2], r1
+	dp4 outPosition.w, viewProjection[3], r1
+
+	; r2 = the normal in the world, of unit length
+	dp3 r2.x, normalMatrix[0], inNormal
+	dp3 r2.y, normalMatrix[1], inNormal
+	dp3 r2.z, normalMatrix[2], inNormal
+	mul r2.y, settings.yyyy, r2.yyyy
+	dp3 r3.x, r2, r2
+	max r3.x, tiny, r3.x
+	rsq r3.x, r3.x
+	mul r2.xyz, r3.xxxx, r2.xyz
+
+	; r4 = the surface's colour
+	mul r4, baseColour, inColour
+
+	; r5 = lit: colour × (sky and ground light by how the normal faces, + the sun)
+	mul r6.x, halves, r2.yyyy
+	add r6.x, halves, r6.xxxx              ; 0 facing down, 1 facing up
+	mov r7.xyz, ambientSpan
+	mul r7.xyz, r6.xxxx, r7.xyz
+	add r7.xyz, ambientGround, r7.xyz
+	dp3 r6.y, sunDirection, r2
+	max r6.y, zeros, r6.yyyy
+	mov r8.xyz, sunColour
+	mad r7.xyz, r8.xyz, r6.yyyy, r7.xyz
+	mul r5.xyz, r4.xyz, r7.xyz
+	; glowing materials shine with their own colour as the light goes
+	mov r8.xyz, weights.wwww
+	mul r8.xyz, r4.xyz, r8.xyz
+	max r5.xyz, r5.xyz, r8.xyz
+
+	; r9 = towards the camera; r10.x = the distance
+	mov r9.xyz, camera
+	add r9.xyz, r9.xyz, -r1.xyz
+	dp3 r10.x, r9, r9
+	max r10.x, tiny, r10.x
+	rsq r10.y, r10.x
+	rcp r10.x, r10.y
+	mul r9.xyz, r10.yyyy, r9.xyz
+
+	; r11 = water: its flat light, mixed towards the sky's reflection at grazing angles
+	mov r12.xyz, waterLight
+	mul r11.xyz, r4.xyz, r12.xyz
+	max r12.x, zeros, r9.yyyy
+	add r12.x, ones, -r12.xxxx              ; 1 - how much the camera looks down at it
+	mul r12.x, r12.xxxx, r12.xxxx
+	mul r12.x, r12.xxxx, r12.xxxx           ; to the fourth power
+	mul r12.x, reflectionShare, r12.xxxx
+	mov r13.xyz, skyReflection
+	add r13.xyz, r13.xyz, -r11.xyz
+	mad r11.xyz, r13.xyz, r12.xxxx, r11.xyz
+
+	; r14 = flat: colour × brightness
+	mov r14.xyz, settings.wwww
+	mul r14.xyz, r4.xyz, r14.xyz
+
+	; r15 = the material's shading, chosen by the weights
+	mov r6, weights
+	mul r15.xyz, r6.xxxx, r5.xyz
+	mad r15.xyz, r6.yyyy, r14.xyz, r15.xyz
+	mad r15.xyz, r6.zzzz, r11.xyz, r15.xyz
+	mov r6, minimumAlpha
+	max r15.w, r6.xxxx, r4.wwww
+
+	; fog: smoothstep from the near to the far distance, towards the fog's colour
+	mov r6, fog
+	add r12.x, r10.xxxx, -r6.xxxx
+	mul r12.x, r6.yyyy, r12.xxxx
+	max r12.x, zeros, r12.xxxx
+	min r12.x, ones, r12.xxxx
+	mul r12.y, r12.xxxx, r12.xxxx            ; t²
+	mul r12.z, twos, r12.xxxx
+	add r12.z, threes, -r12.zzzz             ; 3 - 2t
+	mul r12.x, r12.yyyy, r12.zzzz            ; t² (3 - 2t)
+	mov r13.xyz, fogColour
+	add r13.xyz, r13.xyz, -r15.xyz
+	mad r15.xyz, r13.xyz, r12.xxxx, r15.xyz
+
+	; to the screen's gamma: colour^(1/2.2), channel by channel
+	max r15.xyz, tiny, r15.xyz
+	lg2 r12.x, r15.xxxx
+	lg2 r12.y, r15.yyyy
+	lg2 r12.z, r15.zzzz
+	mul r12.xyz, oneOverGamma, r12.xyz
+	ex2 r15.x, r12.xxxx
+	ex2 r15.y, r12.yyyy
+	ex2 r15.z, r12.zzzz
+	min outColour, ones, r15
+	end
+.end

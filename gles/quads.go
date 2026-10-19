@@ -200,6 +200,10 @@ func appendQuadVertices(vertices []float32, quads []overlay.Quad) []float32 {
 		if quad.Pictured {
 			picture = quad.Picture
 		}
+		if quad.Pictured && quad.Sharp {
+			picture[0] += graphics.SharpPictureOffset
+			picture[2] += graphics.SharpPictureOffset
+		}
 		for _, corner := range quadCorners {
 			x, y := corner[0], corner[1] // 0 for the left or top edge, 2 for the right or bottom
 			vertices = append(vertices, quad.Screen[x], quad.Screen[y+1], quad.Atlas[x], quad.Atlas[y+1],

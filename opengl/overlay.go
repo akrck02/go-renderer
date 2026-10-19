@@ -168,6 +168,10 @@ func (renderer *overlayRenderer) fillVertices(quads []overlay.Quad) {
 		if quad.Pictured {
 			picture = quad.Picture
 		}
+		if quad.Pictured && quad.Sharp {
+			picture[0] += graphics.SharpPictureOffset
+			picture[2] += graphics.SharpPictureOffset
+		}
 		for _, corner := range corners {
 			x, y := corner[0], corner[1]
 			vertices = append(vertices, quad.Screen[x], quad.Screen[y+1], quad.Atlas[x], quad.Atlas[y+1],

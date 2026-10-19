@@ -43,6 +43,7 @@ func (plan *Plan) Update(state *input.State, seconds float64, camera *models.Cam
 	if state != nil {
 		plan.applyMouse(state)
 		plan.applyKeyboard(state, seconds)
+		plan.move(state.StickX*plan.Span*0.4*seconds, state.StickY*plan.Span*0.4*seconds) // the stick moves the map as the arrows do
 	}
 	plan.Span = clamp(plan.Span, plan.MinimumSpan, plan.MaximumSpan)
 	plan.clampTarget()
