@@ -64,8 +64,13 @@ them.</p>
 	<span class="nx">Linear</span>           <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x2601</span>
 	<span class="nx">ClampToEdge</span>      <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x812F</span>
 	<span class="nx">Luminance</span>        <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x1909</span>
+	<span class="nx">RGB</span>              <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x1907</span>
 	<span class="nx">RGBA</span>             <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x1908</span>
 	<span class="nx">UnpackAlignment</span>  <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0CF5</span>
+	<span class="nx">Nearest</span>          <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x2600</span>
+
+	<span class="nx">FramebufferTarget</span> <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x8D40</span>
+	<span class="nx">ColorAttachment0</span>  <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x8CE0</span>
 <span class="p">)</span>
 </code></pre>
 
@@ -99,6 +104,12 @@ them.</p>
 </tr>
 </tbody>
 </table>
+
+<h3 id="framebuffer">Framebuffer</h3>
+
+<p>Framebuffer 0 is the screen&rsquo;s own: it can be bound, though no call made it.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Framebuffer</span> <span class="kt">uint32</span>
+</code></pre>
 
 <h3 id="functions">Functions</h3>
 
@@ -148,6 +159,17 @@ them.</p>
 	<span class="nf">TexImage2D</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">level</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">internalFormat</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">format</span><span class="p">,</span> <span class="nx">kind</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">pixels</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span>
 	<span class="c1">// TexSubImage2D replaces a rectangle of the bound texture&#39;s pixels, given row after row.</span>
 	<span class="nf">TexSubImage2D</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">level</span><span class="p">,</span> <span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">format</span><span class="p">,</span> <span class="nx">kind</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">pixels</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span>
+	<span class="c1">// CopyTexSubImage2D copies a rectangle of the bound framebuffer (x, y from its bottom left)</span>
+	<span class="c1">// into the bound texture at xOffset, yOffset.</span>
+	<span class="nf">CopyTexSubImage2D</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">level</span><span class="p">,</span> <span class="nx">xOffset</span><span class="p">,</span> <span class="nx">yOffset</span><span class="p">,</span> <span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">int</span><span class="p">)</span>
+	<span class="nf">DeleteTexture</span><span class="p">(</span><span class="nx">texture</span> <span class="nx">Texture</span><span class="p">)</span>
+
+	<span class="c1">// Framebuffers let a pass draw into a texture: the backdrop&#39;s blur. TexImage2D with no pixels</span>
+	<span class="c1">// makes the texture they draw into.</span>
+	<span class="nf">CreateFramebuffer</span><span class="p">()</span> <span class="nx">Framebuffer</span>
+	<span class="nf">BindFramebuffer</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">framebuffer</span> <span class="nx">Framebuffer</span><span class="p">)</span>
+	<span class="nf">FramebufferTexture2D</span><span class="p">(</span><span class="nx">target</span><span class="p">,</span> <span class="nx">attachment</span><span class="p">,</span> <span class="nx">textureTarget</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">texture</span> <span class="nx">Texture</span><span class="p">,</span> <span class="nx">level</span> <span class="kt">int</span><span class="p">)</span>
+	<span class="nf">DeleteFramebuffer</span><span class="p">(</span><span class="nx">framebuffer</span> <span class="nx">Framebuffer</span><span class="p">)</span>
 
 	<span class="nf">Viewport</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">int</span><span class="p">)</span>
 	<span class="nf">ClearColor</span><span class="p">(</span><span class="nx">red</span><span class="p">,</span> <span class="nx">green</span><span class="p">,</span> <span class="nx">blue</span><span class="p">,</span> <span class="nx">alpha</span> <span class="kt">float32</span><span class="p">)</span>

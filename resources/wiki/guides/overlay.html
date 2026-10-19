@@ -242,7 +242,10 @@ libraries such as <a href="https://github.com/akrck02/go-ui" target="_blank">Go 
 program embeds), <code>draw2d.NewImage(picture)</code> takes an <code>image.Image</code>, and <code>draw2d.NewBlankImage</code>
 makes one whose pixels the program writes itself. Keep it between frames: its pixels are uploaded
 once. To show other pixels in it (a video&rsquo;s next frame), write them into <code>Pixels</code> and call
-<code>Changed</code>; only its own area is uploaded again.</p>
+<code>Changed</code>; only its own area is uploaded again. Pixel art sets <code>Sharp</code>: scaled up, its pixels stay
+square blocks instead of blending into their neighbours. The shaders read such a picture at the
+middle of its nearest pixel; the quads say so by adding <code>graphics.SharpPictureOffset</code> to their
+picture position, so every other picture is read as before and the vertices keep their layout.</p>
 
 <p>Pictures sit side by side in a second atlas, of colours (<code>overlay.Pictures</code>, RGBA, made with the
 first picture). A picture&rsquo;s quads read their colours there and their coverage in the grey atlas,
@@ -253,6 +256,77 @@ the pictures of the frame being drawn.</p>
 
 <p>A program that is only an interface, with no scene, uses <code>opengl.FlatRenderer</code>: it clears the
 window to a background colour and paints a draw list, with the same atlas and one draw call.</p>
+
+<h3 id="frosted-glass-backdrops">Frosted glass: backdrops</h3>
+
+<p>A translucent panel over a busy picture reads better when what is behind it is blurred, as frosted
+glass. <code>Backdrop</code> asks for that, just before the panel&rsquo;s own rectangle:</p>
+<pre><code class="language-go"><span class="nx">panel</span> <span class="o">:=</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Rect</span><span class="p">{</span><span class="nx">X</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span> <span class="nx">Y</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span> <span class="nx">Width</span><span class="p">:</span> <span class="mi">280</span><span class="p">,</span> <span class="nx">Height</span><span class="p">:</span> <span class="mi">160</span><span class="p">}</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Backdrop</span><span class="p">(</span><span class="nx">panel</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">24</span><span class="p">)</span>                                        <span class="c1">// blur what is behind by 24 pixels</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Rectangle</span><span class="p">(</span><span class="nx">panel</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">Hex</span><span class="p">(</span><span class="s">&#34;#ffffff10&#34;</span><span class="p">),</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Transparent</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="c1">// the pane over it</span>
+</code></pre>
+
+<p>The panel&rsquo;s area now shows the frame behind it, blurred, with the pane&rsquo;s faint white on top.</p>
+
+<p><strong>How it is drawn.</strong> The painter does not blur anything itself. It marks the backdrop&rsquo;s quads, and
+before the first backdrop of each layer it asks the backend for a <strong>snapshot</strong>
+(<code>Painter.Snapshots</code>). The backend stops drawing there, copies the frame so far, shrinks it to half
+a few times and blurs the smallest copy in two passes, across and down. Then it goes on drawing,
+and every backdrop of that layer reads the blurred copy where it sits on screen.</p>
+
+<p><strong>What it costs</strong>, and how that is kept small:</p>
+
+<ul>
+<li><strong>Nothing, without backdrops.</strong> A list with none is still one draw call, with one more value per
+vertex.</li>
+<li><strong>One blur per layer, not per panel.</strong> Ten panels of one layer share a snapshot. The price is
+that a panel does not blur another panel of its own layer; a dialog, on a layer above, blurs the
+panels under it.</li>
+<li><strong>The blur runs on a small picture.</strong> For a 24-pixel blur the copy is halved four times, to a
+sixteenth of the screen&rsquo;s side, so the blur itself works on under half a percent of the pixels;
+halving is a cheap, smooth average of four pixels into one. What is left is moving the frame
+once: on OpenGL it is halved straight from the frame (a multisampled frame is copied first), on
+OpenGL ES 2 copied first, as ES 2 cannot copy and shrink at once.</li>
+<li><strong>The textures are kept.</strong> They are made the first time and again only when the window changes
+size.</li>
+<li><strong>Metal</strong> reads the drawable directly, which needs the layer&rsquo;s <code>framebufferOnly</code> off on every
+frame: a small cost of its own, frosted or not.</li>
+</ul>
+
+<p>Measured with OpenGL drawn by the processor (llvmpipe, no graphics card: the slowest case), a
+frame of ten frosted panels over stripes, against the same frame without backdrops:</p>
+
+<table>
+<thead>
+<tr>
+<th>Window</th>
+<th>Without backdrops</th>
+<th>With backdrops</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>1280 × 760</td>
+<td>3.1 ms</td>
+<td>5.1 ms</td>
+</tr>
+
+<tr>
+<td>2560 × 1520</td>
+<td>7.0 ms</td>
+<td>13.5 ms</td>
+</tr>
+</tbody>
+</table>
+<p>A graphics card does the same work in a fraction of that. An interface that draws only when
+something changes, as go-ui&rsquo;s window does, pays it only on the frames it draws; over a 3D scene,
+which draws every frame, it is paid every frame. A blur of 0 asks for no backdrop at all, so a
+system that asks for less transparency costs nothing.</p>
+
+<p>Not done yet: Metal blurs a flat interface&rsquo;s backdrops but not those over a 3D scene, which it
+leaves out (the panels show unblurred); and the snapshot is the whole frame, where copying only
+the area under the panels would save more on large windows.</p>
 
 <hr>
 

@@ -266,7 +266,8 @@ fields copy and paste with other applications. <code>OpenLink(link)</code> opens
 that shows it (an <code>ACTION_VIEW</code> intent: a web page, <code>mailto:</code>, <code>tel:</code>, <code>geo:</code>), and <code>Share(title,
 text)</code> offers a text through the system&rsquo;s sheet (<code>ACTION_SEND</code> in a chooser). <code>Options.Hidden</code> is
 called on the drawing thread when the activity pauses: Android may end the program after that
-without a word, so it is the moment to keep what must survive.</p>
+without a word, so it is the moment to keep what must survive. <code>Options.Shown</code> is called when it
+resumes (at the start too): the moment to play again a sound <code>Hidden</code> stopped.</p>
 
 <p><strong>Films.</strong> <code>OpenVideo(path)</code> decodes a film&rsquo;s pictures with the phone&rsquo;s own decoders (the NDK&rsquo;s
 <code>MediaCodec</code>: MP4 and WebM, H.264, H.265, VP8, VP9, AV1), a step at a time from the goroutine that

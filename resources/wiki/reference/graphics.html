@@ -2,6 +2,29 @@
 <pre><code class="language-go"><span class="kn">import</span> <span class="s">&#34;github.com/akrck02/go-renderer/graphics&#34;</span>
 </code></pre>
 
+<h3 id="functions">Functions</h3>
+
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func BackdropHalvings(deviation float32) int</code></td>
+<td>BackdropHalvings is how many times a snapshot is halved before it is blurred, for a standard deviation in screen pixels: until the deviation is a couple of texels, which the taps cover.</td>
+</tr>
+
+<tr>
+<td><code>func BackdropWeights(deviation float32) [BackdropTaps + 1]float32</code></td>
+<td>BackdropWeights are the blur&rsquo;s weights for a standard deviation in texels: the centre&rsquo;s, then each tap&rsquo;s on one side, adding up to one over the whole kernel.</td>
+</tr>
+</tbody>
+</table>
+
 <h3 id="constants-and-variables">Constants and variables</h3>
 <pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
 	<span class="nx">LocalSpace</span>  <span class="p">=</span> <span class="mi">0</span>
@@ -9,6 +32,18 @@
 	<span class="nx">CameraSpace</span> <span class="p">=</span> <span class="mi">2</span>
 <span class="p">)</span>
 </code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">BackdropBlurShader</span> <span class="p">=</span> <span class="err">…</span>
+</code></pre>
+
+<p>BackdropBlurShader is one pass of a separable Gaussian blur: along step, a texel is the weighted sum of itself and BackdropTaps texels on each side.</p>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">BackdropTaps</span> <span class="p">=</span> <span class="mi">4</span>
+</code></pre>
+
+<p>BackdropTaps is how many texels each pass of the backdrop&rsquo;s blur reads on each side of a texel: with the picture shrunk first (see the backends), a few taps blur as widely as many would.</p>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">BackdropVertexShader</span> <span class="p">=</span> <span class="err">…</span>
+</code></pre>
+
+<p>BackdropVertexShader covers the target with one triangle made from the vertex number alone, so a blur pass needs no vertex buffer.</p>
 <pre><code class="language-go"><span class="kd">const</span> <span class="nx">ConstellationFragmentShader</span> <span class="p">=</span> <span class="err">…</span>
 </code></pre>
 

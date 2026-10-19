@@ -127,6 +127,11 @@ happens.</p>
 </tr>
 
 <tr>
+<td><code>func (webgl *WebGL) BindFramebuffer(target gles.Enum, framebuffer gles.Framebuffer)</code></td>
+<td></td>
+</tr>
+
+<tr>
 <td><code>func (webgl *WebGL) BindTexture(target gles.Enum, texture gles.Texture)</code></td>
 <td></td>
 </tr>
@@ -157,7 +162,17 @@ happens.</p>
 </tr>
 
 <tr>
+<td><code>func (webgl *WebGL) CopyTexSubImage2D(target gles.Enum, level, xOffset, yOffset, x, y, width, height int)</code></td>
+<td></td>
+</tr>
+
+<tr>
 <td><code>func (webgl *WebGL) CreateBuffer() gles.Buffer</code></td>
+<td></td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) CreateFramebuffer() gles.Framebuffer</code></td>
 <td></td>
 </tr>
 
@@ -177,7 +192,17 @@ happens.</p>
 </tr>
 
 <tr>
+<td><code>func (webgl *WebGL) DeleteFramebuffer(framebuffer gles.Framebuffer)</code></td>
+<td></td>
+</tr>
+
+<tr>
 <td><code>func (webgl *WebGL) DeleteShader(shader gles.Shader)</code></td>
+<td></td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) DeleteTexture(texture gles.Texture)</code></td>
 <td></td>
 </tr>
 
@@ -218,6 +243,11 @@ happens.</p>
 
 <tr>
 <td><code>func (webgl *WebGL) EnableVertexAttribArray(index uint32)</code></td>
+<td></td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) FramebufferTexture2D(target, attachment, textureTarget gles.Enum, texture gles.Texture, level int)</code></td>
 <td></td>
 </tr>
 

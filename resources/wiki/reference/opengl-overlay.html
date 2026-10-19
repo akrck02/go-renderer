@@ -172,6 +172,11 @@ the OpenGL scene renderer uploads its atlas and draws its quads.</p>
 <td><code>func (painter *Painter) Pictures() *Pictures</code></td>
 <td>Pictures returns the image pictured quads read their colours from.</td>
 </tr>
+
+<tr>
+<td><code>func (painter *Painter) Snapshots() []Snapshot</code></td>
+<td>Snapshots lists where, in the quads Paint just gave, the backend takes and blurs a picture of the frame so far; empty when nothing on screen is frosted, which then costs nothing.</td>
+</tr>
 </tbody>
 </table>
 
@@ -253,6 +258,18 @@ the OpenGL scene renderer uploads its atlas and draws its quads.</p>
 	<span class="c1">// Pictured.</span>
 	<span class="nx">Picture</span>  <span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="kt">float32</span>
 	<span class="nx">Pictured</span> <span class="kt">bool</span>
+	<span class="c1">// Backdrop quads show the blurred picture of what was drawn before them (see Snapshot), cut</span>
+	<span class="c1">// by the atlas&#39;s coverage, instead of their colour.</span>
+	<span class="nx">Backdrop</span> <span class="kt">bool</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="snapshot">Snapshot</h3>
+
+<p>Snapshot asks the backend, before it draws the quad at At, to take a picture of everything drawn so far and blur it by Blur screen pixels (a standard deviation): the backdrop quads after it read that picture. There is one per layer that has backdrops, so many glass panels cost one blur.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Snapshot</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">At</span>   <span class="kt">int</span>
+	<span class="nx">Blur</span> <span class="kt">float32</span>
 <span class="p">}</span>
 </code></pre>
 

@@ -78,7 +78,7 @@ easy to build and to check in tests.</p>
 	<span class="nx">Fill</span>        <span class="nx">Color</span>   <span class="c1">// rectangle: inside; shadow, text, icon: their colour</span>
 	<span class="nx">Border</span>      <span class="nx">Color</span>   <span class="c1">// rectangle: the outline</span>
 	<span class="nx">BorderWidth</span> <span class="kt">float32</span> <span class="c1">// rectangle: outline thickness, inside the area</span>
-	<span class="nx">Blur</span>        <span class="kt">float32</span> <span class="c1">// shadow: how far it fades out; Area is the caster grown by it and moved down</span>
+	<span class="nx">Blur</span>        <span class="kt">float32</span> <span class="c1">// shadow: how far it fades out; Area is the caster grown by it and moved down. Backdrop: how far what is behind spreads (a standard deviation, as CSS&#39;s blur())</span>
 
 	<span class="nx">Text</span>     <span class="kt">string</span>  <span class="c1">// text: the line; icon: the icon&#39;s name</span>
 	<span class="nx">Size</span>     <span class="kt">float32</span> <span class="c1">// text and icon: size in layout pixels (the font&#39;s em square)</span>
@@ -157,6 +157,7 @@ easy to build and to check in tests.</p>
 	<span class="nx">TextKind</span>                  <span class="c1">// one line of text</span>
 	<span class="nx">IconKind</span>                  <span class="c1">// one icon</span>
 	<span class="nx">ImageKind</span>                 <span class="c1">// a picture covering a rounded rectangle</span>
+	<span class="nx">BackdropKind</span>              <span class="c1">// what is behind a rounded rectangle, blurred: frosted glass</span>
 <span class="p">)</span>
 </code></pre>
 
@@ -179,6 +180,11 @@ easy to build and to check in tests.</p>
 </thead>
 
 <tbody>
+<tr>
+<td><code>func (list *List) Backdrop(area Rect, radius, blur float32)</code></td>
+<td>Backdrop shows, inside a rounded rectangle, what was drawn behind it, blurred: the frosted glass under a translucent panel, whose Rectangle comes next, over it.</td>
+</tr>
+
 <tr>
 <td><code>func (list *List) Fingerprint(seed maphash.Seed) uint64</code></td>
 <td>Fingerprint sums up everything the list draws in one number: two lists with the same fingerprint draw the same picture (barring a hash collision).</td>
