@@ -16,6 +16,7 @@ func TestShadersAreOpenGLESTwo(t *testing.T) {
 		"quad vertex": quadVertexShader, "quad fragment": quadFragmentShader,
 		"scene vertex": sceneVertexShader, "scene fragment": sceneFragmentShader,
 		"backdrop vertex": backdropVertexShader, "backdrop fragment": backdropBlurShader,
+		"light vertex": lightVertexShader, "light fragment": lightFragmentShader, "light multiply fragment": lightMultiplyShader,
 	} {
 		if !strings.HasPrefix(source, "#version 100\n") {
 			t.Errorf("%s shader does not start with the GLSL ES 1.00 version line", name)
@@ -284,5 +285,44 @@ func TestPanelsOfOneLayerShareOneSnapshot(t *testing.T) {
 	halvings := graphics.BackdropHalvings(24)
 	if len(fake.draws) != 1+halvings+2+1 {
 		t.Fatalf("got %d draws, wanted %d", len(fake.draws), 1+halvings+2+1)
+	}
+}
+
+func TestALightingAddsItsLightsAndMultipliesTheScreenInTwoDraws(t *testing.T) {
+	fake := newRecorder()
+	renderer, err := NewFlatRenderer(fake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var list draw2d.List
+	list.Rectangle(draw2d.Rect{Width: 800, Height: 600}, 0, draw2d.Hex("#808080"), draw2d.Transparent, 0)
+	list.PointLight(200, 200, 20, 80, draw2d.Hex("#ffeeaa"))
+	list.PointLight(600, 200, 20, 80, draw2d.Hex("#aaeeff"))
+	list.Lighting(draw2d.Color{0.6, 0.6, 0.8, 0.7})
+	list.Text("Score", 10, 30, 16, draw2d.Regular, draw2d.Hex("#ffffff"))
+	renderer.Draw(&list, draw2d.Hex("#202020"), 800, 600, 1)
+	// the ground; the two lights in one draw; the multiply over the screen; the text after
+	if len(fake.draws) != 4 {
+		t.Fatalf("got %d draws, wanted 4", len(fake.draws))
+	}
+	if lights := fake.draws[1].count; lights != 2*cornersPerQuad {
+		t.Errorf("the lights draw %d corners, wanted %d", lights, 2*cornersPerQuad)
+	}
+	if fake.snapshots != 0 {
+		t.Errorf("lights copy no frame, got %d copies", fake.snapshots)
+	}
+}
+
+func TestALightingWithNoLightsOnlyMultipliesTheAmbient(t *testing.T) {
+	fake := newRecorder()
+	renderer, err := NewFlatRenderer(fake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var list draw2d.List
+	list.Lighting(draw2d.Color{1, 1, 1, 0.5})
+	renderer.Draw(&list, draw2d.Hex("#202020"), 800, 600, 1)
+	if len(fake.draws) != 1 || fake.draws[0].count != len(cornerFloats)/2 {
+		t.Fatalf("got draws %+v, wanted only the multiply over the screen", fake.draws)
 	}
 }

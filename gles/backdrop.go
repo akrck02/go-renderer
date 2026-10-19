@@ -97,14 +97,14 @@ func (blur *backdropBlur) prepare(width, height, halvings int) {
 	if width != blur.width || height != blur.height {
 		blur.release()
 		blur.width, blur.height = width, height
-		blur.copy = blur.newTarget(width, height, RGB) // a screen may have no alpha to copy, and none is needed
+		blur.copy = newTarget(blur.functions, width, height, RGB) // a screen may have no alpha to copy, and none is needed
 	}
 	for len(blur.levels) < halvings {
 		before := blur.copy
 		if len(blur.levels) > 0 {
 			before = blur.levels[len(blur.levels)-1]
 		}
-		blur.levels = append(blur.levels, blur.newTarget(max(before.width/2, 1), max(before.height/2, 1), RGBA))
+		blur.levels = append(blur.levels, newTarget(blur.functions, max(before.width/2, 1), max(before.height/2, 1), RGBA))
 	}
 	smallest := blur.copy
 	if halvings > 0 {
@@ -112,7 +112,7 @@ func (blur *backdropBlur) prepare(width, height, halvings int) {
 	}
 	if blur.spare.width != smallest.width || blur.spare.height != smallest.height {
 		blur.deleteTarget(blur.spare)
-		blur.spare = blur.newTarget(smallest.width, smallest.height, RGBA)
+		blur.spare = newTarget(blur.functions, smallest.width, smallest.height, RGBA)
 	}
 }
 
@@ -126,9 +126,8 @@ func (blur *backdropBlur) release() {
 }
 
 // newTarget makes a texture read smoothly between texels, and its framebuffer. The ones drawn into
-// are RGBA, which every OpenGL ES 2 can draw into.
-func (blur *backdropBlur) newTarget(width, height int, format Enum) target {
-	functions := blur.functions
+// are RGBA, which every OpenGL ES 2 can draw into. It binds the texture on the first unit.
+func newTarget(functions Functions, width, height int, format Enum) target {
 	made := target{texture: functions.CreateTexture(), framebuffer: functions.CreateFramebuffer(), width: width, height: height}
 	functions.ActiveTexture(Texture0)
 	functions.BindTexture(Texture2D, made.texture)

@@ -285,7 +285,10 @@ each lighting the backend:
 Measured as the backdrops were (llvmpipe, 1280 × 760), a frame of twenty panels takes 1.1 ms,
 and 3.0 ms with eight lights. A graphics card does the same work in a fraction of that.
 
-Not done yet: OpenGL ES, Metal and the 3DS draw lists with lights unlit.
+OpenGL ES (Android and the web) draws them the same way, with what OpenGL ES 2 has: a texture to
+draw into and two blends.
+
+Not done yet: Metal and the 3DS draw lists with lights unlit.
 
 ---
 
