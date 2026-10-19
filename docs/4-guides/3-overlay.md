@@ -288,7 +288,9 @@ and 3.0 ms with eight lights. A graphics card does the same work in a fraction o
 OpenGL ES (Android and the web) draws them the same way, with what OpenGL ES 2 has: a texture to
 draw into and two blends.
 
-Not done yet: Metal and the 3DS draw lists with lights unlit.
+The 3DS draws them too, in its own way ([its guide](8-3ds.md#2d-lights)).
+
+Not done yet: Metal draws lists with lights unlit.
 
 ---
 
