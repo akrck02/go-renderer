@@ -21,6 +21,9 @@ type SceneRenderer struct {
 	// OverlayScale is framebuffer pixels per layout pixel, so labels and interfaces keep their
 	// size on a high-density screen (0 = 1).
 	OverlayScale float32
+	// Target is the framebuffer Draw draws into: 0, the screen, unless the caller made one to
+	// draw a picture offscreen.
+	Target Framebuffer
 
 	functions    Functions
 	program      *program
@@ -44,8 +47,11 @@ func NewSceneRenderer(functions Functions) (*SceneRenderer, error) {
 		planner: sceneplan.NewPlanner(sceneplan.MergingStore{})}, nil
 }
 
-// Draw draws a frame of the scene seen by the camera, in a framebuffer of width × height pixels.
+// Draw draws a frame of the scene seen by the camera, in the target framebuffer of width × height
+// pixels.
 func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int) {
+	renderer.functions.BindFramebuffer(FramebufferTarget, renderer.Target)
+	renderer.quads.target = renderer.Target
 	frame := renderer.planner.Plan(world, camera, width, height, sceneplan.ShadowSettings{})
 	renderer.clear(frame.Light, width, height)
 	renderer.setFrameUniforms(world.Environment, frame.Light, camera, frame.Matrices)
