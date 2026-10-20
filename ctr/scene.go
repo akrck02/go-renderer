@@ -100,8 +100,9 @@ var bakedShaderBinary []byte
 //
 // Lighting every vertex on the GPU was too slow (30 frames a second for the sample island on a
 // New 3DS XL), so meshes are drawn with their light worked out on the processor (bake.go) through
-// baked.v.pica. Only water, whose reflection depends on the camera, is shaded on the GPU, by
-// scene.v.pica.
+// baked.v.pica. Water, whose reflection depends on the camera, and moving nodes (scene.Node's
+// Moving), whose light changes as they turn, are shaded on the GPU by scene.v.pica: baking a ship
+// again each time it turned took most of a frame with a few dozen of them.
 type SceneRenderer struct {
 	screen      *Screen
 	water       *Shader
@@ -308,9 +309,11 @@ func (renderer *SceneRenderer) drawCommands(commands []sceneplan.Command, view s
 
 func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view sceneplan.Viewpoint) {
 	draw := renderer.drawBaked
-	if command.Material.Kind == scene.KindWater {
-		draw = renderer.drawWater
-		renderer.prepareWater(command)
+	if command.Material.Kind == scene.KindWater || command.Node.Moving {
+		// Water's light depends on the camera, and a moving node's on how it turns: both are lit
+		// on the GPU, from a copy of the mesh made once, instead of baked again and again.
+		draw = renderer.drawShaded
+		renderer.prepareShaded(command)
 	} else {
 		renderer.bind(renderer.baked)
 		SetMatrix(renderer.bakedPlaces.model, command.World)
@@ -361,8 +364,9 @@ type mergedForest struct {
 	lastDrawn int
 }
 
-// prepareWater binds the full shader and sets what one water command needs.
-func (renderer *SceneRenderer) prepareWater(command sceneplan.Command) {
+// prepareShaded binds the full shader and sets what one command it draws needs: water, or a
+// moving node's lit, flat or glowing mesh.
+func (renderer *SceneRenderer) prepareShaded(command sceneplan.Command) {
 	renderer.bind(renderer.water)
 	places := renderer.waterPlaces
 	setVector(places.baseColour, sceneplan.BaseColorOf(command.Material))
@@ -375,7 +379,7 @@ func (renderer *SceneRenderer) prepareWater(command sceneplan.Command) {
 	}
 }
 
-func (renderer *SceneRenderer) drawWater(command sceneplan.Command, mesh *scene.Mesh) {
+func (renderer *SceneRenderer) drawShaded(command sceneplan.Command, mesh *scene.Mesh) {
 	for _, piece := range renderer.uploadShaded(mesh).pieces {
 		C.drawSceneElements(piece.vertices, piece.indices, C.int(piece.count))
 	}
@@ -435,9 +439,16 @@ type bakedMesh struct {
 }
 
 type bakedVariant struct {
-	key   bakeKey
-	onGPU *meshOnGPU
+	key      bakeKey
+	onGPU    *meshOnGPU
+	lastUsed int // the frame it was last drawn in
 }
+
+// maximumBakedVariants is how many ways of turning one mesh are kept baked. A mesh drawn by a
+// few nodes turned differently (the same tree, rotated) keeps one for each; a node that turns all
+// the time without being marked Moving would otherwise leave a new one behind every frame, and
+// fill linear memory. Past this, the least recently drawn one is baked again for the new turn.
+const maximumBakedVariants = 4
 
 // bakedFor returns the mesh baked for key, baking it when it is new, Dirty, or lit differently.
 func (renderer *SceneRenderer) bakedFor(mesh *scene.Mesh, key bakeKey) *meshOnGPU {
@@ -465,11 +476,29 @@ func (renderer *SceneRenderer) bakedFor(mesh *scene.Mesh, key bakeKey) *meshOnGP
 			variant.onGPU = renderer.uploadBaked(mesh, key)
 			variant.key = key
 		}
+		variant.lastUsed = renderer.frames
 		return variant.onGPU
 	}
 	onGPU := renderer.uploadBaked(mesh, key)
-	baked.variants = append(baked.variants, bakedVariant{key: key, onGPU: onGPU})
+	if len(baked.variants) < maximumBakedVariants {
+		baked.variants = append(baked.variants, bakedVariant{key: key, onGPU: onGPU, lastUsed: renderer.frames})
+		return onGPU
+	}
+	oldest := leastRecentlyUsed(baked.variants)
+	baked.variants[oldest].onGPU.free()
+	baked.variants[oldest] = bakedVariant{key: key, onGPU: onGPU, lastUsed: renderer.frames}
 	return onGPU
+}
+
+// leastRecentlyUsed is the index of the variant drawn longest ago.
+func leastRecentlyUsed(variants []bakedVariant) int {
+	oldest := 0
+	for index, variant := range variants {
+		if variant.lastUsed < variants[oldest].lastUsed {
+			oldest = index
+		}
+	}
+	return oldest
 }
 
 // uploadBaked bakes a mesh's light and copies it to linear memory, through the renderer's own

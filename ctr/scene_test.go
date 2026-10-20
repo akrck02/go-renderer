@@ -128,3 +128,10 @@ func TestTheEyesStandApartAlongTheCamerasRight(t *testing.T) {
 		t.Fatalf("left at %v, right at %v looking at %v", left.Position, right.Position, right.Target)
 	}
 }
+
+func TestTheLeastRecentlyDrawnVariantIsTheOneReplaced(t *testing.T) {
+	variants := []bakedVariant{{lastUsed: 9}, {lastUsed: 3}, {lastUsed: 7}, {lastUsed: 5}}
+	if got := leastRecentlyUsed(variants); got != 1 {
+		t.Fatalf("got %d, want 1", got)
+	}
+}

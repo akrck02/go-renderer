@@ -51,7 +51,16 @@ of the time of day, fog and translucent water, planned by `sceneplan`. What chan
   and ground light, glow, flat by brightness, then the screen's gamma), and keeps its colour in
   four bytes: a vertex is 16 bytes instead of 40. A mesh is baked again only when the light, the
   mesh or its node's turn changes. `ctr/shaders/baked.v.pica` then only places each vertex and
-  fogs it by its distance to the camera, linearly: 27 instructions instead of 95.
+  fogs it by its distance to the camera, linearly: 27 instructions instead of 95. A mesh keeps at
+  most four bakes, one per way it is turned; past that the least recently drawn one is baked
+  again, so a node that keeps turning doesn't fill linear memory.
+- **Moving nodes on the GPU.** Baking is right for a landscape, wrong for a ship that turns every
+  frame: each turn means a new bake. A node marked `Moving` (`scene.Node`) is drawn through the
+  full shader instead, from a copy of the mesh uploaded once: in a test with sixty ships flying
+  around the camera, a frame went from 40 ms of processor time to 16.
+- **No seabed without water.** The planner measures the meshes under the water for the sea floor's
+  light whenever one of them changes; a scene without water skips it, or a few dozen moving meshes
+  were measured vertex by vertex every frame.
 - **Water on the GPU, on a coarser grid.** Water's reflection of the sky depends on where the
   camera looks from, so water goes through the full shader, `ctr/shaders/scene.v.pica` (gles's
   scene shader done per vertex, with its smoothstep fog and the chip's `lg2` and `ex2` for gamma).
