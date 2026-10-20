@@ -8,6 +8,7 @@ import (
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/opengl/overlay"
+	"github.com/akrck02/go-renderer/scene"
 	"github.com/akrck02/go-renderer/scene/sample"
 )
 
@@ -325,5 +326,24 @@ func TestALightingWithNoLightsOnlyMultipliesTheAmbient(t *testing.T) {
 	renderer.Draw(&list, draw2d.Hex("#202020"), 800, 600, 1)
 	if len(fake.draws) != 1 || fake.draws[0].count != len(cornerFloats)/2 {
 		t.Fatalf("got draws %+v, wanted only the multiply over the screen", fake.draws)
+	}
+}
+
+func TestADrawUnderALampGetsTheLampsUniforms(t *testing.T) {
+	fake := newRecorder()
+	renderer, err := NewSceneRenderer(fake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	world := scene.New()
+	world.Nodes = []*scene.Node{{Name: "crate", Mesh: &scene.Mesh{Positions: []float32{-1, 0, -1, 1, 0, -1, 0, 0, 1},
+		Normals: []float32{0, 1, 0, 0, 1, 0, 0, 1, 0}, Indices: []uint32{0, 1, 2}}}}
+	world.Lights = []scene.PointLight{{Position: graphics.Vec4{0, 1, 0, 1}, Color: graphics.Vec4{1, 1, 1, 1}, Outer: 3}}
+	camera := models.Camera{Position: graphics.Vec4{0, 5, 5, 1}, Up: graphics.Vec4{0, 1, 0, 0}, FieldOfView: 1, Near: 0.1, Far: 100}
+	renderer.Draw(world, camera, 640, 480)
+	for _, name := range []string{"lightCount", "lightPositions[0]", "lightColors[0]"} {
+		if _, asked := fake.uniforms[name]; !asked {
+			t.Errorf("the draw under the lamp never set %s", name)
+		}
 	}
 }

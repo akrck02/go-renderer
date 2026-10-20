@@ -118,6 +118,9 @@ uniform float snowLevel;           // world units, before vertical scaling
 uniform float snowBlend;
 uniform vec3 snowColor;
 uniform float patternScale;        // world units per pattern cell
+uniform int lightCount;            // the point lights this draw takes, up to four (sceneplan.MaxLightsPerDraw)
+uniform vec4 lightPositions[4];    // xyz: where, w: the outer radius
+uniform vec4 lightColors[4];       // rgb: linear colour times intensity, w: the inner radius
 out vec4 fragmentColor;
 
 float pseudoRandom(float seed) { return fract(sin(seed * 91.7) * 437.5); }
@@ -288,6 +291,20 @@ float patternFactor(vec3 normal) {
     return mix(1.0, factor, strength);
 }
 
+// lampLight is the light the draw's point lights bring to a surface: each fades from full at its
+// inner radius to nothing at its outer one, as 2D lights do, and lights what faces it.
+vec3 lampLight(vec3 surface) {
+    vec3 total = vec3(0.0);
+    for (int index = 0; index < 4; index++) {
+        if (index >= lightCount) break;
+        vec3 towardsLight = lightPositions[index].xyz - worldPosition;
+        float distance = length(towardsLight);
+        float fade = 1.0 - smoothstep(lightColors[index].w, lightPositions[index].w, distance);
+        total += lightColors[index].rgb * fade * max(dot(surface, towardsLight / max(distance, 1e-4)), 0.0);
+    }
+    return total;
+}
+
 vec3 shadeLit(vec3 color) {
     vec3 normal = normalize(worldNormal);
     if (!gl_FrontFacing) normal = -normal;
@@ -301,7 +318,7 @@ vec3 shadeLit(vec3 color) {
     // a soft sheen on stone, tiles and wood under the sun
     vec3 towardsCamera = normalize(cameraPosition - worldPosition);
     float sheen = pattern > 0 ? pow(max(dot(normalize(towardsSun + towardsCamera), surface), 0.0), 24.0) * 0.12 * shadowed : 0.0;
-    return color * (skylight + sunColor * sunlight) + sunColor * sheen;
+    return color * (skylight + sunColor * sunlight + lampLight(surface)) + sunColor * sheen;
 }
 
 vec3 waterNormal() {
