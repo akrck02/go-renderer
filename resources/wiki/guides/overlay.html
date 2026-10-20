@@ -328,6 +328,66 @@ system that asks for less transparency costs nothing.</p>
 leaves out (the panels show unblurred); and the snapshot is the whole frame, where copying only
 the area under the panels would save more on large windows.</p>
 
+<h3 id="light-2d-lights">Light: 2D lights</h3>
+
+<p>A 2D game looks flat until something is lit: a lamp&rsquo;s warm circle in a dark room, a sign that
+glows. Painting a halo over the picture cannot do it, because light also has to <em>darken</em> what it
+does not reach. So lights work the way Unity&rsquo;s 2D lights do: they are added together into a
+<strong>picture of light</strong>, which starts at an ambient colour, and then the frame is <strong>multiplied</strong> by it.</p>
+<pre><code class="language-go"><span class="nx">white</span> <span class="o">:=</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Color</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">}</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Image</span><span class="p">(</span><span class="nx">room</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Rect</span><span class="p">{</span><span class="nx">Width</span><span class="p">:</span> <span class="mi">400</span><span class="p">,</span> <span class="nx">Height</span><span class="p">:</span> <span class="mi">240</span><span class="p">},</span> <span class="mi">0</span><span class="p">,</span> <span class="nx">white</span><span class="p">)</span>        <span class="c1">// what is lit</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">PointLight</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">120</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">80</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">Hex</span><span class="p">(</span><span class="s">&#34;#ffeeaa&#34;</span><span class="p">))</span>                <span class="c1">// full within 20 px, gone at 80</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">SpriteLight</span><span class="p">(</span><span class="nx">signGlow</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Rect</span><span class="p">{</span><span class="nx">X</span><span class="p">:</span> <span class="mi">40</span><span class="p">,</span> <span class="nx">Y</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span> <span class="nx">Width</span><span class="p">:</span> <span class="mi">64</span><span class="p">,</span> <span class="nx">Height</span><span class="p">:</span> <span class="mi">32</span><span class="p">},</span> <span class="nx">white</span><span class="p">)</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Lighting</span><span class="p">(</span><span class="nx">draw2d</span><span class="p">.</span><span class="nx">Color</span><span class="p">{</span><span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.7</span><span class="p">})</span>                         <span class="c1">// the ambient: a dim blue</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Text</span><span class="p">(</span><span class="s">&#34;Score 10&#34;</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Medium</span><span class="p">,</span> <span class="nx">white</span><span class="p">)</span>                  <span class="c1">// after it: unlit</span>
+</code></pre>
+
+<p><code>Lighting</code> lights everything drawn before it, with the lights added since the last <code>Lighting</code>.
+What comes after it, such as the interface, keeps its own colours. Inside a clip (<code>PushClip</code>) it
+lights only the clip: a game&rsquo;s view lit inside an editor leaves the panels around it as they are. A colour&rsquo;s alpha is its
+<strong>intensity</strong>: an ambient of <code>{1, 1, 1, 1}</code> leaves everything as it is, and an alpha of 0.5 halves it.</p>
+
+<p><strong>Light can brighten too.</strong> Light is kept at half: 0.5 in the picture of light leaves a colour as
+it is, and 1 makes it twice as bright. The multiply counts the light twice (it blends the frame by
+the light <em>and</em> the light by the frame). So a lamp in daylight still shows, up to twice the
+brightness, with no extra cost.</p>
+
+<p><strong>How it is drawn.</strong> As with backdrops, the painter only marks where each <code>Lighting</code> falls
+(<code>Painter.Lightings</code>), and lays the lights out apart from the other quads (<code>Painter.Lights</code>). At
+each lighting the backend:</p>
+
+<ol>
+<li>clears a picture of light, at half the screen&rsquo;s resolution, to the ambient;</li>
+<li>adds the lights into it, one square each. A point light&rsquo;s shader fades it smoothly from its
+inner radius to its outer one, and a sprite light shines through its picture;</li>
+<li>draws the picture of light over the lighting&rsquo;s area (its clip, or the whole frame) with the
+multiplying blend.</li>
+</ol>
+
+<p><strong>What it costs</strong>:</p>
+
+<ul>
+<li><strong>Nothing, without lights.</strong> A list with no <code>Lighting</code> draws as before.</li>
+<li><strong>Half the resolution</strong> for the picture of light, a quarter of the pixels: light is soft, and
+nobody sees the difference.</li>
+<li><strong>Three steps per lighting</strong>, however many lights it has: a clear, one draw call for all its
+lights, and a full-screen multiply.</li>
+<li><strong>The texture is kept</strong>, and made again only when the window changes size.</li>
+</ul>
+
+<p>Measured as the backdrops were (llvmpipe, 1280 × 760), a frame of twenty panels takes 1.1 ms,
+and 3.0 ms with eight lights. A graphics card does the same work in a fraction of that.</p>
+
+<p>OpenGL ES (Android and the web) draws them the same way, with what OpenGL ES 2 has: a texture to
+draw into and two blends.</p>
+
+<p>The 3DS draws them too, in its own way (<a href="./guides/3ds">its guide</a>).</p>
+
+<p>Metal draws a flat interface&rsquo;s lights the same way, and lights 3D scenes with point lights as
+OpenGL does. That code was written on Linux, where Metal cannot be built: it waits for a check on
+a Mac (<code>go test ./metal</code> compiles its shaders there). Lights in an overlay over a 3D scene are left
+unlit on Metal for now, like its backdrops there.</p>
+
 <hr>
 
 <p><a href="./overview">← All the documentation</a></p>

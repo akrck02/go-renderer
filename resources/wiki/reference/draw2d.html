@@ -95,6 +95,9 @@ easy to build and to check in tests.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Image</span> <span class="kd">struct</span> <span class="p">{</span>
 	<span class="c1">// Pixels are the picture&#39;s colours, not premultiplied by their opacity.</span>
 	<span class="nx">Pixels</span> <span class="o">*</span><span class="nx">image</span><span class="p">.</span><span class="nx">NRGBA</span>
+	<span class="c1">// Sharp draws the picture scaled to the nearest pixel, as pixel art wants, instead of blended</span>
+	<span class="c1">// between pixels. On the 3DS it holds for every picture of a frame that shows a sharp one.</span>
+	<span class="nx">Sharp</span> <span class="kt">bool</span>
 
 	<span class="c1">// Has unexported fields.</span>
 <span class="p">}</span>
@@ -152,12 +155,15 @@ easy to build and to check in tests.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Kind</span> <span class="kt">int</span>
 </code></pre>
 <pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
-	<span class="nx">RectangleKind</span> <span class="nx">Kind</span> <span class="p">=</span> <span class="kc">iota</span> <span class="c1">// a rounded rectangle with a fill and a border</span>
-	<span class="nx">ShadowKind</span>                <span class="c1">// a soft shadow under a rounded rectangle</span>
-	<span class="nx">TextKind</span>                  <span class="c1">// one line of text</span>
-	<span class="nx">IconKind</span>                  <span class="c1">// one icon</span>
-	<span class="nx">ImageKind</span>                 <span class="c1">// a picture covering a rounded rectangle</span>
-	<span class="nx">BackdropKind</span>              <span class="c1">// what is behind a rounded rectangle, blurred: frosted glass</span>
+	<span class="nx">RectangleKind</span>   <span class="nx">Kind</span> <span class="p">=</span> <span class="kc">iota</span> <span class="c1">// a rounded rectangle with a fill and a border</span>
+	<span class="nx">ShadowKind</span>                  <span class="c1">// a soft shadow under a rounded rectangle</span>
+	<span class="nx">TextKind</span>                    <span class="c1">// one line of text</span>
+	<span class="nx">IconKind</span>                    <span class="c1">// one icon</span>
+	<span class="nx">ImageKind</span>                   <span class="c1">// a picture covering a rounded rectangle</span>
+	<span class="nx">BackdropKind</span>                <span class="c1">// what is behind a rounded rectangle, blurred: frosted glass</span>
+	<span class="nx">PointLightKind</span>              <span class="c1">// a disc of light: Area the square round its outer radius, Radius its inner one, Fill its colour (alpha: intensity)</span>
+	<span class="nx">SpriteLightKind</span>             <span class="c1">// a picture shining as a light over Area, tinted by Fill (alpha: intensity)</span>
+	<span class="nx">LightingKind</span>                <span class="c1">// lights what was drawn before it with the lights before it, over an ambient colour (Fill)</span>
 <span class="p">)</span>
 </code></pre>
 
@@ -206,6 +212,16 @@ easy to build and to check in tests.</p>
 </tr>
 
 <tr>
+<td><code>func (list *List) Lighting(ambient Color)</code></td>
+<td>Lighting lights what was drawn before it in the list, in its layer and those under it, with the lights added since the last Lighting, over an ambient colour (its alpha, the ambient&rsquo;s intensity: 1 is plain daylight, less dims what no light reaches).</td>
+</tr>
+
+<tr>
+<td><code>func (list *List) PointLight(x, y, inner, outer float32, color Color)</code></td>
+<td>PointLight adds a disc of light round a point (x, y): full inside inner, fading to nothing at outer, in layout pixels, of a colour whose alpha is its intensity.</td>
+</tr>
+
+<tr>
 <td><code>func (list *List) PopClip()</code></td>
 <td>PopClip returns to the clip before the last PushClip.</td>
 </tr>
@@ -233,6 +249,11 @@ easy to build and to check in tests.</p>
 <tr>
 <td><code>func (list *List) Shadow(area Rect, radius, blur, offsetY float32, color Color)</code></td>
 <td>Shadow draws a soft shadow for a rounded rectangle, fading out over blur pixels on every side and falling offsetY pixels below it.</td>
+</tr>
+
+<tr>
+<td><code>func (list *List) SpriteLight(picture *Image, area Rect, color Color)</code></td>
+<td>SpriteLight adds a picture shining as a light over an area, tinted by a colour whose alpha is its intensity: a lamp&rsquo;s glow, a sign that shines.</td>
 </tr>
 
 <tr>

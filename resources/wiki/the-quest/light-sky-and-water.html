@@ -82,6 +82,28 @@ its own colour in the dark:</p>
 
 <p><img src="./images/tutorial/tutorial-3-night.jpg" alt="The island at night, the lamp glowing yellow on the dark tower" /></p>
 
+<h3 id="lamps-that-light-around-them">Lamps that light around them</h3>
+
+<p>A glowing lamp shows itself, but lights nothing around it. A <strong>point light</strong> does: it shines
+from a point all around, full within its inner radius and fading smoothly to nothing at its
+outer one, and lights the lit materials it reaches, besides the sun and the sky:</p>
+<pre><code class="language-go"><span class="nx">world</span><span class="p">.</span><span class="nx">Lights</span> <span class="p">=</span> <span class="p">[]</span><span class="nx">scene</span><span class="p">.</span><span class="nx">PointLight</span><span class="p">{{</span>
+	<span class="nx">Position</span><span class="p">:</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="mi">2</span><span class="p">,</span> <span class="mf">3.2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span>       <span class="c1">// the lamp, at the top of the tower</span>
+	<span class="nx">Color</span><span class="p">:</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.85</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">},</span>  <span class="c1">// warm, at one and a half times (alpha is the intensity)</span>
+	<span class="nx">Inner</span><span class="p">:</span>    <span class="mf">0.5</span><span class="p">,</span>
+	<span class="nx">Outer</span><span class="p">:</span>    <span class="mi">6</span><span class="p">,</span>
+<span class="p">}}</span>
+</code></pre>
+
+<p align="center"><img alt="A grey floor at night with three cubes, lit by an orange lamp on the left, a blue one in the middle and a green one on the right: each lights the floor in a soft circle and the faces of the cubes that face it" src="./images/point-lights.png" width="480"></p>
+
+<p><strong>How many?</strong> As many as the scene wants, but each draw takes at most the four nearest whose
+reach meets it (<code>sceneplan.MaxLightsPerDraw</code>), chosen once a frame on the processor, so the
+shaders stay short on every platform: this is what Unity&rsquo;s and Godot&rsquo;s forward renderers do on
+phones. Lamps far apart can light a whole village; four lamps piled on one small thing are as
+many as it shows. Move a lamp by changing its position between frames. The 3DS bakes the lamps
+into its colours with the sun (its guide).</p>
+
 <h3 id="material-kinds">Material kinds</h3>
 
 <table>
@@ -95,7 +117,7 @@ its own colour in the dark:</p>
 <tbody>
 <tr>
 <td><code>KindLit</code></td>
-<td>Sun or moon, sky light, shadows, fog: most things</td>
+<td>Sun or moon, sky light, point lights, shadows, fog: most things</td>
 </tr>
 
 <tr>
@@ -131,7 +153,7 @@ its own colour in the dark:</p>
 <ul>
 <li><code>Environment</code> holds the sun, the sky, fog, water, wind and snow.</li>
 <li>The sun&rsquo;s height is the time of day; the night comes with the moon and the stars.</li>
-<li><code>Sway</code> bends plants in the wind; <code>KindGlow</code> shines at night.</li>
+<li><code>Sway</code> bends plants in the wind; <code>KindGlow</code> shines at night; <code>Lights</code> light around them.</li>
 </ul>
 
 <h2 id="bonus-optional">Bonus (optional)</h2>

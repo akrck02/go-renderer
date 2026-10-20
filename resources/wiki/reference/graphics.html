@@ -14,6 +14,11 @@
 
 <tbody>
 <tr>
+<td><code>func AmbientLight(ambient [4]float32) [3]float32</code></td>
+<td>AmbientLight is the colour a picture of light is cleared to for an ambient colour whose alpha is its intensity: at half, as all light is kept.</td>
+</tr>
+
+<tr>
 <td><code>func BackdropHalvings(deviation float32) int</code></td>
 <td>BackdropHalvings is how many times a snapshot is halved before it is blurred, for a standard deviation in screen pixels: until the deviation is a couple of texels, which the taps cover.</td>
 </tr>
@@ -58,6 +63,22 @@
 <p>DepthOnlyFragmentShader writes only depth; it pairs with SceneVertexShader for the shadow and seabed passes.</p>
 <pre><code class="language-go"><span class="kd">const</span> <span class="nx">FragmentShaderSource</span> <span class="p">=</span> <span class="err">…</span>
 </code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">LightAreaVertexShader</span> <span class="p">=</span> <span class="err">…</span>
+</code></pre>
+
+<p>LightAreaVertexShader covers the area a lighting lights (in screen pixels from the top-left corner: left, top, right, bottom) with two triangles made from the vertex number alone, and passes on where the picture of light is read there.</p>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">LightFragmentShader</span> <span class="p">=</span> <span class="err">…</span>
+</code></pre>
+
+<p>LightFragmentShader is how much light a light adds, at half: its colour times its intensity, times its picture for a sprite light, or for a point light full inside inner and fading smoothly to nothing at the square&rsquo;s inscribed circle.</p>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">LightMultiplyShader</span> <span class="p">=</span> <span class="err">…</span>
+</code></pre>
+
+<p>LightMultiplyShader reads the picture of light over the area lit (drawn with LightAreaVertexShader).</p>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">LightVertexShader</span> <span class="p">=</span> <span class="err">…</span>
+</code></pre>
+
+<p>LightVertexShader places a light&rsquo;s square, given in screen pixels from the top-left corner.</p>
 <pre><code class="language-go"><span class="kd">const</span> <span class="nx">OverlayFragmentShader</span> <span class="p">=</span> <span class="err">…</span>
 </code></pre>
 
@@ -74,6 +95,10 @@
 </code></pre>
 
 <p>SceneVertexShader transforms meshes and GPU instances.</p>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">SharpPictureOffset</span> <span class="p">=</span> <span class="mi">65536</span>
+</code></pre>
+
+<p>SharpPictureOffset marks a quad&rsquo;s picture position as one to read at the nearest pixel: a picture atlas is never this wide, and the vertex layout stays as it is.</p>
 <pre><code class="language-go"><span class="kd">const</span> <span class="nx">SkyFragmentShader</span> <span class="p">=</span> <span class="err">…</span>
 </code></pre>
 

@@ -77,7 +77,16 @@ sky change slowly, so <code>ctr/bake.go</code> lights each vertex once, when a m
 and ground light, glow, flat by brightness, then the screen&rsquo;s gamma), and keeps its colour in
 four bytes: a vertex is 16 bytes instead of 40. A mesh is baked again only when the light, the
 mesh or its node&rsquo;s turn changes. <code>ctr/shaders/baked.v.pica</code> then only places each vertex and
-fogs it by its distance to the camera, linearly: 27 instructions instead of 95.</li>
+fogs it by its distance to the camera, linearly: 27 instructions instead of 95. A mesh keeps at
+most four bakes, one per way it is turned; past that the least recently drawn one is baked
+again, so a node that keeps turning doesn&rsquo;t fill linear memory.</li>
+<li><strong>Moving nodes on the GPU.</strong> Baking is right for a landscape, wrong for a ship that turns every
+frame: each turn means a new bake. A node marked <code>Moving</code> (<code>scene.Node</code>) is drawn through the
+full shader instead, from a copy of the mesh uploaded once: in a test with sixty ships flying
+around the camera, a frame went from 40 ms of processor time to 16.</li>
+<li><strong>No seabed without water.</strong> The planner measures the meshes under the water for the sea floor&rsquo;s
+light whenever one of them changes; a scene without water skips it, or a few dozen moving meshes
+were measured vertex by vertex every frame.</li>
 <li><strong>Water on the GPU, on a coarser grid.</strong> Water&rsquo;s reflection of the sky depends on where the
 camera looks from, so water goes through the full shader, <code>ctr/shaders/scene.v.pica</code> (gles&rsquo;s
 scene shader done per vertex, with its smoothstep fog and the chip&rsquo;s <code>lg2</code> and <code>ex2</code> for gamma).
@@ -124,6 +133,46 @@ nearest pixel: a game&rsquo;s top screen is sharp, the interface below stays smo
 top screen and <code>FlatRenderer.Paint</code> for the bottom one, then <code>ctr.EndFrame</code>. (<code>Draw</code> and
 <code>DrawStereo</code> begin and end a frame themselves, for a program with the top screen only.)
 <a href="https://github.com/akrck02/go-3ds" target="_blank">go-3ds</a> puts go-ui on the bottom screen this way.</p>
+
+<h3 id="point-lights-in-3d">Point lights in 3D</h3>
+
+<p>A scene&rsquo;s point lights (<code>scene.Scene.Lights</code>) are <strong>baked</strong> too: their light is added to the sun&rsquo;s
+when a mesh&rsquo;s colours are worked out, with the same fade as the other backends&rsquo; shaders. Each draw
+takes the few lamps the planner chooses for it, and its colours depend on them and on where the
+mesh stands, so a lamp that stands still costs nothing a frame, and a lamp that moves bakes again
+the meshes it reaches (three in <code>cmd/lamps3ds</code>, which kept 60 frames a second in Azahar; the
+console is still to be measured). Light is worked out at the vertices, as everything here is: a
+lamp&rsquo;s pool shows on a floor only where it has vertices, so a floor of two triangles stays dark
+between its corners, and one cut into a grid (a terrain is one) shows it. Every node a mesh is drawn
+by under lamps keeps a bake of its own (up to 64 a mesh), since each stands in a different light.
+A node that moves under lamps without being marked Moving is baked again every frame it moves,
+its old bakes given back once the 64 are used: mark it Moving. A node marked Moving is lit on the
+GPU instead, by the sun and the sky only: lamps leave it as it is for now. Instances (a forest)
+take the lamps that reach any of them, listed in a fixed order so that the camera moving does not
+bake them again.</p>
+
+<p align="center">
+  <img alt="The 3DS's top screen: a floor at night with three cubes, an orange, a blue and a green pool of light around them" src="./images/3ds-lamps.png" width="400">
+</p>
+
+<h3 id="2d-lights">2D lights</h3>
+
+<p>A draw list&rsquo;s lights (see <a href="./guides/overlay">the overlay&rsquo;s guide</a>) are drawn as on the
+other backends: added into a picture of light, which then multiplies the screen. The chip has no
+fragment shader to fade a point light, so it reads the fade from a texture of sixteen <strong>discs</strong>,
+one for each inner share of the radius, made once at start: a light takes the nearest. The
+picture of light is a 256 × 128 texture the GPU draws into, half the top screen&rsquo;s resolution, and
+the chip&rsquo;s own blends add the lights and multiply by them. The ambient is painted into it as a
+rectangle of a constant colour, not cleared in: citro3d&rsquo;s clears run apart from the draws, before
+all of a frame&rsquo;s, so two lists lit in one frame (both screens) would share the last one&rsquo;s ambient. A list keeps its lights&rsquo; corners
+between frames, as it keeps its rectangles&rsquo;.</p>
+
+<p align="center">
+  <img alt="Five coloured panels in a dim blue light: a warm lamp lights the top left, a cold one the bottom right, a pink glow shines through a checked picture at the top right, and a white label at the bottom left stays unlit" src="./images/3ds-lights.png" width="400">
+</p>
+
+<p>Eight lights on the top screen keep 60 frames a second in Azahar, at about 3 ms a frame
+(<code>cmd/lights3ds</code>); the console itself is still to be measured.</p>
 
 <h2 id="both-screens-and-the-controls">Both screens, and the controls</h2>
 

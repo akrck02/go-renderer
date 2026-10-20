@@ -483,6 +483,17 @@ again.</p>
 </tbody>
 </table>
 
+<h3 id="pointlight">PointLight</h3>
+
+<p>PointLight is a light that shines from a point all around, as a lamp: full within Inner of it and fading smoothly to nothing at Outer (world units), the same fade as draw2d&rsquo;s point lights. It lights the lit materials it reaches, besides the sun and the sky; each draw takes the few that reach it (see sceneplan.MaxLightsPerDraw).</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">PointLight</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Position</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// in the world, before the vertical scale</span>
+	<span class="c1">// Color is linear, like the materials&#39;; its alpha is the intensity (1 a plain lamp, up to a few).</span>
+	<span class="nx">Color</span>        <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">Inner</span><span class="p">,</span> <span class="nx">Outer</span> <span class="kt">float32</span>
+<span class="p">}</span>
+</code></pre>
+
 <h3 id="scene-1">Scene</h3>
 
 <p>Scene is the root of a scene.</p>
@@ -491,6 +502,9 @@ again.</p>
 	<span class="nx">Environment</span> <span class="nx">Environment</span>
 	<span class="nx">Tags</span>        <span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">any</span>
 	<span class="nx">Overlay</span>     <span class="nx">Overlay</span> <span class="c1">// labels, header and notices drawn over the view</span>
+	<span class="c1">// Lights are the point lights besides the sun; a program changes them between frames as its</span>
+	<span class="c1">// lamps move.</span>
+	<span class="nx">Lights</span> <span class="p">[]</span><span class="nx">PointLight</span>
 
 	<span class="c1">// Has unexported fields.</span>
 <span class="p">}</span>
