@@ -69,17 +69,16 @@ func (layer *lightLayer) fillVertices(lights []overlay.LightQuad) {
 	layer.functions.BufferData(ArrayBuffer, floatBytes(vertices), StreamDraw)
 }
 
-// light lights what the screen (width × height pixels) shows with one lighting. The screen
-// (framebuffer 0) is bound again when it returns, with blending off; the caller sets its own
-// program and buffer up. Like the backdrop's blur, it draws into the screen only: OpenGL ES 2's
-// bindings here cannot ask which framebuffer was bound.
-func (layer *lightLayer) light(lighting overlay.Lighting, width, height, picturesSize int) {
+// light lights what the target framebuffer (width × height pixels) shows with one lighting. The
+// target is bound again when it returns, with blending off; the caller sets its own program and
+// buffer up.
+func (layer *lightLayer) light(lighting overlay.Lighting, target Framebuffer, width, height, picturesSize int) {
 	functions := layer.functions
 	layer.prepare(width, height)
 	functions.Disable(DepthTest)
 	layer.addLights(lighting, width, height, picturesSize)
 
-	functions.BindFramebuffer(FramebufferTarget, 0)
+	functions.BindFramebuffer(FramebufferTarget, target)
 	functions.Viewport(0, 0, width, height)
 	layer.multiplyProgram.use()
 	functions.ActiveTexture(Texture0 + lightTextureUnit)

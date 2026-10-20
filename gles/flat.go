@@ -10,6 +10,10 @@ import (
 // the desktop, with the same atlas and one draw call per frame. Create and use it where the
 // graphics context lives.
 type FlatRenderer struct {
+	// Target is the framebuffer Draw draws into: 0, the screen, unless the caller made one to
+	// draw a picture offscreen.
+	Target Framebuffer
+
 	functions Functions
 	quads     *quadPass
 	layer     scene.Overlay
@@ -24,9 +28,11 @@ func NewFlatRenderer(functions Functions) (*FlatRenderer, error) {
 	return &FlatRenderer{functions: functions, quads: quads}, nil
 }
 
-// Draw clears the framebuffer (width × height pixels) to the background colour and paints the
-// list. scale is framebuffer pixels per layout pixel: 2 on a high-density screen.
+// Draw clears the target framebuffer (width × height pixels) to the background colour and paints
+// the list. scale is framebuffer pixels per layout pixel: 2 on a high-density screen.
 func (renderer *FlatRenderer) Draw(list *draw2d.List, background draw2d.Color, width, height int, scale float32) {
+	renderer.functions.BindFramebuffer(FramebufferTarget, renderer.Target)
+	renderer.quads.target = renderer.Target
 	renderer.functions.Viewport(0, 0, width, height)
 	renderer.functions.ClearColor(background[0], background[1], background[2], 1)
 	renderer.functions.Clear(ColorBufferBit)

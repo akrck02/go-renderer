@@ -53,6 +53,9 @@ type quadPass struct {
 	blur *backdropBlur
 	// lights draws the 2D lights; made, as the blur, the first time a frame has them
 	lights *lightLayer
+	// target is the framebuffer the frame is drawn into, which the blur and the lights bind
+	// again after drawing into their own
+	target Framebuffer
 }
 
 func newQuadPass(functions Functions) (*quadPass, error) {
@@ -143,7 +146,7 @@ func (pass *quadPass) drawQuads(quads []overlay.Quad, width, height int) {
 	for len(snapshots) > 0 || len(lightings) > 0 {
 		if len(lightings) > 0 && (len(snapshots) == 0 || lightings[0].At <= snapshots[0].At) {
 			pass.drawVertices(drawn, lightings[0].At, width, height)
-			pass.lights.light(lightings[0], width, height, pass.picturesSize)
+			pass.lights.light(lightings[0], pass.target, width, height, pass.picturesSize)
 			drawn, lightings = lightings[0].At, lightings[1:]
 			continue
 		}
@@ -190,7 +193,7 @@ func (pass *quadPass) takeSnapshot(width, height int, deviation float32) bool {
 	if pass.blur.program == nil {
 		return false
 	}
-	pass.blur.snapshot(width, height, deviation)
+	pass.blur.snapshot(pass.target, width, height, deviation)
 	return true
 }
 
