@@ -292,7 +292,10 @@ draw into and two blends.
 
 The 3DS draws them too, in its own way ([its guide](8-3ds.md#2d-lights)).
 
-Not done yet: Metal draws lists with lights unlit.
+Metal draws a flat interface's lights the same way, and lights 3D scenes with point lights as
+OpenGL does. That code was written on Linux, where Metal cannot be built: it waits for a check on
+a Mac (`go test ./metal` compiles its shaders there). Lights in an overlay over a 3D scene are left
+unlit on Metal for now, like its backdrops there.
 
 ---
 

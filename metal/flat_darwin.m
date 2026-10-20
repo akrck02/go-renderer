@@ -72,6 +72,48 @@ static NSString *const shaderSource = @
 	"        sum += source.sample(smooth, in.coordinate - offset) * weights[tap];\n"
 	"    }\n"
 	"    return sum;\n"
+	"}\n"
+	"struct Light { packed_float4 screen; packed_float4 color; packed_float4 picture; float inner; float unusedA; float unusedB; float unusedC; };\n"
+	"struct LightFragment { float4 position [[position]]; float2 offset; float4 color; float2 pictureCoordinate; float inner; };\n"
+	"vertex LightFragment placeLight(uint corner [[vertex_id]], uint index [[instance_id]],\n"
+	"                                const device Light *lights [[buffer(0)]], constant Sizes &sizes [[buffer(1)]]) {\n"
+	"    Light light = lights[index];\n"
+	"    float2 along = float2(corner & 1, corner >> 1);\n"
+	"    float2 position = mix(float2(light.screen[0], light.screen[1]), float2(light.screen[2], light.screen[3]), along);\n"
+	"    float2 normalized = position / sizes.screen;\n"
+	"    LightFragment out;\n"
+	"    out.position = float4(normalized.x * 2.0 - 1.0, 1.0 - normalized.y * 2.0, 0.0, 1.0);\n"
+	"    out.offset = along * 2.0 - 1.0;\n"
+	"    out.color = float4(light.color);\n"
+	"    float2 picture = mix(float2(light.picture[0], light.picture[1]), float2(light.picture[2], light.picture[3]), along);\n"
+	"    out.pictureCoordinate = light.picture[0] < 0.0 ? float2(-1.0) : picture / sizes.pictures;\n"
+	"    out.inner = light.inner;\n"
+	"    return out;\n"
+	"}\n"
+	"fragment float4 addLight(LightFragment in [[stage_in]], texture2d<float> pictures [[texture(1)]],\n"
+	"                         sampler smooth [[sampler(0)]]) {\n"
+	"    float3 shape;\n"
+	"    if (in.pictureCoordinate.x >= 0.0) {\n"
+	"        float4 picture = pictures.sample(smooth, in.pictureCoordinate);\n"
+	"        shape = picture.rgb * picture.a;\n"
+	"    } else {\n"
+	"        shape = float3(1.0 - smoothstep(min(in.inner, 0.999), 1.0, length(in.offset)));\n"
+	"    }\n"
+	"    return float4(in.color.rgb * in.color.a * shape * 0.5, 1.0);\n"
+	"}\n"
+	"struct LightArea { float4 area; float2 screen; float2 unused; };\n"
+	"vertex Covered coverArea(uint corner [[vertex_id]], constant LightArea &lit [[buffer(0)]]) {\n"
+	"    float2 along = float2(corner & 1, corner >> 1);\n"
+	"    float2 normalized = mix(lit.area.xy, lit.area.zw, along) / lit.screen;\n"
+	"    Covered out;\n"
+	"    out.position = float4(normalized.x * 2.0 - 1.0, 1.0 - normalized.y * 2.0, 0.0, 1.0);\n"
+	"    out.coordinate = normalized;\n"
+	"    return out;\n"
+	"}\n"
+	"fragment float4 multiplyLight(Covered in [[stage_in]], texture2d<float> light [[texture(0)]],\n"
+	"                              sampler smooth [[sampler(0)]]) {\n"
+	"    float noise = fract(sin(dot(in.position.xy, float2(12.9898, 78.233))) * 43758.5453) - 0.5;\n"
+	"    return float4(light.sample(smooth, in.coordinate).rgb + noise / 255.0, 1.0);\n"
 	"}\n";
 
 // blurPassBytes is BlurPass in the shaders: the step between taps, then the weights. 48 bytes, the
@@ -91,6 +133,13 @@ typedef struct {
 @property(nonatomic, strong) id<MTLCommandQueue> queue;
 @property(nonatomic, strong) id<MTLRenderPipelineState> pipeline;
 @property(nonatomic, strong) id<MTLRenderPipelineState> blurPipeline;
+// the 2D lights': one adds lights into the picture of light, one multiplies the frame by it
+@property(nonatomic, strong) id<MTLRenderPipelineState> lightPipeline;
+@property(nonatomic, strong) id<MTLRenderPipelineState> multiplyPipeline;
+// the picture of light, at half the target's size, made again when the target's size changes
+@property(nonatomic, strong) id<MTLTexture> lightTexture;
+@property(nonatomic, strong) NSMutableArray<id<MTLBuffer>> *lightBuffers;
+@property(nonatomic) NSUInteger nextLightBuffer;
 // the backdrop's textures, made once for a target size and kept: the halvings, each half the one
 // before, the spare the first blur pass writes into, and a full-size copy for a blur not halved
 @property(nonatomic, strong) NSMutableArray<id<MTLTexture>> *levels;
@@ -150,6 +199,42 @@ static id<MTLRenderPipelineState> makeBlurPipeline(id<MTLDevice> device, id<MTLL
 	return pipeline;
 }
 
+// makeLightPipelines makes the 2D lights' two pipelines: lights added together (one, one), and the
+// picture of light laid over the frame multiplying it twice over (frame × light + light × frame),
+// keeping the frame's alpha. It returns NO, with a message, when either cannot be made.
+static BOOL makeLightPipelines(FlatRenderer *renderer, id<MTLLibrary> library, char **failure) {
+	NSError *error = nil;
+	MTLRenderPipelineDescriptor *adding = [MTLRenderPipelineDescriptor new];
+	adding.vertexFunction = [library newFunctionWithName:@"placeLight"];
+	adding.fragmentFunction = [library newFunctionWithName:@"addLight"];
+	MTLRenderPipelineColorAttachmentDescriptor *added = adding.colorAttachments[0];
+	added.pixelFormat = MTLPixelFormatBGRA8Unorm;
+	added.blendingEnabled = YES;
+	added.sourceRGBBlendFactor = MTLBlendFactorOne;
+	added.destinationRGBBlendFactor = MTLBlendFactorOne;
+	added.sourceAlphaBlendFactor = MTLBlendFactorOne;
+	added.destinationAlphaBlendFactor = MTLBlendFactorOne;
+	renderer.lightPipeline = [renderer.device newRenderPipelineStateWithDescriptor:adding error:&error];
+	MTLRenderPipelineDescriptor *multiplying = [MTLRenderPipelineDescriptor new];
+	multiplying.vertexFunction = [library newFunctionWithName:@"coverArea"];
+	multiplying.fragmentFunction = [library newFunctionWithName:@"multiplyLight"];
+	MTLRenderPipelineColorAttachmentDescriptor *multiplied = multiplying.colorAttachments[0];
+	multiplied.pixelFormat = MTLPixelFormatBGRA8Unorm;
+	multiplied.blendingEnabled = YES;
+	multiplied.sourceRGBBlendFactor = MTLBlendFactorDestinationColor;
+	multiplied.destinationRGBBlendFactor = MTLBlendFactorSourceColor;
+	multiplied.sourceAlphaBlendFactor = MTLBlendFactorZero;
+	multiplied.destinationAlphaBlendFactor = MTLBlendFactorOne;
+	if (renderer.lightPipeline != nil) {
+		renderer.multiplyPipeline = [renderer.device newRenderPipelineStateWithDescriptor:multiplying error:&error];
+	}
+	if (renderer.lightPipeline == nil || renderer.multiplyPipeline == nil) {
+		setFailure(failure, [NSString stringWithFormat:@"metal: making the lights' pipelines: %@", error.localizedDescription]);
+		return NO;
+	}
+	return YES;
+}
+
 static id<MTLRenderPipelineState> makePipeline(id<MTLDevice> device, id<MTLLibrary> library, char **failure) {
 	NSError *error = nil;
 	MTLRenderPipelineDescriptor *descriptor = [MTLRenderPipelineDescriptor new];
@@ -197,6 +282,10 @@ void *flatRendererCreate(void *cocoaWindow, int vsync, char **failure) {
 		renderer.blurPipeline = blurPipeline;
 		renderer.levels = [NSMutableArray array];
 		renderer.instanceBuffers = [NSMutableArray arrayWithCapacity:framesInFlight];
+		renderer.lightBuffers = [NSMutableArray arrayWithCapacity:framesInFlight];
+		if (!makeLightPipelines(renderer, library, failure)) {
+			return NULL;
+		}
 		renderer.inFlight = dispatch_semaphore_create(framesInFlight);
 
 		MTLSamplerDescriptor *sampling = [MTLSamplerDescriptor new];
@@ -266,12 +355,12 @@ void flatRendererUploadPictures(void *handle, const uint8_t *pixels, int size, i
 	[renderer.pictures replaceRegion:MTLRegionMake2D(x, y, width, height) mipmapLevel:0 withBytes:start bytesPerRow:bytesPerRow];
 }
 
-// instanceBuffer copies the instances into the buffer of this frame, growing it when they do not fit.
-static id<MTLBuffer> instanceBuffer(FlatRenderer *renderer, const flatInstance *instances, int count) {
-	NSUInteger index = renderer.nextBuffer;
-	renderer.nextBuffer = (index + 1) % framesInFlight;
-	NSUInteger needed = MAX((NSUInteger)count, 1) * sizeof(flatInstance);
-	id<MTLBuffer> buffer = index < renderer.instanceBuffers.count ? renderer.instanceBuffers[index] : nil;
+// frameBuffer copies bytes into buffers[index], the buffer of one frame in flight, growing it when
+// they do not fit.
+static id<MTLBuffer> frameBuffer(FlatRenderer *renderer, NSMutableArray<id<MTLBuffer>> *buffers, NSUInteger index,
+                                 const void *bytes, NSUInteger size) {
+	NSUInteger needed = MAX(size, (NSUInteger)1);
+	id<MTLBuffer> buffer = index < buffers.count ? buffers[index] : nil;
 	if (buffer == nil || buffer.length < needed) {
 		NSUInteger length = buffer == nil ? 4096 : buffer.length;
 		while (length < needed) {
@@ -279,16 +368,30 @@ static id<MTLBuffer> instanceBuffer(FlatRenderer *renderer, const flatInstance *
 		}
 		buffer = [renderer.device newBufferWithLength:length
 		                                      options:MTLResourceStorageModeShared | MTLResourceCPUCacheModeWriteCombined];
-		if (index < renderer.instanceBuffers.count) {
-			renderer.instanceBuffers[index] = buffer;
+		if (index < buffers.count) {
+			buffers[index] = buffer;
 		} else {
-			[renderer.instanceBuffers addObject:buffer];
+			[buffers addObject:buffer];
 		}
 	}
-	if (count > 0) {
-		memcpy(buffer.contents, instances, count * sizeof(flatInstance));
+	if (size > 0) {
+		memcpy(buffer.contents, bytes, size);
 	}
 	return buffer;
+}
+
+// instanceBuffer copies the instances into the buffer of this frame.
+static id<MTLBuffer> instanceBuffer(FlatRenderer *renderer, const flatInstance *instances, int count) {
+	NSUInteger index = renderer.nextBuffer;
+	renderer.nextBuffer = (index + 1) % framesInFlight;
+	return frameBuffer(renderer, renderer.instanceBuffers, index, instances, (NSUInteger)MAX(count, 0) * sizeof(flatInstance));
+}
+
+// lightBuffer copies the lights into the light buffer of this frame.
+static id<MTLBuffer> lightBuffer(FlatRenderer *renderer, const flatLight *lights, int count) {
+	NSUInteger index = renderer.nextLightBuffer;
+	renderer.nextLightBuffer = (index + 1) % framesInFlight;
+	return frameBuffer(renderer, renderer.lightBuffers, index, lights, (NSUInteger)MAX(count, 0) * sizeof(flatLight));
 }
 
 // newBlurTexture makes a texture the blur draws into and reads from, on the GPU only.
@@ -396,26 +499,101 @@ static void drawRange(FlatRenderer *renderer, id<MTLCommandBuffer> commands, id<
 	[encoder endEncoding];
 }
 
-// encodeFrame draws the instances into target: in one pass when nothing is frosted, else cut at
-// each snapshot, where the frame so far is blurred for the backdrops after it.
+// lightArea is LightArea in the shaders: the area lit, then the target's size. 32 bytes.
+typedef struct {
+	float area[4];
+	float screen[2];
+	float unused[2];
+} lightAreaBytes;
+
+// prepareLightTexture makes the picture of light at half the target's size, when it changed.
+static void prepareLightTexture(FlatRenderer *renderer, NSUInteger width, NSUInteger height) {
+	NSUInteger lightWidth = MAX(width / 2, (NSUInteger)1), lightHeight = MAX(height / 2, (NSUInteger)1);
+	if (renderer.lightTexture != nil && renderer.lightTexture.width == lightWidth && renderer.lightTexture.height == lightHeight) {
+		return;
+	}
+	renderer.lightTexture = newBlurTexture(renderer, lightWidth, lightHeight);
+}
+
+// lightFrame lights what was drawn into target with one lighting: its lights are added into the
+// picture of light, filled with the ambient, in a pass of their own, and a second pass multiplies
+// the lighting's area of the target by it. The frame's pass must have ended.
+static void lightFrame(FlatRenderer *renderer, id<MTLCommandBuffer> commands, id<MTLTexture> target,
+                       id<MTLBuffer> lights, const flatLighting *lighting, int width, int height) {
+	prepareLightTexture(renderer, target.width, target.height);
+	MTLRenderPassDescriptor *adding = [MTLRenderPassDescriptor renderPassDescriptor];
+	adding.colorAttachments[0].texture = renderer.lightTexture;
+	adding.colorAttachments[0].loadAction = MTLLoadActionClear;
+	adding.colorAttachments[0].storeAction = MTLStoreActionStore;
+	adding.colorAttachments[0].clearColor = MTLClearColorMake(lighting->ambient[0], lighting->ambient[1], lighting->ambient[2], 1);
+	id<MTLRenderCommandEncoder> encoder = [commands renderCommandEncoderWithDescriptor:adding];
+	if (lighting->last > lighting->first && renderer.atlas != nil) {
+		id<MTLTexture> pictures = renderer.pictures != nil ? renderer.pictures : renderer.atlas; // read by no point light
+		float sizes[8] = {(float)width, (float)height, (float)renderer.atlas.width, (float)renderer.atlas.height,
+		                  (float)pictures.width, (float)pictures.height, 0, 0};
+		[encoder setRenderPipelineState:renderer.lightPipeline];
+		[encoder setVertexBuffer:lights offset:(NSUInteger)lighting->first * sizeof(flatLight) atIndex:0];
+		[encoder setVertexBytes:sizes length:sizeof(sizes) atIndex:1];
+		[encoder setFragmentTexture:pictures atIndex:1];
+		[encoder setFragmentSamplerState:renderer.sampler atIndex:0];
+		[encoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4 instanceCount:lighting->last - lighting->first];
+	}
+	[encoder endEncoding];
+
+	MTLRenderPassDescriptor *multiplying = [MTLRenderPassDescriptor renderPassDescriptor];
+	multiplying.colorAttachments[0].texture = target;
+	multiplying.colorAttachments[0].loadAction = MTLLoadActionLoad;
+	multiplying.colorAttachments[0].storeAction = MTLStoreActionStore;
+	lightAreaBytes area = {{lighting->area[0], lighting->area[1], lighting->area[2], lighting->area[3]}, {(float)width, (float)height}, {0, 0}};
+	encoder = [commands renderCommandEncoderWithDescriptor:multiplying];
+	[encoder setRenderPipelineState:renderer.multiplyPipeline];
+	[encoder setVertexBytes:&area length:sizeof(area) atIndex:0];
+	[encoder setFragmentTexture:renderer.lightTexture atIndex:0];
+	[encoder setFragmentSamplerState:renderer.sampler atIndex:0];
+	[encoder drawPrimitives:MTLPrimitiveTypeTriangleStrip vertexStart:0 vertexCount:4];
+	[encoder endEncoding];
+}
+
+// frameCuts are where a frame's drawing stops for a snapshot or a lighting, in the painter's order.
+typedef struct {
+	const flatSnapshot *snapshots;
+	int snapshotCount;
+	const flatLighting *lightings;
+	int lightingCount;
+	id<MTLBuffer> lights;
+} frameCuts;
+
+// encodeFrame draws the instances into target: in one pass when nothing is frosted nor lit, else
+// cut at each snapshot, where the frame so far is blurred for the backdrops after it, and at each
+// lighting, where it is lit.
 static void encodeFrame(FlatRenderer *renderer, id<MTLCommandBuffer> commands, id<MTLTexture> target,
-                        id<MTLBuffer> buffer, int count, const flatSnapshot *snapshots, int snapshotCount,
-                        const float background[4], int width, int height) {
+                        id<MTLBuffer> buffer, int count, frameCuts cuts, const float background[4], int width, int height) {
 	int drawn = 0;
 	BOOL clear = YES;
 	id<MTLTexture> blurred = nil;
-	for (int index = 0; index < snapshotCount; index++) {
-		int at = MIN(MAX(snapshots[index].at, drawn), count);
+	int snapshot = 0, lighting = 0;
+	while (snapshot < cuts.snapshotCount || lighting < cuts.lightingCount) {
+		BOOL lightingNext = lighting < cuts.lightingCount &&
+		                    (snapshot >= cuts.snapshotCount || cuts.lightings[lighting].at <= cuts.snapshots[snapshot].at);
+		int wanted = lightingNext ? cuts.lightings[lighting].at : cuts.snapshots[snapshot].at;
+		int at = MIN(MAX(wanted, drawn), count);
 		drawRange(renderer, commands, target, buffer, drawn, at, clear, blurred, background, width, height);
 		clear = NO;
-		blurred = blurSnapshot(renderer, commands, target, &snapshots[index]);
+		if (lightingNext) {
+			lightFrame(renderer, commands, target, cuts.lights, &cuts.lightings[lighting], width, height);
+			lighting++;
+		} else {
+			blurred = blurSnapshot(renderer, commands, target, &cuts.snapshots[snapshot]);
+			snapshot++;
+		}
 		drawn = at;
 	}
 	drawRange(renderer, commands, target, buffer, drawn, count, clear, blurred, background, width, height);
 }
 
 int flatRendererDraw(void *handle, const flatInstance *instances, int count, const flatSnapshot *snapshots,
-                     int snapshotCount, const float background[4], int width, int height) {
+                     int snapshotCount, const flatLight *lights, int lightCount, const flatLighting *lightings,
+                     int lightingCount, const float background[4], int width, int height) {
 	FlatRenderer *renderer = (__bridge FlatRenderer *)handle;
 	@autoreleasepool {
 		CAMetalLayer *layer = renderer.layer;
@@ -439,8 +617,9 @@ int flatRendererDraw(void *handle, const flatInstance *instances, int count, con
 			return 0;
 		}
 		id<MTLBuffer> buffer = instanceBuffer(renderer, instances, count);
+		frameCuts cuts = {snapshots, snapshotCount, lightings, lightingCount, lightBuffer(renderer, lights, lightCount)};
 		id<MTLCommandBuffer> commands = [renderer.queue commandBuffer];
-		encodeFrame(renderer, commands, drawable.texture, buffer, count, snapshots, snapshotCount, background, width, height);
+		encodeFrame(renderer, commands, drawable.texture, buffer, count, cuts, background, width, height);
 		dispatch_semaphore_t inFlight = renderer.inFlight;
 		[commands addCompletedHandler:^(id<MTLCommandBuffer> finished) {
 			dispatch_semaphore_signal(inFlight);
@@ -458,7 +637,8 @@ int flatRendererDraw(void *handle, const flatInstance *instances, int count, con
 }
 
 void flatRendererCapture(void *handle, const flatInstance *instances, int count, const flatSnapshot *snapshots,
-                         int snapshotCount, const float background[4], int width, int height, uint8_t *pixels) {
+                         int snapshotCount, const flatLight *lights, int lightCount, const flatLighting *lightings,
+                         int lightingCount, const float background[4], int width, int height, uint8_t *pixels) {
 	FlatRenderer *renderer = (__bridge FlatRenderer *)handle;
 	@autoreleasepool {
 		MTLTextureDescriptor *descriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
@@ -471,8 +651,9 @@ void flatRendererCapture(void *handle, const flatInstance *instances, int count,
 
 		dispatch_semaphore_wait(renderer.inFlight, DISPATCH_TIME_FOREVER);
 		id<MTLBuffer> buffer = instanceBuffer(renderer, instances, count);
+		frameCuts cuts = {snapshots, snapshotCount, lightings, lightingCount, lightBuffer(renderer, lights, lightCount)};
 		id<MTLCommandBuffer> commands = [renderer.queue commandBuffer];
-		encodeFrame(renderer, commands, target, buffer, count, snapshots, snapshotCount, background, width, height);
+		encodeFrame(renderer, commands, target, buffer, count, cuts, background, width, height);
 		id<MTLBlitCommandEncoder> blit = [commands blitCommandEncoder];
 		[blit synchronizeResource:target];
 		[blit endEncoding];
