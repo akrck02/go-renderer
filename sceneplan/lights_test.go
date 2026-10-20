@@ -32,7 +32,7 @@ func TestADrawTakesOnlyTheLightsThatReachIt(test *testing.T) {
 	frame := planWithLights([]scene.PointLight{lamp(3, 0, 0, 2), lamp(1.5, 0, 0, 2), lamp(50, 0, 0, 100)})
 	crate := frame.Commands[0].Lights
 	if crate.Count != 2 || crate.Indices[0] != 1 || crate.Indices[1] != 2 {
-		test.Fatalf("the crate takes %+v; wanted the near lamp, then the far one that reaches it", crate)
+		test.Fatalf("the crate takes %+v; wanted the near lamp and the far one that reaches it", crate)
 	}
 }
 
@@ -42,8 +42,8 @@ func TestADrawTakesAtMostItsNearestLights(test *testing.T) {
 		lights = append(lights, lamp(float32(10-index), 0, 0, 20)) // the last is the nearest
 	}
 	crate := planWithLights(lights).Commands[0].Lights
-	if crate.Count != MaxLightsPerDraw || crate.Indices[0] != 9 || crate.Indices[3] != 6 {
-		test.Fatalf("the crate takes %+v; wanted the four nearest, nearest first", crate)
+	if crate.Count != MaxLightsPerDraw || crate.Indices != [MaxLightsPerDraw]uint16{6, 7, 8, 9} {
+		test.Fatalf("the crate takes %+v; wanted the four nearest, by their index", crate)
 	}
 }
 
@@ -61,8 +61,21 @@ func TestFrameLightsCarryTheirIntensityAndTheVerticalScale(test *testing.T) {
 func TestChoosingLightsAllocatesNothing(test *testing.T) {
 	lights := []FrameLight{{Position: graphics.Vec4{1, 0, 0, 1}, Outer: 3}, {Position: graphics.Vec4{2, 0, 0, 1}, Outer: 3}}
 	bounds := box{minimum: graphics.Vec4{-1, -1, -1, 1}, maximum: graphics.Vec4{1, 1, 1, 1}}
-	allocations := testing.AllocsPerRun(100, func() { nearestLights(lights, bounds, true) })
+	allocations := testing.AllocsPerRun(100, func() { nearestLights(lights, bounds) })
 	if allocations != 0 {
 		test.Fatalf("choosing lights allocates %v times", allocations)
+	}
+}
+
+func TestInstancesTakeTheLightsThatReachAnyOfThem(test *testing.T) {
+	world := scene.New()
+	far := graphics.Translate(graphics.Vec4{40, 0, 0, 0})
+	instances := &scene.Instances{Transforms: []graphics.Mat4{graphics.Identity(), far}, Colors: []graphics.Vec4{{1, 1, 1, 1}, {1, 1, 1, 1}}}
+	world.Nodes = []*scene.Node{{Name: "forest", Mesh: unitCube(), Instances: instances}}
+	world.Lights = []scene.PointLight{lamp(41, 0, 0, 3), lamp(0, 30, 0, 3)} // by the far tree; above, out of reach
+	camera := models.Camera{Position: graphics.Vec4{0, 2, 10, 1}, Up: graphics.Vec4{0, 1, 0, 0}, Near: 0.1, Far: 100}
+	forest := NewPlanner(MergingStore{}).Plan(world, camera, 640, 480, ShadowSettings{}).Commands[0].Lights
+	if forest.Count != 1 || forest.Indices[0] != 0 {
+		test.Fatalf("the forest takes %+v; wanted the lamp by its far tree only", forest)
 	}
 }

@@ -201,8 +201,9 @@ static id<MTLRenderPipelineState> makeBlurPipeline(id<MTLDevice> device, id<MTLL
 
 // makeLightPipelines makes the 2D lights' two pipelines: lights added together (one, one), and the
 // picture of light laid over the frame multiplying it twice over (frame × light + light × frame),
-// keeping the frame's alpha. It returns NO, with a message, when either cannot be made.
-static BOOL makeLightPipelines(FlatRenderer *renderer, id<MTLLibrary> library, char **failure) {
+// keeping the frame's alpha. When either cannot be made it says so once and leaves both nil, and
+// frames are drawn unlit, as on OpenGL.
+static void makeLightPipelines(FlatRenderer *renderer, id<MTLLibrary> library) {
 	NSError *error = nil;
 	MTLRenderPipelineDescriptor *adding = [MTLRenderPipelineDescriptor new];
 	adding.vertexFunction = [library newFunctionWithName:@"placeLight"];
@@ -229,10 +230,10 @@ static BOOL makeLightPipelines(FlatRenderer *renderer, id<MTLLibrary> library, c
 		renderer.multiplyPipeline = [renderer.device newRenderPipelineStateWithDescriptor:multiplying error:&error];
 	}
 	if (renderer.lightPipeline == nil || renderer.multiplyPipeline == nil) {
-		setFailure(failure, [NSString stringWithFormat:@"metal: making the lights' pipelines: %@", error.localizedDescription]);
-		return NO;
+		NSLog(@"metal: 2D lights unavailable, frames are drawn unlit: %@", error.localizedDescription);
+		renderer.lightPipeline = nil;
+		renderer.multiplyPipeline = nil;
 	}
-	return YES;
 }
 
 static id<MTLRenderPipelineState> makePipeline(id<MTLDevice> device, id<MTLLibrary> library, char **failure) {
@@ -283,9 +284,7 @@ void *flatRendererCreate(void *cocoaWindow, int vsync, char **failure) {
 		renderer.levels = [NSMutableArray array];
 		renderer.instanceBuffers = [NSMutableArray arrayWithCapacity:framesInFlight];
 		renderer.lightBuffers = [NSMutableArray arrayWithCapacity:framesInFlight];
-		if (!makeLightPipelines(renderer, library, failure)) {
-			return NULL;
-		}
+		makeLightPipelines(renderer, library);
 		renderer.inFlight = dispatch_semaphore_create(framesInFlight);
 
 		MTLSamplerDescriptor *sampling = [MTLSamplerDescriptor new];
@@ -572,6 +571,9 @@ static void encodeFrame(FlatRenderer *renderer, id<MTLCommandBuffer> commands, i
 	BOOL clear = YES;
 	id<MTLTexture> blurred = nil;
 	int snapshot = 0, lighting = 0;
+	if (renderer.lightPipeline == nil) {
+		cuts.lightingCount = 0; // no lights here: drawn unlit
+	}
 	while (snapshot < cuts.snapshotCount || lighting < cuts.lightingCount) {
 		BOOL lightingNext = lighting < cuts.lightingCount &&
 		                    (snapshot >= cuts.snapshotCount || cuts.lightings[lighting].at <= cuts.snapshots[snapshot].at);

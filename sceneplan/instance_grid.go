@@ -154,3 +154,12 @@ func packInstance(instances *scene.Instances, instance int, destination []float3
 	}
 	copy(destination[16:20], color[:])
 }
+
+// bounds is the box round all the grid's instances.
+func (grid *instanceGrid) bounds() box {
+	all := emptyBox()
+	for _, cell := range grid.cells {
+		all.merge(cell.bounds)
+	}
+	return all
+}

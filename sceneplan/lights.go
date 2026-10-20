@@ -1,6 +1,8 @@
 package sceneplan
 
 import (
+	"slices"
+
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/scene"
 )
@@ -47,19 +49,21 @@ func (planner *Planner) prepareLights(world *scene.Scene) []FrameLight {
 	return lights
 }
 
-// nearestLights chooses the lights nearest a box of the world, nearest first: only those that
-// reach it, when reaching.
-func nearestLights(lights []FrameLight, bounds box, reaching bool) DrawLights {
+// nearestLights chooses the lights that reach a box of the world, the nearest when more do, and
+// lists them by their index in the frame: a draw lit by the same lights lists them the same way
+// however they move, so the 3DS, which keys its bakes on them, does not bake again for an order.
+func nearestLights(lights []FrameLight, bounds box) DrawLights {
 	var chosen DrawLights
 	var distances [MaxLightsPerDraw]float32
 	for index := range lights {
 		light := &lights[index]
 		distance := bounds.squaredDistanceTo(light.Position)
-		if light.Outer <= 0 || reaching && distance >= light.Outer*light.Outer {
+		if light.Outer <= 0 || distance >= light.Outer*light.Outer {
 			continue
 		}
 		chosen.insert(uint16(index), distance, &distances)
 	}
+	slices.Sort(chosen.Indices[:chosen.Count])
 	return chosen
 }
 
@@ -91,16 +95,14 @@ func (bounds box) squaredDistanceTo(point graphics.Vec4) float32 {
 }
 
 // lightsOfNode chooses the lights a node's mesh takes: those that reach its box, nearest first.
-// Instances are spread over the scene, too far apart for one box: they take the lights nearest
-// the camera, where they are seen best.
+// Instances are measured by the box round all of them.
 func (planner *Planner) lightsOfNode(node *scene.Node, transform graphics.Mat4) DrawLights {
 	if len(planner.lights) == 0 {
 		return DrawLights{}
 	}
+	bounds := planner.boundsOf(node.Mesh)
 	if node.Instances != nil {
-		camera := planner.walkCamera.Position
-		return nearestLights(planner.lights, box{minimum: camera, maximum: camera}, false)
+		bounds = planner.instancedDetailFor(node).grid.bounds()
 	}
-	bounds := planner.boundsOf(node.Mesh).transformed(transform, planner.verticalScale)
-	return nearestLights(planner.lights, bounds, true)
+	return nearestLights(planner.lights, bounds.transformed(transform, planner.verticalScale))
 }
