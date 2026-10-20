@@ -183,9 +183,9 @@ func (list *List) Backdrop(area Rect, radius, blur float32) {
 // Light, in a list, is drawn as Unity draws 2D lights: the lights are added up into a picture of
 // light that starts at an ambient colour, which then multiplies everything drawn before it. Lights
 // do nothing until a Lighting comes after them; each Lighting takes the lights since the last one.
-// A colour's alpha is a light's intensity, up to 2: light can brighten what it falls on up to
-// twice, and an ambient of half (0.5) leaves it as it is. A backend that cannot light leaves
-// lights out, and draws the scene unlit.
+// A colour's alpha is a light's intensity, up to 2: a white ambient at 1 leaves what it lights as
+// it is, less darkens it, and light can brighten what it falls on up to twice. A backend that
+// cannot light leaves lights out, and draws the scene unlit.
 
 // PointLight adds a disc of light round a point (x, y): full inside inner, fading to nothing at
 // outer, in layout pixels, of a colour whose alpha is its intensity.

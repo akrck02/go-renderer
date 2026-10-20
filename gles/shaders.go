@@ -284,6 +284,7 @@ varying vec2 coordinate;
 uniform sampler2D light;
 
 void main() {
-    gl_FragColor = vec4(texture2D(light, coordinate).rgb, 1.0);
+    float noise = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5; // breaks the bands of a dark fade
+    gl_FragColor = vec4(texture2D(light, coordinate).rgb + noise / 255.0, 1.0);
 }
 `

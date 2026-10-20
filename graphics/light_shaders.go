@@ -77,7 +77,9 @@ void main() {
 `
 
 // LightMultiplyShader reads the picture of light over the area lit (drawn with
-// LightAreaVertexShader). The blend multiplies the frame by it twice over.
+// LightAreaVertexShader). The blend multiplies the frame by it twice over. Light is kept at half
+// in bytes, so a dark ambient leaves few steps for a fade: a noise of half a step, different at
+// every pixel, breaks the bands they would draw.
 const LightMultiplyShader = `
 #version 410
 in vec2 coordinate;
@@ -85,7 +87,8 @@ uniform sampler2D light;
 out vec4 fragmentColor;
 
 void main() {
-    fragmentColor = vec4(texture(light, coordinate).rgb, 1.0);
+    float noise = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+    fragmentColor = vec4(texture(light, coordinate).rgb + noise / 255.0, 1.0);
 }
 `
 
