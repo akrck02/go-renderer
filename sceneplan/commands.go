@@ -17,6 +17,9 @@ type Command struct {
 	SquaredCameraDistance float32
 	Transparent           bool
 	SeaSurface            bool // the environment's water plane: the only surface the level variation moves
+	// Lights are the frame's point lights this draw takes (see Frame.Lights); none for the sea,
+	// whose look is its own.
+	Lights DrawLights
 }
 
 // CameraMatrices are the matrices of one frame, in OpenGL's clip space (depth from -1 to 1); a
@@ -87,6 +90,7 @@ func (planner *Planner) collectNode(node *scene.Node, transform graphics.Mat4) {
 	planner.commands = append(planner.commands, Command{
 		Node: node, World: transform, Material: material, Transparent: IsTransparent(material),
 		SquaredCameraDistance: squaredHorizontalDistance(transform.Apply(graphics.Vec4{0, 0, 0, 1}), planner.walkCamera.Position),
+		Lights:                planner.lightsOfNode(node, transform),
 	})
 }
 

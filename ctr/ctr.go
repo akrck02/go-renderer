@@ -187,6 +187,9 @@ type Screen struct {
 	target *C.C3D_RenderTarget
 	right  *C.C3D_RenderTarget // made the first time a frame is drawn in 3D
 	stereo bool                // the screen shows two pictures
+	// drawing is the picture the draws go to now: the one picture, or an eye's; a pass that drew
+	// elsewhere (the 2D lights) comes back to it
+	drawing *C.C3D_RenderTarget
 }
 
 // Open starts the graphics system and prepares the top screen for drawing.
@@ -233,6 +236,7 @@ func (screen *Screen) BeginFrame(clearColour uint32) {
 func (screen *Screen) Clear(clearColour uint32) {
 	screen.setStereo(false)
 	C.clearOn(screen.target, C.u32(clearColour))
+	screen.drawing = screen.target
 }
 
 // BeginStereoFrame is BeginFrame for a picture for each eye; DrawOn chooses the one drawn next.
@@ -254,16 +258,24 @@ func (screen *Screen) ClearStereo(clearColour uint32) bool {
 	screen.setStereo(true)
 	C.clearOn(screen.right, C.u32(clearColour))
 	C.clearOn(screen.target, C.u32(clearColour))
+	screen.drawing = screen.target
 	return true
 }
 
 // DrawOn makes the next draws go to one eye's picture, in a stereo frame.
 func (screen *Screen) DrawOn(eye Eye) {
+	screen.drawing = screen.target
 	if eye == RightEye && screen.right != nil {
-		C.drawOn(screen.right)
-		return
+		screen.drawing = screen.right
 	}
-	C.drawOn(screen.target)
+	C.drawOn(screen.drawing)
+}
+
+// resume makes the next draws go back to the picture they went to before a pass drew elsewhere.
+func (screen *Screen) resume() {
+	if screen.drawing != nil {
+		C.drawOn(screen.drawing)
+	}
 }
 
 func (screen *Screen) setStereo(stereo bool) {

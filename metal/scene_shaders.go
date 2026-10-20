@@ -94,11 +94,13 @@ struct DrawUniforms {
     int foliage;                    // 1: the material takes the season's foliage tint
     int levelVariationEnabled;
     int seaSurface;                 // 1 for the environment's sea; rivers and lakes keep their own colour
-    int unused0;
+    int lightCount;                 // the point lights this draw takes, up to four (sceneplan.MaxLightsPerDraw)
     int unused1;
     int unused2;
+    float4 lightPositions[4];       // xyz: where, w: the outer radius
+    float4 lightColors[4];          // rgb: linear colour times intensity, w: the inner radius
 };
-static_assert(sizeof(DrawUniforms) == 128, "DrawUniforms must be 128 bytes, as the Go side writes it");
+static_assert(sizeof(DrawUniforms) == 256, "DrawUniforms must be 256 bytes, as the Go side writes it");
 
 struct SkyUniforms {
     float4x4 inverseViewProjection; // OpenGL convention
@@ -456,6 +458,19 @@ float patternFactor(float3 normal, float3 worldPosition, constant DrawUniforms &
     return mix(1.0, factor, strength);
 }
 
+// lampLight is the light the draw's point lights bring to a surface, as the OpenGL scene shader's.
+float3 lampLight(float3 surface, float3 worldPosition, constant DrawUniforms &draw) {
+    float3 total = float3(0.0);
+    for (int index = 0; index < 4; index++) {
+        if (index >= draw.lightCount) break;
+        float3 towardsLight = draw.lightPositions[index].xyz - worldPosition;
+        float away = length(towardsLight); // not "distance": that would hide the function of that name
+        float fade = 1.0 - smoothstep(draw.lightColors[index].w, draw.lightPositions[index].w, away);
+        total += draw.lightColors[index].rgb * fade * max(dot(surface, towardsLight / max(away, 0.0001)), 0.0);
+    }
+    return total;
+}
+
 float3 shadeLit(float3 color, SceneVaryings input, bool frontFacing,
                 constant FrameUniforms &frame, constant DrawUniforms &draw, depth2d<float> shadowMap) {
     float3 normal = normalize(input.worldNormal);
@@ -470,7 +485,7 @@ float3 shadeLit(float3 color, SceneVaryings input, bool frontFacing,
     // a soft sheen on stone, tiles and wood under the sun
     float3 towardsCamera = normalize(frame.cameraPosition.xyz - input.worldPosition);
     float sheen = draw.pattern > 0 ? pow(max(dot(normalize(towardsSun + towardsCamera), surface), 0.0), 24.0) * 0.12 * shadowed : 0.0;
-    return color * (skylight + frame.sunColor.xyz * sunlight) + frame.sunColor.xyz * sheen;
+    return color * (skylight + frame.sunColor.xyz * sunlight + lampLight(surface, input.worldPosition, draw)) + frame.sunColor.xyz * sheen;
 }
 
 float3 waterNormal(float3 worldPosition, constant FrameUniforms &frame) {

@@ -8,6 +8,7 @@ import (
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/opengl/overlay"
+	"github.com/akrck02/go-renderer/scene"
 	"github.com/akrck02/go-renderer/scene/sample"
 )
 
@@ -16,6 +17,8 @@ func TestShadersAreOpenGLESTwo(t *testing.T) {
 		"quad vertex": quadVertexShader, "quad fragment": quadFragmentShader,
 		"scene vertex": sceneVertexShader, "scene fragment": sceneFragmentShader,
 		"backdrop vertex": backdropVertexShader, "backdrop fragment": backdropBlurShader,
+		"light vertex": lightVertexShader, "light fragment": lightFragmentShader, "light multiply fragment": lightMultiplyShader,
+		"light area vertex": lightAreaVertexShader,
 	} {
 		if !strings.HasPrefix(source, "#version 100\n") {
 			t.Errorf("%s shader does not start with the GLSL ES 1.00 version line", name)
@@ -284,5 +287,63 @@ func TestPanelsOfOneLayerShareOneSnapshot(t *testing.T) {
 	halvings := graphics.BackdropHalvings(24)
 	if len(fake.draws) != 1+halvings+2+1 {
 		t.Fatalf("got %d draws, wanted %d", len(fake.draws), 1+halvings+2+1)
+	}
+}
+
+func TestALightingAddsItsLightsAndMultipliesTheScreenInTwoDraws(t *testing.T) {
+	fake := newRecorder()
+	renderer, err := NewFlatRenderer(fake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var list draw2d.List
+	list.Rectangle(draw2d.Rect{Width: 800, Height: 600}, 0, draw2d.Hex("#808080"), draw2d.Transparent, 0)
+	list.PointLight(200, 200, 20, 80, draw2d.Hex("#ffeeaa"))
+	list.PointLight(600, 200, 20, 80, draw2d.Hex("#aaeeff"))
+	list.Lighting(draw2d.Color{0.6, 0.6, 0.8, 0.7})
+	list.Text("Score", 10, 30, 16, draw2d.Regular, draw2d.Hex("#ffffff"))
+	renderer.Draw(&list, draw2d.Hex("#202020"), 800, 600, 1)
+	// the ground; the two lights in one draw; the multiply over the screen; the text after
+	if len(fake.draws) != 4 {
+		t.Fatalf("got %d draws, wanted 4", len(fake.draws))
+	}
+	if lights := fake.draws[1].count; lights != 2*cornersPerQuad {
+		t.Errorf("the lights draw %d corners, wanted %d", lights, 2*cornersPerQuad)
+	}
+	if fake.snapshots != 0 {
+		t.Errorf("lights copy no frame, got %d copies", fake.snapshots)
+	}
+}
+
+func TestALightingWithNoLightsOnlyMultipliesTheAmbient(t *testing.T) {
+	fake := newRecorder()
+	renderer, err := NewFlatRenderer(fake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var list draw2d.List
+	list.Lighting(draw2d.Color{1, 1, 1, 0.5})
+	renderer.Draw(&list, draw2d.Hex("#202020"), 800, 600, 1)
+	if len(fake.draws) != 1 || fake.draws[0].count != len(cornerFloats)/2 {
+		t.Fatalf("got draws %+v, wanted only the multiply over the screen", fake.draws)
+	}
+}
+
+func TestADrawUnderALampGetsTheLampsUniforms(t *testing.T) {
+	fake := newRecorder()
+	renderer, err := NewSceneRenderer(fake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	world := scene.New()
+	world.Nodes = []*scene.Node{{Name: "crate", Mesh: &scene.Mesh{Positions: []float32{-1, 0, -1, 1, 0, -1, 0, 0, 1},
+		Normals: []float32{0, 1, 0, 0, 1, 0, 0, 1, 0}, Indices: []uint32{0, 1, 2}}}}
+	world.Lights = []scene.PointLight{{Position: graphics.Vec4{0, 1, 0, 1}, Color: graphics.Vec4{1, 1, 1, 1}, Outer: 3}}
+	camera := models.Camera{Position: graphics.Vec4{0, 5, 5, 1}, Up: graphics.Vec4{0, 1, 0, 0}, FieldOfView: 1, Near: 0.1, Far: 100}
+	renderer.Draw(world, camera, 640, 480)
+	for _, name := range []string{"lightCount", "lightPositions[0]", "lightColors[0]"} {
+		if _, asked := fake.uniforms[name]; !asked {
+			t.Errorf("the draw under the lamp never set %s", name)
+		}
 	}
 }

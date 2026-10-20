@@ -26,7 +26,8 @@ type SceneRenderer struct {
 	program      *program
 	quads        *quadPass
 	planner      *sceneplan.Planner
-	attributesOn bool // the vertex attributes were switched on in the context
+	attributesOn bool                   // the vertex attributes were switched on in the context
+	frameLights  []sceneplan.FrameLight // the frame's point lights, which each draw takes a few of
 }
 
 // NewSceneRenderer compiles the shaders and prepares the overlay's atlas.
@@ -48,6 +49,7 @@ func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, wi
 	frame := renderer.planner.Plan(world, camera, width, height, sceneplan.ShadowSettings{})
 	renderer.clear(frame.Light, width, height)
 	renderer.setFrameUniforms(world.Environment, frame.Light, camera, frame.Matrices)
+	renderer.frameLights = frame.Lights
 	renderer.drawCommands(frame.Opaque, frame.View)
 	renderer.drawCommands(frame.Transparent, frame.View)
 	scale := renderer.OverlayScale
@@ -111,6 +113,7 @@ func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view scene
 	program := renderer.program
 	program.setVector4("baseColor", sceneplan.BaseColorOf(command.Material))
 	program.setInteger("kind", int32(command.Material.Kind))
+	renderer.setDrawLights(command.Lights)
 	if command.Node.Instances != nil {
 		renderer.drawInstances(command, view)
 		return
