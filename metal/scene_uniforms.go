@@ -61,7 +61,10 @@ type drawUniforms struct {
 	foliage               int32
 	levelVariationEnabled int32
 	seaSurface            int32
-	unused                [3]int32
+	lightCount            int32 // the point lights this draw takes, up to sceneplan.MaxLightsPerDraw
+	unused                [2]int32
+	lightPositions        [sceneplan.MaxLightsPerDraw]graphics.Vec4 // xyz: where, w: the outer radius
+	lightColors           [sceneplan.MaxLightsPerDraw]graphics.Vec4 // rgb: linear colour times intensity, w: the inner radius
 }
 
 type skyUniforms struct {
@@ -170,12 +173,19 @@ func seabedPassUniforms(region sceneplan.SeabedRegion) frameUniforms {
 }
 
 // drawUniformsFor fills a draw of a command's material, as the OpenGL renderer's drawNode does.
-func drawUniformsFor(command sceneplan.Command, levelVariationActive bool) drawUniforms {
+func drawUniformsFor(command sceneplan.Command, levelVariationActive bool, frameLights []sceneplan.FrameLight) drawUniforms {
 	material := command.Material
-	return drawUniforms{model: command.World, baseColor: sceneplan.BaseColorOf(material),
+	uniforms := drawUniforms{model: command.World, baseColor: sceneplan.BaseColorOf(material),
 		sway: material.Sway, depthBias: material.DepthBias, patternScale: material.PatternScale,
 		kind: int32(material.Kind), pattern: int32(material.Pattern), foliage: boolean(material.Foliage),
 		levelVariationEnabled: boolean(command.SeaSurface && levelVariationActive), seaSurface: boolean(command.SeaSurface)}
+	uniforms.lightCount = int32(command.Lights.Count)
+	for slot, index := range command.Lights.Indices[:command.Lights.Count] {
+		light := &frameLights[index]
+		uniforms.lightPositions[slot] = graphics.Vec4{light.Position[0], light.Position[1], light.Position[2], light.Outer}
+		uniforms.lightColors[slot] = graphics.Vec4{light.Color[0], light.Color[1], light.Color[2], light.Inner}
+	}
+	return uniforms
 }
 
 // skyUniformsFor fills the sky dome's, as the OpenGL sky renderer does.

@@ -30,6 +30,8 @@ type FlatRenderer struct {
 	atlasVersion int
 	instances    []instance
 	snapshots    []snapshot // where the frame is blurred for the backdrops after it
+	lights       []light    // the frame's 2D lights
+	lightings    []lighting // where the frame is lit by them
 	// capturing draws frames into an off-screen picture (captured) instead of the window.
 	capturing bool
 	captured  *image.NRGBA
@@ -65,13 +67,17 @@ func (renderer *FlatRenderer) Draw(list *draw2d.List, background draw2d.Color, w
 	renderer.uploadPictures()
 	renderer.instances = packInstances(quads, renderer.instances, true)
 	renderer.snapshots = packSnapshots(renderer.painter.Snapshots(), renderer.snapshots)
+	renderer.lights = packLights(renderer.painter.Lights(), renderer.lights)
+	renderer.lightings = packLightings(renderer.painter.Lightings(), renderer.lightings)
 	colour := [4]C.float{C.float(background[0]), C.float(background[1]), C.float(background[2]), 1}
 	if renderer.capturing {
 		renderer.capture(&colour[0], width, height)
 		return
 	}
 	C.flatRendererDraw(renderer.handle, renderer.instancePointer(), C.int(len(renderer.instances)),
-		renderer.snapshotPointer(), C.int(len(renderer.snapshots)), &colour[0], C.int(width), C.int(height))
+		renderer.snapshotPointer(), C.int(len(renderer.snapshots)),
+		renderer.lightPointer(), C.int(len(renderer.lights)), renderer.lightingPointer(), C.int(len(renderer.lightings)),
+		&colour[0], C.int(width), C.int(height))
 }
 
 // Close lets go of the layer's GPU resources.
@@ -119,6 +125,20 @@ func (renderer *FlatRenderer) snapshotPointer() *C.flatSnapshot {
 	return (*C.flatSnapshot)(unsafe.Pointer(&renderer.snapshots[0]))
 }
 
+func (renderer *FlatRenderer) lightPointer() *C.flatLight {
+	if len(renderer.lights) == 0 {
+		return nil
+	}
+	return (*C.flatLight)(unsafe.Pointer(&renderer.lights[0]))
+}
+
+func (renderer *FlatRenderer) lightingPointer() *C.flatLighting {
+	if len(renderer.lightings) == 0 {
+		return nil
+	}
+	return (*C.flatLighting)(unsafe.Pointer(&renderer.lightings[0]))
+}
+
 func (renderer *FlatRenderer) instancePointer() *C.flatInstance {
 	if len(renderer.instances) == 0 {
 		return nil
@@ -130,8 +150,9 @@ func (renderer *FlatRenderer) instancePointer() *C.flatInstance {
 func (renderer *FlatRenderer) capture(background *C.float, width, height int) {
 	picture := image.NewNRGBA(image.Rect(0, 0, width, height))
 	C.flatRendererCapture(renderer.handle, renderer.instancePointer(), C.int(len(renderer.instances)),
-		renderer.snapshotPointer(), C.int(len(renderer.snapshots)), background,
-		C.int(width), C.int(height), (*C.uint8_t)(unsafe.Pointer(&picture.Pix[0])))
+		renderer.snapshotPointer(), C.int(len(renderer.snapshots)),
+		renderer.lightPointer(), C.int(len(renderer.lights)), renderer.lightingPointer(), C.int(len(renderer.lightings)),
+		background, C.int(width), C.int(height), (*C.uint8_t)(unsafe.Pointer(&picture.Pix[0])))
 	swapRedAndBlue(picture)
 	renderer.captured = picture
 }

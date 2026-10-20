@@ -6,6 +6,7 @@ import (
 
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/scene"
+	"github.com/akrck02/go-renderer/sceneplan"
 )
 
 func upwardLight() lightKey {
@@ -102,5 +103,41 @@ func TestBakingAgainReusesTheBuffer(t *testing.T) {
 	again := bakeVertices(first, mesh, key)
 	if &again[0] != &first[0] {
 		t.Fatal("a second bake of the same size should write into the same buffer")
+	}
+}
+
+// lampAbove is a white lamp at intensity 1, one unit over the origin, reaching three.
+func lampAbove() lampKey {
+	return lampKey{count: 1, model: graphics.Identity(), lights: [4]sceneplan.FrameLight{
+		{Position: graphics.Vec4{0, 1, 0, 1}, Color: graphics.Vec4{1, 1, 1, 1}, Inner: 0.5, Outer: 3},
+	}}
+}
+
+func TestALampLightsTheVerticesItReaches(t *testing.T) {
+	// two vertices facing up: one under the lamp, one out of its reach
+	mesh := &scene.Mesh{Positions: []float32{0, 0, 0, 10, 0, 0}, Normals: []float32{0, 1, 0, 0, 1, 0}}
+	key := bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vec4{0.5, 0.5, 0.5, 1}, kind: scene.KindLit, light: upwardLight()}
+	unlit := bakeVertices(nil, mesh, key)
+	key.lamps = lampAbove()
+	lit := bakeVertices(nil, mesh, key)
+	if under, before := bakedColour(lit, 0)[0], bakedColour(unlit, 0)[0]; under <= before+20 {
+		t.Errorf("under the lamp red went from %d to %d; wanted it much brighter", before, under)
+	}
+	if far, before := bakedColour(lit, 1)[0], bakedColour(unlit, 1)[0]; far != before {
+		t.Errorf("out of the lamp's reach red went from %d to %d", before, far)
+	}
+}
+
+func TestAMovingLampBakesAgainAndAStillOneDoesNot(t *testing.T) {
+	still, moved := lampAbove(), lampAbove()
+	if !still.closeTo(lampAbove()) {
+		t.Error("the same lamp would bake again")
+	}
+	moved.lights[0].Position[0] += 0.5
+	if still.closeTo(moved) {
+		t.Error("a lamp half a unit away would not bake again")
+	}
+	if still.closeTo(lampKey{}) {
+		t.Error("a lamp switched off would not bake again")
 	}
 }
