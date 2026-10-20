@@ -131,7 +131,23 @@ func TestTheEyesStandApartAlongTheCamerasRight(t *testing.T) {
 
 func TestTheLeastRecentlyDrawnVariantIsTheOneReplaced(t *testing.T) {
 	variants := []bakedVariant{{lastUsed: 9}, {lastUsed: 3}, {lastUsed: 7}, {lastUsed: 5}}
-	if got := leastRecentlyUsed(variants); got != 1 {
+	if got := placeFor(variants, false); got != 1 {
 		t.Fatalf("got %d, want 1", got)
+	}
+	if got := placeFor(variants[:3], false); got != -1 {
+		t.Fatalf("with room, got %d, want -1: a new one is added", got)
+	}
+}
+
+func TestBakesUnderLampsKeepAPlaceForEachNode(t *testing.T) {
+	variants := []bakedVariant{{lastUsed: 9}, {lastUsed: 3}, {lastUsed: 7}, {lastUsed: 5}}
+	for range 10 {
+		variants = append(variants, bakedVariant{key: bakeKey{lamps: lampKey{count: 1}}, lastUsed: 1})
+	}
+	if got := placeFor(variants, true); got != -1 {
+		t.Fatalf("the eleventh crate under a lamp replaces bake %d; wanted a place of its own", got)
+	}
+	if got := placeFor(variants, false); got != 1 {
+		t.Fatalf("a new turn replaces bake %d; wanted the oldest without lamps, 1", got)
 	}
 }

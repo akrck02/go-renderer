@@ -438,18 +438,6 @@ type bakedMesh struct {
 	lastDrawn int // the frame it was last drawn in
 }
 
-type bakedVariant struct {
-	key      bakeKey
-	onGPU    *meshOnGPU
-	lastUsed int // the frame it was last drawn in
-}
-
-// maximumBakedVariants is how many ways of turning one mesh are kept baked. A mesh drawn by a
-// few nodes turned differently (the same tree, rotated) keeps one for each; a node that turns all
-// the time without being marked Moving would otherwise leave a new one behind every frame, and
-// fill linear memory. Past this, the least recently drawn one is baked again for the new turn.
-const maximumBakedVariants = 4
-
 // bakedFor returns the mesh baked for key, baking it when it is new, Dirty, or lit differently.
 func (renderer *SceneRenderer) bakedFor(mesh *scene.Mesh, key bakeKey) *meshOnGPU {
 	baked := renderer.bakedMeshes[mesh]
@@ -480,25 +468,15 @@ func (renderer *SceneRenderer) bakedFor(mesh *scene.Mesh, key bakeKey) *meshOnGP
 		return variant.onGPU
 	}
 	onGPU := renderer.uploadBaked(mesh, key)
-	if len(baked.variants) < maximumBakedVariants {
-		baked.variants = append(baked.variants, bakedVariant{key: key, onGPU: onGPU, lastUsed: renderer.frames})
+	fresh := bakedVariant{key: key, onGPU: onGPU, lastUsed: renderer.frames}
+	place := placeFor(baked.variants, key.lamps.count > 0)
+	if place < 0 {
+		baked.variants = append(baked.variants, fresh)
 		return onGPU
 	}
-	oldest := leastRecentlyUsed(baked.variants)
-	baked.variants[oldest].onGPU.free()
-	baked.variants[oldest] = bakedVariant{key: key, onGPU: onGPU, lastUsed: renderer.frames}
+	baked.variants[place].onGPU.free()
+	baked.variants[place] = fresh
 	return onGPU
-}
-
-// leastRecentlyUsed is the index of the variant drawn longest ago.
-func leastRecentlyUsed(variants []bakedVariant) int {
-	oldest := 0
-	for index, variant := range variants {
-		if variant.lastUsed < variants[oldest].lastUsed {
-			oldest = index
-		}
-	}
-	return oldest
 }
 
 // uploadBaked bakes a mesh's light and copies it to linear memory, through the renderer's own
@@ -507,16 +485,6 @@ func (renderer *SceneRenderer) uploadBaked(mesh *scene.Mesh, key bakeKey) *meshO
 	renderer.bakes++
 	renderer.vertexScratch = bakeVertices(renderer.vertexScratch, mesh, key)
 	return uploadPieces(renderer.vertexScratch, mesh.Indices, floatsPerBakedVertex, &renderer.indexScratch)
-}
-
-// meshOnGPU is a mesh in linear memory, in pieces of 16-bit indices.
-type meshOnGPU struct {
-	pieces []pieceOnGPU
-}
-
-type pieceOnGPU struct {
-	vertices, indices unsafe.Pointer
-	count             int
 }
 
 // shadedMesh is a mesh with its normals on the GPU, for the full shader.
