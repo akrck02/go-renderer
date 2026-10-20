@@ -153,8 +153,19 @@ func TestALightingUnderAClipLeavesTheRestOfTheFrame(test *testing.T) {
 	checkRedAt(test, "outside the clip", lightTestSide-8, lightTestSide/2, 128)
 }
 
-// openLightTestWindow opens a hidden window with an OpenGL context of a size, and its renderer.
+// openLightTestWindow opens a hidden window with an OpenGL context of a size, and a flat renderer.
 func openLightTestWindow(test testing.TB, width, height int) *FlatRenderer {
+	test.Helper()
+	openTestContext(test, width, height)
+	renderer, err := NewFlatRenderer()
+	if err != nil {
+		test.Fatal(err)
+	}
+	return renderer
+}
+
+// openTestContext opens a hidden window with an OpenGL context of a size, for the test's thread.
+func openTestContext(test testing.TB, width, height int) {
 	test.Helper()
 	if testing.Short() || os.Getenv("DISPLAY") == "" && runtime.GOOS == "linux" {
 		test.Skip("needs a display")
@@ -178,11 +189,6 @@ func openLightTestWindow(test testing.TB, width, height int) *FlatRenderer {
 	if err := gl.Init(); err != nil {
 		test.Fatal(err)
 	}
-	renderer, err := NewFlatRenderer()
-	if err != nil {
-		test.Fatal(err)
-	}
-	return renderer
 }
 
 // checkRed reads the red of the pixel at (at, at) in the back buffer, within a rounding's step.
@@ -191,13 +197,18 @@ func checkRed(test *testing.T, name string, at int, wanted uint8) {
 	checkRedAt(test, name, at, at, wanted)
 }
 
+// glFinishAndRead waits for the GPU and reads the pixel at (x, y), counted from the bottom-left.
+func glFinishAndRead(x, y int, pixel *[4]uint8) {
+	gl.Finish()
+	gl.ReadPixels(int32(x), int32(y), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(&pixel[0]))
+}
+
 // checkRedAt reads the red of the pixel at (x, y), counted from the bottom-left as OpenGL does.
 func checkRedAt(test *testing.T, name string, x, y int, wanted uint8) {
 	test.Helper()
 	const rounding = 2
 	var pixel [4]uint8
-	gl.Finish()
-	gl.ReadPixels(int32(x), int32(y), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(&pixel[0]))
+	glFinishAndRead(x, y, &pixel)
 	if difference := int(pixel[0]) - int(wanted); difference > rounding || difference < -rounding {
 		test.Errorf("%s: red is %d, wanted %d", name, pixel[0], wanted)
 	}

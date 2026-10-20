@@ -128,13 +128,29 @@ uniform float ambient;
 uniform float brightness;
 uniform vec3 fogColor;
 uniform vec2 fogRange;
+uniform int lightCount;            // the point lights this draw takes, up to four
+uniform vec4 lightPositions[4];    // xyz: where, w: the outer radius
+uniform vec4 lightColors[4];       // rgb: linear colour times intensity, w: the inner radius
+
+// lampLight is what the draw's point lights bring, as graphics.SceneFragmentShader's.
+vec3 lampLight(vec3 normal) {
+    vec3 total = vec3(0.0);
+    for (int index = 0; index < 4; index++) {
+        if (index >= lightCount) break;
+        vec3 towardsLight = lightPositions[index].xyz - worldPosition;
+        float distance = length(towardsLight);
+        float fade = 1.0 - smoothstep(lightColors[index].w, lightPositions[index].w, distance);
+        total += lightColors[index].rgb * fade * max(dot(normal, towardsLight / max(distance, 1e-4)), 0.0);
+    }
+    return total;
+}
 
 vec3 shadeLit(vec3 color) {
     vec3 normal = normalize(worldNormal);
     if (!gl_FrontFacing) normal = -normal;
     float sunlight = max(dot(normal, normalize(sunDirection)), 0.0);
     vec3 skylight = mix(groundColor, skyColor, normal.y * 0.5 + 0.5) * ambient;
-    return color * (skylight + sunColor * sunlight);
+    return color * (skylight + sunColor * sunlight + lampLight(normal));
 }
 
 // shadeWater gives the surface a sky reflection that grows at grazing angles, over its own colour.
