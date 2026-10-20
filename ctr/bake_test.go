@@ -141,3 +141,42 @@ func TestAMovingLampBakesAgainAndAStillOneDoesNot(t *testing.T) {
 		t.Error("a lamp switched off would not bake again")
 	}
 }
+
+// shaderLampLight is scene.v.pica's lamp light, step by step, from the uniforms it reads.
+func shaderLampLight(uniforms lampUniforms, world, normal graphics.Vec4) graphics.Vec4 {
+	var total graphics.Vec4
+	for slot := range uniforms.positions {
+		position, colour := uniforms.positions[slot], uniforms.colours[slot]
+		towards := graphics.Vec4{position[0] - world[0], position[1] - world[1], position[2] - world[2], 0}
+		distance := float32(math.Sqrt(float64(max(towards.Dot(towards), 1e-5))))
+		facing := max(normal.Dot(towards)/distance, 0)
+		share := min(max((distance-position[3])*colour[3], 0), 1)
+		fade := 1 - share*share*(3-2*share)
+		for channel := range 3 {
+			total[channel] += colour[channel] * facing * fade
+		}
+	}
+	return total
+}
+
+func TestAMovingNodeIsLitOnTheGPUAsABakedOneIs(t *testing.T) {
+	lamps := lampAbove()
+	lamps.lights[1] = sceneplan.FrameLight{Position: graphics.Vec4{2, 0.5, 0, 1}, Color: graphics.Vec4{0, 0.5, 1, 1}, Inner: 0, Outer: 4}
+	lamps.count = 2
+	frameLights := lamps.lights[:2]
+	uniforms := lampUniformsOf(sceneplan.DrawLights{Indices: [4]uint16{0, 1}, Count: 2}, frameLights)
+	up := graphics.Vec4{0, 1, 0, 0}
+	for _, position := range [][]float32{{0, 0, 0}, {1, 0, 0}, {2.5, 0, 0}, {10, 0, 0}} {
+		baked := lamps.lightAt(position, up, 1)
+		shaded := shaderLampLight(uniforms, graphics.Vec4{position[0], position[1], position[2], 1}, up)
+		for channel := range 3 {
+			if math.Abs(float64(baked[channel]-shaded[channel])) > 1e-4 {
+				t.Errorf("at %v the GPU's lamps give %v, the bake %v", position, shaded, baked)
+				break
+			}
+		}
+	}
+	if uniforms.colours[2] != (graphics.Vec4{}) {
+		t.Errorf("an unused lamp's colour is %v, wanted none", uniforms.colours[2])
+	}
+}

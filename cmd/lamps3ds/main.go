@@ -3,7 +3,8 @@
 // Three lamps over a floor at night on the Nintendo 3DS: an orange, a blue and a green point light
 // beside three grey cubes. The 3DS bakes their light into the meshes' colours with the sun's, so
 // the lamps cost nothing a frame while they stand still; the blue one moves when A is held, to
-// show what baking again costs.
+// show what baking again costs. The middle cube turns, marked Moving, so it is lit on the GPU
+// every frame instead, lamps and all.
 //
 //	tinygo build -target=nintendo3ds -o lamps3ds.3dsx ./cmd/lamps3ds
 package main
@@ -17,6 +18,9 @@ import (
 
 // lampStep is how far the blue lamp moves each frame A is held, in world units.
 const lampStep = 0.05
+
+// turnStep is how far the middle cube turns each frame, in radians.
+const turnStep = 0.02
 
 // The floor is twenty units across in cells of half a unit: the 3DS lights by vertex, so a lamp's
 // pool of light shows on a floor only where it has vertices to light.
@@ -64,6 +68,8 @@ func main() {
 		if reading.Held&ctr.ButtonA != 0 {
 			world.Lights[1].Position[0] = wrapped(world.Lights[1].Position[0] + lampStep)
 		}
+		turning := world.Nodes[2]
+		turning.Transform = graphics.Translate(graphics.Vec4{0, 0.5, -1, 0}).Multiply(graphics.RotateY(float64(frame) * turnStep))
 		renderer.Draw(world, camera)
 		if frame%60 == 0 {
 			println("bakes so far:", renderer.Bakes())
@@ -109,7 +115,7 @@ func lampWorld() (*scene.Scene, models.Camera) {
 	for index, x := range []float32{-3, 0, 3} {
 		cube := cubeMesh(graphics.Vec4{0.8, 0.8, 0.8, 1})
 		world.Nodes = append(world.Nodes, &scene.Node{Name: "cube" + string(rune('a'+index)), Mesh: cube,
-			Transform: graphics.Translate(graphics.Vec4{x, 0.5, -1, 0})})
+			Transform: graphics.Translate(graphics.Vec4{x, 0.5, -1, 0}), Moving: x == 0})
 	}
 	{
 		world.Lights = []scene.PointLight{

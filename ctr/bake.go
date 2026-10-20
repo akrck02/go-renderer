@@ -45,6 +45,28 @@ func lampKeyOf(lights sceneplan.DrawLights, frameLights []sceneplan.FrameLight, 
 	return key
 }
 
+// lampUniforms are the lamps a draw takes as scene.v.pica reads them, for a node lit on the GPU
+// (a moving one): each position with its inner radius in w, and each colour with one over the
+// width of its fade in w. A lamp the draw does not take has no colour, so it adds nothing.
+type lampUniforms struct {
+	positions, colours [sceneplan.MaxLightsPerDraw]graphics.Vec4
+}
+
+// smallestFadeWidth keeps a lamp's fade from dividing by zero; sceneplan already keeps the inner
+// radius below the outer one.
+const smallestFadeWidth = 1e-4
+
+func lampUniformsOf(lights sceneplan.DrawLights, frameLights []sceneplan.FrameLight) lampUniforms {
+	var uniforms lampUniforms
+	for slot, index := range lights.Indices[:lights.Count] {
+		light := &frameLights[index]
+		uniforms.positions[slot] = graphics.Vec4{light.Position[0], light.Position[1], light.Position[2], light.Inner}
+		fadeWidth := max(light.Outer-light.Inner, smallestFadeWidth)
+		uniforms.colours[slot] = graphics.Vec4{light.Color[0], light.Color[1], light.Color[2], 1 / fadeWidth}
+	}
+	return uniforms
+}
+
 // closeTo tells whether two draws' lamps light alike: a lamp that moves by less than about a
 // colour step does not make its meshes bake again.
 func (lamps lampKey) closeTo(other lampKey) bool {
