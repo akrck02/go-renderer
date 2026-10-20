@@ -42,6 +42,29 @@ type Snapshot struct {
 	Blur float32
 }
 
+// LightQuad is a light laid out: a square of the screen it shines on, its colour (alpha: its
+// intensity) and either a picture it shines through (Pictured), or a disc that is full inside Inner
+// (a share of the square's half side) and fades to nothing at its edge.
+type LightQuad struct {
+	Screen   [4]float32 // left, top, right, bottom on screen
+	Color    [4]float32
+	Picture  [4]float32 // where it reads its picture in the Pictures, when Pictured
+	Pictured bool
+	Inner    float32
+}
+
+// Lighting asks the backend, before it draws the quad at At, to light everything drawn so far:
+// the lights from First to Last (in Lights) are added over Ambient into a picture of light, which
+// then multiplies what is on screen. Light is kept at half (0.5 leaves a colour as it is), so it
+// can brighten up to twice.
+type Lighting struct {
+	At, First, Last int
+	Ambient         [4]float32
+	// Area is what it lights on screen (left, top, right, bottom): its list's clip, or the whole
+	// frame.
+	Area [4]float32
+}
+
 // Frame is what the layout needs to know about the frame being drawn.
 type Frame struct {
 	ViewProjection graphics.Mat4 // the camera's projection times its view
@@ -69,7 +92,11 @@ type Painter struct {
 	order         []int // the drawing's commands sorted by layer, reused every frame
 	shown         []*draw2d.Image
 	runes         []rune // a text's characters, reused: converting every text every frame is garbage
-	runs          []rune // a text's characters, reused: converting every text every frame is garbage
+
+	lights    []LightQuad // the lights laid out this frame, in order
+	lightings []Lighting  // where and how this frame's lights light what is under them
+	lit       int         // the first light the next lighting takes
+	frameArea [4]float32  // the whole frame on screen, what a lighting with no clip lights
 }
 
 // NewPainter parses the embedded fonts and prepares an empty atlas.
@@ -93,10 +120,12 @@ func (painter *Painter) Pictures() *Pictures { return painter.pictures }
 func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]graphics.Mat4, frame Frame) []Quad {
 	painter.quads, painter.occupied = painter.quads[:0], painter.occupied[:0]
 	painter.snapshots, painter.snapshotLayer = painter.snapshots[:0], noSnapshotLayer
+	painter.lights, painter.lightings, painter.lit = painter.lights[:0], painter.lightings[:0], 0
 	if overlay == nil || frame.Width <= 0 || frame.Height <= 0 {
 		return painter.quads
 	}
 	scale := frame.scale()
+	painter.frameArea = [4]float32{0, 0, float32(frame.Width), float32(frame.Height)}
 	bottom := painter.paintHeader(overlay.Header, scale)
 	painter.paintNotices(overlay.VisibleNotices(), bottom, scale)
 	painter.paintLabels(overlay.Labels, anchors, frame)
@@ -107,6 +136,13 @@ func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]gr
 // Snapshots lists where, in the quads Paint just gave, the backend takes and blurs a picture of the
 // frame so far; empty when nothing on screen is frosted, which then costs nothing.
 func (painter *Painter) Snapshots() []Snapshot { return painter.snapshots }
+
+// Lights are the lights Paint laid out, which the Lightings take in turn.
+func (painter *Painter) Lights() []LightQuad { return painter.lights }
+
+// Lightings list where, in the quads Paint just gave, the backend lights what it drew so far;
+// empty when nothing is lit, which then costs nothing.
+func (painter *Painter) Lightings() []Lighting { return painter.lightings }
 
 func (frame Frame) scale() float32 {
 	if frame.Scale <= 0 {

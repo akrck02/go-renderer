@@ -51,6 +51,8 @@ type quadPass struct {
 	// blur takes the backdrops' snapshots; made the first time a frame has one, and left with
 	// no program when its shaders cannot be made, so it is not tried again
 	blur *backdropBlur
+	// lights draws the 2D lights; made, as the blur, the first time a frame has them
+	lights *lightLayer
 }
 
 func newQuadPass(functions Functions) (*quadPass, error) {
@@ -126,22 +128,52 @@ func anchoredNodes(labels []*scene.Label) map[*scene.Node]bool {
 }
 
 func (pass *quadPass) drawQuads(quads []overlay.Quad, width, height int) {
-	if len(quads) == 0 {
+	snapshots, lightings := pass.painter.Snapshots(), pass.painter.Lightings()
+	if len(quads) == 0 && len(lightings) == 0 {
 		return
 	}
 	pass.uploadAtlas()
 	pass.uploadPictures()
 	pass.fillVertices(quads)
-	// without backdrops this is one draw call; each snapshot cuts it in two around a blur
+	if len(lightings) > 0 && !pass.prepareLights() {
+		lightings = nil // no lights here: the frame is drawn unlit
+	}
+	// without backdrops nor lights this is one draw call; each snapshot or lighting cuts it in two
 	drawn := 0
-	for _, snapshot := range pass.painter.Snapshots() {
-		pass.drawVertices(drawn, snapshot.At, width, height)
-		if !pass.takeSnapshot(width, height, snapshot.Blur) {
-			break // no blur here: the backdrops show nothing, the panels over them stay
+	for len(snapshots) > 0 || len(lightings) > 0 {
+		if len(lightings) > 0 && (len(snapshots) == 0 || lightings[0].At <= snapshots[0].At) {
+			pass.drawVertices(drawn, lightings[0].At, width, height)
+			pass.lights.light(lightings[0], width, height, pass.picturesSize)
+			drawn, lightings = lightings[0].At, lightings[1:]
+			continue
 		}
-		drawn = snapshot.At
+		pass.drawVertices(drawn, snapshots[0].At, width, height)
+		drawn = snapshots[0].At
+		blurred := pass.takeSnapshot(width, height, snapshots[0].Blur)
+		snapshots = snapshots[1:]
+		if !blurred {
+			snapshots = nil // no blur here: the backdrops show nothing, the panels over them stay
+		}
 	}
 	pass.drawVertices(drawn, len(quads), width, height)
+}
+
+// prepareLights makes the light layer the first time a frame has lights and sends its vertices;
+// false when its shaders could not be made, which is then said once and not tried again.
+func (pass *quadPass) prepareLights() bool {
+	if pass.lights == nil {
+		lights, err := newLightLayer(pass.functions)
+		if err != nil {
+			log.Print("2D lights unavailable: ", err)
+			lights = &lightLayer{}
+		}
+		pass.lights = lights
+	}
+	if pass.lights.addProgram == nil {
+		return false
+	}
+	pass.lights.fillVertices(pass.painter.Lights())
+	return true
 }
 
 // takeSnapshot blurs the frame so far for the backdrops that follow; false when the blur's shaders

@@ -36,6 +36,7 @@ type Planner struct {
 	// reused from frame to frame, so planning makes no garbage: a frame's commands hold until
 	// the next Plan
 	commands   []Command
+	lights     []FrameLight
 	ground     []Command
 	opaque     []Command
 	walkCamera models.Camera
@@ -52,10 +53,11 @@ func NewPlanner(batches BatchStore) *Planner {
 type Frame struct {
 	Matrices    CameraMatrices
 	Light       scene.Daylight
-	View        Viewpoint // what the camera sees
-	Opaque      []Command // drawn first, in order
-	Transparent []Command // drawn after the sky, farthest first
-	Commands    []Command // all of them, opaque first
+	View        Viewpoint    // what the camera sees
+	Opaque      []Command    // drawn first, in order
+	Transparent []Command    // drawn after the sky, farthest first
+	Commands    []Command    // all of them, opaque first
+	Lights      []FrameLight // the scene's point lights; each command says which it takes
 	Shadow      ShadowPlan
 	Seabed      SeabedPlan
 }
@@ -74,6 +76,7 @@ func (planner *Planner) Plan(world *scene.Scene, camera models.Camera, width, he
 	planner.counters = [passCount]counter{}
 	frame := Frame{Matrices: ComputeCameraMatrices(camera, width, height), Light: world.Environment.Daylight()}
 	frame.View = newViewpoint(frame.Matrices.ViewProjection, camera)
+	frame.Lights = planner.prepareLights(world)
 	frame.Commands = planner.collectCommands(world, camera)
 	sortOpaqueBeforeTransparent(frame.Commands)
 	frame.Opaque, frame.Transparent = splitOpaqueAndTransparent(frame.Commands)

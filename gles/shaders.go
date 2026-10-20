@@ -128,13 +128,29 @@ uniform float ambient;
 uniform float brightness;
 uniform vec3 fogColor;
 uniform vec2 fogRange;
+uniform int lightCount;            // the point lights this draw takes, up to four
+uniform vec4 lightPositions[4];    // xyz: where, w: the outer radius
+uniform vec4 lightColors[4];       // rgb: linear colour times intensity, w: the inner radius
+
+// lampLight is what the draw's point lights bring, as graphics.SceneFragmentShader's.
+vec3 lampLight(vec3 normal) {
+    vec3 total = vec3(0.0);
+    for (int index = 0; index < 4; index++) {
+        if (index >= lightCount) break;
+        vec3 towardsLight = lightPositions[index].xyz - worldPosition;
+        float distance = length(towardsLight);
+        float fade = 1.0 - smoothstep(lightColors[index].w, lightPositions[index].w, distance);
+        total += lightColors[index].rgb * fade * max(dot(normal, towardsLight / max(distance, 1e-4)), 0.0);
+    }
+    return total;
+}
 
 vec3 shadeLit(vec3 color) {
     vec3 normal = normalize(worldNormal);
     if (!gl_FrontFacing) normal = -normal;
     float sunlight = max(dot(normal, normalize(sunDirection)), 0.0);
     vec3 skylight = mix(groundColor, skyColor, normal.y * 0.5 + 0.5) * ambient;
-    return color * (skylight + sunColor * sunlight);
+    return color * (skylight + sunColor * sunlight + lampLight(normal));
 }
 
 // shadeWater gives the surface a sky reflection that grows at grazing angles, over its own colour.
@@ -192,5 +208,83 @@ void main() {
         sum += texture2D(source, coordinate - step * float(tap)) * weights[tap];
     }
     gl_FragColor = sum;
+}
+`
+
+// lightAttributes are what the lights' program reads, by index.
+var lightAttributes = []string{"screenPosition", "cornerPosition", "lightColor", "picturePosition", "innerShare"}
+
+// lightVertexShader places a light's square, given in screen pixels from the top-left corner, as
+// graphics.LightVertexShader does.
+const lightVertexShader = `#version 100
+attribute vec2 screenPosition;
+attribute vec2 cornerPosition;
+attribute vec4 lightColor;
+attribute vec2 picturePosition;
+attribute float innerShare;
+uniform vec2 screenSize;
+uniform vec2 picturesSize;
+varying vec2 offset;
+varying vec4 color;
+varying vec2 pictureCoordinate;
+varying float inner;
+
+void main() {
+    vec2 normalized = screenPosition / screenSize;
+    gl_Position = vec4(normalized.x * 2.0 - 1.0, 1.0 - normalized.y * 2.0, 0.0, 1.0);
+    offset = cornerPosition;
+    color = lightColor;
+    pictureCoordinate = picturePosition.x < 0.0 ? vec2(-1.0) : picturePosition / picturesSize;
+    inner = innerShare;
+}
+`
+
+// lightFragmentShader is how much light a light adds, at half, as graphics.LightFragmentShader.
+const lightFragmentShader = `#version 100
+precision mediump float;
+varying vec2 offset;
+varying vec4 color;
+varying vec2 pictureCoordinate;
+varying float inner;
+uniform sampler2D pictures;
+
+void main() {
+    vec3 shape;
+    if (pictureCoordinate.x >= 0.0) {
+        vec4 picture = texture2D(pictures, pictureCoordinate);
+        shape = picture.rgb * picture.a;
+    } else {
+        shape = vec3(1.0 - smoothstep(min(inner, 0.999), 1.0, length(offset)));
+    }
+    gl_FragColor = vec4(color.rgb * color.a * shape * 0.5, 1.0);
+}
+`
+
+// lightAreaVertexShader stretches the corners (from 0 to 1) over the area a lighting lights, in
+// screen pixels from the top-left corner (left, top, right, bottom), and passes on where the
+// picture of light is read there.
+const lightAreaVertexShader = `#version 100
+attribute vec2 corner;
+uniform vec4 area;
+uniform vec2 screenSize;
+varying vec2 coordinate;
+
+void main() {
+    vec2 normalized = mix(area.xy, area.zw, corner) / screenSize;
+    coordinate = vec2(normalized.x, 1.0 - normalized.y);
+    gl_Position = vec4(normalized.x * 2.0 - 1.0, 1.0 - normalized.y * 2.0, 0.0, 1.0);
+}
+`
+
+// lightMultiplyShader reads the picture of light over the area lit (drawn with
+// lightAreaVertexShader); the blend multiplies the frame by it twice over.
+const lightMultiplyShader = `#version 100
+precision mediump float;
+varying vec2 coordinate;
+uniform sampler2D light;
+
+void main() {
+    float noise = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5; // breaks the bands of a dark fade
+    gl_FragColor = vec4(texture2D(light, coordinate).rgb + noise / 255.0, 1.0);
 }
 `

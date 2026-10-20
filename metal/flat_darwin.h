@@ -23,6 +23,29 @@ typedef struct {
 	float weights[5];
 } flatSnapshot;
 
+// flatLight is one of the overlay's 2D lights (see overlay.LightQuad): where it is on screen, its
+// colour (alpha: its intensity), the picture it shines through (-1 for a point light, which is a
+// disc full within inner, a share of its half side) and inner. 64 bytes, as lights.go writes it.
+typedef struct {
+	float screen[4];
+	float color[4];
+	float picture[4];
+	float inner;
+	float unused[3];
+} flatLight;
+
+// flatLighting is one of the overlay's lightings (see overlay.Lighting): before the instance at,
+// the lights from first to last are added into a picture of light filled with ambient (at half,
+// already), which multiplies the area (left, top, right, bottom on screen). 48 bytes.
+typedef struct {
+	int32_t at;
+	int32_t first;
+	int32_t last;
+	int32_t unused;
+	float ambient[4];
+	float area[4];
+} flatLighting;
+
 // flatRendererCreate puts a Metal layer in the window's content view and prepares the pipeline.
 // It returns NULL and a message (to free) when Metal cannot start.
 void *flatRendererCreate(void *cocoaWindow, int vsync, char **failure);
@@ -38,12 +61,14 @@ void flatRendererUploadPictures(void *renderer, const uint8_t *pixels, int size,
                                 int height);
 
 // flatRendererDraw clears to the background, draws the instances, blurring the frame at each
-// snapshot for the backdrops after it, and shows the frame. It returns 0 when there was no
-// drawable to draw into (a hidden or zero-sized window).
+// snapshot for the backdrops after it and lighting it at each lighting, and shows the frame. It
+// returns 0 when there was no drawable to draw into (a hidden or zero-sized window).
 int flatRendererDraw(void *renderer, const flatInstance *instances, int count, const flatSnapshot *snapshots,
-                     int snapshotCount, const float background[4], int width, int height);
+                     int snapshotCount, const flatLight *lights, int lightCount, const flatLighting *lightings,
+                     int lightingCount, const float background[4], int width, int height);
 
 // flatRendererCapture draws the same frame into an off-screen texture and copies its pixels, BGRA,
 // width × height × 4 bytes, into pixels.
 void flatRendererCapture(void *renderer, const flatInstance *instances, int count, const flatSnapshot *snapshots,
-                         int snapshotCount, const float background[4], int width, int height, uint8_t *pixels);
+                         int snapshotCount, const flatLight *lights, int lightCount, const flatLighting *lightings,
+                         int lightingCount, const float background[4], int width, int height, uint8_t *pixels);

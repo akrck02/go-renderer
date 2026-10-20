@@ -100,8 +100,9 @@ var bakedShaderBinary []byte
 //
 // Lighting every vertex on the GPU was too slow (30 frames a second for the sample island on a
 // New 3DS XL), so meshes are drawn with their light worked out on the processor (bake.go) through
-// baked.v.pica. Only water, whose reflection depends on the camera, is shaded on the GPU, by
-// scene.v.pica.
+// baked.v.pica. Water, whose reflection depends on the camera, and moving nodes (scene.Node's
+// Moving), whose light changes as they turn, are shaded on the GPU by scene.v.pica: baking a ship
+// again each time it turned took most of a frame with a few dozen of them.
 type SceneRenderer struct {
 	screen      *Screen
 	water       *Shader
@@ -308,9 +309,11 @@ func (renderer *SceneRenderer) drawCommands(commands []sceneplan.Command, view s
 
 func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view sceneplan.Viewpoint) {
 	draw := renderer.drawBaked
-	if command.Material.Kind == scene.KindWater {
-		draw = renderer.drawWater
-		renderer.prepareWater(command)
+	if command.Material.Kind == scene.KindWater || command.Node.Moving {
+		// Water's light depends on the camera, and a moving node's on how it turns: both are lit
+		// on the GPU, from a copy of the mesh made once, instead of baked again and again.
+		draw = renderer.drawShaded
+		renderer.prepareShaded(command)
 	} else {
 		renderer.bind(renderer.baked)
 		SetMatrix(renderer.bakedPlaces.model, command.World)
@@ -361,8 +364,9 @@ type mergedForest struct {
 	lastDrawn int
 }
 
-// prepareWater binds the full shader and sets what one water command needs.
-func (renderer *SceneRenderer) prepareWater(command sceneplan.Command) {
+// prepareShaded binds the full shader and sets what one command it draws needs: water, or a
+// moving node's lit, flat or glowing mesh.
+func (renderer *SceneRenderer) prepareShaded(command sceneplan.Command) {
 	renderer.bind(renderer.water)
 	places := renderer.waterPlaces
 	setVector(places.baseColour, sceneplan.BaseColorOf(command.Material))
@@ -375,7 +379,7 @@ func (renderer *SceneRenderer) prepareWater(command sceneplan.Command) {
 	}
 }
 
-func (renderer *SceneRenderer) drawWater(command sceneplan.Command, mesh *scene.Mesh) {
+func (renderer *SceneRenderer) drawShaded(command sceneplan.Command, mesh *scene.Mesh) {
 	for _, piece := range renderer.uploadShaded(mesh).pieces {
 		C.drawSceneElements(piece.vertices, piece.indices, C.int(piece.count))
 	}
@@ -387,6 +391,7 @@ func (renderer *SceneRenderer) drawBaked(command sceneplan.Command, mesh *scene.
 		baseColour:   sceneplan.BaseColorOf(command.Material),
 		kind:         command.Material.Kind,
 		light:        renderer.light,
+		lamps:        lampKeyOf(command.Lights, renderer.frame.Lights, command.World),
 	}
 	for _, piece := range renderer.bakedFor(mesh, key).pieces {
 		C.drawBakedElements(piece.vertices, piece.indices, C.int(piece.count))
@@ -433,11 +438,6 @@ type bakedMesh struct {
 	lastDrawn int // the frame it was last drawn in
 }
 
-type bakedVariant struct {
-	key   bakeKey
-	onGPU *meshOnGPU
-}
-
 // bakedFor returns the mesh baked for key, baking it when it is new, Dirty, or lit differently.
 func (renderer *SceneRenderer) bakedFor(mesh *scene.Mesh, key bakeKey) *meshOnGPU {
 	baked := renderer.bakedMeshes[mesh]
@@ -455,18 +455,27 @@ func (renderer *SceneRenderer) bakedFor(mesh *scene.Mesh, key bakeKey) *meshOnGP
 	}
 	for index := range baked.variants {
 		variant := &baked.variants[index]
-		if variant.key.normalMatrix != key.normalMatrix || variant.key.baseColour != key.baseColour || variant.key.kind != key.kind {
-			continue
+		if variant.key.normalMatrix != key.normalMatrix || variant.key.baseColour != key.baseColour || variant.key.kind != key.kind ||
+			variant.key.lamps.model != key.lamps.model {
+			continue // a mesh drawn in two places under lamps is lit differently in each
 		}
-		if !variant.key.light.closeTo(key.light) {
+		if !variant.key.light.closeTo(key.light) || !variant.key.lamps.closeTo(key.lamps) {
 			variant.onGPU.free()
 			variant.onGPU = renderer.uploadBaked(mesh, key)
 			variant.key = key
 		}
+		variant.lastUsed = renderer.frames
 		return variant.onGPU
 	}
 	onGPU := renderer.uploadBaked(mesh, key)
-	baked.variants = append(baked.variants, bakedVariant{key: key, onGPU: onGPU})
+	fresh := bakedVariant{key: key, onGPU: onGPU, lastUsed: renderer.frames}
+	place := placeFor(baked.variants, key.lamps.count > 0)
+	if place < 0 {
+		baked.variants = append(baked.variants, fresh)
+		return onGPU
+	}
+	baked.variants[place].onGPU.free()
+	baked.variants[place] = fresh
 	return onGPU
 }
 
@@ -476,16 +485,6 @@ func (renderer *SceneRenderer) uploadBaked(mesh *scene.Mesh, key bakeKey) *meshO
 	renderer.bakes++
 	renderer.vertexScratch = bakeVertices(renderer.vertexScratch, mesh, key)
 	return uploadPieces(renderer.vertexScratch, mesh.Indices, floatsPerBakedVertex, &renderer.indexScratch)
-}
-
-// meshOnGPU is a mesh in linear memory, in pieces of 16-bit indices.
-type meshOnGPU struct {
-	pieces []pieceOnGPU
-}
-
-type pieceOnGPU struct {
-	vertices, indices unsafe.Pointer
-	count             int
 }
 
 // shadedMesh is a mesh with its normals on the GPU, for the full shader.

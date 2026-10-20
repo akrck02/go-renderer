@@ -30,6 +30,8 @@ type SceneRenderer struct {
 	shadow         *shadowMap
 	levelVariation *levelVariationTexture
 	seabed         *seabedMap
+	frameLights    []sceneplan.FrameLight                     // the frame's point lights, which each draw takes a few of
+	lightValues    [2][4 * sceneplan.MaxLightsPerDraw]float32 // the draw's lights as uniforms: positions, colours
 }
 
 // ShadowSettings controls the sun shadows (see sceneplan.ShadowSettings).
@@ -150,6 +152,7 @@ func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, wi
 	renderer.shadow.bindForLighting(renderer.sceneProgram, frame.Shadow.Region, shadowsReady)
 	renderer.seabed.bindForWater(renderer.sceneProgram, world.Environment.Water)
 	renderer.levelVariation.bind(renderer.sceneProgram, world.Environment.Water)
+	renderer.frameLights = frame.Lights
 	renderer.measurePass("scene", func() { renderer.executeDrawCommands(frame.Opaque, frame.View) })
 	renderer.measurePass("sky", func() { renderer.sky.draw(world.Environment, frame.Light, camera, frame.Matrices, seconds) })
 	renderer.measurePass("transparent", func() { renderer.executeDrawCommands(frame.Transparent, frame.View) })
@@ -288,6 +291,7 @@ func (renderer *SceneRenderer) drawNode(command sceneplan.Command, view scenepla
 	program.setFloat("patternScale", material.PatternScale)
 	program.setInteger("levelVariationEnabled", boolToInteger(command.SeaSurface && renderer.levelVariation.active))
 	program.setInteger("seaSurface", boolToInteger(command.SeaSurface))
+	renderer.setDrawLights(command.Lights)
 	renderer.drawGeometry(program, command, view, sceneplan.MainPass)
 }
 

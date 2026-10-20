@@ -23,6 +23,8 @@ plan, so both draw the same thing.
 | `func InterleaveVertices(mesh *scene.Mesh) []float32` | InterleaveVertices packs position, normal and colour per vertex (white when there are no colours), computing the normals first when the mesh has none. |
 | `func IsTransparent(material *scene.Material) bool` | IsTransparent tells whether a material is blended over what is behind it. |
 | `func LineColor(color graphics.Vec4) graphics.Vec4` | LineColor is the colour a constellation's lines are drawn with: its own, more transparent. |
+| `func MergeInstances(into, mesh *scene.Mesh, packed []float32, count int)` | MergeInstances fills into with count copies of mesh, each placed by its instance's matrix, its normals turned with it and its colours tinted by the instance's colour. |
+| `func NormalMatrix(model graphics.Mat4) [9]float32` | NormalMatrix is the inverse transpose of a model matrix's rotation and scale: what turns normals so they stay perpendicular to surfaces scaled differently along each axis. |
 | `func PackInstances(instances *scene.Instances) []float32` | PackInstances writes the matrix and the colour of every instance (white when missing). |
 | `func ScaleOrOne(value float32) float32` | ScaleOrOne returns the value, or 1 when it is not positive. |
 | `func ShallowColorOf(water *scene.Water) graphics.Vec4` | ShallowColorOf is the colour of shallow water, with a default when it is unset. |
@@ -42,6 +44,12 @@ const FloatsPerVertex = 10
 ```
 
 FloatsPerVertex is the size of a vertex on the GPU: position 3, normal 3, colour 4.
+
+```go
+const MaxLightsPerDraw = 4
+```
+
+MaxLightsPerDraw is how many point lights one draw takes at most: the nearest whose reach meets what it draws.
 
 ### Batch
 
@@ -96,6 +104,20 @@ type Command struct {
 	SquaredCameraDistance float32
 	Transparent           bool
 	SeaSurface            bool // the environment's water plane: the only surface the level variation moves
+	// Lights are the frame's point lights this draw takes (see Frame.Lights); none for the sea,
+	// whose look is its own.
+	Lights DrawLights
+}
+```
+
+### DrawLights
+
+DrawLights are the lights a command takes: indices into the frame's Lights.
+
+```go
+type DrawLights struct {
+	Indices [MaxLightsPerDraw]uint16
+	Count   int
 }
 ```
 
@@ -107,12 +129,25 @@ Frame is the plan of one frame.
 type Frame struct {
 	Matrices    CameraMatrices
 	Light       scene.Daylight
-	View        Viewpoint // what the camera sees
-	Opaque      []Command // drawn first, in order
-	Transparent []Command // drawn after the sky, farthest first
-	Commands    []Command // all of them, opaque first
+	View        Viewpoint    // what the camera sees
+	Opaque      []Command    // drawn first, in order
+	Transparent []Command    // drawn after the sky, farthest first
+	Commands    []Command    // all of them, opaque first
+	Lights      []FrameLight // the scene's point lights; each command says which it takes
 	Shadow      ShadowPlan
 	Seabed      SeabedPlan
+}
+```
+
+### FrameLight
+
+FrameLight is a scene's point light as the shaders take it: its position with the vertical scale, its colour times its intensity, and its radii.
+
+```go
+type FrameLight struct {
+	Position     graphics.Vec4
+	Color        graphics.Vec4 // linear, times the intensity
+	Inner, Outer float32
 }
 ```
 
@@ -147,6 +182,33 @@ type LineRange struct {
 | Function or method | |
 |---|---|
 | `func ConstellationVertices(constellations []scene.Constellation) (vertices []float32, pointCount int32, lineRanges []LineRange)` | ConstellationVertices lays out every star first (drawn as points) and then the line segments of each constellation, three floats (a direction) per vertex. |
+
+### MergedBatch
+
+MergedBatch keeps a batch's packed instances, and the batch as one mesh, for GPUs that cannot draw instances (OpenGL ES 2, the 3DS's PICA200): a draw call per copy is far too slow (a forest is thousands of calls). The mesh is made again only when the batch changes.
+
+```go
+type MergedBatch struct {
+	// Has unexported fields.
+}
+```
+
+| Function or method | |
+|---|---|
+| `func (batch *MergedBatch) MergedFor(mesh *scene.Mesh, count int) *scene.Mesh` | MergedFor returns the batch's first count instances of mesh as one mesh, making it when needed. |
+
+### MergingStore
+
+MergingStore keeps the planner's instance batches as MergedBatch.
+
+```go
+type MergingStore struct{}
+```
+
+| Function or method | |
+|---|---|
+| `func (MergingStore) FillBatch(handle any, mesh *scene.Mesh, packed []float32) any` |  |
+| `func (MergingStore) RewriteInstances(handle any, position int, packed []float32)` |  |
 
 ### Pass
 
@@ -183,6 +245,10 @@ Planner plans the frames of one renderer. It remembers what does not change betw
 
 ```go
 type Planner struct {
+	// WaterGridDivisions is the number of cells per side of the water surface (0 = 256). Fewer
+	// suit GPUs that draw few triangles and no waves, such as the 3DS's.
+	WaterGridDivisions int
+
 	// Has unexported fields.
 }
 ```

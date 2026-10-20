@@ -11,7 +11,7 @@ import (
 func TestUniformBlocksHaveTheShadersSizes(t *testing.T) {
 	sizes := map[string][2]uintptr{
 		"FrameUniforms":         {unsafe.Sizeof(frameUniforms{}), 528},
-		"DrawUniforms":          {unsafe.Sizeof(drawUniforms{}), 128},
+		"DrawUniforms":          {unsafe.Sizeof(drawUniforms{}), 256},
 		"SkyUniforms":           {unsafe.Sizeof(skyUniforms{}), 352},
 		"ConstellationUniforms": {unsafe.Sizeof(constellationUniforms{}), 176},
 		"OverlaySizes":          {unsafe.Sizeof(overlaySizes{}), 32},
@@ -27,7 +27,11 @@ func TestUniformBlocksHaveTheShadersSizes(t *testing.T) {
 func TestUniformFieldsSitWhereTheShaderReadsThem(t *testing.T) {
 	var frame frameUniforms
 	var sky skyUniforms
+	var draw drawUniforms
 	offsets := map[string][2]uintptr{
+		"draw.lightCount":      {unsafe.Offsetof(draw.lightCount), 64 + 16 + 9*4},
+		"draw.lightPositions":  {unsafe.Offsetof(draw.lightPositions), 128},
+		"draw.lightColors":     {unsafe.Offsetof(draw.lightColors), 128 + 4*16},
 		"frame.windDirection":  {unsafe.Offsetof(frame.windDirection), 4*64 + 11*16},
 		"frame.verticalScale":  {unsafe.Offsetof(frame.verticalScale), 4*64 + 11*16 + 4*8},
 		"frame.shadowsEnabled": {unsafe.Offsetof(frame.shadowsEnabled), 4*64 + 11*16 + 4*8 + 13*4},

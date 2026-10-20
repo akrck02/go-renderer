@@ -117,3 +117,45 @@ func TestFingerprintChangesWithWhatIsDrawn(t *testing.T) {
 		t.Fatal("an empty list differs")
 	}
 }
+
+func TestLightsAreAddedAsCommands(t *testing.T) {
+	var list List
+	picture := NewBlankImage(4, 4)
+	list.PointLight(100, 50, 10, 40, Color{1, 0.9, 0.6, 1.5})
+	list.SpriteLight(picture, Rect{X: 0, Y: 0, Width: 20, Height: 10}, Color{1, 1, 1, 1})
+	list.Lighting(Color{1, 1, 1, 0.72})
+	if len(list.Commands) != 3 {
+		t.Fatalf("three light commands made %d", len(list.Commands))
+	}
+	point := list.Commands[0]
+	if point.Kind != PointLightKind || point.Area != (Rect{X: 60, Y: 10, Width: 80, Height: 80}) || point.Radius != 10 || point.Fill[3] != 1.5 {
+		t.Fatalf("the point light is %+v", point)
+	}
+	if list.Commands[1].Kind != SpriteLightKind || list.Commands[1].Picture != picture {
+		t.Fatalf("the sprite light is %+v", list.Commands[1])
+	}
+	if lighting := list.Commands[2]; lighting.Kind != LightingKind || lighting.Fill[3] != 0.72 {
+		t.Fatalf("the lighting is %+v", lighting)
+	}
+}
+
+func TestLightsThatCannotShineAreLeftOut(t *testing.T) {
+	var list List
+	list.PointLight(0, 0, 0, 0, Color{1, 1, 1, 1})
+	list.PointLight(0, 0, 0, 10, Color{1, 1, 1, 0})
+	list.SpriteLight(nil, Rect{Width: 10, Height: 10}, Color{1, 1, 1, 1})
+	if len(list.Commands) != 0 {
+		t.Fatalf("lights with no size, no intensity or no picture made %d commands", len(list.Commands))
+	}
+}
+
+func TestALightingUnderAClipLightsOnlyTheClip(t *testing.T) {
+	var list List
+	clip := Rect{X: 100, Y: 100, Width: 10, Height: 10}
+	list.PushClip(clip)
+	list.Lighting(Color{1, 1, 1, 1})
+	list.PopClip()
+	if len(list.Commands) != 1 || !list.Commands[0].HasClip || list.Commands[0].Clip != clip {
+		t.Fatalf("a lighting under a clip became %+v", list.Commands)
+	}
+}

@@ -84,6 +84,34 @@ type Frame struct {
 }
 ```
 
+### LightQuad
+
+LightQuad is a light laid out: a square of the screen it shines on, its colour (alpha: its intensity) and either a picture it shines through (Pictured), or a disc that is full inside Inner (a share of the square's half side) and fades to nothing at its edge.
+
+```go
+type LightQuad struct {
+	Screen   [4]float32 // left, top, right, bottom on screen
+	Color    [4]float32
+	Picture  [4]float32 // where it reads its picture in the Pictures, when Pictured
+	Pictured bool
+	Inner    float32
+}
+```
+
+### Lighting
+
+Lighting asks the backend, before it draws the quad at At, to light everything drawn so far: the lights from First to Last (in Lights) are added over Ambient into a picture of light, which then multiplies what is on screen. Light is kept at half (0.5 leaves a colour as it is), so it can brighten up to twice.
+
+```go
+type Lighting struct {
+	At, First, Last int
+	Ambient         [4]float32
+	// Area is what it lights on screen (left, top, right, bottom): its list's clip, or the whole
+	// frame.
+	Area [4]float32
+}
+```
+
 ### Measurer
 
 Measurer measures text the way the painter draws it, without an atlas or a graphics context, so an interface library can lay out its controls before the frame is drawn. It implements draw2d.Measurer.
@@ -118,6 +146,8 @@ type Painter struct {
 |---|---|
 | `func NewPainter() (*Painter, error)` | NewPainter parses the embedded fonts and prepares an empty atlas. |
 | `func (painter *Painter) Atlas() *Atlas` | Atlas returns the image the quads point into. |
+| `func (painter *Painter) Lightings() []Lighting` | Lightings list where, in the quads Paint just gave, the backend lights what it drew so far; empty when nothing is lit, which then costs nothing. |
+| `func (painter *Painter) Lights() []LightQuad` | Lights are the lights Paint laid out, which the Lightings take in turn. |
 | `func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]graphics.Mat4, frame Frame) []Quad` | Paint lays out the whole overlay for a frame. |
 | `func (painter *Painter) Pictures() *Pictures` | Pictures returns the image pictured quads read their colours from. |
 | `func (painter *Painter) Snapshots() []Snapshot` | Snapshots lists where, in the quads Paint just gave, the backend takes and blurs a picture of the frame so far; empty when nothing on screen is frosted, which then costs nothing. |
@@ -170,6 +200,7 @@ type Quad struct {
 	// Pictured.
 	Picture  [4]float32
 	Pictured bool
+	Sharp    bool // the picture is read at the nearest pixel (draw2d.Image's Sharp)
 	// Backdrop quads show the blurred picture of what was drawn before them (see Snapshot), cut
 	// by the atlas's coverage, instead of their colour.
 	Backdrop bool

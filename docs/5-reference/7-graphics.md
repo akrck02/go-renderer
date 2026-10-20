@@ -8,6 +8,7 @@ import "github.com/akrck02/go-renderer/graphics"
 
 | Function | |
 |---|---|
+| `func AmbientLight(ambient [4]float32) [3]float32` | AmbientLight is the colour a picture of light is cleared to for an ambient colour whose alpha is its intensity: at half, as all light is kept. |
 | `func BackdropHalvings(deviation float32) int` | BackdropHalvings is how many times a snapshot is halved before it is blurred, for a standard deviation in screen pixels: until the deviation is a couple of texels, which the taps cover. |
 | `func BackdropWeights(deviation float32) [BackdropTaps + 1]float32` | BackdropWeights are the blur's weights for a standard deviation in texels: the centre's, then each tap's on one side, adding up to one over the whole kernel. |
 
@@ -62,6 +63,30 @@ const FragmentShaderSource = …
 ```
 
 ```go
+const LightAreaVertexShader = …
+```
+
+LightAreaVertexShader covers the area a lighting lights (in screen pixels from the top-left corner: left, top, right, bottom) with two triangles made from the vertex number alone, and passes on where the picture of light is read there.
+
+```go
+const LightFragmentShader = …
+```
+
+LightFragmentShader is how much light a light adds, at half: its colour times its intensity, times its picture for a sprite light, or for a point light full inside inner and fading smoothly to nothing at the square's inscribed circle.
+
+```go
+const LightMultiplyShader = …
+```
+
+LightMultiplyShader reads the picture of light over the area lit (drawn with LightAreaVertexShader).
+
+```go
+const LightVertexShader = …
+```
+
+LightVertexShader places a light's square, given in screen pixels from the top-left corner.
+
+```go
 const OverlayFragmentShader = …
 ```
 
@@ -84,6 +109,12 @@ const SceneVertexShader = …
 ```
 
 SceneVertexShader transforms meshes and GPU instances.
+
+```go
+const SharpPictureOffset = 65536
+```
+
+SharpPictureOffset marks a quad's picture position as one to read at the nearest pixel: a picture atlas is never this wide, and the vertex layout stays as it is.
 
 ```go
 const SkyFragmentShader = …

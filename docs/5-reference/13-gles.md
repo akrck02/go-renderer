@@ -47,7 +47,10 @@ const (
 	Blend     Enum = 0x0BE2
 	DepthTest Enum = 0x0B71
 
+	Zero             Enum = 0
 	One              Enum = 1
+	SourceColor      Enum = 0x0300
+	DestinationColor Enum = 0x0306
 	SourceAlpha      Enum = 0x0302
 	OneMinusSrcAlpha Enum = 0x0303
 	LessOrEqual      Enum = 0x0203
