@@ -5,6 +5,7 @@ import (
 
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/scene"
+	"github.com/akrck02/go-renderer/sceneplan"
 )
 
 // The PICA200 runs vertex shaders slowly enough that lighting every vertex every frame held the
@@ -22,6 +23,48 @@ type bakeKey struct {
 	baseColour   graphics.Vec4
 	kind         scene.MaterialKind
 	light        lightKey
+	lamps        lampKey
+}
+
+// lampKey is the point lights a draw takes (see sceneplan.DrawLights), and where the mesh is,
+// which their light depends on; all zero for a draw no lamp reaches, so those bake as before.
+type lampKey struct {
+	count  int
+	lights [sceneplan.MaxLightsPerDraw]sceneplan.FrameLight
+	model  graphics.Mat4
+}
+
+func lampKeyOf(lights sceneplan.DrawLights, frameLights []sceneplan.FrameLight, model graphics.Mat4) lampKey {
+	if lights.Count == 0 {
+		return lampKey{}
+	}
+	key := lampKey{count: lights.Count, model: model}
+	for slot, index := range lights.Indices[:lights.Count] {
+		key.lights[slot] = frameLights[index]
+	}
+	return key
+}
+
+// closeTo tells whether two draws' lamps light alike: a lamp that moves by less than about a
+// colour step does not make its meshes bake again.
+func (lamps lampKey) closeTo(other lampKey) bool {
+	const step = 1.0 / 512
+	if lamps.count != other.count {
+		return false
+	}
+	for slot := range lamps.lights[:lamps.count] {
+		light, otherLight := &lamps.lights[slot], &other.lights[slot]
+		for component := range 3 {
+			if math.Abs(float64(light.Position[component]-otherLight.Position[component])) > step ||
+				math.Abs(float64(light.Color[component]-otherLight.Color[component])) > step {
+				return false
+			}
+		}
+		if light.Inner != otherLight.Inner || light.Outer != otherLight.Outer {
+			return false
+		}
+	}
+	return true
 }
 
 // lightKey is the part of a frame's shading that lights surfaces.
@@ -74,7 +117,8 @@ func bakeVertices(into []float32, mesh *scene.Mesh, key bakeKey) []float32 {
 			colour[channel] *= key.baseColour[channel]
 		}
 		normal := worldNormal(key.normalMatrix, mesh.Normals[3*vertex:3*vertex+3], key.light.verticalScale)
-		shaded := shade(colour, normal, weights, key.light)
+		lamps := key.lamps.lightAt(mesh.Positions[3*vertex:3*vertex+3], normal, key.light.verticalScale)
+		shaded := shade(colour, normal, weights, key.light, lamps)
 		shaded[3] = float32(math.Max(float64(colour[3]), float64(minimumAlpha(key.kind))))
 		offset := vertex * floatsPerBakedVertex
 		copy(baked[offset:offset+3], mesh.Positions[3*vertex:3*vertex+3])
@@ -111,14 +155,37 @@ func worldNormal(turn [9]float32, normal []float32, verticalScale float32) graph
 	return graphics.Vec4{x / length, y / length, z / length, 0}
 }
 
+// lightAt is the light the lamps bring to a vertex of the mesh (its position in the mesh, its
+// normal in the world), as the scene shaders' lampLight: each fades from full at its inner
+// radius to nothing at its outer one, and lights what faces it.
+func (lamps *lampKey) lightAt(position []float32, normal graphics.Vec4, verticalScale float32) graphics.Vec4 {
+	var total graphics.Vec4
+	if lamps.count == 0 {
+		return total
+	}
+	world := lamps.model.Apply(graphics.Vec4{position[0], position[1], position[2], 1})
+	world[1] *= verticalScale
+	for slot := range lamps.lights[:lamps.count] {
+		light := &lamps.lights[slot]
+		towards := graphics.Vec4{light.Position[0] - world[0], light.Position[1] - world[1], light.Position[2] - world[2], 0}
+		distance := float32(math.Sqrt(float64(towards.Dot(towards))))
+		fade := 1 - float32(smoothStep(float64(light.Inner), float64(light.Outer), float64(distance)))
+		facing := max(normal.Dot(towards)/max(distance, 1e-4), 0)
+		for channel := range 3 {
+			total[channel] += light.Color[channel] * fade * facing
+		}
+	}
+	return total
+}
+
 // shade is gles's lit, glowing and flat shading, chosen by the material's weights (water is
-// drawn by the full shader instead).
-func shade(colour, normal, weights graphics.Vec4, light lightKey) graphics.Vec4 {
+// drawn by the full shader instead), with the lamps' light added to the sun's.
+func shade(colour, normal, weights graphics.Vec4, light lightKey, lamps graphics.Vec4) graphics.Vec4 {
 	facingUp := normal[1]*0.5 + 0.5
 	sunlight := float32(math.Max(float64(normal.Dot(light.sunDirection)), 0))
 	var shaded graphics.Vec4
 	for channel := range 3 {
-		received := light.ambientGround[channel] + light.ambientSpan[channel]*facingUp + light.sunColour[channel]*sunlight
+		received := light.ambientGround[channel] + light.ambientSpan[channel]*facingUp + light.sunColour[channel]*sunlight + lamps[channel]
 		lit := float32(math.Max(float64(colour[channel]*received), float64(colour[channel]*weights[3])))
 		flat := colour[channel] * light.brightness
 		shaded[channel] = weights[0]*lit + weights[1]*flat

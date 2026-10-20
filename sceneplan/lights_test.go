@@ -53,7 +53,7 @@ func TestFrameLightsCarryTheirIntensityAndTheVerticalScale(test *testing.T) {
 	world.Lights = []scene.PointLight{{Position: graphics.Vec4{0, 3, 0, 1}, Color: graphics.Vec4{1, 0.5, 0, 2}, Inner: 5, Outer: 4}}
 	frame := NewPlanner(MergingStore{}).Plan(world, models.Camera{Up: graphics.Vec4{0, 1, 0, 0}, Near: 0.1, Far: 10}, 64, 64, ShadowSettings{})
 	light := frame.Lights[0]
-	if light.Position[1] != 6 || light.Color != (graphics.Vec4{2, 1, 0, 1}) || light.Inner != 4 {
+	if light.Position[1] != 6 || light.Color != (graphics.Vec4{2, 1, 0, 1}) || light.Inner >= 4 || light.Inner < 3.99 {
 		test.Fatalf("the frame's light is %+v; wanted its height scaled, its colour times 2, its inner radius within the outer", light)
 	}
 }

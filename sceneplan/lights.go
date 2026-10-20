@@ -28,6 +28,9 @@ type DrawLights struct {
 // mostLights is how many of a scene's lights a frame takes; the rest are left out.
 const mostLights = 1 << 16
 
+// innerShareMost is the largest share of its outer radius a light's inner radius can be.
+const innerShareMost = 0.999
+
 // prepareLights lays out a scene's lights for the frame, in the planner's own list.
 func (planner *Planner) prepareLights(world *scene.Scene) []FrameLight {
 	lights := planner.lights[:0]
@@ -36,7 +39,9 @@ func (planner *Planner) prepareLights(world *scene.Scene) []FrameLight {
 		position[1] *= planner.verticalScale
 		intensity := light.Color[3]
 		colour := graphics.Vec4{light.Color[0] * intensity, light.Color[1] * intensity, light.Color[2] * intensity, 1}
-		lights = append(lights, FrameLight{Position: position, Color: colour, Inner: min(light.Inner, light.Outer), Outer: light.Outer})
+		// the inner radius stays short of the outer one: a fade over no distance is undefined in GLSL
+		inner := min(max(light.Inner, 0), light.Outer*innerShareMost)
+		lights = append(lights, FrameLight{Position: position, Color: colour, Inner: inner, Outer: light.Outer})
 	}
 	planner.lights = lights
 	return lights
