@@ -24,6 +24,10 @@ static C3D_RenderTarget* openBottomScreen(void) {
 	return target;
 }
 
+static void drawOn(C3D_RenderTarget* target) {
+	C3D_FrameDrawOn(target);
+}
+
 static void clearBottom(C3D_RenderTarget* target, u32 clearColour) {
 	C3D_RenderTargetClear(target, C3D_CLEAR_ALL, clearColour, 0);
 	C3D_FrameDrawOn(target);
@@ -142,6 +146,12 @@ static int makeQuadIndices(int quads) {
 	return 1;
 }
 
+// indicesFrom is where the indices of rectangle first start, for a pass that draws from another
+// buffer with the same indices (lights.go).
+static u16* indicesFrom(int first) {
+	return quadIndices + first * 6;
+}
+
 static void drawRun(int first, int count, int pictured) {
 	if (pictured) setPictureStages(); else setPlainStages();
 	C3D_DrawElements(GPU_TRIANGLES, count * 6, C3D_UNSIGNED_SHORT, quadIndices + first * 6);
@@ -195,17 +205,19 @@ func OpenBottomScreen() (*BottomScreen, error) {
 // Surface is a screen the GPU draws a frame on: the top one or the bottom one.
 type Surface interface {
 	clear(colour uint32) // clears it for one picture and makes the next draws go to it
+	resume()             // makes the next draws go to it again, after a pass drew elsewhere
 	size() (width, height int)
 }
 
 func (screen *BottomScreen) clear(colour uint32) { C.clearBottom(screen.target, C.u32(colour)) }
+func (screen *BottomScreen) resume()             { C.drawOn(screen.target) }
 func (screen *BottomScreen) size() (int, int)    { return BottomWidth, BottomHeight }
 func (screen *Screen) clear(colour uint32)       { screen.Clear(colour) }
 func (screen *Screen) size() (int, int)          { return ScreenWidth, ScreenHeight }
 
 // FlatRenderer paints a 2D draw list (an interface: go-ui's, or a program's own) on the bottom
 // screen, as gles.FlatRenderer does: opengl/overlay lays it out as rectangles of one atlas of
-// glyphs, icons and rounded corners, and they are drawn in one call. Pictures are not drawn yet.
+// glyphs, icons and rounded corners, drawn in runs, and its 2D lights light them (lights.go).
 type FlatRenderer struct {
 	screen     *BottomScreen
 	shader     *Shader
@@ -224,6 +236,8 @@ type FlatRenderer struct {
 	tiledPictures    []byte
 	picturesTooLarge bool // told once
 
+	lights lightPass // made the first time a list has lights
+
 	// lists are the lists painted in a frame, in the order they are painted (a frame may paint
 	// several: the scene's drawing in each eye, then the interface), each with its corners kept:
 	// a list that draws the same as the frame before is drawn again from them, without laying it
@@ -241,7 +255,15 @@ type paintedList struct {
 	memory                    linearBuffer
 	vertices                  linearBuffer // memory, once it holds the corners; empty when it does not
 	runs                      []quadRun
+	quadCount                 int
 	sharp                     bool // a picture of the list is read at the nearest pixel
+	// the list's lights (lights.go): their corners, then a rectangle for each lighting's area, in
+	// their own memory; how they run; and where the list is lit
+	lightMemory   linearBuffer
+	lightVertices linearBuffer // lightMemory, once it holds the corners
+	lightRuns     []quadRun
+	lightCount    int
+	lightings     []overlay.Lighting
 }
 
 // anySharp tells whether a quad reads its picture at the nearest pixel.
@@ -327,55 +349,88 @@ func (renderer *FlatRenderer) paint(surface Surface, list *draw2d.List) {
 	}
 	painted.fingerprint = fingerprint
 	renderer.shader.Use()
-	// Pixels from the top-left corner: y grows downwards, so top and bottom are swapped.
-	SetMatrix(renderer.projection, OrthographicTilt(0, float32(width), float32(height), 0, 0, 1))
 	if renderer.pictures != nil {
 		// one filter for the whole texture: a list with a sharp picture reads all of them sharp
 		C.setPicturesFilter(renderer.pictures, C.int(boolToInt(painted.sharp)))
 	}
+	// without lights this is one pass over the runs; each lighting cuts it in two
+	drawn := 0
+	for index, lighting := range painted.lightings {
+		renderer.drawQuads(painted, drawn, lighting.At, width, height)
+		renderer.light(surface, painted, index, width, height)
+		drawn = lighting.At
+	}
+	renderer.drawQuads(painted, drawn, painted.quadCount, width, height)
+}
+
+// drawQuads draws a painted list's rectangles from first up to (not including) last, run by run.
+func (renderer *FlatRenderer) drawQuads(painted *paintedList, first, last, width, height int) {
+	if first >= last {
+		return
+	}
+	// Pixels from the top-left corner: y grows downwards, so top and bottom are swapped.
+	SetMatrix(renderer.projection, OrthographicTilt(0, float32(width), float32(height), 0, 0, 1))
 	C.prepareOverlay(renderer.texture, renderer.pictures)
 	C.describeQuads(painted.vertices.data)
 	for _, run := range painted.runs {
-		if run.pictured && renderer.pictures == nil {
-			continue // pictures that could not be uploaded
+		from, to := max(run.first, first), min(run.first+run.count, last)
+		if from >= to || run.pictured && renderer.pictures == nil {
+			continue // outside the range, or pictures that could not be uploaded
 		}
-		pictured := 0
-		if run.pictured {
-			pictured = 1
-		}
-		C.drawRun(C.int(run.first), C.int(run.count), C.int(pictured))
+		C.drawRun(C.int(from), C.int(to-from), C.int(boolToInt(run.pictured)))
 	}
+}
+
+// indicesFrom is where the indices of rectangle first start, for a pass that draws from another
+// buffer with the same indices.
+func indicesFrom(first int) unsafe.Pointer { return unsafe.Pointer(C.indicesFrom(C.int(first))) }
+
+// flushLinear makes what the processor wrote into linear memory visible to the GPU.
+func flushLinear(data unsafe.Pointer, size int) { C.flush(data, C.u32(size)) }
+
+// growLinear makes sure a buffer of linear memory holds size bytes, with room to grow; false when
+// there is no memory.
+func growLinear(buffer *linearBuffer, size int) bool {
+	if buffer.capacity >= size {
+		return true
+	}
+	freeLinearMemory(buffer.data)
+	buffer.capacity = max(2*size, firstVertexBuffer) // room to grow before the next allocation
+	buffer.data = C.newLinearMemory(C.u32(buffer.capacity))
+	if buffer.data == nil {
+		buffer.capacity = 0
+		return false
+	}
+	return true
 }
 
 // paintList lays the list out as rectangles and writes their corners into the painted list's
 // own linear memory, which the GPU has finished reading: a frame begins once it is done with the
 // one before.
 func (renderer *FlatRenderer) paintList(painted *paintedList, width, height int) bool {
-	painted.vertices.data, painted.runs = nil, painted.runs[:0]
+	painted.vertices.data, painted.runs, painted.quadCount = nil, painted.runs[:0], 0
 	quads := renderer.painter.Paint(&renderer.layer, nil, overlay.Frame{Width: width, Height: height, Scale: 1})
 	if !renderer.uploadAtlas() {
 		return false
 	}
 	renderer.uploadPictures()
 	quads = quads[:min(len(quads), maxQuadsPerList)]
-	if len(quads) == 0 || C.makeQuadIndices(maxQuadsPerList) == 0 {
+	if len(quads) == 0 && len(renderer.painter.Lightings()) == 0 || C.makeQuadIndices(maxQuadsPerList) == 0 {
 		return false
 	}
 	floats := len(quads) * 4 * floatsPerQuadVertex
-	buffer := &painted.memory
-	if buffer.capacity < floats*4 {
-		freeLinearMemory(buffer.data)
-		buffer.capacity = max(2*floats*4, firstVertexBuffer) // room to grow before the next allocation
-		buffer.data = C.newLinearMemory(C.u32(buffer.capacity))
-		if buffer.data == nil {
-			buffer.capacity = 0
-			return false
-		}
+	if !growLinear(&painted.memory, max(floats, 1)*4) {
+		return false
 	}
-	painted.runs = writeQuadVertices(unsafe.Slice((*float32)(buffer.data), floats), painted.runs, quads, renderer.textureSize, renderer.picturesSize)
-	painted.sharp = anySharp(quads)
-	C.flush(buffer.data, C.u32(floats*4))
-	painted.vertices = *buffer
+	if len(quads) > 0 {
+		painted.runs = writeQuadVertices(unsafe.Slice((*float32)(painted.memory.data), floats), painted.runs, quads, renderer.textureSize, renderer.picturesSize)
+		flushLinear(painted.memory.data, floats*4)
+	}
+	painted.quadCount, painted.sharp = len(quads), anySharp(quads)
+	if !renderer.writeLights(painted) {
+		return false
+	}
+	painted.vertices = painted.memory
 	painted.width, painted.height = width, height
 	painted.textureSize, painted.picturesSize = renderer.textureSize, renderer.picturesSize
 	return true

@@ -387,6 +387,7 @@ func (renderer *SceneRenderer) drawBaked(command sceneplan.Command, mesh *scene.
 		baseColour:   sceneplan.BaseColorOf(command.Material),
 		kind:         command.Material.Kind,
 		light:        renderer.light,
+		lamps:        lampKeyOf(command.Lights, renderer.frame.Lights, command.World),
 	}
 	for _, piece := range renderer.bakedFor(mesh, key).pieces {
 		C.drawBakedElements(piece.vertices, piece.indices, C.int(piece.count))
@@ -455,10 +456,11 @@ func (renderer *SceneRenderer) bakedFor(mesh *scene.Mesh, key bakeKey) *meshOnGP
 	}
 	for index := range baked.variants {
 		variant := &baked.variants[index]
-		if variant.key.normalMatrix != key.normalMatrix || variant.key.baseColour != key.baseColour || variant.key.kind != key.kind {
-			continue
+		if variant.key.normalMatrix != key.normalMatrix || variant.key.baseColour != key.baseColour || variant.key.kind != key.kind ||
+			variant.key.lamps.model != key.lamps.model {
+			continue // a mesh drawn in two places under lamps is lit differently in each
 		}
-		if !variant.key.light.closeTo(key.light) {
+		if !variant.key.light.closeTo(key.light) || !variant.key.lamps.closeTo(key.lamps) {
 			variant.onGPU.free()
 			variant.onGPU = renderer.uploadBaked(mesh, key)
 			variant.key = key

@@ -251,6 +251,9 @@ type Scene struct {
 	Environment Environment
 	Tags        map[string]any
 	Overlay     Overlay // labels, header and notices drawn over the view
+	// Lights are the point lights besides the sun; a program changes them between frames as its
+	// lamps move.
+	Lights []PointLight
 
 	ground *groundIndex
 }

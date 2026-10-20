@@ -367,6 +367,19 @@ const (
 |---|---|
 | `func PatternNamed(name string) Pattern` | PatternNamed returns the pattern with a name (cobbles, masonry, plaster, shingles, planks, grass); PatternNone for any other name. |
 
+### PointLight
+
+PointLight is a light that shines from a point all around, as a lamp: full within Inner of it and fading smoothly to nothing at Outer (world units), the same fade as draw2d's point lights. It lights the lit materials it reaches, besides the sun and the sky; each draw takes the few that reach it (see sceneplan.MaxLightsPerDraw).
+
+```go
+type PointLight struct {
+	Position graphics.Vec4 // in the world, before the vertical scale
+	// Color is linear, like the materials'; its alpha is the intensity (1 a plain lamp, up to a few).
+	Color        graphics.Vec4
+	Inner, Outer float32
+}
+```
+
 ### Scene
 
 Scene is the root of a scene.
@@ -377,6 +390,9 @@ type Scene struct {
 	Environment Environment
 	Tags        map[string]any
 	Overlay     Overlay // labels, header and notices drawn over the view
+	// Lights are the point lights besides the sun; a program changes them between frames as its
+	// lamps move.
+	Lights []PointLight
 
 	// Has unexported fields.
 }

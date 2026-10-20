@@ -10,12 +10,15 @@ import (
 type Kind int
 
 const (
-	RectangleKind Kind = iota // a rounded rectangle with a fill and a border
-	ShadowKind                // a soft shadow under a rounded rectangle
-	TextKind                  // one line of text
-	IconKind                  // one icon
-	ImageKind                 // a picture covering a rounded rectangle
-	BackdropKind              // what is behind a rounded rectangle, blurred: frosted glass
+	RectangleKind   Kind = iota // a rounded rectangle with a fill and a border
+	ShadowKind                  // a soft shadow under a rounded rectangle
+	TextKind                    // one line of text
+	IconKind                    // one icon
+	ImageKind                   // a picture covering a rounded rectangle
+	BackdropKind                // what is behind a rounded rectangle, blurred: frosted glass
+	PointLightKind              // a disc of light: Area the square round its outer radius, Radius its inner one, Fill its colour (alpha: intensity)
+	SpriteLightKind             // a picture shining as a light over Area, tinted by Fill (alpha: intensity)
+	LightingKind                // lights what was drawn before it with the lights before it, over an ambient colour (Fill)
 )
 
 // Command is one shape of the list. Only the fields of its kind are used; keeping every kind in
@@ -175,6 +178,42 @@ func (list *List) Backdrop(area Rect, radius, blur float32) {
 		return
 	}
 	list.add(Command{Kind: BackdropKind, Area: area, Radius: radius, Blur: blur})
+}
+
+// Light, in a list, is drawn as Unity draws 2D lights: the lights are added up into a picture of
+// light that starts at an ambient colour, which then multiplies everything drawn before it. Lights
+// do nothing until a Lighting comes after them; each Lighting takes the lights since the last one.
+// A colour's alpha is a light's intensity, up to 2: a white ambient at 1 leaves what it lights as
+// it is, less darkens it, and light can brighten what it falls on up to twice. A backend that
+// cannot light leaves lights out, and draws the scene unlit.
+
+// PointLight adds a disc of light round a point (x, y): full inside inner, fading to nothing at
+// outer, in layout pixels, of a colour whose alpha is its intensity.
+func (list *List) PointLight(x, y, inner, outer float32, color Color) {
+	if outer <= 0 || color[3] <= 0 {
+		return
+	}
+	area := Rect{X: x - outer, Y: y - outer, Width: 2 * outer, Height: 2 * outer}
+	list.add(Command{Kind: PointLightKind, Area: area, Radius: min(max(inner, 0), outer), Fill: color})
+}
+
+// SpriteLight adds a picture shining as a light over an area, tinted by a colour whose alpha is
+// its intensity: a lamp's glow, a sign that shines.
+func (list *List) SpriteLight(picture *Image, area Rect, color Color) {
+	if picture == nil || picture.Pixels == nil || area.IsEmpty() || color[3] <= 0 {
+		return
+	}
+	list.add(Command{Kind: SpriteLightKind, Area: area, Picture: picture, Fill: color})
+}
+
+// Lighting lights what was drawn before it in the list, in its layer and those under it, with the
+// lights added since the last Lighting, over an ambient colour (its alpha, the ambient's intensity:
+// 1 is plain daylight, less dims what no light reaches). Inside a clip it lights only the clip:
+// a scene's view lit inside an interface leaves the interface around it as it is.
+func (list *List) Lighting(ambient Color) {
+	// not list.add: a clip that hides everything still lights nothing, but is no reason to drop it
+	clip, clipped := list.currentClip()
+	list.Commands = append(list.Commands, Command{Kind: LightingKind, Fill: ambient, Layer: list.layer, Clip: clip, HasClip: clipped})
 }
 
 // Text draws one line of text starting at x, with its baseline at baseline. Characters the font

@@ -205,7 +205,7 @@ func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, wi
 	encoder := C.scenePassBeginMain(frame, &clear[0])
 	uniforms := frameUniformsFor(world.Environment, plan, camera, seconds, shadowsReady)
 	levelVariation, levelVariationActive := renderer.levelVariationTexture(world.Environment.Water)
-	scenePass := sceneResources{uniforms: &uniforms, levelVariation: levelVariation, levelVariationActive: levelVariationActive}
+	scenePass := sceneResources{uniforms: &uniforms, levelVariation: levelVariation, levelVariationActive: levelVariationActive, lights: plan.Lights}
 	renderer.drawCommands(encoder, plan.Opaque, plan.View, scenePass, false)
 	renderer.drawSky(encoder, world.Environment, plan, camera, seconds)
 	renderer.drawCommands(encoder, plan.Transparent, plan.View, scenePass, true)
@@ -252,6 +252,7 @@ type sceneResources struct {
 	uniforms             *frameUniforms
 	levelVariation       unsafe.Pointer
 	levelVariationActive bool
+	lights               []sceneplan.FrameLight // the frame's point lights, which each draw takes a few of
 }
 
 // bindScene sets the scene pipeline and what it reads: the frame's uniforms, the level variation,
@@ -279,7 +280,7 @@ func (renderer *SceneRenderer) drawCommands(encoder unsafe.Pointer, commands []s
 	}
 	renderer.bindScene(encoder, resources, blended)
 	for _, command := range commands {
-		uniforms := drawUniformsFor(command, resources.levelVariationActive)
+		uniforms := drawUniformsFor(command, resources.levelVariationActive, resources.lights)
 		renderer.drawGeometry(encoder, command, view, sceneplan.MainPass, uniforms)
 	}
 }

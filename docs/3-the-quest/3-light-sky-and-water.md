@@ -80,11 +80,35 @@ go run . -night
 
 ![The island at night, the lamp glowing yellow on the dark tower](../images/tutorial/tutorial-3-night.jpg)
 
+### Lamps that light around them
+
+A glowing lamp shows itself, but lights nothing around it. A **point light** does: it shines
+from a point all around, full within its inner radius and fading smoothly to nothing at its
+outer one, and lights the lit materials it reaches, besides the sun and the sky:
+
+```go
+world.Lights = []scene.PointLight{{
+	Position: graphics.Vec4{2, 3.2, 0, 1},       // the lamp, at the top of the tower
+	Color:    graphics.Vec4{1, 0.85, 0.5, 1.5},  // warm, at one and a half times (alpha is the intensity)
+	Inner:    0.5,
+	Outer:    6,
+}}
+```
+
+<p align="center"><img alt="A grey floor at night with three cubes, lit by an orange lamp on the left, a blue one in the middle and a green one on the right: each lights the floor in a soft circle and the faces of the cubes that face it" src="../images/point-lights.png" width="480"></p>
+
+**How many?** As many as the scene wants, but each draw takes at most the four nearest whose
+reach meets it (`sceneplan.MaxLightsPerDraw`), chosen once a frame on the processor, so the
+shaders stay short on every platform: this is what Unity's and Godot's forward renderers do on
+phones. Lamps far apart can light a whole village; four lamps piled on one small thing are as
+many as it shows. Move a lamp by changing its position between frames. The 3DS bakes the lamps
+into its colours with the sun (its guide).
+
 ### Material kinds
 
 | Kind | Shading |
 |---|---|
-| `KindLit` | Sun or moon, sky light, shadows, fog: most things |
+| `KindLit` | Sun or moon, sky light, point lights, shadows, fog: most things |
 | `KindUnlit` | Its colour as it is (plus fog): flags, markers, things that should not darken |
 | `KindGlow` | Lit by day, shining in the dark: lamps, windows, glowing flowers |
 | `KindWater` | An animated water surface: a river or a lake above the sea's level |
@@ -100,7 +124,7 @@ The hill rises out of a sea, turquoise at the shore and dark further out; the tr
 
 - `Environment` holds the sun, the sky, fog, water, wind and snow.
 - The sun's height is the time of day; the night comes with the moon and the stars.
-- `Sway` bends plants in the wind; `KindGlow` shines at night.
+- `Sway` bends plants in the wind; `KindGlow` shines at night; `Lights` light around them.
 
 ## Bonus (optional)
 
