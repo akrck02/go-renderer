@@ -71,19 +71,16 @@ func (layer *lightLayer) fillVertices(lights []overlay.LightQuad) {
 	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*bytesPerFloat, gl.Ptr(vertices), gl.STREAM_DRAW)
 }
 
-// light lights what the bound framebuffer (width × height pixels) shows with one lighting, in its
-// area. The
-// framebuffer and viewport are as they were when it returns; blending is off.
-func (layer *lightLayer) light(lighting overlay.Lighting, width, height int, picturesSize int) {
-	var drawn int32
-	gl.GetIntegerv(gl.DRAW_FRAMEBUFFER_BINDING, &drawn)
+// light lights what framebuffer drawn (width × height pixels) shows with one lighting, in its
+// area. drawn is bound again when it returns, with the viewport over all of it and blending off.
+func (layer *lightLayer) light(lighting overlay.Lighting, drawn uint32, width, height int, picturesSize int) {
 	gl.ActiveTexture(gl.TEXTURE0 + lightTextureUnit) // a new target binds its texture here, not over the atlas
 	layer.prepare(width, height)
 	gl.Disable(gl.DEPTH_TEST)
 	gl.DepthMask(false)
 	layer.addLights(lighting, width, height, picturesSize)
 
-	gl.BindFramebuffer(gl.FRAMEBUFFER, uint32(drawn))
+	gl.BindFramebuffer(gl.FRAMEBUFFER, drawn)
 	gl.Viewport(0, 0, int32(width), int32(height))
 	gl.UseProgram(layer.multiplyProgram.handle)
 	gl.BindTexture(gl.TEXTURE_2D, layer.target.texture)

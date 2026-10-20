@@ -44,6 +44,17 @@ static C3D_Tex* newDiscTexture(int size, const void* tiled) {
 	return texture;
 }
 
+// freeLightTexture lets go of a texture newLightTexture or newDiscTexture made; NULL is nothing.
+static void freeLightTexture(C3D_Tex* texture) {
+	if (texture == NULL) return;
+	C3D_TexDelete(texture);
+	free(texture);
+}
+
+static void freeLightTarget(C3D_RenderTarget* target) {
+	if (target != NULL) C3D_RenderTargetDelete(target);
+}
+
 // beginLights makes the next draws go to the picture of light and fills it with the ambient
 // (0xAABBGGRR) by drawing the canvas's rectangle, then adds what they draw to what is there. It
 // fills by drawing, not by clearing: a clear runs apart from the draws, before all of a frame's,
@@ -158,10 +169,19 @@ func (pass *lightPass) prepare() bool {
 	pass.discs = C.newDiscTexture(discTextureSide, unsafe.Pointer(&tiled[0]))
 	if pass.target == nil || pass.discs == nil {
 		println("ctr: no room for the 2D lights' textures: lists are drawn unlit")
-		pass.failed, pass.target = true, nil
+		pass.release()
+		pass.failed = true
 		return false
 	}
 	return true
+}
+
+// release lets go of whatever of the pass's textures were made.
+func (pass *lightPass) release() {
+	C.freeLightTarget(pass.target)
+	C.freeLightTexture(pass.texture)
+	C.freeLightTexture(pass.discs)
+	pass.target, pass.texture, pass.discs = nil, nil, nil
 }
 
 // light lights what the surface shows, in its area, with the lighting of a painted list at index,

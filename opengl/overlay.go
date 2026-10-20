@@ -107,12 +107,16 @@ func (renderer *overlayRenderer) drawQuads(quads []overlay.Quad, width, height i
 	if len(lightings) > 0 && !renderer.prepareLights() {
 		lightings = nil // no lights on this machine: the frame is drawn unlit
 	}
+	var framebuffer int32 // the one the frame is drawn into, which each lighting comes back to
+	if len(lightings) > 0 {
+		gl.GetIntegerv(gl.DRAW_FRAMEBUFFER_BINDING, &framebuffer)
+	}
 	// without backdrops nor lights this is one draw call; each snapshot or lighting cuts it in two
 	drawn := 0
 	for len(snapshots) > 0 || len(lightings) > 0 {
 		if len(lightings) > 0 && (len(snapshots) == 0 || lightings[0].At <= snapshots[0].At) {
 			renderer.drawVertices(drawn, lightings[0].At, width, height)
-			renderer.lights.light(lightings[0], width, height, renderer.picturesSize)
+			renderer.lights.light(lightings[0], uint32(framebuffer), width, height, renderer.picturesSize)
 			drawn, lightings = lightings[0].At, lightings[1:]
 			continue
 		}
