@@ -19,7 +19,7 @@ experience.
 |---|---|---|
 | **Go 1.25** or later | The language | [go.dev/dl](https://go.dev/dl/), then `go version` |
 | **A C compiler** | The window (GLFW) and OpenGL are reached through cgo | Linux: `gcc`; macOS: `xcode-select --install`; Windows: [MinGW-w64](https://www.mingw-w64.org/) on the `PATH` |
-| **OpenGL 4.1** and its headers | What draws on Linux and Windows (macOS draws through Metal) | Linux (Debian, Ubuntu): `sudo apt install libgl1-mesa-dev xorg-dev`; Fedora: `sudo dnf install mesa-libGL-devel libXcursor-devel libXrandr-devel libXinerama-devel libXi-devel libXxf86vm-devel` |
+| **OpenGL 4.1** and its headers | What draws on Linux and Windows (macOS draws through Metal) | Linux (Debian, Ubuntu): `sudo apt install libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev`; Fedora: `sudo dnf install mesa-libGL-devel libXcursor-devel libXrandr-devel libXinerama-devel libXi-devel libXxf86vm-devel wayland-devel libxkbcommon-devel` |
 
 Check cgo is on: `go env CGO_ENABLED` should print `1`.
 
