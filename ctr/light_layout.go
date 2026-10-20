@@ -55,8 +55,12 @@ func discFor(inner float32) int {
 	return int(min(max(inner, 0), 1)*(discLevels-1) + 0.5)
 }
 
-// smoothStep is GLSL's smoothstep: 0 below low, 1 above high, a smooth curve between.
+// smoothStep is GLSL's smoothstep: 0 below low, 1 above high, a smooth curve between; a step at
+// high when the two meet.
 func smoothStep(low, high, value float64) float64 {
+	if high <= low {
+		return float64(boolToNumber(value >= high))
+	}
 	share := min(max((value-low)/(high-low), 0), 1)
 	return share * share * (3 - 2*share)
 }
@@ -150,4 +154,12 @@ func Orthographic(left, right, bottom, top, near, far float32) graphics.Mat4 {
 	set(&matrix, 2, 3, 0.5*(near+far)/(near-far)-0.5)
 	set(&matrix, 3, 3, 1)
 	return matrix
+}
+
+// boolToNumber is 1 for true and 0 for false.
+func boolToNumber(flag bool) int {
+	if flag {
+		return 1
+	}
+	return 0
 }
