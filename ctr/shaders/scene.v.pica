@@ -21,6 +21,8 @@
 .fvec baseColour         ; the material's colour × the node's tint
 .fvec weights            ; x: lit, y: flat, z: water (1 or 0), w: glow
 .fvec minimumAlpha       ; x
+.fvec lampPosition[4]    ; xyz: a lamp the draw takes, w: its inner radius (sceneplan.DrawLights)
+.fvec lampColour[4]      ; rgb: its linear colour × intensity, 0 when unused; w: 1 / (outer - inner)
 
 .constf numbers(0.0, 1.0, 0.5, 3.0)
 .constf more(2.0, 0.45454545, 0.6, 0.00001)
@@ -77,6 +79,98 @@
 	max r6.y, zeros, r6.yyyy
 	mov r8.xyz, sunColour
 	mad r7.xyz, r8.xyz, r6.yyyy, r7.xyz
+	; lamp 0: its colour × how the normal faces it × its fade, 1 at its inner radius to 0 at its
+	; outer one (a smoothstep), added to the light
+	mov r6, lampPosition[0]
+	mov r8, lampColour[0]
+	add r3.xyz, r6.xyz, -r1.xyz
+	dp3 r10.x, r3, r3
+	max r10.x, tiny, r10.x
+	rsq r10.y, r10.x                        ; 1 / distance
+	rcp r10.x, r10.y                        ; distance
+	mul r3.xyz, r10.yyyy, r3.xyz
+	dp3 r10.z, r2, r3
+	max r10.z, zeros, r10.zzzz              ; how the normal faces the lamp
+	add r10.w, r10.xxxx, -r6.wwww
+	mul r10.w, r8.wwww, r10.wwww
+	max r10.w, zeros, r10.wwww
+	min r10.w, ones, r10.wwww               ; t: 0 at the inner radius, 1 at the outer one
+	mul r11.x, r10.wwww, r10.wwww
+	mul r11.y, twos, r10.wwww
+	add r11.y, threes, -r11.yyyy
+	mul r11.x, r11.xxxx, r11.yyyy           ; t² (3 - 2t)
+	add r11.x, ones, -r11.xxxx
+	mul r10.z, r10.zzzz, r11.xxxx
+	mad r7.xyz, r8.xyz, r10.zzzz, r7.xyz
+	; lamp 1: its colour × how the normal faces it × its fade, 1 at its inner radius to 0 at its
+	; outer one (a smoothstep), added to the light
+	mov r6, lampPosition[1]
+	mov r8, lampColour[1]
+	add r3.xyz, r6.xyz, -r1.xyz
+	dp3 r10.x, r3, r3
+	max r10.x, tiny, r10.x
+	rsq r10.y, r10.x                        ; 1 / distance
+	rcp r10.x, r10.y                        ; distance
+	mul r3.xyz, r10.yyyy, r3.xyz
+	dp3 r10.z, r2, r3
+	max r10.z, zeros, r10.zzzz              ; how the normal faces the lamp
+	add r10.w, r10.xxxx, -r6.wwww
+	mul r10.w, r8.wwww, r10.wwww
+	max r10.w, zeros, r10.wwww
+	min r10.w, ones, r10.wwww               ; t: 0 at the inner radius, 1 at the outer one
+	mul r11.x, r10.wwww, r10.wwww
+	mul r11.y, twos, r10.wwww
+	add r11.y, threes, -r11.yyyy
+	mul r11.x, r11.xxxx, r11.yyyy           ; t² (3 - 2t)
+	add r11.x, ones, -r11.xxxx
+	mul r10.z, r10.zzzz, r11.xxxx
+	mad r7.xyz, r8.xyz, r10.zzzz, r7.xyz
+	; lamp 2: its colour × how the normal faces it × its fade, 1 at its inner radius to 0 at its
+	; outer one (a smoothstep), added to the light
+	mov r6, lampPosition[2]
+	mov r8, lampColour[2]
+	add r3.xyz, r6.xyz, -r1.xyz
+	dp3 r10.x, r3, r3
+	max r10.x, tiny, r10.x
+	rsq r10.y, r10.x                        ; 1 / distance
+	rcp r10.x, r10.y                        ; distance
+	mul r3.xyz, r10.yyyy, r3.xyz
+	dp3 r10.z, r2, r3
+	max r10.z, zeros, r10.zzzz              ; how the normal faces the lamp
+	add r10.w, r10.xxxx, -r6.wwww
+	mul r10.w, r8.wwww, r10.wwww
+	max r10.w, zeros, r10.wwww
+	min r10.w, ones, r10.wwww               ; t: 0 at the inner radius, 1 at the outer one
+	mul r11.x, r10.wwww, r10.wwww
+	mul r11.y, twos, r10.wwww
+	add r11.y, threes, -r11.yyyy
+	mul r11.x, r11.xxxx, r11.yyyy           ; t² (3 - 2t)
+	add r11.x, ones, -r11.xxxx
+	mul r10.z, r10.zzzz, r11.xxxx
+	mad r7.xyz, r8.xyz, r10.zzzz, r7.xyz
+	; lamp 3: its colour × how the normal faces it × its fade, 1 at its inner radius to 0 at its
+	; outer one (a smoothstep), added to the light
+	mov r6, lampPosition[3]
+	mov r8, lampColour[3]
+	add r3.xyz, r6.xyz, -r1.xyz
+	dp3 r10.x, r3, r3
+	max r10.x, tiny, r10.x
+	rsq r10.y, r10.x                        ; 1 / distance
+	rcp r10.x, r10.y                        ; distance
+	mul r3.xyz, r10.yyyy, r3.xyz
+	dp3 r10.z, r2, r3
+	max r10.z, zeros, r10.zzzz              ; how the normal faces the lamp
+	add r10.w, r10.xxxx, -r6.wwww
+	mul r10.w, r8.wwww, r10.wwww
+	max r10.w, zeros, r10.wwww
+	min r10.w, ones, r10.wwww               ; t: 0 at the inner radius, 1 at the outer one
+	mul r11.x, r10.wwww, r10.wwww
+	mul r11.y, twos, r10.wwww
+	add r11.y, threes, -r11.yyyy
+	mul r11.x, r11.xxxx, r11.yyyy           ; t² (3 - 2t)
+	add r11.x, ones, -r11.xxxx
+	mul r10.z, r10.zzzz, r11.xxxx
+	mad r7.xyz, r8.xyz, r10.zzzz, r7.xyz
 	mul r5.xyz, r4.xyz, r7.xyz
 	; glowing materials shine with their own colour as the light goes
 	mov r8.xyz, weights.wwww

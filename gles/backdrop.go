@@ -42,10 +42,10 @@ func newBackdropBlur(functions Functions) (*backdropBlur, error) {
 	return blur, nil
 }
 
-// snapshot copies the screen (width × height pixels), blurs it by deviation screen pixels, and
-// leaves the result bound on blurredTextureUnit. The screen is bound again when it returns; the
-// caller sets its own program, buffer and textures up again.
-func (blur *backdropBlur) snapshot(width, height int, deviation float32) {
+// snapshot copies the target framebuffer (width × height pixels), blurs it by deviation pixels,
+// and leaves the result bound on blurredTextureUnit. The target is bound again when it returns;
+// the caller sets its own program, buffer and textures up again.
+func (blur *backdropBlur) snapshot(target Framebuffer, width, height int, deviation float32) {
 	functions := blur.functions
 	halvings := graphics.BackdropHalvings(deviation)
 	blur.prepare(width, height, halvings)
@@ -69,7 +69,7 @@ func (blur *backdropBlur) snapshot(width, height int, deviation float32) {
 	blur.pass(smallest, blur.spare, weights, 1/float32(smallest.width), 0)
 	blur.pass(blur.spare, smallest, weights, 0, 1/float32(smallest.height))
 
-	functions.BindFramebuffer(FramebufferTarget, 0)
+	functions.BindFramebuffer(FramebufferTarget, target)
 	functions.Viewport(0, 0, width, height)
 	functions.ActiveTexture(Texture0 + blurredTextureUnit)
 	functions.BindTexture(Texture2D, smallest.texture)

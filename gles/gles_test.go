@@ -315,6 +315,29 @@ func TestALightingAddsItsLightsAndMultipliesTheScreenInTwoDraws(t *testing.T) {
 	}
 }
 
+func TestLightsAndBackdropsDrawBackIntoTheRenderersTarget(t *testing.T) {
+	fake := newRecorder()
+	renderer, err := NewFlatRenderer(fake)
+	if err != nil {
+		t.Fatal(err)
+	}
+	renderer.Target = fake.CreateFramebuffer() // a picture the caller draws into, not the screen
+	var list draw2d.List
+	list.Rectangle(draw2d.Rect{Width: 800, Height: 600}, 0, draw2d.Hex("#808080"), draw2d.Transparent, 0)
+	list.PointLight(200, 200, 20, 80, draw2d.Hex("#ffeeaa"))
+	list.Lighting(draw2d.Color{0.6, 0.6, 0.8, 0.7})
+	panel := draw2d.Rect{X: 20, Y: 20, Width: 300, Height: 120}
+	list.Backdrop(panel, 12, 24)
+	list.Rectangle(panel, 12, draw2d.Hex("#ffffff20"), draw2d.Transparent, 0)
+	renderer.Draw(&list, draw2d.Hex("#202020"), 800, 600, 1)
+	ground, multiply, panelDraw := fake.draws[0], fake.draws[2], fake.draws[len(fake.draws)-1]
+	for name, draw := range map[string]recordedDraw{"the ground": ground, "the multiply": multiply, "the panel": panelDraw} {
+		if draw.framebuffer != renderer.Target {
+			t.Errorf("%s is drawn into framebuffer %d, not the target %d", name, draw.framebuffer, renderer.Target)
+		}
+	}
+}
+
 func TestALightingWithNoLightsOnlyMultipliesTheAmbient(t *testing.T) {
 	fake := newRecorder()
 	renderer, err := NewFlatRenderer(fake)

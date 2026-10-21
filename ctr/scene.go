@@ -107,8 +107,9 @@ var bakedShaderBinary []byte
 // Lighting every vertex on the GPU was too slow (30 frames a second for the sample island on a
 // New 3DS XL), so meshes are drawn with their light worked out on the processor (bake.go) through
 // baked.v.pica. Water, whose reflection depends on the camera, and moving nodes (scene.Node's
-// Moving), whose light changes as they turn, are shaded on the GPU by scene.v.pica: baking a ship
-// again each time it turned took most of a frame with a few dozen of them.
+// Moving), whose light changes as they turn, are shaded on the GPU by scene.v.pica, with the four
+// lamps each draw takes: baking a ship again each time it turned took most of a frame with a few
+// dozen of them.
 type SceneRenderer struct {
 	screen      *Screen
 	water       *Shader
@@ -140,6 +141,7 @@ type waterLocations struct {
 	viewProjection, camera, sunDirection, sunColour, ambientGround, ambientSpan int
 	waterLight, skyReflection, fogColour, settings, fog                         int
 	model, normalMatrix, baseColour, weights, minimumAlpha                      int
+	lampPosition, lampColour                                                    int
 }
 
 // bakedLocations are where baked.v.pica reads each uniform.
@@ -174,6 +176,7 @@ func NewSceneRenderer(screen *Screen) (*SceneRenderer, error) {
 		model: water.Uniform("model"), normalMatrix: water.Uniform("normalMatrix"),
 		baseColour: water.Uniform("baseColour"), weights: water.Uniform("weights"),
 		minimumAlpha: water.Uniform("minimumAlpha"),
+		lampPosition: water.Uniform("lampPosition"), lampColour: water.Uniform("lampColour"),
 	}
 	renderer.bakedPlaces = bakedLocations{
 		viewProjection: baked.Uniform("viewProjection"), camera: baked.Uniform("camera"),
@@ -383,6 +386,11 @@ func (renderer *SceneRenderer) prepareShaded(command sceneplan.Command) {
 	normal := sceneplan.NormalMatrix(command.World) // column by column
 	for row := range 3 {
 		setVector(places.normalMatrix+row, graphics.Vec4{normal[row], normal[3+row], normal[6+row], 0})
+	}
+	lamps := lampUniformsOf(command.Lights, renderer.frame.Lights)
+	for slot := range lamps.positions {
+		setVector(places.lampPosition+slot, lamps.positions[slot])
+		setVector(places.lampColour+slot, lamps.colours[slot])
 	}
 }
 
