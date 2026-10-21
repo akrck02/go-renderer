@@ -90,3 +90,9 @@ func TestTheCStickRestsInItsDeadZoneAndReachesOne(t *testing.T) {
 		t.Fatalf("a C-stick at its edge reads %v, %v", x, y)
 	}
 }
+
+func TestTheGyroscopesStepsAreDividedIntoDegreesASecond(t *testing.T) {
+	if turn := gyroscopeFrom(140, -70, 14, 14); turn != (Gyroscope{Roll: 10, Pitch: -5, Yaw: 1}) {
+		t.Fatalf("140, -70 and 14 steps at 14 a degree read %+v", turn)
+	}
+}

@@ -99,9 +99,11 @@ func (renderer *SceneRenderer) drawCommands(commands []sceneplan.Command, view s
 		functions.Enable(Blend)
 		functions.DepthMask(false) // translucent surfaces do not hide what is drawn after them
 	}
+	blending := sceneplan.BlendNone
 	for _, command := range commands {
-		if transparent {
-			renderer.blendFor(sceneplan.BlendingOf(command))
+		if wanted := sceneplan.BlendingOf(command); transparent && wanted != blending {
+			renderer.blendFor(wanted)
+			blending = wanted
 		}
 		renderer.drawCommand(command, view)
 	}

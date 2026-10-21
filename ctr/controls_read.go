@@ -37,7 +37,10 @@ static void readCStick(int* x, int* y) {
 static float startGyroscope(void) {
 	float stepsPerDegree = 0;
 	if (R_FAILED(HIDUSER_EnableGyroscope())) return 0;
-	if (R_FAILED(HIDUSER_GetGyroscopeRawToDpsCoefficient(&stepsPerDegree))) return 0;
+	if (R_FAILED(HIDUSER_GetGyroscopeRawToDpsCoefficient(&stepsPerDegree))) {
+		HIDUSER_DisableGyroscope(); // without its coefficient it cannot be read: stop it using power
+		return 0;
+	}
 	return stepsPerDegree;
 }
 
@@ -97,9 +100,7 @@ func ReadControls() Reading {
 	if motion.stepsPerDegree != 0 {
 		var roll, pitch, yaw C.int
 		C.readGyroscope(&roll, &pitch, &yaw)
-		// libctru's coefficient divides the raw steps: multiplying read a slight turn as thousands
-		reading.Gyroscope = Gyroscope{Roll: float64(roll) / motion.stepsPerDegree,
-			Pitch: float64(pitch) / motion.stepsPerDegree, Yaw: float64(yaw) / motion.stepsPerDegree}
+		reading.Gyroscope = gyroscopeFrom(int(roll), int(pitch), int(yaw), motion.stepsPerDegree)
 	}
 	return reading
 }
