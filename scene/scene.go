@@ -53,8 +53,11 @@ type Material struct {
 	BaseColor   graphics.Vec4 // linear RGBA multiplied with vertex colors
 	DoubleSided bool
 	Transparent bool
-	Sway        float32 // how much the wind bends the mesh (0 = rigid); for plants modelled with height 1
-	DepthBias   float32 // pulls the surface towards the camera by this share of its distance, so thin surfaces
+	// Additive adds the surface's light to what is behind it instead of covering it: beams, sparks,
+	// glows. It never darkens, and is drawn with the transparent surfaces (its alpha scales it).
+	Additive  bool
+	Sway      float32 // how much the wind bends the mesh (0 = rigid); for plants modelled with height 1
+	DepthBias float32 // pulls the surface towards the camera by this share of its distance, so thin surfaces
 	// lying on terrain (rivers, roads) stay visible over the terrain's simpler far versions; 0 = none
 	Pattern      Pattern // procedural surface pattern of lit and glowing materials
 	PatternScale float32 // size of one pattern cell (a stone, a course, a shingle) in world units

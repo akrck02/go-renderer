@@ -38,7 +38,27 @@ func ComputeCameraMatrices(camera models.Camera, width, height int) CameraMatric
 
 // IsTransparent tells whether a material is blended over what is behind it.
 func IsTransparent(material *scene.Material) bool {
-	return material.Transparent || material.Kind == scene.KindWater || material.Kind == scene.KindWaterfall
+	return material.Transparent || material.Additive || material.Kind == scene.KindWater || material.Kind == scene.KindWaterfall
+}
+
+// Blending is how a surface is mixed with what is behind it.
+type Blending int
+
+const (
+	BlendNone     Blending = iota // opaque: it covers what is behind, and writes depth
+	BlendAlpha                    // translucent: its alpha mixes it over what is behind
+	BlendAdditive                 // its light, scaled by its alpha, adds to what is behind
+)
+
+// BlendingOf is how a command's surface is mixed with what is behind it.
+func BlendingOf(command Command) Blending {
+	switch {
+	case !command.Transparent:
+		return BlendNone
+	case command.Material.Additive:
+		return BlendAdditive
+	}
+	return BlendAlpha
 }
 
 // CastsShadow tells whether a command is drawn into the shadow map.

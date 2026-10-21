@@ -256,7 +256,7 @@ func (renderer *skyRenderer) drawConstellations(sky *scene.Sky, light scene.Dayl
 	program.setMatrix("starRotation", light.StarRotation)
 	program.setFloat("visibility", visibility)
 	program.setFloat("pointSize", 5)
-	enableBlending()
+	setBlending(sceneplan.BlendAlpha)
 	gl.Enable(gl.PROGRAM_POINT_SIZE)
 	gl.BindVertexArray(buffers.vertexArray)
 	drawConstellationLines(program, buffers)

@@ -114,6 +114,9 @@ static void applyBlending(MTLRenderPipelineColorAttachmentDescriptor *colour, in
 	colour.destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
 	colour.destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
 	colour.sourceAlphaBlendFactor = blending == sceneBlendOverlay ? MTLBlendFactorOne : MTLBlendFactorSourceAlpha;
+	if (blending == sceneBlendAdditive) {
+		colour.destinationRGBBlendFactor = MTLBlendFactorOne;
+	}
 }
 
 void *scenePipelineCreate(void *handle, void *libraryHandle, const char *vertexName, const char *fragmentName, int blending,

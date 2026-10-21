@@ -25,10 +25,16 @@ static void prepareScene(void) {
 	C3D_TexEnvInit(C3D_GetTexEnv(1));
 }
 
-// setBlending switches between opaque surfaces, which write depth, and translucent ones, blended
-// over what is behind them without hiding what is drawn after them.
-static void setBlending(int translucent) {
-	if (translucent) {
+// setBlending switches between opaque surfaces (0), which write depth, and translucent ones,
+// blended over what is behind them by alpha (1) or adding their light (2), without hiding what is
+// drawn after them.
+static void setBlending(int blending) {
+	if (blending == 2) {
+		C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_SRC_ALPHA, GPU_ONE, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
+		C3D_DepthTest(true, GPU_GEQUAL, GPU_WRITE_COLOR);
+		return;
+	}
+	if (blending == 1) {
 		C3D_AlphaBlend(GPU_BLEND_ADD, GPU_BLEND_ADD, GPU_SRC_ALPHA, GPU_ONE_MINUS_SRC_ALPHA, GPU_ONE, GPU_ONE_MINUS_SRC_ALPHA);
 		C3D_DepthTest(true, GPU_GEQUAL, GPU_WRITE_COLOR);
 		return;
@@ -297,12 +303,13 @@ func (renderer *SceneRenderer) drawCommands(commands []sceneplan.Command, view s
 	if len(commands) == 0 {
 		return
 	}
-	translucent := 0
-	if commands[0].Transparent {
-		translucent = 1
-	}
-	C.setBlending(C.int(translucent))
+	blending := sceneplan.BlendingOf(commands[0])
+	C.setBlending(C.int(blending))
 	for _, command := range commands {
+		if wanted := sceneplan.BlendingOf(command); wanted != blending {
+			blending = wanted
+			C.setBlending(C.int(blending)) // the numbers are sceneplan's Blending: 0, 1, 2
+		}
 		renderer.drawCommand(command, view)
 	}
 }
