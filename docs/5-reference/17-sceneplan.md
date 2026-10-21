@@ -78,6 +78,26 @@ type BatchStore interface {
 }
 ```
 
+### Blending
+
+Blending is how a surface is mixed with what is behind it.
+
+```go
+type Blending int
+```
+
+```go
+const (
+	BlendNone     Blending = iota // opaque: it covers what is behind, and writes depth
+	BlendAlpha                    // translucent: its alpha mixes it over what is behind
+	BlendAdditive                 // its light, scaled by its alpha, adds to what is behind
+)
+```
+
+| Function or method | |
+|---|---|
+| `func BlendingOf(command Command) Blending` | BlendingOf is how a command's surface is mixed with what is behind it. |
+
 ### CameraMatrices
 
 CameraMatrices are the matrices of one frame, in OpenGL's clip space (depth from -1 to 1); a backend with another clip space converts them.
