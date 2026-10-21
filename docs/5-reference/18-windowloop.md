@@ -16,6 +16,7 @@ shape and lock. A backend only has to draw and show a frame.
 | `func ApplyCursorLock(window *glfw.Window, state *input.State, currentlyLocked *bool)` | ApplyCursorLock captures or releases the cursor when the application changes its request. |
 | `func ForwardInput(window *glfw.Window, state *input.State)` | ForwardInput sends GLFW keyboard, mouse, scroll and text events into an input.State, and gives it the system clipboard. |
 | `func OnMainThread() bool` | OnMainThread is only checked on macOS, the one system that requires it. |
+| `func ReadGamePad(state *input.State)` | ReadGamePad copies the first game pad's sticks into the input state, or leaves them at rest without one. |
 | `func Run(window *glfw.Window, app *models.Application, clock *Clock, drawFrame func() error) error` | Run calls the application's update steps and drawFrame until the window closes or the application stops. |
 | `func RunUpdateStep(app *models.Application, step float64) error` | RunUpdateStep calls the application update once and clears the per-step input deltas. |
 | `func UpdateSizes(window *glfw.Window, state *input.State)` | UpdateSizes copies the framebuffer and window sizes into the input state. |

@@ -174,10 +174,12 @@ type State struct {
 	CursorDeltaY     float64
 	ScrollDelta      float64 // vertical scroll since the previous frame
 	ScrollDeltaX     float64 // horizontal scroll since the previous frame (trackpads, tilting wheels)
-	// StickX and StickY are a game pad's stick where there is one (a console's circle pad), from
-	// -1 to 1 each way, right and up positive; 0 at rest or without one. The backend sets them
-	// every frame.
-	StickX, StickY float64
+	// StickX and StickY are a game pad's main stick where there is one (a console's circle pad, a
+	// pad's left stick), from -1 to 1 each way, right and up positive; 0 at rest or without one.
+	// RightStickX and RightStickY are its second stick (a New 3DS's C-stick, a pad's right one).
+	// The backend sets them every frame.
+	StickX, StickY           float64
+	RightStickX, RightStickY float64
 
 	FramebufferWidth  int // updated by the backend
 	FramebufferHeight int

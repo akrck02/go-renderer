@@ -96,3 +96,12 @@ func TestTheGyroscopesStepsAreDividedIntoDegreesASecond(t *testing.T) {
 		t.Fatalf("140, -70 and 14 steps at 14 a degree read %+v", turn)
 	}
 }
+
+func TestTheCStickIsTheRightStick(t *testing.T) {
+	var controls Controls
+	state := input.NewState()
+	controls.Apply(state, Reading{CStickX: 146, CStickY: 146})
+	if state.RightStickX != 1 || state.RightStickY != 1 {
+		t.Fatalf("the C-stick up and right reads as the right stick at %v, %v", state.RightStickX, state.RightStickY)
+	}
+}

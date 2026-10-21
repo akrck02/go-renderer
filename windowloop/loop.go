@@ -35,6 +35,9 @@ func Run(window *glfw.Window, app *models.Application, clock *Clock, drawFrame f
 		if failure != nil {
 			return failure
 		}
+		if app.Input != nil {
+			ReadGamePad(app.Input)
+		}
 		stepsBefore := clock.Steps()
 		if err := resize.advance(); err != nil {
 			return err
