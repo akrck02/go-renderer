@@ -130,23 +130,25 @@ type State struct {
 	CursorDeltaY       float64
 	ScrollDelta        float64 // vertical scroll since the previous frame
 	ScrollDeltaX       float64 // horizontal scroll since the previous frame (trackpads, tilting wheels)
-	// StickX and StickY are a game pad's stick where there is one (a console's circle pad), from
-	// -1 to 1 each way, right and up positive; 0 at rest or without one. The backend sets them
-	// every frame.
-	StickX, StickY      float64
-	hasCursorPosition   bool
-	leaving             bool // the pointer goes off the window when this frame ends (PointerLeaves)
-	backPressed         bool // the system's back, this step (PressBack)
-	backTaken           bool // a part of the program answered it (TakeBack)
-	backUnanswered      bool // the last step had a back nobody answered (BackUnanswered)
-	cursorLockRequested bool
-	cursorShape         CursorShape
-	mouseClaimed        bool
-	keyboardClaimed     bool
-	FramebufferWidth    int // updated by the backend
-	FramebufferHeight   int
-	WindowWidth         int // window size in cursor coordinates
-	WindowHeight        int
+	// StickX and StickY are a game pad's main stick where there is one (a console's circle pad, a
+	// pad's left stick), from -1 to 1 each way, right and up positive; 0 at rest or without one.
+	// RightStickX and RightStickY are its second stick (a New 3DS's C-stick, a pad's right one).
+	// The backend sets them every frame.
+	StickX, StickY           float64
+	RightStickX, RightStickY float64
+	hasCursorPosition        bool
+	leaving                  bool // the pointer goes off the window when this frame ends (PointerLeaves)
+	backPressed              bool // the system's back, this step (PressBack)
+	backTaken                bool // a part of the program answered it (TakeBack)
+	backUnanswered           bool // the last step had a back nobody answered (BackUnanswered)
+	cursorLockRequested      bool
+	cursorShape              CursorShape
+	mouseClaimed             bool
+	keyboardClaimed          bool
+	FramebufferWidth         int // updated by the backend
+	FramebufferHeight        int
+	WindowWidth              int // window size in cursor coordinates
+	WindowHeight             int
 	// Clipboard is set by the backend; nil when there is no system clipboard (tests, headless).
 	Clipboard Clipboard
 	// Now tells the time, for double clicks; nil = time.Now. Tests set it to a fake clock.

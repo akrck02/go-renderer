@@ -123,6 +123,7 @@ func (controls *Controls) Apply(state *input.State, reading Reading) {
 		state.PressBack()
 	}
 	state.StickX, state.StickY = reading.Circle()
+	state.RightStickX, state.RightStickY = reading.CStick() // at rest until StartMotionControls
 	controls.applyTouch(state, reading)
 	controls.previous = reading
 }
