@@ -19,6 +19,7 @@ enum {
 	sceneBlendNone = 0,
 	sceneBlendAlpha = 1,   // source alpha over the destination, for colour and alpha alike
 	sceneBlendOverlay = 2, // colour by source alpha; alpha by one (the overlay's BlendFuncSeparate)
+	sceneBlendAdditive = 3, // colour by source alpha added to the destination: light that only adds
 };
 
 // Depth comparisons.

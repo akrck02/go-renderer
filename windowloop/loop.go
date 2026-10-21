@@ -24,6 +24,7 @@ func Run(window *glfw.Window, app *models.Application, clock *Clock, drawFrame f
 	followUp := false
 	cursorLocked := false
 	var shapes CursorShapes
+	var pad gamePad
 	frames, lastTitle := 0, time.Now()
 	for !window.ShouldClose() && !app.Stop {
 		// events first, so the frame drawn next is for the window as it is now
@@ -34,6 +35,9 @@ func Run(window *glfw.Window, app *models.Application, clock *Clock, drawFrame f
 		}
 		if failure != nil {
 			return failure
+		}
+		if app.Input != nil {
+			pad.read(app.Input)
 		}
 		stepsBefore := clock.Steps()
 		if err := resize.advance(); err != nil {

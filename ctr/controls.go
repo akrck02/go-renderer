@@ -54,12 +54,44 @@ type Reading struct {
 	Held             Buttons
 	TouchX, TouchY   int // on the bottom screen, 320 × 240, when ButtonTouch is held
 	CircleX, CircleY int // the circle pad, ±156; up is positive
+	CStickX, CStickY int // the C-stick, about ±146, once StartMotionControls started it
+	Gyroscope        Gyroscope
+}
+
+// Gyroscope is how fast the console turns, in degrees a second, once StartMotionControls started
+// it: about the axis across its screens (Pitch), up through them (Yaw) and out of them (Roll).
+type Gyroscope struct {
+	Roll, Pitch, Yaw float64
+}
+
+// gyroscopeFrom turns the gyroscope's raw steps into degrees a second. libctru's coefficient
+// divides the steps: multiplying by it read a slight turn as thousands of degrees a second.
+func gyroscopeFrom(roll, pitch, yaw int, stepsPerDegree float64) Gyroscope {
+	return Gyroscope{Roll: float64(roll) / stepsPerDegree, Pitch: float64(pitch) / stepsPerDegree, Yaw: float64(yaw) / stepsPerDegree}
+}
+
+// The C-stick's reach and the share of it that counts as at rest: it reads about ±146 at its edge,
+// and a little off centre when let go.
+const (
+	cStickReach    = 146
+	cStickDeadZone = 0.15
+)
+
+// CStick is the C-stick from -1 to 1 on each axis (up positive), 0 inside its dead zone.
+func (reading Reading) CStick() (x, y float64) {
+	return stickAxes(reading.CStickX, reading.CStickY, cStickReach, cStickDeadZone)
 }
 
 // Circle is the circle pad from -1 to 1 on each axis (up positive), 0 inside its dead zone.
 func (reading Reading) Circle() (x, y float64) {
-	x, y = float64(reading.CircleX)/circlePadReach, float64(reading.CircleY)/circlePadReach
-	if math.Hypot(x, y) < circlePadDeadZone {
+	return stickAxes(reading.CircleX, reading.CircleY, circlePadReach, circlePadDeadZone)
+}
+
+// stickAxes is a stick's raw position as -1 to 1 on each axis, 0 inside its dead zone (a share of
+// its reach).
+func stickAxes(rawX, rawY int, reach, deadZone float64) (x, y float64) {
+	x, y = float64(rawX)/reach, float64(rawY)/reach
+	if math.Hypot(x, y) < deadZone {
 		return 0, 0
 	}
 	return math.Max(-1, math.Min(1, x)), math.Max(-1, math.Min(1, y))
@@ -91,6 +123,7 @@ func (controls *Controls) Apply(state *input.State, reading Reading) {
 		state.PressBack()
 	}
 	state.StickX, state.StickY = reading.Circle()
+	state.RightStickX, state.RightStickY = reading.CStick() // at rest until StartMotionControls
 	controls.applyTouch(state, reading)
 	controls.previous = reading
 }
