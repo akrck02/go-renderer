@@ -18,11 +18,13 @@ type recorder struct {
 	uniformValues      int
 	enables            int
 	snapshots          int // frames copied into a texture: one per backdrop snapshot
+	bound              Framebuffer
 }
 
 type recordedDraw struct {
-	elements bool
-	count    int
+	elements    bool
+	count       int
+	framebuffer Framebuffer // the one bound when it was drawn
 }
 
 func newRecorder() *recorder {
@@ -92,7 +94,7 @@ func (fake *recorder) CreateFramebuffer() Framebuffer {
 	fake.nextHandle++
 	return Framebuffer(fake.nextHandle)
 }
-func (fake *recorder) BindFramebuffer(Enum, Framebuffer)                   {}
+func (fake *recorder) BindFramebuffer(_ Enum, framebuffer Framebuffer)     { fake.bound = framebuffer }
 func (fake *recorder) FramebufferTexture2D(Enum, Enum, Enum, Texture, int) {}
 func (fake *recorder) DeleteFramebuffer(Framebuffer)                       {}
 func (fake *recorder) Viewport(int, int, int, int)                         {}
@@ -104,10 +106,10 @@ func (fake *recorder) BlendFuncSeparate(Enum, Enum, Enum, Enum)            {}
 func (fake *recorder) DepthMask(bool)                                      {}
 func (fake *recorder) DepthFunc(Enum)                                      {}
 func (fake *recorder) DrawArrays(_ Enum, _ int, count int) {
-	fake.draws = append(fake.draws, recordedDraw{count: count})
+	fake.draws = append(fake.draws, recordedDraw{count: count, framebuffer: fake.bound})
 }
 func (fake *recorder) DrawElements(_ Enum, count int, _ Enum, _ int) {
-	fake.draws = append(fake.draws, recordedDraw{elements: true, count: count})
+	fake.draws = append(fake.draws, recordedDraw{elements: true, count: count, framebuffer: fake.bound})
 }
 
 // forget clears what the last frame recorded.
