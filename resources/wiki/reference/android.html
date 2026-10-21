@@ -33,6 +33,24 @@
 <span class="p">}</span>
 </code></pre>
 
+<h3 id="feeling">Feeling</h3>
+
+<p>Feeling is a kind of buzz a touch gives, as Android&rsquo;s own views give them.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Feeling</span> <span class="kt">int</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="c1">// FeelingLongPress is the buzz of a touch that became a long press.</span>
+	<span class="nx">FeelingLongPress</span> <span class="nx">Feeling</span> <span class="p">=</span> <span class="kc">iota</span>
+	<span class="c1">// FeelingTick is a light tick: something chosen, a switch flipped, a step on a dial.</span>
+	<span class="nx">FeelingTick</span>
+	<span class="c1">// FeelingConfirm says something went through. Before Android 11 it is a tick.</span>
+	<span class="nx">FeelingConfirm</span>
+	<span class="c1">// FeelingReject says something went wrong or needs a look. Before Android 11 it is the buzz of a</span>
+	<span class="c1">// long press, the strongest the older phones have.</span>
+	<span class="nx">FeelingReject</span>
+<span class="p">)</span>
+</code></pre>
+
 <h3 id="readeraction">ReaderAction</h3>
 
 <p>ReaderAction is what a screen reader asked of which node.</p>

@@ -257,8 +257,11 @@ again.</p>
 	<span class="nx">BaseColor</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// linear RGBA multiplied with vertex colors</span>
 	<span class="nx">DoubleSided</span> <span class="kt">bool</span>
 	<span class="nx">Transparent</span> <span class="kt">bool</span>
-	<span class="nx">Sway</span>        <span class="kt">float32</span> <span class="c1">// how much the wind bends the mesh (0 = rigid); for plants modelled with height 1</span>
-	<span class="nx">DepthBias</span>   <span class="kt">float32</span> <span class="c1">// pulls the surface towards the camera by this share of its distance, so thin surfaces</span>
+	<span class="c1">// Additive adds the surface&#39;s light to what is behind it instead of covering it: beams, sparks,</span>
+	<span class="c1">// glows. It never darkens, and is drawn with the transparent surfaces (its alpha scales it).</span>
+	<span class="nx">Additive</span>  <span class="kt">bool</span>
+	<span class="nx">Sway</span>      <span class="kt">float32</span> <span class="c1">// how much the wind bends the mesh (0 = rigid); for plants modelled with height 1</span>
+	<span class="nx">DepthBias</span> <span class="kt">float32</span> <span class="c1">// pulls the surface towards the camera by this share of its distance, so thin surfaces</span>
 	<span class="c1">// lying on terrain (rivers, roads) stay visible over the terrain&#39;s simpler far versions; 0 = none</span>
 	<span class="nx">Pattern</span>      <span class="nx">Pattern</span> <span class="c1">// procedural surface pattern of lit and glowing materials</span>
 	<span class="nx">PatternScale</span> <span class="kt">float32</span> <span class="c1">// size of one pattern cell (a stone, a course, a shingle) in world units</span>
@@ -375,7 +378,11 @@ again.</p>
 	<span class="nx">Instances</span> <span class="o">*</span><span class="nx">Instances</span>
 	<span class="nx">Children</span>  <span class="p">[]</span><span class="o">*</span><span class="nx">Node</span>
 	<span class="nx">Hidden</span>    <span class="kt">bool</span>
-	<span class="nx">Tags</span>      <span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">any</span> <span class="c1">// free data from the file (glTF extras) for the application</span>
+	<span class="c1">// Moving says the node&#39;s transform changes often, turning as well as moving: a ship, a</span>
+	<span class="c1">// vehicle. Backends that work a mesh&#39;s light out once for each way it is turned (ctr, on the</span>
+	<span class="c1">// 3DS) light a moving node on the GPU every frame instead.</span>
+	<span class="nx">Moving</span> <span class="kt">bool</span>
+	<span class="nx">Tags</span>   <span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">any</span> <span class="c1">// free data from the file (glTF extras) for the application</span>
 <span class="p">}</span>
 </code></pre>
 

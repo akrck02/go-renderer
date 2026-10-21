@@ -127,7 +127,18 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 	<span class="nx">KeyHome</span>
 	<span class="nx">KeyEnd</span>
 	<span class="nx">KeySuper</span> <span class="c1">// the Command key on a Mac, the Windows key elsewhere</span>
-
+	<span class="nx">KeyF1</span>
+	<span class="nx">KeyF2</span>
+	<span class="nx">KeyF3</span>
+	<span class="nx">KeyF4</span>
+	<span class="nx">KeyF5</span>
+	<span class="nx">KeyF6</span>
+	<span class="nx">KeyF7</span>
+	<span class="nx">KeyF8</span>
+	<span class="nx">KeyF9</span>
+	<span class="nx">KeyF10</span>
+	<span class="nx">KeyF11</span>
+	<span class="nx">KeyF12</span>
 <span class="p">)</span>
 </code></pre>
 
@@ -143,6 +154,30 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 <span class="p">)</span>
 </code></pre>
 
+<h3 id="padbutton">PadButton</h3>
+
+<p>PadButton is a game pad&rsquo;s button.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">PadButton</span> <span class="kt">int</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="nx">PadA</span> <span class="nx">PadButton</span> <span class="p">=</span> <span class="kc">iota</span>
+	<span class="nx">PadB</span>
+	<span class="nx">PadX</span>
+	<span class="nx">PadY</span>
+	<span class="nx">PadLeftShoulder</span>
+	<span class="nx">PadRightShoulder</span>
+	<span class="nx">PadBack</span>
+	<span class="nx">PadStart</span>
+	<span class="nx">PadGuide</span>
+	<span class="nx">PadLeftThumb</span> <span class="c1">// pressing the left stick in</span>
+	<span class="nx">PadRightThumb</span>
+	<span class="nx">PadUp</span>
+	<span class="nx">PadRight</span>
+	<span class="nx">PadDown</span>
+	<span class="nx">PadLeft</span>
+<span class="p">)</span>
+</code></pre>
+
 <h3 id="state">State</h3>
 
 <p>State is the input state for the current frame.</p>
@@ -152,6 +187,12 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 	<span class="nx">CursorDeltaY</span>     <span class="kt">float64</span>
 	<span class="nx">ScrollDelta</span>      <span class="kt">float64</span> <span class="c1">// vertical scroll since the previous frame</span>
 	<span class="nx">ScrollDeltaX</span>     <span class="kt">float64</span> <span class="c1">// horizontal scroll since the previous frame (trackpads, tilting wheels)</span>
+	<span class="c1">// StickX and StickY are a game pad&#39;s main stick where there is one (a console&#39;s circle pad, a</span>
+	<span class="c1">// pad&#39;s left stick), from -1 to 1 each way, right and up positive; 0 at rest or without one.</span>
+	<span class="c1">// RightStickX and RightStickY are its second stick (a New 3DS&#39;s C-stick, a pad&#39;s right one).</span>
+	<span class="c1">// The backend sets them every frame.</span>
+	<span class="nx">StickX</span><span class="p">,</span> <span class="nx">StickY</span>           <span class="kt">float64</span>
+	<span class="nx">RightStickX</span><span class="p">,</span> <span class="nx">RightStickY</span> <span class="kt">float64</span>
 
 	<span class="nx">FramebufferWidth</span>  <span class="kt">int</span> <span class="c1">// updated by the backend</span>
 	<span class="nx">FramebufferHeight</span> <span class="kt">int</span>
@@ -296,6 +337,16 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 </tr>
 
 <tr>
+<td><code>func (state *State) PadDown(button PadButton) bool</code></td>
+<td>PadDown tells whether a game pad&rsquo;s button is held.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) PadPressed(button PadButton) bool</code></td>
+<td>PadPressed tells whether a game pad&rsquo;s button went down this frame.</td>
+</tr>
+
+<tr>
 <td><code>func (state *State) PointerLeaves()</code></td>
 <td>PointerLeaves takes the pointer off the window once this frame ends: a finger lifted from a touch screen leaves nothing under it, so no control stays lit as if a mouse rested on it.</td>
 </tr>
@@ -338,6 +389,11 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 <tr>
 <td><code>func (state *State) SetKey(key Key, isDown bool)</code></td>
 <td>SetKey records a key transition (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) SetPadButton(button PadButton, isDown bool)</code></td>
+<td>SetPadButton records a game pad&rsquo;s button as held or let go; going down presses it this frame.</td>
 </tr>
 
 <tr>

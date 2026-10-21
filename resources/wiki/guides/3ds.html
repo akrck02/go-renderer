@@ -186,6 +186,11 @@ Escape and the system&rsquo;s back, the circle pad the stick (<code>input.State.
 touch screen the pointer (tested on any computer). The cameras read the stick as a game&rsquo;s player
 moves: the orbit and the plan move their target over the ground, the walk walks.</p>
 
+<p>The C-stick (a New 3DS&rsquo;s) and the gyroscope are services of their own, started only when a game
+asks: <code>ctr.StartMotionControls</code> starts both and says which did, and from then on each reading has
+<code>CStick()</code> (from -1 to 1, as <code>Circle()</code>) and <code>Gyroscope</code> (how fast the console turns, in degrees a
+second). <code>StopMotionControls</code> stops them, as the gyroscope uses power.</p>
+
 <p><code>ctr.Open</code> asks a New 3DS for its fast mode (804 MHz and the second-level cache): libctru leaves
 the processor at 268 MHz otherwise, a third of what it can do.</p>
 

@@ -138,6 +138,34 @@ plan, so both draw the same thing.</p>
 <span class="p">}</span>
 </code></pre>
 
+<h3 id="blending">Blending</h3>
+
+<p>Blending is how a surface is mixed with what is behind it.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Blending</span> <span class="kt">int</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="nx">BlendNone</span>     <span class="nx">Blending</span> <span class="p">=</span> <span class="kc">iota</span> <span class="c1">// opaque: it covers what is behind, and writes depth</span>
+	<span class="nx">BlendAlpha</span>                    <span class="c1">// translucent: its alpha mixes it over what is behind</span>
+	<span class="nx">BlendAdditive</span>                 <span class="c1">// its light, scaled by its alpha, adds to what is behind</span>
+<span class="p">)</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func BlendingOf(command Command) Blending</code></td>
+<td>BlendingOf is how a command&rsquo;s surface is mixed with what is behind it.</td>
+</tr>
+</tbody>
+</table>
+
 <h3 id="cameramatrices">CameraMatrices</h3>
 
 <p>CameraMatrices are the matrices of one frame, in OpenGL&rsquo;s clip space (depth from -1 to 1); a backend with another clip space converts them.</p>

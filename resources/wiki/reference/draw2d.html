@@ -257,6 +257,11 @@ easy to build and to check in tests.</p>
 </tr>
 
 <tr>
+<td><code>func (list *List) Stroke(path *Path, x, y, scale, width float32, color Color)</code></td>
+<td>Stroke draws a path&rsquo;s line, width layout pixels wide, in a colour: the path&rsquo;s point (0, 0) goes at (x, y) of the screen and each of its units is scale layout pixels.</td>
+</tr>
+
+<tr>
 <td><code>func (list *List) Text(text string, x, baseline, size float32, weight Weight, color Color)</code></td>
 <td>Text draws one line of text starting at x, with its baseline at baseline.</td>
 </tr>
@@ -271,6 +276,66 @@ easy to build and to check in tests.</p>
 	<span class="c1">// HasIcon tells whether an icon name is known to the backend.</span>
 	<span class="nf">HasIcon</span><span class="p">(</span><span class="nx">name</span> <span class="kt">string</span><span class="p">)</span> <span class="kt">bool</span>
 <span class="p">}</span>
+</code></pre>
+
+<h3 id="path">Path</h3>
+
+<p>Path is a line made of straight pieces and curves. Build it with MoveTo, LineTo, CurveTo and Close, or with Circle and RoundedRectangle; keep it, and draw it with List.Stroke.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Path</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (path *Path) Bounds() Rect</code></td>
+<td>Bounds is the smallest rectangle, in the path&rsquo;s units, that holds every point of it.</td>
+</tr>
+
+<tr>
+<td><code>func (path *Path) Circle(centreX, centreY, radius float32)</code></td>
+<td>Circle adds a circle about a centre, as a run of its own.</td>
+</tr>
+
+<tr>
+<td><code>func (path *Path) Close()</code></td>
+<td>Close draws a straight piece back to where the run began.</td>
+</tr>
+
+<tr>
+<td><code>func (path *Path) CurveTo(firstX, firstY, secondX, secondY, x, y float32)</code></td>
+<td>CurveTo draws a cubic Bézier curve from the last point to (x, y), pulled towards two control points, as SVG&rsquo;s C does.</td>
+</tr>
+
+<tr>
+<td><code>func (path *Path) LineTo(x, y float32)</code></td>
+<td>LineTo draws a straight piece from the last point to another; with no point before, it starts there.</td>
+</tr>
+
+<tr>
+<td><code>func (path *Path) MoveTo(x, y float32)</code></td>
+<td>MoveTo starts a new run of the line at a point.</td>
+</tr>
+
+<tr>
+<td><code>func (path *Path) RoundedRectangle(x, y, width, height, radius float32)</code></td>
+<td>RoundedRectangle adds a rectangle with rounded corners, as a run of its own; a radius larger than half a side is made half of it.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="point">Point</h3>
+
+<p>Point is a place in a path&rsquo;s units.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Point</span> <span class="kd">struct</span><span class="p">{</span> <span class="nx">X</span><span class="p">,</span> <span class="nx">Y</span> <span class="kt">float32</span> <span class="p">}</span>
 </code></pre>
 
 <h3 id="rect">Rect</h3>

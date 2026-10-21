@@ -35,6 +35,12 @@
 </tbody>
 </table>
 
+<h3 id="area">Area</h3>
+
+<p>Area is a rectangle of the framebuffer, in its pixels, from its bottom-left corner as OpenGL counts.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Area</span> <span class="kd">struct</span><span class="p">{</span> <span class="nx">X</span><span class="p">,</span> <span class="nx">Y</span><span class="p">,</span> <span class="nx">Width</span><span class="p">,</span> <span class="nx">Height</span> <span class="kt">int</span> <span class="p">}</span>
+</code></pre>
+
 <h3 id="flatrenderer">FlatRenderer</h3>
 
 <p>FlatRenderer draws a 2D draw list on a plain background, with no scene, sky or camera: the window of an application that is only an interface. It uses the overlay&rsquo;s atlas and shaders, so a whole frame is one clear and one draw call. Create and use it on the thread that owns the OpenGL context.</p>
@@ -192,6 +198,16 @@
 <tr>
 <td><code>func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int, seconds float64)</code></td>
 <td>Draw renders the scene from the camera into the current framebuffer of the given size, then its overlay on top.</td>
+</tr>
+
+<tr>
+<td><code>func (renderer *SceneRenderer) DrawIn(world *scene.Scene, camera models.Camera, area Area, seconds float64)</code></td>
+<td>DrawIn renders the scene from the camera into an area of the current framebuffer, clearing only that area, and without the scene&rsquo;s overlay: several scenes can share a frame (a preview of a console&rsquo;s two screens), and an overlay over all of them is drawn once after (DrawOverlay).</td>
+</tr>
+
+<tr>
+<td><code>func (renderer *SceneRenderer) DrawOverlay(world *scene.Scene, width, height int)</code></td>
+<td>DrawOverlay draws a scene&rsquo;s overlay (its labels, notices and drawing) over the whole framebuffer, with the camera of the last DrawIn.</td>
 </tr>
 </tbody>
 </table>
