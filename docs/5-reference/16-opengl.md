@@ -13,6 +13,14 @@ import "github.com/akrck02/go-renderer/opengl"
 | `func LinkProgram(vertexShader, fragmentShader uint32) (uint32, error)` |  |
 | `func Wake()` | Wake makes a window that draws on demand draw a frame now: for a program whose data changes on another goroutine (a download finishing, a message arriving). |
 
+### Area
+
+Area is a rectangle of the framebuffer, in its pixels, from its bottom-left corner as OpenGL counts.
+
+```go
+type Area struct{ X, Y, Width, Height int }
+```
+
 ### FlatRenderer
 
 FlatRenderer draws a 2D draw list on a plain background, with no scene, sky or camera: the window of an application that is only an interface. It uses the overlay's atlas and shaders, so a whole frame is one clear and one draw call. Create and use it on the thread that owns the OpenGL context.
@@ -97,6 +105,8 @@ type SceneRenderer struct {
 |---|---|
 | `func NewSceneRenderer() (*SceneRenderer, error)` | NewSceneRenderer compiles the scene shaders. |
 | `func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int, seconds float64)` | Draw renders the scene from the camera into the current framebuffer of the given size, then its overlay on top. |
+| `func (renderer *SceneRenderer) DrawIn(world *scene.Scene, camera models.Camera, area Area, seconds float64)` | DrawIn renders the scene from the camera into an area of the current framebuffer, clearing only that area, and without the scene's overlay: several scenes can share a frame (a preview of a console's two screens), and an overlay over all of them is drawn once after (DrawOverlay). |
+| `func (renderer *SceneRenderer) DrawOverlay(world *scene.Scene, width, height int)` | DrawOverlay draws a scene's overlay (its labels, notices and drawing) over the whole framebuffer, with the camera of the last DrawIn. |
 
 ### ShadowSettings
 
