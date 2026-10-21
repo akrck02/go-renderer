@@ -307,6 +307,11 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 </tr>
 
 <tr>
+<td><code>func (state *State) Fullscreen() bool</code></td>
+<td>Fullscreen reports whether the window is asked to be on the whole screen.</td>
+</tr>
+
+<tr>
 <td><code>func (state *State) HasInput() bool</code></td>
 <td>HasInput tells whether anything arrived during this step: keys, characters, buttons, pointer movement or scrolling.</td>
 </tr>
@@ -384,6 +389,11 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 <tr>
 <td><code>func (state *State) SetCursorShape(shape CursorShape)</code></td>
 <td>SetCursorShape asks the backend to show the pointer with a shape; it stays until changed.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) SetFullscreen(on bool)</code></td>
+<td>SetFullscreen asks the backend to show the window on the whole screen, or in a window again.</td>
 </tr>
 
 <tr>

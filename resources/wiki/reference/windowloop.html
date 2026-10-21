@@ -5,7 +5,8 @@
 <p>Package windowloop runs a GLFW window&rsquo;s main loop for any drawing backend
 (OpenGL, Metal): the window&rsquo;s events, input, drawing on demand, the fixed-step
 update clock, frames asked for while the window is being resized, the pointer&rsquo;s
-shape and lock. A backend only has to draw and show a frame.</p>
+shape and lock, and the whole screen. A backend only has to draw and show a
+frame.</p>
 
 <h3 id="functions">Functions</h3>
 
@@ -97,6 +98,30 @@ shape and lock. A backend only has to draw and show a frame.</p>
 <tr>
 <td><code>func (shapes *CursorShapes) Apply(window *glfw.Window, state *input.State)</code></td>
 <td></td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="fullscreen">Fullscreen</h3>
+
+<p>Fullscreen puts a window on the whole screen when the application asks (input.State&rsquo;s SetFullscreen), and back in its place and at its size when it asks no more.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Fullscreen</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (fullscreen *Fullscreen) Apply(window *glfw.Window, state *input.State)</code></td>
+<td>Apply follows the application&rsquo;s request, when it changed.</td>
 </tr>
 </tbody>
 </table>
