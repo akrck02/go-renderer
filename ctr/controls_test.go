@@ -81,3 +81,12 @@ func TestTheCirclePadIsTheStick(t *testing.T) {
 		t.Fatalf("the pad at rest is no stick: %v, %v", state.StickX, state.StickY)
 	}
 }
+
+func TestTheCStickRestsInItsDeadZoneAndReachesOne(t *testing.T) {
+	if x, y := (Reading{CStickX: 10, CStickY: -8}).CStick(); x != 0 || y != 0 {
+		t.Fatalf("a C-stick a little off centre reads %v, %v", x, y)
+	}
+	if x, y := (Reading{CStickX: 146, CStickY: -200}).CStick(); x != 1 || y != -1 {
+		t.Fatalf("a C-stick at its edge reads %v, %v", x, y)
+	}
+}
