@@ -7,7 +7,8 @@ import "github.com/akrck02/go-renderer/windowloop"
 Package windowloop runs a GLFW window's main loop for any drawing backend
 (OpenGL, Metal): the window's events, input, drawing on demand, the fixed-step
 update clock, frames asked for while the window is being resized, the pointer's
-shape and lock. A backend only has to draw and show a frame.
+shape and lock, and the whole screen. A backend only has to draw and show a
+frame.
 
 ### Functions
 
@@ -46,6 +47,20 @@ type CursorShapes struct {
 | Function or method | |
 |---|---|
 | `func (shapes *CursorShapes) Apply(window *glfw.Window, state *input.State)` |  |
+
+### Fullscreen
+
+Fullscreen puts a window on the whole screen when the application asks (input.State's SetFullscreen), and back in its place and at its size when it asks no more.
+
+```go
+type Fullscreen struct {
+	// Has unexported fields.
+}
+```
+
+| Function or method | |
+|---|---|
+| `func (fullscreen *Fullscreen) Apply(window *glfw.Window, state *input.State)` | Apply follows the application's request, when it changed. |
 
 ---
 

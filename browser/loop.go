@@ -123,6 +123,7 @@ func (loop *frameLoop) frame() {
 		}
 	}
 	loop.canvas.applyCursor()
+	loop.canvas.applyFullscreen(false)
 	if loop.app.Stop {
 		loop.finish(nil)
 		return

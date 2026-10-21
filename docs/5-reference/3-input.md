@@ -253,6 +253,7 @@ type State struct {
 | `func (state *State) CursorShape() CursorShape` | CursorShape is the pointer shape the application asked for. |
 | `func (state *State) Down(key Key) bool` | Down reports whether a key is held. |
 | `func (state *State) EndFrame()` | EndFrame clears per-frame movement, presses, typed characters and claims; the backend calls it after each update step. |
+| `func (state *State) Fullscreen() bool` | Fullscreen reports whether the window is asked to be on the whole screen. |
 | `func (state *State) HasInput() bool` | HasInput tells whether anything arrived during this step: keys, characters, buttons, pointer movement or scrolling. |
 | `func (state *State) KeyboardClaimed() bool` | KeyboardClaimed tells whether an interface claimed the keyboard during this step. |
 | `func (state *State) LiftTouch(finger int64)` | LiftTouch takes a finger off the screen (called by the backend). |
@@ -269,6 +270,7 @@ type State struct {
 | `func (state *State) SetButton(button MouseButton, isDown bool)` | SetButton records a mouse button transition (called by the backend). |
 | `func (state *State) SetClipboardText(text string)` | SetClipboardText puts a text on the system clipboard, when there is one. |
 | `func (state *State) SetCursorShape(shape CursorShape)` | SetCursorShape asks the backend to show the pointer with a shape; it stays until changed. |
+| `func (state *State) SetFullscreen(on bool)` | SetFullscreen asks the backend to show the window on the whole screen, or in a window again. |
 | `func (state *State) SetKey(key Key, isDown bool)` | SetKey records a key transition (called by the backend). |
 | `func (state *State) SetPadButton(button PadButton, isDown bool)` | SetPadButton records a game pad's button as held or let go; going down presses it this frame. |
 | `func (state *State) SetTouch(finger int64, x, y float64)` | SetTouch puts a finger down, or moves it (called by the backend). |

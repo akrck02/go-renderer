@@ -1,6 +1,6 @@
 // Package windowloop runs a GLFW window's main loop for any drawing backend (OpenGL, Metal): the
 // window's events, input, drawing on demand, the fixed-step update clock, frames asked for while
-// the window is being resized, the pointer's shape and lock. A backend only has to draw and show
+// the window is being resized, the pointer's shape and lock, and the whole screen. A backend only has to draw and show
 // a frame.
 package windowloop
 
@@ -24,6 +24,7 @@ func Run(window *glfw.Window, app *models.Application, clock *Clock, drawFrame f
 	followUp := false
 	cursorLocked := false
 	var shapes CursorShapes
+	var fullscreen Fullscreen
 	var pad gamePad
 	frames, lastTitle := 0, time.Now()
 	for !window.ShouldClose() && !app.Stop {
@@ -57,6 +58,7 @@ func Run(window *glfw.Window, app *models.Application, clock *Clock, drawFrame f
 		if app.Input != nil {
 			ApplyCursorLock(window, app.Input, &cursorLocked)
 			shapes.Apply(window, app.Input)
+			fullscreen.Apply(window, app.Input)
 		}
 
 		frames++
