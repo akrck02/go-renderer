@@ -70,6 +70,7 @@ func (canvas *Canvas) Attach(state *input.State) {
 	canvas.listen(canvas.element, "keyup", canvas.keyReleased)
 	canvas.listen(canvas.element, "blur", func(js.Value) { canvas.releaseEverything() })
 	canvas.listen(js.Global().Get("document"), "paste", canvas.pasted)
+	canvas.listen(js.Global().Get("document"), "fullscreenchange", canvas.fullscreenChanged)
 	canvas.observeSize()
 }
 
@@ -117,6 +118,7 @@ func (canvas *Canvas) pointerMoved(event js.Value) {
 
 func (canvas *Canvas) pointerPressed(event js.Value) {
 	canvas.element.Call("focus")
+	canvas.applyFullscreen(true) // a press lets a page take the whole screen
 	// keep receiving the pointer's events while it is held, even outside the canvas (a drag)
 	canvas.element.Call("setPointerCapture", event.Get("pointerId"))
 	event.Call("preventDefault")
@@ -160,6 +162,7 @@ func (canvas *Canvas) wheelTurned(event js.Value) {
 }
 
 func (canvas *Canvas) keyPressed(event js.Value) {
+	canvas.applyFullscreen(true) // a key lets a page take the whole screen
 	shortcut := event.Get("ctrlKey").Bool() || event.Get("metaKey").Bool()
 	if key, known := keyFromCode(event.Get("code").String()); known {
 		if event.Get("repeat").Bool() {
@@ -259,6 +262,34 @@ func (canvas *Canvas) applyCursor() {
 	}
 	canvas.cursor = shape
 	canvas.element.Get("style").Set("cursor", cursorStyles[shape])
+}
+
+// applyFullscreen puts the canvas on the whole screen when the program asks, or takes it off. A
+// browser lets a page take the whole screen only while it answers a key or a click, so the
+// program's request waits for the next one (answering is true then); leaving it needs no such
+// moment.
+func (canvas *Canvas) applyFullscreen(answering bool) {
+	document := js.Global().Get("document")
+	shown := document.Get("fullscreenElement")
+	on := !shown.IsNull() && !shown.IsUndefined()
+	wanted := canvas.state.Fullscreen()
+	if wanted == on || wanted && (!answering || !canvas.element.Get("requestFullscreen").Truthy()) {
+		return
+	}
+	if wanted {
+		canvas.element.Call("requestFullscreen")
+		return
+	}
+	document.Call("exitFullscreen")
+}
+
+// fullscreenChanged follows the person leaving the whole screen themselves (Escape): the program
+// no longer asks for it.
+func (canvas *Canvas) fullscreenChanged(js.Value) {
+	shown := js.Global().Get("document").Get("fullscreenElement")
+	if shown.IsNull() || shown.IsUndefined() {
+		canvas.state.SetFullscreen(false)
+	}
 }
 
 // pageClipboard keeps copied text for the page. Copying also offers it to the system clipboard;

@@ -156,6 +156,7 @@ type State struct {
 	backTaken                bool // a part of the program answered it (TakeBack)
 	backUnanswered           bool // the last step had a back nobody answered (BackUnanswered)
 	cursorLockRequested      bool
+	fullscreenRequested      bool
 	cursorShape              CursorShape
 	mouseClaimed             bool
 	keyboardClaimed          bool
@@ -364,6 +365,14 @@ func (state *State) LockCursor(lock bool) { state.cursorLockRequested = lock }
 
 // CursorLocked reports whether the application asked for a captured cursor.
 func (state *State) CursorLocked() bool { return state.cursorLockRequested }
+
+// SetFullscreen asks the backend to show the window on the whole screen, or in a window again. It
+// stays asked until changed; a browser applies it on the next key or click, as browsers ask, and
+// the backend sets it back when the person leaves the whole screen themselves (Escape).
+func (state *State) SetFullscreen(on bool) { state.fullscreenRequested = on }
+
+// Fullscreen reports whether the window is asked to be on the whole screen.
+func (state *State) Fullscreen() bool { return state.fullscreenRequested }
 
 // ClaimMouse marks the mouse as used by an interface during this step (the pointer is over a
 // panel, or dragging a slider): cameras and shortcuts should leave it alone. See Unclaimed.
