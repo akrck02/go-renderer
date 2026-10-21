@@ -64,6 +64,12 @@ type Gyroscope struct {
 	Roll, Pitch, Yaw float64
 }
 
+// gyroscopeFrom turns the gyroscope's raw steps into degrees a second. libctru's coefficient
+// divides the steps: multiplying by it read a slight turn as thousands of degrees a second.
+func gyroscopeFrom(roll, pitch, yaw int, stepsPerDegree float64) Gyroscope {
+	return Gyroscope{Roll: float64(roll) / stepsPerDegree, Pitch: float64(pitch) / stepsPerDegree, Yaw: float64(yaw) / stepsPerDegree}
+}
+
 // The C-stick's reach and the share of it that counts as at rest: it reads about ±146 at its edge,
 // and a little off centre when let go.
 const (
