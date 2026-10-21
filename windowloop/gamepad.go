@@ -28,6 +28,7 @@ func (pad *gamePad) read(state *input.State) {
 	if !present {
 		if pad.present {
 			state.StickX, state.StickY, state.RightStickX, state.RightStickY = 0, 0, 0, 0
+			buttonsFromPad(state, [15]glfw.Action{}) // every button let go
 		}
 		pad.present = false
 		return
@@ -35,6 +36,7 @@ func (pad *gamePad) read(state *input.State) {
 	pad.present = true
 	if reading := glfw.Joystick1.GetGamepadState(); reading != nil { // nil: the pad went between the calls
 		sticksFromPad(state, reading.Axes)
+		buttonsFromPad(state, reading.Buttons)
 	}
 }
 
@@ -52,4 +54,11 @@ func stickFromAxes(axisX, axisY float32) (x, y float64) {
 		return 0, 0
 	}
 	return x, y
+}
+
+// buttonsFromPad sets a pad's buttons from GLFW's, which are in the same order as input's.
+func buttonsFromPad(state *input.State, buttons [15]glfw.Action) {
+	for index, action := range buttons {
+		state.SetPadButton(input.PadButton(index), action == glfw.Press)
+	}
 }
