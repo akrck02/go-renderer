@@ -97,16 +97,27 @@ func (renderer *SceneRenderer) drawCommands(commands []sceneplan.Command, view s
 	transparent := commands[0].Transparent
 	if transparent {
 		functions.Enable(Blend)
-		functions.BlendFuncSeparate(SourceAlpha, OneMinusSrcAlpha, One, OneMinusSrcAlpha)
 		functions.DepthMask(false) // translucent surfaces do not hide what is drawn after them
 	}
 	for _, command := range commands {
+		if transparent {
+			renderer.blendFor(sceneplan.BlendingOf(command))
+		}
 		renderer.drawCommand(command, view)
 	}
 	if transparent {
 		functions.DepthMask(true)
 		functions.Disable(Blend)
 	}
+}
+
+// blendFor mixes what is drawn next over what is behind it by alpha, or adds its light.
+func (renderer *SceneRenderer) blendFor(blending sceneplan.Blending) {
+	if blending == sceneplan.BlendAdditive {
+		renderer.functions.BlendFuncSeparate(SourceAlpha, One, One, OneMinusSrcAlpha)
+		return
+	}
+	renderer.functions.BlendFuncSeparate(SourceAlpha, OneMinusSrcAlpha, One, OneMinusSrcAlpha)
 }
 
 func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view sceneplan.Viewpoint) {

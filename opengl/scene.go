@@ -256,23 +256,32 @@ func (renderer *SceneRenderer) executeDrawCommands(commands []sceneplan.Command,
 	gl.UseProgram(renderer.sceneProgram.handle)
 	gl.Enable(gl.DEPTH_TEST)
 	gl.DepthFunc(gl.LEQUAL)
-	blending := false
+	blending := sceneplan.BlendNone
 	for _, command := range commands {
-		if command.Transparent && !blending {
-			enableBlending()
-			blending = true
+		if wanted := sceneplan.BlendingOf(command); wanted != blending {
+			setBlending(wanted)
+			blending = wanted
 		}
 		renderer.drawNode(command, view)
 	}
-	if blending {
+	if blending != sceneplan.BlendNone {
 		disableBlending()
 	}
 	gl.BindVertexArray(0)
 }
 
-func enableBlending() {
+// setBlending mixes what is drawn next with what is behind it: over it by alpha, or adding its
+// light. Neither writes depth: a translucent surface does not hide what is drawn after it.
+func setBlending(blending sceneplan.Blending) {
+	if blending == sceneplan.BlendNone {
+		disableBlending()
+		return
+	}
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+	if blending == sceneplan.BlendAdditive {
+		gl.BlendFunc(gl.SRC_ALPHA, gl.ONE)
+	}
 	gl.DepthMask(false)
 }
 
