@@ -32,6 +32,7 @@ type SceneRenderer struct {
 	seabed         *seabedMap
 	frameLights    []sceneplan.FrameLight                     // the frame's point lights, which each draw takes a few of
 	lightValues    [2][4 * sceneplan.MaxLightsPerDraw]float32 // the draw's lights as uniforms: positions, colours
+	matrices       sceneplan.CameraMatrices                   // the last DrawIn's camera, which the overlay places labels with
 }
 
 // ShadowSettings controls the sun shadows (see sceneplan.ShadowSettings).
@@ -141,13 +142,25 @@ func (program *shaderProgram) setInteger(name string, value int32) {
 // Draw renders the scene from the camera into the current framebuffer of the given size, then its
 // overlay on top. seconds is the elapsed time, which animates water and waterfalls.
 func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int, seconds float64) {
+	renderer.DrawIn(world, camera, Area{Width: width, Height: height}, seconds)
+	renderer.DrawOverlay(world, width, height)
+}
+
+// Area is a rectangle of the framebuffer, in its pixels, from its bottom-left corner as OpenGL
+// counts.
+type Area struct{ X, Y, Width, Height int }
+
+// DrawIn renders the scene from the camera into an area of the current framebuffer, clearing only
+// that area, and without the scene's overlay: several scenes can share a frame (a preview of a
+// console's two screens), and an overlay over all of them is drawn once after (DrawOverlay).
+func (renderer *SceneRenderer) DrawIn(world *scene.Scene, camera models.Camera, area Area, seconds float64) {
 	started := time.Now()
-	frame := renderer.planner.Plan(world, camera, width, height, renderer.Shadows)
+	frame := renderer.planner.Plan(world, camera, area.Width, area.Height, renderer.Shadows)
 	renderer.measurePass("seabed", func() { renderer.seabed.update(frame.Seabed) })
 	var err error
 	renderer.measurePass("shadows", func() { err = renderer.renderShadows(world, frame, seconds) })
 	shadowsReady := err == nil && frame.Shadow.Enabled
-	clearFrame(frame.Light, width, height)
+	clearFrame(frame.Light, area)
 	renderer.setFrameUniforms(world.Environment, frame.Light, camera, frame.Matrices, seconds)
 	renderer.shadow.bindForLighting(renderer.sceneProgram, frame.Shadow.Region, shadowsReady)
 	renderer.seabed.bindForWater(renderer.sceneProgram, world.Environment.Water)
@@ -156,8 +169,15 @@ func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, wi
 	renderer.measurePass("scene", func() { renderer.executeDrawCommands(frame.Opaque, frame.View) })
 	renderer.measurePass("sky", func() { renderer.sky.draw(world.Environment, frame.Light, camera, frame.Matrices, seconds) })
 	renderer.measurePass("transparent", func() { renderer.executeDrawCommands(frame.Transparent, frame.View) })
-	renderer.measurePass("overlay", func() { renderer.overlay.draw(world, frame.Matrices, width, height, renderer.OverlayScale) })
+	renderer.matrices = frame.Matrices
 	renderer.recordStatistics(time.Since(started))
+}
+
+// DrawOverlay draws a scene's overlay (its labels, notices and drawing) over the whole framebuffer,
+// with the camera of the last DrawIn.
+func (renderer *SceneRenderer) DrawOverlay(world *scene.Scene, width, height int) {
+	gl.Viewport(0, 0, int32(width), int32(height))
+	renderer.measurePass("overlay", func() { renderer.overlay.draw(world, renderer.matrices, width, height, renderer.OverlayScale) })
 }
 
 // measurePass runs a pass, timing it on the GPU when profiling.
@@ -208,11 +228,16 @@ func (renderer *SceneRenderer) matchShadowResolution() error {
 	return nil
 }
 
-func clearFrame(light scene.Daylight, width, height int) {
-	gl.Viewport(0, 0, int32(width), int32(height))
+// clearFrame clears an area of the framebuffer to the horizon's colour and draws the next passes
+// into it.
+func clearFrame(light scene.Daylight, area Area) {
+	gl.Viewport(int32(area.X), int32(area.Y), int32(area.Width), int32(area.Height))
+	gl.Scissor(int32(area.X), int32(area.Y), int32(area.Width), int32(area.Height))
+	gl.Enable(gl.SCISSOR_TEST) // a clear ignores the viewport: only the scissor keeps it in the area
 	horizon := light.Horizon
 	gl.ClearColor(horizon[0], horizon[1], horizon[2], 1)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+	gl.Disable(gl.SCISSOR_TEST)
 	gl.Disable(gl.CULL_FACE)
 }
 
@@ -256,23 +281,32 @@ func (renderer *SceneRenderer) executeDrawCommands(commands []sceneplan.Command,
 	gl.UseProgram(renderer.sceneProgram.handle)
 	gl.Enable(gl.DEPTH_TEST)
 	gl.DepthFunc(gl.LEQUAL)
-	blending := false
+	blending := sceneplan.BlendNone
 	for _, command := range commands {
-		if command.Transparent && !blending {
-			enableBlending()
-			blending = true
+		if wanted := sceneplan.BlendingOf(command); wanted != blending {
+			setBlending(wanted)
+			blending = wanted
 		}
 		renderer.drawNode(command, view)
 	}
-	if blending {
+	if blending != sceneplan.BlendNone {
 		disableBlending()
 	}
 	gl.BindVertexArray(0)
 }
 
-func enableBlending() {
+// setBlending mixes what is drawn next with what is behind it: over it by alpha, or adding its
+// light. Neither writes depth: a translucent surface does not hide what is drawn after it.
+func setBlending(blending sceneplan.Blending) {
+	if blending == sceneplan.BlendNone {
+		disableBlending()
+		return
+	}
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+	if blending == sceneplan.BlendAdditive {
+		gl.BlendFunc(gl.SRC_ALPHA, gl.ONE)
+	}
 	gl.DepthMask(false)
 }
 

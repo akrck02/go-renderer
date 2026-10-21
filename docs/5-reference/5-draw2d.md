@@ -145,6 +145,7 @@ type List struct {
 | `func (list *List) SetLayer(layer int)` | SetLayer makes the following commands go on a layer: for example 0 for panels, 1 for menus that open over them and 2 for tooltips. |
 | `func (list *List) Shadow(area Rect, radius, blur, offsetY float32, color Color)` | Shadow draws a soft shadow for a rounded rectangle, fading out over blur pixels on every side and falling offsetY pixels below it. |
 | `func (list *List) SpriteLight(picture *Image, area Rect, color Color)` | SpriteLight adds a picture shining as a light over an area, tinted by a colour whose alpha is its intensity: a lamp's glow, a sign that shines. |
+| `func (list *List) Stroke(path *Path, x, y, scale, width float32, color Color)` | Stroke draws a path's line, width layout pixels wide, in a colour: the path's point (0, 0) goes at (x, y) of the screen and each of its units is scale layout pixels. |
 | `func (list *List) Text(text string, x, baseline, size float32, weight Weight, color Color)` | Text draws one line of text starting at x, with its baseline at baseline. |
 
 ### Measurer
@@ -157,6 +158,34 @@ type Measurer interface {
 	// HasIcon tells whether an icon name is known to the backend.
 	HasIcon(name string) bool
 }
+```
+
+### Path
+
+Path is a line made of straight pieces and curves. Build it with MoveTo, LineTo, CurveTo and Close, or with Circle and RoundedRectangle; keep it, and draw it with List.Stroke.
+
+```go
+type Path struct {
+	// Has unexported fields.
+}
+```
+
+| Function or method | |
+|---|---|
+| `func (path *Path) Bounds() Rect` | Bounds is the smallest rectangle, in the path's units, that holds every point of it. |
+| `func (path *Path) Circle(centreX, centreY, radius float32)` | Circle adds a circle about a centre, as a run of its own. |
+| `func (path *Path) Close()` | Close draws a straight piece back to where the run began. |
+| `func (path *Path) CurveTo(firstX, firstY, secondX, secondY, x, y float32)` | CurveTo draws a cubic Bézier curve from the last point to (x, y), pulled towards two control points, as SVG's C does. |
+| `func (path *Path) LineTo(x, y float32)` | LineTo draws a straight piece from the last point to another; with no point before, it starts there. |
+| `func (path *Path) MoveTo(x, y float32)` | MoveTo starts a new run of the line at a point. |
+| `func (path *Path) RoundedRectangle(x, y, width, height, radius float32)` | RoundedRectangle adds a rectangle with rounded corners, as a run of its own; a radius larger than half a side is made half of it. |
+
+### Point
+
+Point is a place in a path's units.
+
+```go
+type Point struct{ X, Y float32 }
 ```
 
 ### Rect

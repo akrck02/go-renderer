@@ -38,7 +38,7 @@ type SceneRenderer struct {
 	device    unsafe.Pointer
 	planner   *sceneplan.Planner
 	pipelines struct {
-		scene, sceneBlended, depthOnly, sky, constellationLines, constellationPoints, overlay unsafe.Pointer
+		scene, sceneBlended, sceneAdditive, depthOnly, sky, constellationLines, constellationPoints, overlay unsafe.Pointer
 	}
 	depthStates struct {
 		drawing, blended, shadow, overlay unsafe.Pointer
@@ -102,6 +102,7 @@ func (renderer *SceneRenderer) preparePipelines() error {
 	}{
 		{&pipelines.scene, "sceneVertex", "sceneFragment", C.sceneBlendNone},
 		{&pipelines.sceneBlended, "sceneVertex", "sceneFragment", C.sceneBlendAlpha},
+		{&pipelines.sceneAdditive, "sceneVertex", "sceneFragment", C.sceneBlendAdditive},
 		{&pipelines.depthOnly, "sceneVertex", "", C.sceneBlendNone},
 		{&pipelines.sky, "skyVertex", "skyFragment", C.sceneBlendNone},
 		{&pipelines.constellationLines, "constellationVertex", "constellationLineFragment", C.sceneBlendAlpha},
@@ -173,7 +174,7 @@ func (renderer *SceneRenderer) newBuffer(values []float32) unsafe.Pointer {
 // they are collected.
 func (renderer *SceneRenderer) Close() {
 	for _, object := range []unsafe.Pointer{
-		renderer.pipelines.scene, renderer.pipelines.sceneBlended, renderer.pipelines.depthOnly, renderer.pipelines.sky,
+		renderer.pipelines.scene, renderer.pipelines.sceneBlended, renderer.pipelines.sceneAdditive, renderer.pipelines.depthOnly, renderer.pipelines.sky,
 		renderer.pipelines.constellationLines, renderer.pipelines.constellationPoints, renderer.pipelines.overlay,
 		renderer.depthStates.drawing, renderer.depthStates.blended, renderer.depthStates.shadow, renderer.depthStates.overlay,
 		renderer.shadowMap, renderer.seabedMap, renderer.placeholders.panorama, renderer.placeholders.cube,
@@ -273,13 +274,27 @@ func (renderer *SceneRenderer) bindScene(encoder unsafe.Pointer, resources scene
 	C.sceneEncoderSetFragmentTexture(encoder, renderer.seabedMap, 1)
 }
 
+// setBlendedPipeline draws the next transparent commands by alpha, or adding their light.
+func (renderer *SceneRenderer) setBlendedPipeline(encoder unsafe.Pointer, additive bool) {
+	if additive {
+		C.sceneEncoderSetPipeline(encoder, renderer.pipelines.sceneAdditive)
+		return
+	}
+	C.sceneEncoderSetPipeline(encoder, renderer.pipelines.sceneBlended)
+}
+
 // drawCommands draws opaque or transparent commands from the camera.
 func (renderer *SceneRenderer) drawCommands(encoder unsafe.Pointer, commands []sceneplan.Command, view sceneplan.Viewpoint, resources sceneResources, blended bool) {
 	if len(commands) == 0 {
 		return
 	}
 	renderer.bindScene(encoder, resources, blended)
+	additive := false
 	for _, command := range commands {
+		if wanted := sceneplan.BlendingOf(command) == sceneplan.BlendAdditive; wanted != additive {
+			additive = wanted
+			renderer.setBlendedPipeline(encoder, additive)
+		}
 		uniforms := drawUniformsFor(command, resources.levelVariationActive, resources.lights)
 		renderer.drawGeometry(encoder, command, view, sceneplan.MainPass, uniforms)
 	}

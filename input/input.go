@@ -76,6 +76,18 @@ const (
 	KeyHome
 	KeyEnd
 	KeySuper // the Command key on a Mac, the Windows key elsewhere
+	KeyF1
+	KeyF2
+	KeyF3
+	KeyF4
+	KeyF5
+	KeyF6
+	KeyF7
+	KeyF8
+	KeyF9
+	KeyF10
+	KeyF11
+	KeyF12
 	keyCount
 )
 
@@ -118,6 +130,8 @@ const (
 type State struct {
 	keysHeld           [keyCount]bool
 	keysPressedNow     [keyCount]bool
+	padHeld            [padButtonCount]bool // a game pad's buttons (pad.go)
+	padPressedNow      [padButtonCount]bool
 	keysTypedNow       [keyCount]bool // pressed or repeated by the system
 	buttonsHeld        [mouseButtonCount]bool
 	buttonsPressedNow  [mouseButtonCount]bool
@@ -130,23 +144,25 @@ type State struct {
 	CursorDeltaY       float64
 	ScrollDelta        float64 // vertical scroll since the previous frame
 	ScrollDeltaX       float64 // horizontal scroll since the previous frame (trackpads, tilting wheels)
-	// StickX and StickY are a game pad's stick where there is one (a console's circle pad), from
-	// -1 to 1 each way, right and up positive; 0 at rest or without one. The backend sets them
-	// every frame.
-	StickX, StickY      float64
-	hasCursorPosition   bool
-	leaving             bool // the pointer goes off the window when this frame ends (PointerLeaves)
-	backPressed         bool // the system's back, this step (PressBack)
-	backTaken           bool // a part of the program answered it (TakeBack)
-	backUnanswered      bool // the last step had a back nobody answered (BackUnanswered)
-	cursorLockRequested bool
-	cursorShape         CursorShape
-	mouseClaimed        bool
-	keyboardClaimed     bool
-	FramebufferWidth    int // updated by the backend
-	FramebufferHeight   int
-	WindowWidth         int // window size in cursor coordinates
-	WindowHeight        int
+	// StickX and StickY are a game pad's main stick where there is one (a console's circle pad, a
+	// pad's left stick), from -1 to 1 each way, right and up positive; 0 at rest or without one.
+	// RightStickX and RightStickY are its second stick (a New 3DS's C-stick, a pad's right one).
+	// The backend sets them every frame.
+	StickX, StickY           float64
+	RightStickX, RightStickY float64
+	hasCursorPosition        bool
+	leaving                  bool // the pointer goes off the window when this frame ends (PointerLeaves)
+	backPressed              bool // the system's back, this step (PressBack)
+	backTaken                bool // a part of the program answered it (TakeBack)
+	backUnanswered           bool // the last step had a back nobody answered (BackUnanswered)
+	cursorLockRequested      bool
+	cursorShape              CursorShape
+	mouseClaimed             bool
+	keyboardClaimed          bool
+	FramebufferWidth         int // updated by the backend
+	FramebufferHeight        int
+	WindowWidth              int // window size in cursor coordinates
+	WindowHeight             int
 	// Clipboard is set by the backend; nil when there is no system clipboard (tests, headless).
 	Clipboard Clipboard
 	// Now tells the time, for double clicks; nil = time.Now. Tests set it to a fake clock.
@@ -425,6 +441,7 @@ func (state *State) AnyHeld() bool {
 func (state *State) EndFrame() {
 	state.CursorDeltaX, state.CursorDeltaY, state.ScrollDelta, state.ScrollDeltaX = 0, 0, 0, 0
 	state.keysPressedNow = [keyCount]bool{}
+	state.padPressedNow = [padButtonCount]bool{}
 	state.keysTypedNow = [keyCount]bool{}
 	state.buttonsPressedNow = [mouseButtonCount]bool{}
 	state.buttonsReleasedNow = [mouseButtonCount]bool{}

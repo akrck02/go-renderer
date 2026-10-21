@@ -35,6 +35,28 @@ type AccessibleNode struct {
 }
 ```
 
+### Feeling
+
+Feeling is a kind of buzz a touch gives, as Android's own views give them.
+
+```go
+type Feeling int
+```
+
+```go
+const (
+	// FeelingLongPress is the buzz of a touch that became a long press.
+	FeelingLongPress Feeling = iota
+	// FeelingTick is a light tick: something chosen, a switch flipped, a step on a dial.
+	FeelingTick
+	// FeelingConfirm says something went through. Before Android 11 it is a tick.
+	FeelingConfirm
+	// FeelingReject says something went wrong or needs a look. Before Android 11 it is the buzz of a
+	// long press, the strongest the older phones have.
+	FeelingReject
+)
+```
+
 ### ReaderAction
 
 ReaderAction is what a screen reader asked of which node.
