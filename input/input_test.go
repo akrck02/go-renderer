@@ -237,3 +237,20 @@ func TestAnyHeldFollowsKeysAndButtons(t *testing.T) {
 		t.Error("nothing is held once both are let go")
 	}
 }
+
+func TestAFullscreenRequestStaysUntilChangedAndTravelsWithACopy(test *testing.T) {
+	state := NewState()
+	if state.Fullscreen() {
+		test.Fatal("a new state asks for fullscreen")
+	}
+	state.SetFullscreen(true)
+	state.EndFrame()
+	copied := state.Unclaimed()
+	if !state.Fullscreen() || !copied.Fullscreen() {
+		test.Fatal("the request does not last the frame, or does not travel with a copy")
+	}
+	copied.SetFullscreen(false)
+	if !state.Fullscreen() {
+		test.Fatal("a copy changed the state it was made from")
+	}
+}
