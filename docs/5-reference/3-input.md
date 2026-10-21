@@ -143,7 +143,18 @@ const (
 	KeyHome
 	KeyEnd
 	KeySuper // the Command key on a Mac, the Windows key elsewhere
-
+	KeyF1
+	KeyF2
+	KeyF3
+	KeyF4
+	KeyF5
+	KeyF6
+	KeyF7
+	KeyF8
+	KeyF9
+	KeyF10
+	KeyF11
+	KeyF12
 )
 ```
 
@@ -160,6 +171,34 @@ const (
 	MouseLeft MouseButton = iota
 	MouseRight
 	MouseMiddle
+)
+```
+
+### PadButton
+
+PadButton is a game pad's button.
+
+```go
+type PadButton int
+```
+
+```go
+const (
+	PadA PadButton = iota
+	PadB
+	PadX
+	PadY
+	PadLeftShoulder
+	PadRightShoulder
+	PadBack
+	PadStart
+	PadGuide
+	PadLeftThumb // pressing the left stick in
+	PadRightThumb
+	PadUp
+	PadRight
+	PadDown
+	PadLeft
 )
 ```
 
@@ -220,6 +259,8 @@ type State struct {
 | `func (state *State) LockCursor(lock bool)` | LockCursor asks the backend to hide and capture the cursor (first-person look) or release it. |
 | `func (state *State) MouseClaimed() bool` | MouseClaimed tells whether an interface claimed the mouse during this step. |
 | `func (state *State) MoveCursor(x, y float64)` | MoveCursor records a new cursor position (called by the backend). |
+| `func (state *State) PadDown(button PadButton) bool` | PadDown tells whether a game pad's button is held. |
+| `func (state *State) PadPressed(button PadButton) bool` | PadPressed tells whether a game pad's button went down this frame. |
 | `func (state *State) PointerLeaves()` | PointerLeaves takes the pointer off the window once this frame ends: a finger lifted from a touch screen leaves nothing under it, so no control stays lit as if a mouse rested on it. |
 | `func (state *State) PressBack()` | PressBack records the system's back: a phone's back gesture or button (called by the backend). |
 | `func (state *State) Pressed(key Key) bool` | Pressed reports whether a key went down during this frame. |
@@ -229,6 +270,7 @@ type State struct {
 | `func (state *State) SetClipboardText(text string)` | SetClipboardText puts a text on the system clipboard, when there is one. |
 | `func (state *State) SetCursorShape(shape CursorShape)` | SetCursorShape asks the backend to show the pointer with a shape; it stays until changed. |
 | `func (state *State) SetKey(key Key, isDown bool)` | SetKey records a key transition (called by the backend). |
+| `func (state *State) SetPadButton(button PadButton, isDown bool)` | SetPadButton records a game pad's button as held or let go; going down presses it this frame. |
 | `func (state *State) SetTouch(finger int64, x, y float64)` | SetTouch puts a finger down, or moves it (called by the backend). |
 | `func (state *State) TakeBack() bool` | TakeBack answers the system's back in this step, and tells whether there was one to answer: the part of the program the person is in goes back (a dialog closes, a screen returns to the one before) and returns true; any other part asking after it gets false. |
 | `func (state *State) TakeFrameRequest() (time.Duration, bool)` | TakeFrameRequest returns how long until the frame asked for with RequestFrame (0 when it is due) and forgets the request; false when none was made (called by the backend). |

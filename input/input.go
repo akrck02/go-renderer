@@ -76,6 +76,18 @@ const (
 	KeyHome
 	KeyEnd
 	KeySuper // the Command key on a Mac, the Windows key elsewhere
+	KeyF1
+	KeyF2
+	KeyF3
+	KeyF4
+	KeyF5
+	KeyF6
+	KeyF7
+	KeyF8
+	KeyF9
+	KeyF10
+	KeyF11
+	KeyF12
 	keyCount
 )
 
@@ -118,6 +130,8 @@ const (
 type State struct {
 	keysHeld           [keyCount]bool
 	keysPressedNow     [keyCount]bool
+	padHeld            [padButtonCount]bool // a game pad's buttons (pad.go)
+	padPressedNow      [padButtonCount]bool
 	keysTypedNow       [keyCount]bool // pressed or repeated by the system
 	buttonsHeld        [mouseButtonCount]bool
 	buttonsPressedNow  [mouseButtonCount]bool
@@ -427,6 +441,7 @@ func (state *State) AnyHeld() bool {
 func (state *State) EndFrame() {
 	state.CursorDeltaX, state.CursorDeltaY, state.ScrollDelta, state.ScrollDeltaX = 0, 0, 0, 0
 	state.keysPressedNow = [keyCount]bool{}
+	state.padPressedNow = [padButtonCount]bool{}
 	state.keysTypedNow = [keyCount]bool{}
 	state.buttonsPressedNow = [mouseButtonCount]bool{}
 	state.buttonsReleasedNow = [mouseButtonCount]bool{}

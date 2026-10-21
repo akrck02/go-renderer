@@ -27,3 +27,13 @@ func TestAPadsLeftStickIsTheMainOneAndItsRightTheSecond(t *testing.T) {
 		t.Fatalf("the left stick right and the right one up read %v, %v and %v, %v", state.StickX, state.StickY, state.RightStickX, state.RightStickY)
 	}
 }
+
+func TestAPadsButtonsKeepGLFWsOrder(t *testing.T) {
+	state := input.NewState()
+	var buttons [15]glfw.Action
+	buttons[glfw.ButtonStart], buttons[glfw.ButtonA] = glfw.Press, glfw.Press
+	buttonsFromPad(state, buttons)
+	if !state.PadDown(input.PadStart) || !state.PadDown(input.PadA) || state.PadDown(input.PadB) {
+		t.Fatal("the pad's buttons are not read in GLFW's order")
+	}
+}

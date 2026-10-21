@@ -26,6 +26,9 @@ var keysFromGLFW = map[glfw.Key]input.Key{
 	glfw.KeyBackspace: input.KeyBackspace, glfw.KeyDelete: input.KeyDelete,
 	glfw.KeyHome: input.KeyHome, glfw.KeyEnd: input.KeyEnd,
 	glfw.KeyLeftSuper: input.KeySuper, glfw.KeyRightSuper: input.KeySuper,
+	glfw.KeyF1: input.KeyF1, glfw.KeyF2: input.KeyF2, glfw.KeyF3: input.KeyF3, glfw.KeyF4: input.KeyF4,
+	glfw.KeyF5: input.KeyF5, glfw.KeyF6: input.KeyF6, glfw.KeyF7: input.KeyF7, glfw.KeyF8: input.KeyF8,
+	glfw.KeyF9: input.KeyF9, glfw.KeyF10: input.KeyF10, glfw.KeyF11: input.KeyF11, glfw.KeyF12: input.KeyF12,
 }
 
 var cursorShapesToGLFW = map[input.CursorShape]glfw.StandardCursor{
