@@ -58,7 +58,7 @@ func newSkyRenderer() (*skyRenderer, error) {
 
 // draw paints the sky where the opaque scene left the far plane uncovered, so the covered pixels
 // cost nothing; it leaves depth testing ready for the transparent scene.
-func (renderer *skyRenderer) draw(environment scene.Environment, light scene.Daylight, camera camera.Camera, matrices sceneplan.CameraMatrices, seconds float64) {
+func (renderer *skyRenderer) draw(environment scene.Environment, light scene.Daylight, camera camera.Lens, matrices sceneplan.CameraMatrices, seconds float64) {
 	inverse, invertible := matrices.ViewProjection.Inverse()
 	if !invertible {
 		return
@@ -74,7 +74,7 @@ func (renderer *skyRenderer) draw(environment scene.Environment, light scene.Day
 	gl.DepthFunc(gl.LEQUAL)
 }
 
-func (renderer *skyRenderer) drawDome(environment scene.Environment, light scene.Daylight, camera camera.Camera, inverse graphics.Matrix, seconds float64) {
+func (renderer *skyRenderer) drawDome(environment scene.Environment, light scene.Daylight, camera camera.Lens, inverse graphics.Matrix, seconds float64) {
 	sky := environment.EffectiveSky()
 	program := renderer.program
 	gl.UseProgram(program.handle)
@@ -244,7 +244,7 @@ func toRGBA(source image.Image) *image.RGBA {
 }
 
 // drawConstellations draws the lines and stars of every constellation, fading them with daylight.
-func (renderer *skyRenderer) drawConstellations(sky *scene.Sky, light scene.Daylight, camera camera.Camera, matrices sceneplan.CameraMatrices) {
+func (renderer *skyRenderer) drawConstellations(sky *scene.Sky, light scene.Daylight, camera camera.Lens, matrices sceneplan.CameraMatrices) {
 	if len(sky.Constellations) == 0 {
 		return
 	}

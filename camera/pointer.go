@@ -15,7 +15,7 @@ type Ray struct {
 // RayThrough returns the ray from the camera through a point of the window: x and y in window
 // pixels from the top-left corner of a window width × height pixels (where the pointer is). It
 // is false when the camera's matrices cannot be inverted (a window of no size).
-func RayThrough(view Camera, width, height int, x, y float64) (Ray, bool) {
+func RayThrough(view Lens, width, height int, x, y float64) (Ray, bool) {
 	if width <= 0 || height <= 0 {
 		return Ray{}, false
 	}

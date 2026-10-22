@@ -59,7 +59,7 @@ func main() {
 // flyAround draws the island from a camera going round it, until START is pressed or the system
 // asks to close.
 func flyAround(world *scene.Scene, renderer *nintendo3ds.SceneRenderer) {
-	view := camera.Camera{Target: graphics.Vector{0, 0, 0, 1}, Up: graphics.Vector{0, 1, 0, 0}, Far: 20000}
+	view := camera.Lens{Target: graphics.Vector{0, 0, 0, 1}, Up: graphics.Vector{0, 1, 0, 0}, Far: 20000}
 	started := time.Now()
 	report := frameReport{last: started}
 	for nintendo3ds.Running() {

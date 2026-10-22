@@ -53,7 +53,7 @@ func NewMap(target graphics.Vector, sceneSize float32) *Map {
 }
 
 // Update applies this frame's input and places the camera.
-func (view *Map) Update(state *input.State, seconds float64, camera *Camera) {
+func (view *Map) Update(state *input.State, seconds float64, camera *Lens) {
 	if state != nil {
 		view.applyMouse(state)
 		view.applyKeyboard(state, seconds)
@@ -91,7 +91,7 @@ func (view *Map) groundAxes() (upX, upZ, rightX, rightZ float64) {
 }
 
 // place puts the camera Distance away from the target, looking at it from the plan's elevation.
-func (view *Map) place(camera *Camera) {
+func (view *Map) place(camera *Lens) {
 	upX, upZ, _, _ := view.groundAxes()
 	elevation := view.elevation()
 	horizontal, vertical := math.Cos(elevation), math.Sin(elevation)

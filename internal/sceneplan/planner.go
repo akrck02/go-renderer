@@ -39,7 +39,7 @@ type Planner struct {
 	lights     []FrameLight
 	ground     []Command
 	opaque     []Command
-	walkCamera camera.Camera
+	walkCamera camera.Lens
 	collectOne func(node *scene.Node, transform graphics.Matrix) // made once: a closure made every frame is garbage
 }
 
@@ -71,7 +71,7 @@ type ShadowPlan struct {
 
 // Plan plans a frame of the scene from the camera, for a framebuffer of this size. It also resets
 // the counts that Count adds to.
-func (planner *Planner) Plan(world *scene.Scene, camera camera.Camera, width, height int, shadows ShadowSettings) Frame {
+func (planner *Planner) Plan(world *scene.Scene, camera camera.Lens, width, height int, shadows ShadowSettings) Frame {
 	planner.verticalScale = world.Environment.EffectiveVerticalScale()
 	planner.counters = [passCount]counter{}
 	frame := Frame{Matrices: ComputeCameraMatrices(camera, width, height), Light: world.Environment.Daylight()}
@@ -88,7 +88,7 @@ func (planner *Planner) Plan(world *scene.Scene, camera camera.Camera, width, he
 }
 
 // planShadows fits the shadow map's region to the camera and the scene.
-func (planner *Planner) planShadows(world *scene.Scene, camera camera.Camera, frame Frame, settings ShadowSettings) ShadowPlan {
+func (planner *Planner) planShadows(world *scene.Scene, camera camera.Lens, frame Frame, settings ShadowSettings) ShadowPlan {
 	planner.measureScene(world)
 	verticalScale := world.Environment.EffectiveVerticalScale()
 	extent := settings.extent(camera, planner.sceneSize)

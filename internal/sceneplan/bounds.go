@@ -148,7 +148,7 @@ type Viewpoint struct {
 }
 
 // newViewpoint builds the viewpoint of a camera.
-func newViewpoint(viewProjection graphics.Matrix, camera camera.Camera) Viewpoint {
+func newViewpoint(viewProjection graphics.Matrix, camera camera.Lens) Viewpoint {
 	view := Viewpoint{volume: frustumFromMatrix(viewProjection), eye: camera.Position}
 	if camera.IsOrthographic() {
 		view.orthographic, view.screenScale = true, 1/camera.OrthographicHeight

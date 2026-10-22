@@ -191,7 +191,7 @@ func (renderer *SceneRenderer) Close() {
 // Draw renders the scene from the camera into the window (width × height framebuffer pixels),
 // then its overlay on top, and shows the frame. seconds is the elapsed time, which animates water
 // and waterfalls.
-func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Camera, width, height int, seconds float64) {
+func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Lens, width, height int, seconds float64) {
 	if width <= 0 || height <= 0 {
 		return
 	}
@@ -438,7 +438,7 @@ func (renderer *SceneRenderer) levelVariationTexture(water *scene.Water) (unsafe
 
 // drawSky paints the sky where the opaque scene left the far plane uncovered, then the
 // constellations, as the OpenGL sky renderer does.
-func (renderer *SceneRenderer) drawSky(encoder unsafe.Pointer, environment scene.Environment, plan sceneplan.Frame, camera camera.Camera, seconds float64) {
+func (renderer *SceneRenderer) drawSky(encoder unsafe.Pointer, environment scene.Environment, plan sceneplan.Frame, camera camera.Lens, seconds float64) {
 	inverse, invertible := plan.Matrices.ViewProjection.Inverse()
 	if !invertible {
 		return
@@ -505,7 +505,7 @@ type constellationBuffer struct {
 }
 
 // drawConstellations draws the lines and stars of every constellation, fading them with daylight.
-func (renderer *SceneRenderer) drawConstellations(encoder unsafe.Pointer, sky *scene.Sky, plan sceneplan.Frame, camera camera.Camera) {
+func (renderer *SceneRenderer) drawConstellations(encoder unsafe.Pointer, sky *scene.Sky, plan sceneplan.Frame, camera camera.Lens) {
 	if len(sky.Constellations) == 0 {
 		return
 	}

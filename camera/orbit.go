@@ -48,7 +48,7 @@ func NewOrbit(target graphics.Vector, sceneSize float32) *Orbit {
 }
 
 // Update applies this frame's input and places the camera.
-func (orbit *Orbit) Update(state *input.State, seconds float64, camera *Camera) {
+func (orbit *Orbit) Update(state *input.State, seconds float64, camera *Lens) {
 	if state != nil {
 		orbit.applyMouse(state)
 		orbit.applyKeyboard(state, seconds)

@@ -42,7 +42,7 @@ func main() {
 		},
 		Callbacks: window.Callbacks{Draw: draw},
 		Renderer:  renderer,
-		Camera: camera.Camera{
+		Camera: camera.Lens{
 			Position: graphics.Vector{0, 0, 2, 1}, // far enough back to see the triangle at the top
 			Up:       graphics.Vector{0, 1, 0, 0},
 		},

@@ -30,7 +30,7 @@ type Application struct {
 	// Renderer draws immediate-mode shapes; the backend fills it.
 	Renderer immediate.Renderer
 	// Camera is where the immediate-mode shapes are seen from.
-	Camera camera.Camera
+	Camera camera.Lens
 	// Stop, when set by Update or Draw, ends the application after the current frame.
 	Stop bool
 	// ModelMatrix, ViewMatrix and ProjectionMatrix are the immediate-mode matrices: the backend

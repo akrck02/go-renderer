@@ -29,7 +29,7 @@ type CameraMatrices struct {
 }
 
 // ComputeCameraMatrices returns the camera's matrices for a framebuffer of this size.
-func ComputeCameraMatrices(camera camera.Camera, width, height int) CameraMatrices {
+func ComputeCameraMatrices(camera camera.Lens, width, height int) CameraMatrices {
 	aspect := float64(width) / math.Max(float64(height), 1)
 	projection := camera.ProjectionMatrix(aspect)
 	view := graphics.LookAt(camera.Position, camera.Target, camera.Up)
@@ -88,7 +88,7 @@ func squaredHorizontalDistance(first, second graphics.Vector) float32 {
 
 // collectCommands lists every node with a mesh, and the sea and its floor when there is water,
 // in the planner's own list: it holds until the next call.
-func (planner *Planner) collectCommands(world *scene.Scene, camera camera.Camera) []Command {
+func (planner *Planner) collectCommands(world *scene.Scene, camera camera.Lens) []Command {
 	planner.commands, planner.walkCamera = planner.commands[:0], camera
 	if planner.collectOne == nil {
 		planner.collectOne = planner.collectNode
@@ -155,7 +155,7 @@ const waterFloorDarkening = 0.6
 
 // waterCommand returns a large water plane that follows the camera horizontally. Its node is made
 // once and kept, so a frame allocates nothing for it.
-func (planner *Planner) waterCommand(water *scene.Water, camera camera.Camera) Command {
+func (planner *Planner) waterCommand(water *scene.Water, camera camera.Lens) Command {
 	if planner.waterPlane == nil {
 		planner.waterPlane = &scene.Node{Name: "water", Mesh: newWaterGrid(water.Size, planner.WaterGridDivisions)}
 	}
@@ -171,7 +171,7 @@ func (planner *Planner) waterCommand(water *scene.Water, camera camera.Camera) C
 
 // waterFloorCommand returns an opaque dark floor under the water, so that nothing behind the
 // scene shows through the translucent surface where the geometry ends.
-func (planner *Planner) waterFloorCommand(water *scene.Water, camera camera.Camera) Command {
+func (planner *Planner) waterFloorCommand(water *scene.Water, camera camera.Lens) Command {
 	if planner.waterFloor == nil {
 		mesh := newWaterPlane(water.Size)
 		mesh.Material = &scene.Material{Name: "water floor", Kind: scene.UnlitKind, DoubleSided: true}

@@ -654,3 +654,5 @@ tests that say so pass.
 ---
 
 [← Proposal 1](1-towards-version-1.md)
+
+**Since (2026-10-22, the author's decision):** `camera.Camera` is `camera.Lens`: the package keeps its name, nothing repeats it, and a game's variables called `camera` no longer hide the package.

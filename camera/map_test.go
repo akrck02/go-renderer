@@ -12,7 +12,7 @@ func near(first, second float32) bool { return math.Abs(float64(first-second)) <
 
 func TestTheMapLooksStraightDownWithNorthUp(test *testing.T) {
 	view := NewMap(graphics.Vector{2, 0, 3, 1}, 10)
-	var seen Camera
+	var seen Lens
 	view.Update(nil, 0, &seen)
 	if !near(seen.Position[0], 2) || !near(seen.Position[2], 3) || seen.Position[1] <= 0 {
 		test.Errorf("camera at %v, want straight above the target (2, ·, 3)", seen.Position)
@@ -31,7 +31,7 @@ func TestTheMapLooksStraightDownWithNorthUp(test *testing.T) {
 func TestTheIsometricViewIsAt35DegreesAnd45ToTheAxes(test *testing.T) {
 	view := NewMap(graphics.Vector{0, 0, 0, 1}, 10)
 	view.Isometric = true
-	var seen Camera
+	var seen Lens
 	view.Update(nil, 0, &seen)
 	horizontal := math.Hypot(float64(seen.Position[0]), float64(seen.Position[2]))
 	elevation := math.Atan2(float64(seen.Position[1]), horizontal) * 180 / math.Pi
@@ -53,7 +53,7 @@ func TestDraggingMovesTheMapWithTheCursor(test *testing.T) {
 	state.WindowHeight = 100
 	state.Feed().SetButton(input.MouseLeft, true)
 	state.CursorDeltaX = 10 // a tenth of the window to the right: the map follows, so the centre moves west
-	var seen Camera
+	var seen Lens
 	view.Update(state, 0, &seen)
 	if !near(view.Target[0], -1) || !near(view.Target[2], 0) {
 		test.Errorf("target %v, want 1 unit west", view.Target)
@@ -69,7 +69,7 @@ func TestScrollZoomsAndQuarterTurnsRotate(test *testing.T) {
 	view := NewMap(graphics.Vector{0, 0, 0, 1}, 10)
 	state := input.NewState()
 	state.Feed().AddScroll(1)
-	var seen Camera
+	var seen Lens
 	view.Update(state, 0, &seen)
 	if view.Span >= 10 {
 		test.Errorf("span %v after scrolling in, want less than 10", view.Span)

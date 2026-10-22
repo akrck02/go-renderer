@@ -279,7 +279,7 @@ type SceneRenderer struct {
 | Function or method | |
 |---|---|
 | `func NewSceneRenderer(functions Functions, fonts overlay.Fonts) (*SceneRenderer, error)` | NewSceneRenderer compiles the shaders and prepares the overlay's atlas; the overlay's text is drawn in fonts (overlay.Fonts{} for the default ones). |
-| `func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Camera, width, height int)` | Draw draws a frame of the scene seen by the camera, in the target framebuffer of width × height pixels. |
+| `func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Lens, width, height int)` | Draw draws a frame of the scene seen by the camera, in the target framebuffer of width × height pixels. |
 
 ### Shader
 

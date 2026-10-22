@@ -28,7 +28,7 @@ func NewWalk(x, z, eyeHeight, speed float32) *Walk {
 }
 
 // Update applies this frame's input and places the camera at eye height.
-func (walk *Walk) Update(state *input.State, seconds float64, camera *Camera) {
+func (walk *Walk) Update(state *input.State, seconds float64, camera *Lens) {
 	if state != nil {
 		walk.look(state)
 		walk.turnWithArrows(state, seconds)

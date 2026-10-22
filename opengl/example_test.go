@@ -119,9 +119,9 @@ func ExampleSceneRenderer_DrawOver() {
 }
 
 // mapCamera looks straight down on the whole scene, without perspective.
-func mapCamera(world *scene.Scene) camera.Camera {
+func mapCamera(world *scene.Scene) camera.Lens {
 	centre, size := middleAndSize(world)
-	return camera.Camera{
+	return camera.Lens{
 		Position:           graphics.Vector{centre[0], size, centre[2], 1},
 		Target:             centre,
 		Up:                 graphics.Vector{0, 0, -1, 0}, // north at the top
@@ -131,9 +131,9 @@ func mapCamera(world *scene.Scene) camera.Camera {
 }
 
 // shoreCamera looks at the middle of the scene from above its southern shore.
-func shoreCamera(world *scene.Scene) camera.Camera {
+func shoreCamera(world *scene.Scene) camera.Lens {
 	centre, size := middleAndSize(world)
-	return camera.Camera{
+	return camera.Lens{
 		Position: graphics.Vector{centre[0], size / 4, centre[2] + size*0.7, 1},
 		Target:   centre,
 		Up:       graphics.Vector{0, 1, 0, 0},

@@ -40,7 +40,7 @@ func (eye Eye) side() float32 {
 
 // EyeCamera is the camera for one eye: moved sideways by half the separation, looking the same
 // way (the two views stay parallel; EyeViewProjection makes them meet at the focal distance).
-func EyeCamera(camera camera.Camera, eye Eye, separation float32) camera.Camera {
+func EyeCamera(camera camera.Lens, eye Eye, separation float32) camera.Lens {
 	right := cameraRight(camera)
 	shift := eye.side() * separation / 2
 	for axis := range 3 {
@@ -53,7 +53,7 @@ func EyeCamera(camera camera.Camera, eye Eye, separation float32) camera.Camera 
 // EyeViewProjection is an eye's OpenGL view-projection: its camera's, with the picture moved
 // sideways so that what lies at the focal distance falls on the same place for both eyes, on the
 // plane of the screen; nearer comes out of it, farther goes in.
-func EyeViewProjection(camera camera.Camera, eye Eye, separation, focalDistance float32, width, height int) graphics.Matrix {
+func EyeViewProjection(camera camera.Lens, eye Eye, separation, focalDistance float32, width, height int) graphics.Matrix {
 	matrices := sceneplan.ComputeCameraMatrices(EyeCamera(camera, eye, separation), width, height)
 	// A point straight ahead at the focal distance is seen by this eye half the separation to
 	// the other side; moving clip x by this share of w puts it back in the middle.
@@ -64,7 +64,7 @@ func EyeViewProjection(camera camera.Camera, eye Eye, separation, focalDistance 
 }
 
 // cameraRight is the camera's right, of unit length.
-func cameraRight(camera camera.Camera) graphics.Vector {
+func cameraRight(camera camera.Lens) graphics.Vector {
 	forward := graphics.Vector{camera.Target[0] - camera.Position[0], camera.Target[1] - camera.Position[1], camera.Target[2] - camera.Position[2], 0}
 	return forward.Cross(camera.Up).Normalize()
 }

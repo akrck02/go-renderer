@@ -144,7 +144,7 @@ func (program *shaderProgram) setInteger(name string, value int32) {
 
 // Draw renders the scene from the camera into the current framebuffer of the given size, then its
 // overlay on top. seconds is the elapsed time, which animates water and waterfalls.
-func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Camera, width, height int, seconds float64) {
+func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Lens, width, height int, seconds float64) {
 	renderer.DrawIn(world, camera, Area{Width: width, Height: height}, seconds)
 	renderer.DrawOverlay(world, width, height)
 }
@@ -156,20 +156,20 @@ type Area struct{ X, Y, Width, Height int }
 // DrawIn renders the scene from the camera into an area of the current framebuffer, clearing only
 // that area, and without the scene's overlay: several scenes can share a frame (a preview of a
 // console's two screens), and an overlay over all of them is drawn once after (DrawOverlay).
-func (renderer *SceneRenderer) DrawIn(world *scene.Scene, camera camera.Camera, area Area, seconds float64) {
+func (renderer *SceneRenderer) DrawIn(world *scene.Scene, camera camera.Lens, area Area, seconds float64) {
 	renderer.drawArea(world, camera, area, seconds, false)
 }
 
 // DrawOver renders the scene from the camera into an area over what the framebuffer holds there:
 // it clears only the depth and draws no sky, so the scene floats over the one behind it (a radar
 // in a corner of a game's view). Like DrawIn, it leaves the overlay to DrawOverlay.
-func (renderer *SceneRenderer) DrawOver(world *scene.Scene, camera camera.Camera, area Area, seconds float64) {
+func (renderer *SceneRenderer) DrawOver(world *scene.Scene, camera camera.Lens, area Area, seconds float64) {
 	renderer.drawArea(world, camera, area, seconds, true)
 }
 
 // drawArea renders the scene into an area: with its background (the horizon's colour and the sky),
 // or over what is there.
-func (renderer *SceneRenderer) drawArea(world *scene.Scene, camera camera.Camera, area Area, seconds float64, over bool) {
+func (renderer *SceneRenderer) drawArea(world *scene.Scene, camera camera.Lens, area Area, seconds float64, over bool) {
 	started := time.Now()
 	frame := renderer.planner.Plan(world, camera, area.Width, area.Height, renderer.Shadows)
 	renderer.measurePass("seabed", func() { renderer.seabed.update(frame.Seabed) })
@@ -264,7 +264,7 @@ func clearFrame(light scene.Daylight, area Area, over bool) {
 }
 
 // setFrameUniforms sets what every draw of the frame shares; the light is the sun or the moon.
-func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, light scene.Daylight, camera camera.Camera, matrices sceneplan.CameraMatrices, seconds float64) {
+func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, light scene.Daylight, camera camera.Lens, matrices sceneplan.CameraMatrices, seconds float64) {
 	program := renderer.sceneProgram
 	gl.UseProgram(program.handle)
 	program.setMatrix("projection", matrices.Projection)

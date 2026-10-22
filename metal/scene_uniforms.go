@@ -123,7 +123,7 @@ func metalClipSpace(projection graphics.Matrix) graphics.Matrix {
 
 // frameUniformsFor fills what every draw of the main pass shares, as the OpenGL renderer's
 // setFrameUniforms, bindForLighting, bindForWater and the level variation do.
-func frameUniformsFor(environment scene.Environment, frame sceneplan.Frame, camera camera.Camera, seconds float64, shadowsReady bool) frameUniforms {
+func frameUniformsFor(environment scene.Environment, frame sceneplan.Frame, camera camera.Lens, seconds float64, shadowsReady bool) frameUniforms {
 	light := frame.Light
 	uniforms := frameUniforms{
 		projection: metalClipSpace(frame.Matrices.Projection), view: frame.Matrices.View,
@@ -189,7 +189,7 @@ func drawUniformsFor(command sceneplan.Command, levelVariationActive bool, frame
 }
 
 // skyUniformsFor fills the sky dome's, as the OpenGL sky renderer does.
-func skyUniformsFor(environment scene.Environment, light scene.Daylight, camera camera.Camera, inverse graphics.Matrix, seconds float64) skyUniforms {
+func skyUniformsFor(environment scene.Environment, light scene.Daylight, camera camera.Lens, inverse graphics.Matrix, seconds float64) skyUniforms {
 	sky := environment.EffectiveSky()
 	uniforms := skyUniforms{inverseViewProjection: inverse, starRotation: light.StarRotation,
 		cameraPosition: camera.Position, sunDirection: environment.SunDirection.Normalize(), sunColor: environment.SunColor,

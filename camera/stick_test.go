@@ -15,7 +15,7 @@ func groundDistance(from, to graphics.Vector) float64 {
 
 func TestTheStickUpMovesTheOrbitAwayFromTheCamera(test *testing.T) {
 	orbit := NewOrbit(graphics.Vector{0, 0, 0, 1}, 100)
-	var camera Camera
+	var camera Lens
 	state := input.NewState()
 	state.WindowWidth, state.WindowHeight = 400, 240
 	orbit.Update(state, 0.1, &camera)
@@ -29,7 +29,7 @@ func TestTheStickUpMovesTheOrbitAwayFromTheCamera(test *testing.T) {
 
 func TestTheStickRightMovesTheMapRight(test *testing.T) {
 	view := NewMap(graphics.Vector{0, 0, 0, 1}, 100)
-	var camera Camera
+	var camera Lens
 	state := input.NewState()
 	state.WindowWidth, state.WindowHeight = 400, 240
 	view.Update(state, 0.1, &camera)
