@@ -71,9 +71,9 @@ func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Camera, wi
 // fades into it, so it takes the same gamma as the shaded surfaces.
 func (renderer *SceneRenderer) clear(light scene.Daylight, width, height int) {
 	functions := renderer.functions
-	functions.Viewport(0, 0, width, height)
+	functions.SetViewport(0, 0, width, height)
 	horizon := linearToScreen(light.Horizon)
-	functions.ClearColor(horizon[0], horizon[1], horizon[2], 1)
+	functions.SetClearColor(horizon[0], horizon[1], horizon[2], 1)
 	functions.Clear(ColorBufferBit | DepthBufferBit)
 }
 
@@ -101,11 +101,11 @@ func (renderer *SceneRenderer) drawCommands(commands []sceneplan.Command, view s
 	functions := renderer.functions
 	renderer.program.use()
 	functions.Enable(DepthTest)
-	functions.DepthFunc(LessOrEqual)
+	functions.SetDepthFunction(LessOrEqual)
 	transparent := commands[0].Transparent
 	if transparent {
 		functions.Enable(Blend)
-		functions.DepthMask(false) // translucent surfaces do not hide what is drawn after them
+		functions.SetDepthWrite(false) // translucent surfaces do not hide what is drawn after them
 	}
 	blending := sceneplan.BlendNone
 	for _, command := range commands {
@@ -116,7 +116,7 @@ func (renderer *SceneRenderer) drawCommands(commands []sceneplan.Command, view s
 		renderer.drawCommand(command, view)
 	}
 	if transparent {
-		functions.DepthMask(true)
+		functions.SetDepthWrite(true)
 		functions.Disable(Blend)
 	}
 }
@@ -124,10 +124,10 @@ func (renderer *SceneRenderer) drawCommands(commands []sceneplan.Command, view s
 // blendFor mixes what is drawn next over what is behind it by alpha, or adds its light.
 func (renderer *SceneRenderer) blendFor(blending sceneplan.Blending) {
 	if blending == sceneplan.BlendAdditive {
-		renderer.functions.BlendFuncSeparate(SourceAlpha, One, One, OneMinusSrcAlpha)
+		renderer.functions.SetBlendFactors(SourceAlpha, One, One, OneMinusSourceAlpha)
 		return
 	}
-	renderer.functions.BlendFuncSeparate(SourceAlpha, OneMinusSrcAlpha, One, OneMinusSrcAlpha)
+	renderer.functions.SetBlendFactors(SourceAlpha, OneMinusSourceAlpha, One, OneMinusSourceAlpha)
 }
 
 func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view sceneplan.Viewpoint) {
@@ -211,12 +211,12 @@ func (renderer *SceneRenderer) uploadMesh(mesh *scene.Mesh) *meshBuffers {
 		buffers = &meshBuffers{owner: renderer, vertexBuffer: functions.CreateBuffer(), indexBuffer: functions.CreateBuffer()}
 	}
 	functions.BindBuffer(ArrayBuffer, buffers.vertexBuffer)
-	functions.BufferData(ArrayBuffer, floatBytes(sceneplan.InterleaveVertices(mesh)), StaticDraw)
+	functions.SetBufferData(ArrayBuffer, floatBytes(sceneplan.InterleaveVertices(mesh)), StaticDraw)
 	buffers.indexed = len(mesh.Indices) > 0
 	buffers.count = sceneplan.ElementCount(mesh)
 	if buffers.indexed {
 		functions.BindBuffer(ElementArrayBuffer, buffers.indexBuffer)
-		functions.BufferData(ElementArrayBuffer, indexBytes(mesh.Indices), StaticDraw)
+		functions.SetBufferData(ElementArrayBuffer, indexBytes(mesh.Indices), StaticDraw)
 	}
 	mesh.GPU, mesh.Dirty = buffers, false
 	return buffers
@@ -226,9 +226,9 @@ func (renderer *SceneRenderer) uploadMesh(mesh *scene.Mesh) *meshBuffers {
 // vertices, in the bound vertex buffer; with no vertex array objects, before every draw.
 func describeSceneVertexLayout(functions Functions) {
 	stride := sceneplan.FloatsPerVertex * 4
-	functions.VertexAttribPointer(0, 3, Float, false, stride, 0)
-	functions.VertexAttribPointer(1, 3, Float, false, stride, 3*4)
-	functions.VertexAttribPointer(2, 4, Float, false, stride, 6*4)
+	functions.DescribeVertexAttribute(0, 3, Float, false, stride, 0)
+	functions.DescribeVertexAttribute(1, 3, Float, false, stride, 3*4)
+	functions.DescribeVertexAttribute(2, 4, Float, false, stride, 6*4)
 }
 
 // linearToScreen turns a linear colour into the screen's gamma, as the scene shader does.
