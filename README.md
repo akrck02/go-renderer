@@ -130,6 +130,8 @@ New here? Start with the [overview](docs/1-overview.md), then [get started](docs
 | [Drawing in 2D](docs/4-guides/9-drawing-in-2d.md) | Rectangles, text, icons, images, clips, layers, and paths drawn as strokes. |
 | [Scenes in areas](docs/4-guides/10-scenes-in-areas.md) | Several views in one frame, and a scene floating over another (a radar). |
 | [Pads, keys and the whole screen](docs/4-guides/11-pads-keys-and-the-whole-screen.md) | Keys, a game pad's buttons and sticks, its layout, and fullscreen. |
+| [Troubleshooting](docs/7-troubleshooting.md) | The errors people meet when building and running, and the fix. |
+| [Contributing](docs/8-contributing.md) | The code's layout, the build and test commands, how a change is proposed. |
 | [Optimization plan](docs/6-project/1-optimization-plan.md) | Measurements and the plan that guided the performance work. |
 | [Roadmap](docs/6-project/2-roadmap.md) | Goals for the next versions. |
 
