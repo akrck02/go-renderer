@@ -8,7 +8,6 @@ package overlay
 import (
 	"cmp"
 	"image"
-	"log/slog"
 	"math"
 	"slices"
 
@@ -83,7 +82,8 @@ type Painter struct {
 	prebuilt map[faceKey]bool
 	warned   map[string]bool
 	// Warn hears of a problem once (an unknown icon name, lights a GPU cannot draw); nil = the
-	// default slog logger, which the program sets with slog.SetDefault.
+	// default slog logger, which the program sets with slog.SetDefault (on the Nintendo 3DS, a line
+	// on the console).
 	Warn func(message string)
 
 	quads     []Quad
@@ -435,14 +435,15 @@ func (painter *Painter) iconCharacter(name string) rune {
 }
 
 // Report tells the program of a problem a frame works around: through Warn when the program set
-// it, otherwise as a warning of the default slog logger. Backends that draw with the painter
+// it, otherwise through warnByDefault (the default slog logger; a line on the console on the
+// Nintendo 3DS, where slog would cost about 42 KB of every program). Backends that draw with the painter
 // report through it too, so a program hears of every problem in one place.
 func (painter *Painter) Report(message string) {
 	if painter.Warn != nil {
 		painter.Warn(message)
 		return
 	}
-	slog.Warn(message)
+	warnByDefault(message)
 }
 
 func quote(text string) string { return "\"" + text + "\"" }
