@@ -18,6 +18,7 @@ type benchmark struct {
 	frames         int
 	drawn          int
 	loadingTime    time.Duration
+	output         io.Writer // where the report goes; nil = nowhere
 	firstFrame     time.Duration
 	total          sceneplan.FrameStatistics
 	last           sceneplan.FrameStatistics
@@ -26,8 +27,8 @@ type benchmark struct {
 	untimedStarted time.Time
 }
 
-func newBenchmark(frames int, loadingTime time.Duration) *benchmark {
-	return &benchmark{frames: frames, loadingTime: loadingTime}
+func newBenchmark(options Measure) *benchmark {
+	return &benchmark{frames: options.BenchmarkFrames, loadingTime: options.LoadingTime, output: options.Output}
 }
 
 // timing reports whether the next frame should use GPU timers (the first round).
@@ -73,7 +74,12 @@ func (measurement *benchmark) average(total time.Duration) string {
 	return fmt.Sprintf("%6.2f ms", float64(total.Microseconds())/1000/float64(measurement.frames))
 }
 
-func (measurement *benchmark) report(output io.Writer) {
+// report writes the averages to the benchmark's output.
+func (measurement *benchmark) report() {
+	output := measurement.output
+	if output == nil {
+		return
+	}
 	gpu := measurement.total.GPU
 	fmt.Fprintf(output, "loading      %8.0f ms\n", float64(measurement.loadingTime.Milliseconds()))
 	fmt.Fprintf(output, "first frame  %8.0f ms (uploads to the GPU)\n", float64(measurement.firstFrame.Milliseconds()))

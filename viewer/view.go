@@ -28,7 +28,7 @@ func (session *viewer) view(app *window.Application) View {
 		width, height = app.Width, app.Height
 	}
 	return View{Camera: app.Camera, Width: width, Height: height, world: session.world,
-		lowest: session.lowest, highest: session.highest, framing: &session.framing, zooming: &session.zooming, span: session.plan.Span}
+		lowest: session.lowest, highest: session.highest, framing: &session.framing, zooming: &session.zooming, span: session.mapView.Span}
 }
 
 // Ray returns the ray from the camera through a point of the window, in drawn heights.
@@ -78,7 +78,7 @@ func (session *viewer) applyFraming(app *window.Application) {
 	width, depth := float64(framing[2]-framing[0]), float64(framing[3]-framing[1])
 	centerX, centerZ := (framing[0]+framing[2])/2, (framing[1]+framing[3])/2
 	session.orbit.Target[0], session.orbit.Target[2] = centerX, centerZ
-	session.plan.Target[0], session.plan.Target[2] = centerX, centerZ
+	session.mapView.Target[0], session.mapView.Target[2] = centerX, centerZ
 	pixelsWide, pixelsHigh := app.Input.WindowWidth, app.Input.WindowHeight
 	if pixelsWide == 0 || pixelsHigh == 0 {
 		pixelsWide, pixelsHigh = app.Width, app.Height
@@ -88,7 +88,7 @@ func (session *viewer) applyFraming(app *window.Application) {
 		span = max(depth, width*float64(pixelsHigh)/float64(pixelsWide))
 	}
 	if span > 0 {
-		session.plan.Span = min(max(span, session.plan.MinimumSpan), session.plan.MaximumSpan)
+		session.mapView.Span = min(max(span, session.mapView.MinimumSpan), session.mapView.MaximumSpan)
 	}
 	app.Input.RequestFrame(0)
 }
@@ -115,7 +115,7 @@ func (session *viewer) applyZoom(app *window.Application) {
 		return
 	}
 	session.zooming = 0
-	session.plan.Span = min(max(session.plan.Span/factor, session.plan.MinimumSpan), session.plan.MaximumSpan)
+	session.mapView.Span = min(max(session.mapView.Span/factor, session.mapView.MinimumSpan), session.mapView.MaximumSpan)
 	session.orbit.Distance /= factor
 	app.Input.RequestFrame(0)
 }

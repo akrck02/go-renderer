@@ -68,12 +68,12 @@ func TestASimulationOrABenchmarkDrawsEveryFrame(test *testing.T) {
 		test.Error("a simulation keeps drawing")
 	}
 	options := DefaultOptions()
-	options.Benchmark = 10
+	options.Measure.BenchmarkFrames = 10
 	if newApplication(newViewer(sample.Island(), false), options, "test").DrawOnDemand {
 		test.Error("a benchmark keeps drawing")
 	}
 	options = DefaultOptions()
-	options.Continuous = true
+	options.Rendering.Continuous = true
 	if newApplication(newViewer(sample.Island(), false), options, "test").DrawOnDemand {
 		test.Error("-continuous keeps drawing")
 	}
@@ -95,7 +95,7 @@ func TestAnEditorStillDrawsOnDemand(test *testing.T) {
 // camera looks.
 func TestAnEditorFindsThePointUnderThePointer(test *testing.T) {
 	session := newViewer(sample.Island(), false)
-	session.enterPlan(false)
+	session.enterMap(false)
 	var seen View
 	session.edit = func(_ *scene.Scene, _ *input.State, _ float64, view View) { seen = view }
 	app := newApplication(session, DefaultOptions(), "test")
@@ -138,11 +138,11 @@ func TestAProgramFramesARectangleOfGround(test *testing.T) {
 	if !step(test, session, app) {
 		test.Error("framing asks for a frame")
 	}
-	if session.plan.Target[0] != 200 || session.plan.Target[2] != 40 || session.orbit.Target[0] != 200 {
-		test.Errorf("aimed at %v / %v", session.plan.Target, session.orbit.Target)
+	if session.mapView.Target[0] != 200 || session.mapView.Target[2] != 40 || session.orbit.Target[0] != 200 {
+		test.Errorf("aimed at %v / %v", session.mapView.Target, session.orbit.Target)
 	}
-	if session.plan.Span != 100 { // 200 wide in a window twice as wide as high
-		test.Errorf("span %v", session.plan.Span)
+	if session.mapView.Span != 100 { // 200 wide in a window twice as wide as high
+		test.Errorf("span %v", session.mapView.Span)
 	}
 }
 
@@ -160,10 +160,10 @@ func TestAProgramZoomsTheCameras(test *testing.T) {
 	}
 	app := newApplication(session, DefaultOptions(), "test")
 	app.Input.WindowWidth, app.Input.WindowHeight = 800, 400
-	before := session.plan.Span
+	before := session.mapView.Span
 	step(test, session, app)
-	if session.plan.Span != before/2 {
-		test.Errorf("span %v after zooming by 2 from %v", session.plan.Span, before)
+	if session.mapView.Span != before/2 {
+		test.Errorf("span %v after zooming by 2 from %v", session.mapView.Span, before)
 	}
 	step(test, session, app)
 	if shown != before/2 {
