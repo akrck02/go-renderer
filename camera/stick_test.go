@@ -6,7 +6,6 @@ import (
 
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/input"
-	"github.com/akrck02/go-renderer/models"
 )
 
 // groundDistance is how far apart two points are on the ground, from above.
@@ -16,7 +15,7 @@ func groundDistance(from, to graphics.Vector) float64 {
 
 func TestTheStickUpMovesTheOrbitAwayFromTheCamera(test *testing.T) {
 	orbit := NewOrbit(graphics.Vector{0, 0, 0, 1}, 100)
-	var camera models.Camera
+	var camera Camera
 	state := input.NewState()
 	state.WindowWidth, state.WindowHeight = 400, 240
 	orbit.Update(state, 0.1, &camera)
@@ -30,7 +29,7 @@ func TestTheStickUpMovesTheOrbitAwayFromTheCamera(test *testing.T) {
 
 func TestTheStickRightMovesThePlanRight(test *testing.T) {
 	plan := NewPlan(graphics.Vector{0, 0, 0, 1}, 100)
-	var camera models.Camera
+	var camera Camera
 	state := input.NewState()
 	state.WindowWidth, state.WindowHeight = 400, 240
 	plan.Update(state, 0.1, &camera)

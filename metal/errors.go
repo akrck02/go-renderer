@@ -11,9 +11,6 @@ var (
 	ShaderNotCompiled = failure.Define("metal.shader-not-compiled", "Metal could not compile a shader")
 	// NothingCaptured is a capture to a picture that drew nothing.
 	NothingCaptured = failure.Define("metal.nothing-captured", "the capture drew nothing")
+	// NotImplemented is what the immediate-mode Window and Renderer return until they are built.
+	NotImplemented = failure.Define("metal.not-implemented", "the Metal immediate-mode renderer is not implemented yet")
 )
-
-// ErrUnavailable is Unavailable under its earlier name, kept so programs that check it still work.
-//
-// Deprecated: use Unavailable.
-var ErrUnavailable error = Unavailable

@@ -4,22 +4,22 @@ package metal
 
 import (
 	"github.com/akrck02/go-renderer/failure"
-	"github.com/akrck02/go-renderer/models"
+	"github.com/akrck02/go-renderer/window"
 )
 
-// FlatWindow draws through Metal, which only macOS has; elsewhere StartLoop says so and a program
+// FlatWindow draws through Metal, which only macOS has; elsewhere Run says so and a program
 // uses the OpenGL backend.
 type FlatWindow struct{}
 
-// StartLoop fails: Metal is only on macOS.
-func (flat *FlatWindow) StartLoop(app *models.Application) error {
+// Run fails: Metal is only on macOS.
+func (flat *FlatWindow) Run(app *window.Application) error {
 	return failure.Wrap(Unavailable, "only on macOS", nil)
 }
 
-// SceneWindow draws a scene through Metal, which only macOS has; elsewhere StartLoop says so.
+// SceneWindow draws a scene through Metal, which only macOS has; elsewhere Run says so.
 type SceneWindow struct{}
 
-// StartLoop fails: Metal is only on macOS.
-func (scene *SceneWindow) StartLoop(app *models.Application) error {
+// Run fails: Metal is only on macOS.
+func (scene *SceneWindow) Run(app *window.Application) error {
 	return failure.Wrap(Unavailable, "only on macOS", nil)
 }

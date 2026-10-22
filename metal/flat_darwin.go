@@ -12,11 +12,12 @@ import (
 	"image"
 	"unsafe"
 
+	"github.com/go-gl/glfw/v3.4/glfw"
+
 	"github.com/akrck02/go-renderer/draw2d"
 	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
-	"github.com/go-gl/glfw/v3.4/glfw"
 )
 
 // FlatRenderer draws a 2D draw list on a plain background through Metal: the window of an

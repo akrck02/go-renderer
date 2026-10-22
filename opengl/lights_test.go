@@ -7,9 +7,10 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/akrck02/go-renderer/draw2d"
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.4/glfw"
+
+	"github.com/akrck02/go-renderer/draw2d"
 )
 
 // lightTestSide is the side of the hidden window the light tests draw in, in pixels.

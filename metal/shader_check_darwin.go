@@ -58,7 +58,7 @@ import (
 // compileShaderSource compiles Metal Shading Language at run time, as the renderer does, and checks
 // that every named function is in the result. The command-line tools have no offline Metal
 // compiler, so this is how the shaders are checked without Xcode. A computer without a Metal
-// device gives an error wrapping ErrUnavailable.
+// device gives an error wrapping Unavailable.
 func compileShaderSource(source string, functions []string) error {
 	cSource := C.CString(source)
 	defer C.free(unsafe.Pointer(cSource))

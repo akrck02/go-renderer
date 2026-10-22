@@ -23,9 +23,9 @@ import (
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/input"
 	"github.com/akrck02/go-renderer/metal"
-	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/opengl"
 	"github.com/akrck02/go-renderer/scene"
+	"github.com/akrck02/go-renderer/window"
 )
 
 // viewer holds the state of an exploration session.
@@ -120,7 +120,7 @@ func (session *viewer) run(options Options, title string, loadingTime time.Durat
 	app := newApplication(session, options, title)
 	if options.Backend.usesMetal() {
 		err := runMetal(session, app)
-		if !errors.Is(err, metal.ErrUnavailable) || options.Backend == Metal {
+		if !errors.Is(err, metal.Unavailable) || options.Backend == Metal {
 			return err
 		}
 		session.world.Overlay.AddNotice(fallbackIcon, "Drawing through OpenGL: "+err.Error(), graphics.Vector{})
@@ -130,7 +130,7 @@ func (session *viewer) run(options Options, title string, loadingTime time.Durat
 }
 
 // runOpenGL shows the session through OpenGL.
-func runOpenGL(session *viewer, app *models.Application) error {
+func runOpenGL(session *viewer, app *window.Application) error {
 	session.makeRenderer = func() (sceneDrawer, error) {
 		renderer, err := opengl.NewSceneRenderer()
 		if err != nil {
@@ -138,7 +138,7 @@ func runOpenGL(session *viewer, app *models.Application) error {
 		}
 		return openGLScene{renderer}, nil
 	}
-	return (&opengl.OpenGL{}).StartLoop(app)
+	return (&opengl.Window{}).Run(app)
 }
 
 func zoomOrOne(zoom float64) float64 {
@@ -148,21 +148,14 @@ func zoomOrOne(zoom float64) float64 {
 	return zoom
 }
 
-func newApplication(session *viewer, options Options, title string) *models.Application {
-	app := &models.Application{
-		Type:        models.WindowApplication,
-		Title:       title,
-		Version:     "",
-		Width:       options.Width,
-		Height:      options.Height,
-		Input:       input.NewState(),
-		ModelMatrix: graphics.Identity(),
-		Renderer:    &opengl.OpenGLRenderer{},
-		Update:      session.advance,
-		Draw:        session.draw,
+func newApplication(session *viewer, options Options, title string) *window.Application {
+	app := &window.Application{
+		Options:   window.Options{Title: title, Width: options.Width, Height: options.Height},
+		Callbacks: window.Callbacks{Update: session.advance, Draw: session.draw},
+		Input:     input.NewState(),
 	}
 	if options.CapturePath != "" {
-		app.Type, app.CapturePath = models.HeadlessApplication, options.CapturePath
+		app.Kind, app.CapturePath = window.Headless, options.CapturePath
 	}
 	// without waiting for the display the GPU keeps its speed, so measurements are steady
 	app.DisableVsync = options.Benchmark > 0 || options.NoVsync
@@ -226,8 +219,8 @@ func isUnderWater(world *scene.Scene, x, z float32) bool {
 	return world.Environment.Water != nil && height <= world.Environment.Water.LevelAt(x, z)
 }
 
-func (session *viewer) configureFrustum(view *models.Camera) {
-	view.FieldOfView = 0.73
+func (session *viewer) configureFrustum(view *camera.Camera) {
+	view.FieldOfViewRadians = 0.73
 	view.Far = session.sceneSize * 12
 	view.Near = session.sceneSize * 0.0002
 }
@@ -235,7 +228,7 @@ func (session *viewer) configureFrustum(view *models.Camera) {
 // advance runs the program's update and then the viewer's controls. The controls see the input
 // without what an interface drawn by the program claimed (input.State.Unclaimed), so dragging a
 // slider does not turn the camera and typing a name does not walk.
-func (session *viewer) advance(app *models.Application, seconds float64) error {
+func (session *viewer) advance(app *window.Application, seconds float64) error {
 	before := session.snapshot(app)
 	if session.update != nil {
 		session.update(session.world, app.Input, seconds)
@@ -260,19 +253,19 @@ func (session *viewer) advance(app *models.Application, seconds float64) error {
 // viewState is what a frame of the viewer shows besides the scene's own animation: when it
 // changes during a step, the next step follows at once.
 type viewState struct {
-	camera      models.Camera
+	camera      camera.Camera
 	environment scene.Environment
 	shadows     bool
 }
 
-func (session *viewer) snapshot(app *models.Application) viewState {
+func (session *viewer) snapshot(app *window.Application) viewState {
 	return viewState{camera: app.Camera, environment: session.world.Environment, shadows: session.shadowsEnabled}
 }
 
 // stillChanging tells whether the view is moving, so another frame should follow even without
 // input: a key or button held (walking, turning the sun), the camera or the light still changing
 // (a camera easing to a stop), notices fading.
-func (session *viewer) stillChanging(app *models.Application, before viewState) bool {
+func (session *viewer) stillChanging(app *window.Application, before viewState) bool {
 	return app.Input.AnyHeld() || session.snapshot(app) != before || len(session.world.Overlay.Notices) > 0
 }
 
@@ -285,7 +278,7 @@ type drawnFrame struct {
 // unchanged tells whether a frame would look like the last one shown (the pointer moving over the
 // window with no button held, say), and otherwise remembers it as the one about to be shown. Only
 // for a scene nothing else changes: the water and clouds stand still between the frames drawn.
-func (session *viewer) unchanged(app *models.Application) bool {
+func (session *viewer) unchanged(app *window.Application) bool {
 	current := drawnFrame{view: session.snapshot(app), width: app.Input.FramebufferWidth, height: app.Input.FramebufferHeight}
 	if session.shown != nil && *session.shown == current && len(session.world.Overlay.Notices) == 0 {
 		return true
@@ -295,7 +288,7 @@ func (session *viewer) unchanged(app *models.Application) bool {
 }
 
 // moveCamera lets the camera of the current mode follow the input.
-func (session *viewer) moveCamera(app *models.Application, state *input.State, seconds float64) {
+func (session *viewer) moveCamera(app *window.Application, state *input.State, seconds float64) {
 	if session.planning {
 		session.plan.Update(state, seconds, &app.Camera)
 		return
@@ -543,7 +536,7 @@ func sunAnglesFromDirection(direction graphics.Vector) (azimuth, elevation float
 	return math.Atan2(float64(unit[0]), float64(-unit[2])), math.Asin(float64(unit[1]))
 }
 
-func (session *viewer) draw(app *models.Application) error {
+func (session *viewer) draw(app *window.Application) error {
 	if session.renderer == nil {
 		renderer, err := session.makeRenderer()
 		if err != nil {

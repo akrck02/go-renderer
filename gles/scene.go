@@ -3,9 +3,9 @@ package gles
 import (
 	"math"
 
+	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/internal/sceneplan"
-	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/scene"
 )
 
@@ -49,7 +49,7 @@ func NewSceneRenderer(functions Functions) (*SceneRenderer, error) {
 
 // Draw draws a frame of the scene seen by the camera, in the target framebuffer of width × height
 // pixels.
-func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int) {
+func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Camera, width, height int) {
 	renderer.functions.BindFramebuffer(FramebufferTarget, renderer.Target)
 	renderer.quads.target = renderer.Target
 	frame := renderer.planner.Plan(world, camera, width, height, sceneplan.ShadowSettings{})
@@ -75,7 +75,7 @@ func (renderer *SceneRenderer) clear(light scene.Daylight, width, height int) {
 	functions.Clear(ColorBufferBit | DepthBufferBit)
 }
 
-func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, light scene.Daylight, camera models.Camera, matrices sceneplan.CameraMatrices) {
+func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, light scene.Daylight, camera camera.Camera, matrices sceneplan.CameraMatrices) {
 	program := renderer.program
 	program.use()
 	program.setMatrix("viewProjection", matrices.ViewProjection)

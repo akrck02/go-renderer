@@ -3,8 +3,8 @@ package sceneplan
 import (
 	"math"
 
+	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
 )
 
 // ShadowSettings controls the sun shadows.
@@ -32,7 +32,7 @@ func (settings ShadowSettings) EffectiveResolution() int32 {
 }
 
 // extent returns the half-size of the shadowed region for this camera and scene size.
-func (settings ShadowSettings) extent(camera models.Camera, sceneSize float32) float32 {
+func (settings ShadowSettings) extent(camera camera.Camera, sceneSize float32) float32 {
 	perDistance := settings.ExtentPerCameraDistance
 	if perDistance <= 0 {
 		perDistance = 1.2
@@ -60,7 +60,7 @@ const orthographicShadowReach = 0.95
 // shadowCenter places the shadowed region in front of the camera: half an extent ahead along the
 // view direction, or at the target when it is nearer. The region then covers what is closest to
 // the viewer, including the ground under a walking camera whose target is only a direction.
-func shadowCenter(camera models.Camera, extent float32) graphics.Vector {
+func shadowCenter(camera camera.Camera, extent float32) graphics.Vector {
 	if camera.IsOrthographic() {
 		return camera.Target // the middle of the screen
 	}

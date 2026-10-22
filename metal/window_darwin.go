@@ -6,10 +6,11 @@ import (
 	"image/png"
 	"os"
 
-	"github.com/akrck02/go-renderer/frameloop"
-	"github.com/akrck02/go-renderer/models"
-	"github.com/akrck02/go-renderer/windowloop"
 	"github.com/go-gl/glfw/v3.4/glfw"
+
+	"github.com/akrck02/go-renderer/frameloop"
+	"github.com/akrck02/go-renderer/window"
+	"github.com/akrck02/go-renderer/windowloop"
 )
 
 // FlatWindow runs an application that only draws flat shapes (an interface) through Metal, with
@@ -23,11 +24,11 @@ type FlatWindow struct {
 // Renderer is the window's renderer, for the application's Draw callback.
 func (flat *FlatWindow) Renderer() *FlatRenderer { return flat.renderer }
 
-// StartLoop opens the window and runs the application until it closes; a HeadlessApplication
+// Run opens the window and runs the application until it closes; a Headless application
 // draws one frame into its CapturePath instead. It must be called on the program's main thread.
-func (flat *FlatWindow) StartLoop(app *models.Application) error {
-	return flat.window.run(app, func(window *glfw.Window, vsync bool) (capturer, error) {
-		renderer, err := NewFlatRenderer(window, vsync)
+func (flat *FlatWindow) Run(app *window.Application) error {
+	return flat.window.run(app, func(glfwWindow *glfw.Window, vsync bool) (capturer, error) {
+		renderer, err := NewFlatRenderer(glfwWindow, vsync)
 		flat.renderer = renderer
 		return renderer, err
 	})
@@ -43,11 +44,11 @@ type SceneWindow struct {
 // Renderer is the window's renderer, for the application's Draw callback.
 func (scene *SceneWindow) Renderer() *SceneRenderer { return scene.renderer }
 
-// StartLoop opens the window and runs the application until it closes; a HeadlessApplication
+// Run opens the window and runs the application until it closes; a Headless application
 // draws one frame into its CapturePath instead. It must be called on the program's main thread.
-func (scene *SceneWindow) StartLoop(app *models.Application) error {
-	return scene.window.run(app, func(window *glfw.Window, vsync bool) (capturer, error) {
-		renderer, err := NewSceneRenderer(window, vsync)
+func (scene *SceneWindow) Run(app *window.Application) error {
+	return scene.window.run(app, func(glfwWindow *glfw.Window, vsync bool) (capturer, error) {
+		renderer, err := NewSceneRenderer(glfwWindow, vsync)
 		scene.renderer = renderer
 		return renderer, err
 	})
@@ -74,7 +75,7 @@ type metalWindow struct {
 }
 
 // run opens the window, makes its renderer and runs the loop, or captures one frame.
-func (metal *metalWindow) run(app *models.Application, makeRenderer func(*glfw.Window, bool) (capturer, error)) error {
+func (metal *metalWindow) run(app *window.Application, makeRenderer func(*glfw.Window, bool) (capturer, error)) error {
 	if !windowloop.OnMainThread() {
 		return windowloop.NotOnMainThread
 	}
@@ -82,59 +83,67 @@ func (metal *metalWindow) run(app *models.Application, makeRenderer func(*glfw.W
 		return err
 	}
 	defer glfw.Terminate()
-	window, err := openWindow(app)
+	glfwWindow, err := openWindow(app)
 	if err != nil {
 		return err
 	}
-	metal.window = window
-	defer window.Destroy()
-	renderer, err := makeRenderer(window, !app.DisableVsync)
+	metal.window = glfwWindow
+	defer glfwWindow.Destroy()
+	renderer, err := makeRenderer(glfwWindow, !app.DisableVsync)
 	if err != nil {
 		return err
 	}
 	defer renderer.Close()
 
 	if app.Input != nil {
-		windowloop.ForwardInput(window, app.Input)
+		windowloop.ForwardInput(glfwWindow, app.Input)
 	}
-	clock := frameloop.NewClock(app.FixedStep)
-	if app.Type == models.HeadlessApplication {
+	clock := frameloop.NewClock(app.FixedStepSeconds)
+	if app.Kind == window.Headless {
 		return metal.capture(app, clock, renderer)
 	}
-	return windowloop.Run(window, app, clock, func() error { return metal.drawFrame(app) })
+	return windowloop.Run(glfwWindow, app, clock, func() error { return metal.drawFrame(app) })
 }
 
 // openWindow makes a window with no OpenGL context, for a Metal layer.
-func openWindow(app *models.Application) (*glfw.Window, error) {
+func openWindow(app *window.Application) (*glfw.Window, error) {
 	glfw.WindowHint(glfw.ClientAPI, glfw.NoAPI)
 	glfw.WindowHint(glfw.Resizable, glfw.True)
 	glfw.WindowHint(glfw.CocoaRetinaFramebuffer, glfw.True)
 	glfw.WindowHint(glfw.CocoaGraphicsSwitching, glfw.True)
-	if app.Type == models.HeadlessApplication {
+	if app.Kind == window.Headless {
 		glfw.WindowHint(glfw.Visible, glfw.False)
 	}
-	window, err := glfw.CreateWindow(app.Width, app.Height, fmt.Sprintf("%s %s", app.Title, app.Version), nil, nil)
+	glfwWindow, err := glfw.CreateWindow(app.Width, app.Height, fmt.Sprintf("%s %s", app.Title, app.Version), nil, nil)
 	if err != nil {
 		return nil, err
 	}
 	if app.MinWidth > 0 || app.MinHeight > 0 {
-		window.SetSizeLimits(max(app.MinWidth, glfw.DontCare), max(app.MinHeight, glfw.DontCare), glfw.DontCare, glfw.DontCare)
+		glfwWindow.SetSizeLimits(max(app.MinWidth, glfw.DontCare), max(app.MinHeight, glfw.DontCare), glfw.DontCare, glfw.DontCare)
 	}
-	return window, nil
+	return glfwWindow, nil
 }
 
 // drawFrame draws and shows a frame, unless the application says it would look like the last one.
-func (metal *metalWindow) drawFrame(app *models.Application) error {
+func (metal *metalWindow) drawFrame(app *window.Application) error {
 	if app.Unchanged != nil && app.Unchanged(app) {
 		metal.unchangedFrames++
 		return nil
 	}
-	return app.Draw(app)
+	return drawApplication(app)
+}
+
+// drawApplication calls the application's Draw callback, if it has one.
+func drawApplication(app *window.Application) error {
+	if app.Callbacks.Draw == nil {
+		return nil
+	}
+	return app.Callbacks.Draw(app)
 }
 
 // capture runs a few update steps so the application settles, drawing each frame off screen, and
 // saves the last as a PNG.
-func (metal *metalWindow) capture(app *models.Application, clock *frameloop.Clock, renderer capturer) error {
+func (metal *metalWindow) capture(app *window.Application, clock *frameloop.Clock, renderer capturer) error {
 	renderer.startCapturing()
 	for frame := 0; frame < 3; frame++ {
 		glfw.PollEvents()
@@ -144,7 +153,7 @@ func (metal *metalWindow) capture(app *models.Application, clock *frameloop.Cloc
 		if err := frameloop.RunUpdateStep(app, clock.Step()); err != nil {
 			return err
 		}
-		if err := app.Draw(app); err != nil {
+		if err := drawApplication(app); err != nil {
 			return err
 		}
 	}
@@ -152,10 +161,7 @@ func (metal *metalWindow) capture(app *models.Application, clock *frameloop.Cloc
 	if picture == nil {
 		return NothingCaptured
 	}
-	path := app.CapturePath
-	if path == "" {
-		path = "frame.png"
-	}
+	path := app.CapturePathOrDefault()
 	file, err := os.Create(path)
 	if err != nil {
 		return err

@@ -9,10 +9,10 @@ import (
 
 func TestOutsideMacOSEveryWindowIsUnavailable(test *testing.T) {
 	for name, err := range map[string]error{
-		"FlatWindow":  (&FlatWindow{}).StartLoop(nil),
-		"SceneWindow": (&SceneWindow{}).StartLoop(nil),
+		"FlatWindow":  (&FlatWindow{}).Run(nil),
+		"SceneWindow": (&SceneWindow{}).Run(nil),
 	} {
-		if !errors.Is(err, Unavailable) || !errors.Is(err, ErrUnavailable) {
+		if !errors.Is(err, Unavailable) {
 			test.Errorf("%s returned %v, not %s", name, err, Unavailable.Name())
 		}
 	}

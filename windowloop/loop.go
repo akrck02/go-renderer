@@ -8,16 +8,17 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-gl/glfw/v3.4/glfw"
+
 	"github.com/akrck02/go-renderer/frameloop"
 	"github.com/akrck02/go-renderer/input"
-	"github.com/akrck02/go-renderer/models"
-	"github.com/go-gl/glfw/v3.4/glfw"
+	"github.com/akrck02/go-renderer/window"
 )
 
 // Run calls the application's update steps and drawFrame until the window closes or the
 // application stops. drawFrame draws and shows one frame; it may skip one that would look like
-// the last (models.Application.Unchanged). It must be called on the main thread.
-func Run(window *glfw.Window, app *models.Application, clock *frameloop.Clock, drawFrame func() error) error {
+// the last (window.Application.Unchanged). It must be called on the main thread.
+func Run(window *glfw.Window, app *window.Application, clock *frameloop.Clock, drawFrame func() error) error {
 	var failure error
 	resize := followResizing(window, app, clock, drawFrame, &failure)
 	onDemand := app.DrawOnDemand && app.Input != nil
@@ -77,14 +78,14 @@ func Run(window *glfw.Window, app *models.Application, clock *frameloop.Clock, d
 // size so an interface lays itself out again.
 type resizeFollower struct {
 	window        *glfw.Window
-	app           *models.Application
+	app           *window.Application
 	clock         *frameloop.Clock
 	width, height int // the framebuffer size the last update step saw
 }
 
 // followResizing installs the refresh callback; an error drawing in it lands in failure for the
 // main loop to return.
-func followResizing(window *glfw.Window, app *models.Application, clock *frameloop.Clock, drawFrame func() error, failure *error) *resizeFollower {
+func followResizing(window *glfw.Window, app *window.Application, clock *frameloop.Clock, drawFrame func() error, failure *error) *resizeFollower {
 	follower := &resizeFollower{window: window, app: app, clock: clock}
 	window.SetRefreshCallback(func(*glfw.Window) {
 		if *failure != nil {

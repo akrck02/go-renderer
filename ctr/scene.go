@@ -77,9 +77,9 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/internal/sceneplan"
-	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/scene"
 )
 
@@ -205,7 +205,7 @@ func (renderer *SceneRenderer) Statistics(processorTime time.Duration) sceneplan
 
 // Draw plans and draws a frame of the scene seen by the camera, between BeginFrame and EndFrame
 // of the screen: Draw calls them itself.
-func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera) {
+func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Camera) {
 	renderer.DrawStereo(world, camera, 0, 0)
 }
 
@@ -213,14 +213,14 @@ func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera) {
 // focal distance on the plane of the screen. The frame is planned once, for the camera between
 // them. With no separation it draws one picture, as Draw. It begins and ends the frame itself; to
 // draw the bottom screen in the same frame, use PaintStereo between BeginFrame and EndFrame.
-func (renderer *SceneRenderer) DrawStereo(world *scene.Scene, camera models.Camera, separation, focalDistance float32) {
+func (renderer *SceneRenderer) DrawStereo(world *scene.Scene, camera camera.Camera, separation, focalDistance float32) {
 	BeginFrame()
 	renderer.PaintStereo(world, camera, separation, focalDistance)
 	EndFrame()
 }
 
 // PaintStereo is DrawStereo inside a frame begun with BeginFrame.
-func (renderer *SceneRenderer) PaintStereo(world *scene.Scene, camera models.Camera, separation, focalDistance float32) {
+func (renderer *SceneRenderer) PaintStereo(world *scene.Scene, camera camera.Camera, separation, focalDistance float32) {
 	renderer.nextFrame()
 	planStart := time.Now()
 	frame := renderer.planner.Plan(world, camera, ScreenWidth, ScreenHeight, sceneplan.ShadowSettings{})
@@ -248,7 +248,7 @@ func (renderer *SceneRenderer) PaintStereo(world *scene.Scene, camera models.Cam
 
 // PaintOn draws a frame of the scene on either screen, in one picture, inside a frame begun with
 // BeginFrame: on the bottom one, the scene can be touched.
-func (renderer *SceneRenderer) PaintOn(surface Surface, world *scene.Scene, camera models.Camera) {
+func (renderer *SceneRenderer) PaintOn(surface Surface, world *scene.Scene, camera camera.Camera) {
 	renderer.nextFrame()
 	width, height := surface.size()
 	planStart := time.Now()

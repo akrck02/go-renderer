@@ -10,9 +10,9 @@
 package main
 
 import (
+	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/ctr"
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/scene"
 )
 
@@ -106,7 +106,7 @@ func cubeMesh(colour graphics.Vector) *scene.Mesh {
 	return mesh
 }
 
-func lampWorld() (*scene.Scene, models.Camera) {
+func lampWorld() (*scene.Scene, camera.Camera) {
 	world := scene.New()
 	world.Environment.SunDirection = graphics.Vector{0.3, -1, 0.2, 0}.Normalize()
 	world.Environment.Ambient = 0.15
@@ -124,7 +124,7 @@ func lampWorld() (*scene.Scene, models.Camera) {
 			{Position: graphics.Vector{4, 1.2, 0.5, 1}, Color: graphics.Vector{0.3, 1, 0.4, 2}, Inner: 0.5, Outer: 4.5},
 		}
 	}
-	camera := models.Camera{Position: graphics.Vector{0, 6, 9, 1}, Target: graphics.Vector{0, 0, 0, 1},
-		Up: graphics.Vector{0, 1, 0, 0}, FieldOfView: 0.8, Near: 0.1, Far: 100}
+	camera := camera.Camera{Position: graphics.Vector{0, 6, 9, 1}, Target: graphics.Vector{0, 0, 0, 1},
+		Up: graphics.Vector{0, 1, 0, 0}, FieldOfViewRadians: 0.8, Near: 0.1, Far: 100}
 	return world, camera
 }

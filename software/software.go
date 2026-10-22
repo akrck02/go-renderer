@@ -1,15 +1,13 @@
 package software
 
-import (
-	"github.com/akrck02/go-renderer/models"
-)
+import "github.com/akrck02/go-renderer/window"
 
-type Software struct{}
+// Window will open a window drawn with the software immediate-mode renderer. Until it is built,
+// every method returns NotImplemented.
+type Window struct{}
 
-func (software *Software) StartLoop(app *models.Application) error {
-	return NotImplemented
-}
+// Run returns NotImplemented.
+func (*Window) Run(app *window.Application) error { return NotImplemented }
 
-func (software *Software) Draw(app *models.Application) error {
-	return NotImplemented
-}
+// Draw returns NotImplemented.
+func (*Window) Draw(app *window.Application) error { return NotImplemented }

@@ -3,8 +3,8 @@ package ctr
 import (
 	"testing"
 
+	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/scene"
 )
 
@@ -96,12 +96,12 @@ func TestTheHorizonIsPackedInTheScreensGamma(test *testing.T) {
 	}
 }
 
-func cameraAt(x, y, z float32) models.Camera {
-	return models.Camera{Position: graphics.Vector{x, y, z, 1}}
+func cameraAt(x, y, z float32) camera.Camera {
+	return camera.Camera{Position: graphics.Vector{x, y, z, 1}}
 }
 
 func TestBothEyesSeeTheFocalPointInTheSamePlace(test *testing.T) {
-	camera := models.Camera{Position: graphics.Vector{0, 0, 10, 1}, Target: graphics.Vector{0, 0, 0, 1}, Up: graphics.Vector{0, 1, 0, 0}}
+	camera := camera.Camera{Position: graphics.Vector{0, 0, 10, 1}, Target: graphics.Vector{0, 0, 0, 1}, Up: graphics.Vector{0, 1, 0, 0}}
 	screenX := func(eye Eye, point graphics.Vector) float32 {
 		clip := EyeViewProjection(camera, eye, 1, 10, 400, 240).Apply(point)
 		return clip[0] / clip[3]
@@ -122,7 +122,7 @@ func TestBothEyesSeeTheFocalPointInTheSamePlace(test *testing.T) {
 }
 
 func TestTheEyesStandApartAlongTheCamerasRight(test *testing.T) {
-	camera := models.Camera{Position: graphics.Vector{0, 0, 10, 1}, Target: graphics.Vector{0, 0, 0, 1}, Up: graphics.Vector{0, 1, 0, 0}}
+	camera := camera.Camera{Position: graphics.Vector{0, 0, 10, 1}, Target: graphics.Vector{0, 0, 0, 1}, Up: graphics.Vector{0, 1, 0, 0}}
 	left, right := EyeCamera(camera, LeftEye, 2), EyeCamera(camera, RightEye, 2)
 	if !near(left.Position[0], -1) || !near(right.Position[0], 1) || !near(right.Target[0], 1) {
 		test.Fatalf("left at %v, right at %v looking at %v", left.Position, right.Position, right.Target)

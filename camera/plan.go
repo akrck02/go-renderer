@@ -5,7 +5,6 @@ import (
 
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/input"
-	"github.com/akrck02/go-renderer/models"
 )
 
 // isometricElevation is the angle above the ground of a true isometric view: the three axes look
@@ -39,7 +38,7 @@ func NewPlan(target graphics.Vector, sceneSize float64) *Plan {
 }
 
 // Update applies this frame's input and places the camera.
-func (plan *Plan) Update(state *input.State, seconds float64, camera *models.Camera) {
+func (plan *Plan) Update(state *input.State, seconds float64, camera *Camera) {
 	if state != nil {
 		plan.applyMouse(state)
 		plan.applyKeyboard(state, seconds)
@@ -76,7 +75,7 @@ func (plan *Plan) groundAxes() (upX, upZ, rightX, rightZ float64) {
 }
 
 // place puts the camera Distance away from the target, looking at it from the plan's elevation.
-func (plan *Plan) place(camera *models.Camera) {
+func (plan *Plan) place(camera *Camera) {
 	upX, upZ, _, _ := plan.groundAxes()
 	elevation := plan.elevation()
 	horizontal, vertical := math.Cos(elevation), math.Sin(elevation)

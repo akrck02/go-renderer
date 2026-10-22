@@ -3,13 +3,13 @@ package opengl
 import (
 	"testing"
 
+	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/scene"
 )
 
 // nightGround is a grey floor twenty units across, at night, seen from straight above.
-func nightGround() (*scene.Scene, models.Camera) {
+func nightGround() (*scene.Scene, camera.Camera) {
 	world := scene.New()
 	world.Environment.SunDirection = graphics.Vector{0, -1, 0, 0}
 	world.Environment.Ambient = 0.05
@@ -17,8 +17,8 @@ func nightGround() (*scene.Scene, models.Camera) {
 		Normals: []float32{0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0}, Indices: []uint32{0, 1, 2, 0, 2, 3},
 		Material: &scene.Material{BaseColor: graphics.Vector{0.5, 0.5, 0.5, 1}}}
 	world.Nodes = []*scene.Node{{Name: "floor", Mesh: floor}}
-	camera := models.Camera{Position: graphics.Vector{0, 12, 0.001, 1}, Target: graphics.Vector{0, 0, 0, 1},
-		Up: graphics.Vector{0, 0, -1, 0}, FieldOfView: 1, Near: 0.1, Far: 100}
+	camera := camera.Camera{Position: graphics.Vector{0, 12, 0.001, 1}, Target: graphics.Vector{0, 0, 0, 1},
+		Up: graphics.Vector{0, 0, -1, 0}, FieldOfViewRadians: 1, Near: 0.1, Far: 100}
 	return world, camera
 }
 
