@@ -16,7 +16,7 @@ func litTriangle() *scene.Mesh {
 	}
 }
 
-func TestASceneWithoutWaterHasNoSeabed(t *testing.T) {
+func TestASceneWithoutWaterHasNoSeabed(test *testing.T) {
 	world := scene.New()
 	mesh := litTriangle()
 	world.Nodes = []*scene.Node{{Transform: graphics.Identity(), Mesh: mesh}}
@@ -24,17 +24,17 @@ func TestASceneWithoutWaterHasNoSeabed(t *testing.T) {
 	camera := models.Camera{Position: graphics.Vec4{0, 0, 5, 1}, Up: graphics.Vec4{0, 1, 0, 0}}
 	mesh.Dirty = true // a changed mesh made the seabed measure every caster again
 	if plan := planner.Plan(world, camera, 400, 240, ShadowSettings{}).Seabed; plan.Available || plan.Redraw {
-		t.Fatalf("got %+v, want no seabed without water", plan)
+		test.Fatalf("got %+v, want no seabed without water", plan)
 	}
 }
 
-func TestASceneWithWaterStillPlansItsSeabed(t *testing.T) {
+func TestASceneWithWaterStillPlansItsSeabed(test *testing.T) {
 	world := scene.New()
 	world.Environment.Water = &scene.Water{Size: 100}
 	world.Nodes = []*scene.Node{{Transform: graphics.Identity(), Mesh: litTriangle()}}
 	planner := NewPlanner(MergingStore{})
 	camera := models.Camera{Position: graphics.Vec4{0, 0, 5, 1}, Up: graphics.Vec4{0, 1, 0, 0}}
 	if plan := planner.Plan(world, camera, 400, 240, ShadowSettings{}).Seabed; !plan.Available {
-		t.Fatalf("got %+v, want a seabed", plan)
+		test.Fatalf("got %+v, want a seabed", plan)
 	}
 }

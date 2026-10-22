@@ -15,49 +15,49 @@ func countingApplication(updates *int) *models.Application {
 	}}
 }
 
-func TestStepOnceRunsExactlyOneStep(t *testing.T) {
+func TestStepOnceRunsExactlyOneStep(test *testing.T) {
 	updates := 0
 	app := countingApplication(&updates)
 	clock := NewClock(0)
 	clock.previous = time.Now().Add(-time.Second) // a long sleep must not be caught up
 	if err := clock.StepOnce(app); err != nil {
-		t.Fatal(err)
+		test.Fatal(err)
 	}
 	if updates != 1 || clock.Steps() != 1 {
-		t.Fatalf("updates %d, steps %d, want 1 and 1", updates, clock.Steps())
+		test.Fatalf("updates %d, steps %d, want 1 and 1", updates, clock.Steps())
 	}
 }
 
-func TestAdvanceCatchesUpAtMostAQuarterOfASecond(t *testing.T) {
+func TestAdvanceCatchesUpAtMostAQuarterOfASecond(test *testing.T) {
 	updates := 0
 	app := countingApplication(&updates)
 	clock := NewClock(0.05)
 	clock.previous = time.Now().Add(-10 * time.Second)
 	if err := clock.Advance(app); err != nil {
-		t.Fatal(err)
+		test.Fatal(err)
 	}
 	if updates != 5 {
-		t.Fatalf("updates = %d, want 5 steps of 0.05 s in a quarter of a second", updates)
+		test.Fatalf("updates = %d, want 5 steps of 0.05 s in a quarter of a second", updates)
 	}
 }
 
-func TestAStepClearsTheStepsInput(t *testing.T) {
+func TestAStepClearsTheStepsInput(test *testing.T) {
 	updates := 0
 	app := countingApplication(&updates)
 	app.Input.MoveCursor(10, 10)
 	app.Input.MoveCursor(20, 10)
 	if err := RunUpdateStep(app, 0.1); err != nil {
-		t.Fatal(err)
+		test.Fatal(err)
 	}
 	if app.Input.HasInput() {
-		t.Fatal("the cursor's movement is still there after the step")
+		test.Fatal("the cursor's movement is still there after the step")
 	}
 }
 
-func TestUntilNextStepIsNeverNegative(t *testing.T) {
+func TestUntilNextStepIsNeverNegative(test *testing.T) {
 	clock := NewClock(0.01)
 	clock.previous = time.Now().Add(-time.Second)
 	if wait := clock.UntilNextStep(); wait != 0 {
-		t.Fatalf("wait = %v, want 0 for an overdue step", wait)
+		test.Fatalf("wait = %v, want 0 for an overdue step", wait)
 	}
 }

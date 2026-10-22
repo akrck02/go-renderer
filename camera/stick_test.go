@@ -14,7 +14,7 @@ func groundDistance(from, to graphics.Vec4) float64 {
 	return math.Hypot(float64(to[0]-from[0]), float64(to[2]-from[2]))
 }
 
-func TestTheStickUpMovesTheOrbitAwayFromTheCamera(t *testing.T) {
+func TestTheStickUpMovesTheOrbitAwayFromTheCamera(test *testing.T) {
 	orbit := NewOrbit(graphics.Vec4{0, 0, 0, 1}, 100)
 	var camera models.Camera
 	state := input.NewState()
@@ -24,11 +24,11 @@ func TestTheStickUpMovesTheOrbitAwayFromTheCamera(t *testing.T) {
 	state.StickY = 1
 	orbit.Update(state, 0.5, &camera)
 	if groundDistance(eye, orbit.Target) <= groundDistance(eye, before) {
-		t.Fatalf("the target went from %v to %v: not away from the camera at %v", before, orbit.Target, eye)
+		test.Fatalf("the target went from %v to %v: not away from the camera at %v", before, orbit.Target, eye)
 	}
 }
 
-func TestTheStickRightMovesThePlanRight(t *testing.T) {
+func TestTheStickRightMovesThePlanRight(test *testing.T) {
 	plan := NewPlan(graphics.Vec4{0, 0, 0, 1}, 100)
 	var camera models.Camera
 	state := input.NewState()
@@ -38,6 +38,6 @@ func TestTheStickRightMovesThePlanRight(t *testing.T) {
 	state.StickX = 1
 	plan.Update(state, 0.5, &camera)
 	if plan.Target == before {
-		t.Fatalf("the stick did not move the plan from %v", before)
+		test.Fatalf("the stick did not move the plan from %v", before)
 	}
 }
