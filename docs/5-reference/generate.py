@@ -36,6 +36,10 @@ PACKAGES = [
     ("windowloop", "18-windowloop.md", "", "", "platform"),
     ("frameloop", "12-frameloop.md", "", "", "platform"),
     ("sceneplan", "17-sceneplan.md", "", "", "platform"),
+    ("failure", "19-failure.md", "", "", "core"),
+    ("software", "20-software.md", "", "", "platform"),
+    ("vulkan", "21-vulkan.md", "", "", "platform"),
+    ("webgpu", "22-webgpu.md", "", "", "platform"),
 ]
 
 # Turns `go doc -all` of a package into a Markdown reference: functions, and each type with its
