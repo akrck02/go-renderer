@@ -55,7 +55,8 @@ func (canvas *Canvas) WebGL(antialias bool) (*WebGL, error) {
 	return newWebGL(canvas.element, antialias)
 }
 
-// Attach makes the canvas fill an input.State from now on: pointer, wheel, keyboard and size.
+// Attach makes the canvas fill an input.State from now on: pointer, wheel, keyboard, size and the
+// layout of a pad that connects.
 func (canvas *Canvas) Attach(state *input.State) {
 	canvas.state = state
 	state.Clipboard = &pageClipboard{}
@@ -71,6 +72,7 @@ func (canvas *Canvas) Attach(state *input.State) {
 	canvas.listen(canvas.element, "blur", func(js.Value) { canvas.releaseEverything() })
 	canvas.listen(js.Global().Get("document"), "paste", canvas.pasted)
 	canvas.listen(js.Global().Get("document"), "fullscreenchange", canvas.fullscreenChanged)
+	canvas.listen(js.Global(), "gamepadconnected", canvas.padConnected)
 	canvas.observeSize()
 }
 
@@ -97,6 +99,11 @@ func (canvas *Canvas) Detach() {
 		detach()
 	}
 	canvas.detaches = nil
+}
+
+// padConnected sets the pad's layout from the vendor in the name the browser gives it.
+func (canvas *Canvas) padConnected(event js.Value) {
+	canvas.state.SetPadLayout(input.PadLayoutFromName(event.Get("gamepad").Get("id").String()))
 }
 
 // isFinger tells a touch from a mouse or a pen: fingers can be several, and make gestures.
