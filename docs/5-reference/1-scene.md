@@ -370,6 +370,8 @@ const (
 )
 ```
 
+The patterns; PatternNone leaves the material's colour as it is.
+
 | Function or method | |
 |---|---|
 | `func PatternNamed(name string) Pattern` | PatternNamed returns the pattern with a name (cobbles, masonry, plaster, shingles, planks, grass); PatternNone for any other name. |

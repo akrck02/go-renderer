@@ -33,6 +33,17 @@ const Usage = "[-width W] [-height H] [-capture frame.png] [-walk] [-no-shadows]
 
 Usage lists the viewer flags for a usage line.
 
+```go
+var (
+	// InvalidPoint is a point flag (-look-at) not written as two numbers, "x,z".
+	InvalidPoint = failure.Define("viewer.invalid-point", "a point is written as two numbers, x,z")
+	// UnknownBackend is a -backend that is not automatic, metal or opengl.
+	UnknownBackend = failure.Define("viewer.unknown-backend", "the backend is automatic, metal or opengl")
+)
+```
+
+Codes of the errors the viewer's flags return.
+
 ### Backend
 
 Backend is the graphics interface a session draws through.
@@ -52,7 +63,7 @@ const (
 | Function or method | |
 |---|---|
 | `func (backend *Backend) Set(text string) error` | Set reads a backend from a flag: automatic, metal or opengl. |
-| `func (backend *Backend) String() string` |  |
+| `func (backend *Backend) String() string` | String is the backend as its flag writes it: automatic, metal or opengl. |
 
 ### EditFunc
 

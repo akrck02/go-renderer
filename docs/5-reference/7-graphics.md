@@ -4,14 +4,6 @@
 import "github.com/akrck02/go-renderer/graphics"
 ```
 
-### Functions
-
-| Function | |
-|---|---|
-| `func AmbientLight(ambient [4]float32) [3]float32` | AmbientLight is the colour a picture of light is cleared to for an ambient colour whose alpha is its intensity: at half, as all light is kept. |
-| `func BackdropHalvings(deviation float32) int` | BackdropHalvings is how many times a snapshot is halved before it is blurred, for a standard deviation in screen pixels: until the deviation is a couple of texels, which the taps cover. |
-| `func BackdropWeights(deviation float32) [BackdropTaps + 1]float32` | BackdropWeights are the blur's weights for a standard deviation in texels: the centre's, then each tap's on one side, adding up to one over the whole kernel. |
-
 ### Constants and variables
 
 ```go
@@ -23,110 +15,8 @@ const (
 ```
 
 ```go
-const BackdropBlurShader = …
-```
-
-BackdropBlurShader is one pass of a separable Gaussian blur: along step, a texel is the weighted sum of itself and BackdropTaps texels on each side.
-
-```go
-const BackdropTaps = 4
-```
-
-BackdropTaps is how many texels each pass of the backdrop's blur reads on each side of a texel: with the picture shrunk first (see the backends), a few taps blur as widely as many would.
-
-```go
-const BackdropVertexShader = …
-```
-
-BackdropVertexShader covers the target with one triangle made from the vertex number alone, so a blur pass needs no vertex buffer.
-
-```go
-const ConstellationFragmentShader = …
-```
-
-ConstellationFragmentShader colors constellation lines and round stars, fading with daylight.
-
-```go
-const ConstellationVertexShader = …
-```
-
-ConstellationVertexShader places constellation stars and lines on the sky sphere: directions turn with the night sky and are drawn at the far plane around the camera.
-
-```go
-const DepthOnlyFragmentShader = …
-```
-
-DepthOnlyFragmentShader writes only depth; it pairs with SceneVertexShader for the shadow and seabed passes.
-
-```go
 const FragmentShaderSource = …
 ```
-
-```go
-const LightAreaVertexShader = …
-```
-
-LightAreaVertexShader covers the area a lighting lights (in screen pixels from the top-left corner: left, top, right, bottom) with two triangles made from the vertex number alone, and passes on where the picture of light is read there.
-
-```go
-const LightFragmentShader = …
-```
-
-LightFragmentShader is how much light a light adds, at half: its colour times its intensity, times its picture for a sprite light, or for a point light full inside inner and fading smoothly to nothing at the square's inscribed circle.
-
-```go
-const LightMultiplyShader = …
-```
-
-LightMultiplyShader reads the picture of light over the area lit (drawn with LightAreaVertexShader).
-
-```go
-const LightVertexShader = …
-```
-
-LightVertexShader places a light's square, given in screen pixels from the top-left corner.
-
-```go
-const OverlayFragmentShader = …
-```
-
-OverlayFragmentShader paints the colour where the atlas (a grey coverage mask: glyphs, icons, rounded corners) covers.
-
-```go
-const OverlayVertexShader = …
-```
-
-OverlayVertexShader places the overlay's rectangles, given in screen pixels from the top-left corner, and passes on where they read the atlas and the pictures (in their pixels; a picture position below zero reads no picture) and their colour.
-
-```go
-const SceneFragmentShader = …
-```
-
-SceneFragmentShader shades by material kind: 0 lit, 1 unlit, 2 water, 3 waterfall, 4 glow; lit and glowing materials can carry a procedural surface pattern (see scene.Pattern).
-
-```go
-const SceneVertexShader = …
-```
-
-SceneVertexShader transforms meshes and GPU instances.
-
-```go
-const SharpPictureOffset = 65536
-```
-
-SharpPictureOffset marks a quad's picture position as one to read at the nearest pixel: a picture atlas is never this wide, and the vertex layout stays as it is.
-
-```go
-const SkyFragmentShader = …
-```
-
-SkyFragmentShader paints the sky for any time of day: a day gradient with the sun, a twilight glow, a night with procedural stars and a moon with phases, and a cloud layer over both.
-
-```go
-const SkyVertexShader = …
-```
-
-SkyVertexShader draws a full-screen triangle at the far plane.
 
 ```go
 const VertexShaderSource = …
