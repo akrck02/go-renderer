@@ -1,10 +1,10 @@
 package overlay
 
-// Audit benchmarks for the 2D drawing path (draw2d.List -> Painter -> quads -> vertices). They need
+// Benchmarks of the 2D drawing path (draw2d.List -> Painter -> quads -> vertices). They need
 // no OpenGL context: the GL-side loop of opengl/overlay.go fillVertices is reproduced here verbatim
 // (minus the gl.BufferData call) so its CPU cost can be measured.
 //
-//	go test ./opengl/overlay -run Audit -bench Audit -benchmem -v
+//	go test ./opengl/overlay -run xxx -bench . -benchmem
 
 import (
 	"fmt"
@@ -13,13 +13,14 @@ import (
 	"unsafe"
 
 	"github.com/akrck02/go-renderer/draw2d"
+	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/scene"
 )
 
-// auditList builds a busy editor-like interface: panels with a shadow, a bordered body, a title,
+// busyEditorList builds a busy editor-like interface: panels with a shadow, a bordered body, a title,
 // a clip, and rows of label + bordered button + button text + icon, scrolled so most rows fall
 // outside the clip (texts are kept by draw2d and cut by clipQuads). 8 panels x 100 rows = ~2000 commands.
-func auditList(list *draw2d.List, panels, rows int) {
+func busyEditorList(list *draw2d.List, panels, rows int) {
 	list.Reset()
 	ink, surface, line := draw2d.Hex("#18212e"), draw2d.Hex("#ffffff"), draw2d.Hex("#18212e22")
 	accent := draw2d.Hex("#2f6feb")
@@ -41,17 +42,9 @@ func auditList(list *draw2d.List, panels, rows int) {
 	}
 }
 
-func auditPainter(b testing.TB) *Painter {
-	painter, err := NewPainter()
-	if err != nil {
-		b.Fatal(err)
-	}
-	return painter
-}
+const busyWidth, busyHeight, busyScale = 2560, 1440, 2
 
-const auditWidth, auditHeight, auditScale = 2560, 1440, 2
-
-func auditFrame() Frame { return Frame{Width: auditWidth, Height: auditHeight, Scale: auditScale} }
+func busyFrame() Frame { return Frame{Width: busyWidth, Height: busyHeight, Scale: busyScale} }
 
 // fillVerticesCopy is opengl/overlay.go:120-133 without the upload.
 func fillVerticesCopy(vertices []float32, quads []Quad) []float32 {
@@ -93,103 +86,103 @@ func fillPacked(instances []packedInstance, quads []Quad) []packedInstance {
 	return instances
 }
 
-// TestAuditFrameShape logs the size of a busy frame: commands, quads, vertex bytes per upload,
+// TestARepeatedFrameLeavesTheAtlasAlone logs the size of a busy frame: commands, quads, vertex bytes per upload,
 // overdraw at 2560x1440 and the atlas state. It asserts nothing beyond a sane run.
-func TestAuditFrameShape(t *testing.T) {
+func TestARepeatedFrameLeavesTheAtlasAlone(test *testing.T) {
 	var list draw2d.List
-	auditList(&list, 8, 100)
-	painter := auditPainter(t)
+	busyEditorList(&list, 8, 100)
+	painter := newTestPainter(test)
 	layer := &scene.Overlay{Drawing: &list}
-	painter.Paint(layer, nil, auditFrame()) // warm the atlas
+	painter.Paint(layer, nil, busyFrame()) // warm the atlas
 	versionAfterWarm := painter.atlas.Version
-	quads := painter.Paint(layer, nil, auditFrame())
+	quads := painter.Paint(layer, nil, busyFrame())
 	if painter.atlas.Version != versionAfterWarm {
-		t.Fatalf("a repeated frame changed the atlas")
+		test.Fatalf("a repeated frame changed the atlas")
 	}
 	area := 0.0
 	for _, quad := range quads {
 		area += float64(quad.Screen[2]-quad.Screen[0]) * float64(quad.Screen[3]-quad.Screen[1])
 	}
-	screen := float64(auditWidth * auditHeight)
-	vertexBytes := len(quads) * 6 * floatsPerVertexAudit * 4
-	t.Logf("commands=%d quads=%d triangles=%d vertexBytes/frame=%d (%.1f KiB) packed=%d B",
+	screen := float64(busyWidth * busyHeight)
+	vertexBytes := len(quads) * 6 * floatsPerTestVertex * 4
+	test.Logf("commands=%d quads=%d triangles=%d vertexBytes/frame=%d (%.1f KiB) packed=%d B",
 		len(list.Commands), len(quads), 2*len(quads), vertexBytes, float64(vertexBytes)/1024, len(quads)*int(unsafe.Sizeof(packedInstance{})))
-	t.Logf("blended quad area=%.2f Mpx = %.2fx the %dx%d screen (plus 1x clear)", area/1e6, area/screen, auditWidth, auditHeight)
-	t.Logf("atlas %dx%d R8 = %d KiB, entries=%d, version=%d", painter.atlas.Size(), painter.atlas.Size(),
+	test.Logf("blended quad area=%.2f Mpx = %.2fx the %dx%d screen (plus 1x clear)", area/1e6, area/screen, busyWidth, busyHeight)
+	test.Logf("atlas %dx%d R8 = %d KiB, entries=%d, version=%d", painter.atlas.Size(), painter.atlas.Size(),
 		painter.atlas.Size()*painter.atlas.Size()/1024, len(painter.atlas.entries), painter.atlas.Version)
 
 	// a move to a screen of another density (or the window dragged between displays) asks for new
 	// sizes: every glyph, corner and shadow is drawn again into the same, growing atlas
 	before, entries := painter.atlas.Version, len(painter.atlas.entries)
-	painter.Paint(layer, nil, Frame{Width: auditWidth / 2, Height: auditHeight / 2, Scale: 1})
-	t.Logf("scale 2 -> 1: +%d entries, %d atlas version bumps (=> one full TexImage2D of %d KiB on the next drawQuads), atlas now %d",
+	painter.Paint(layer, nil, Frame{Width: busyWidth / 2, Height: busyHeight / 2, Scale: 1})
+	test.Logf("scale 2 -> 1: +%d entries, %d atlas version bumps (=> one full TexImage2D of %d KiB on the next drawQuads), atlas now %d",
 		len(painter.atlas.entries)-entries, painter.atlas.Version-before, painter.atlas.Size()*painter.atlas.Size()/1024, painter.atlas.Size())
 }
 
-const floatsPerVertexAudit = 8
+const floatsPerTestVertex = 8
 
-// BenchmarkAuditPaint2000 is the per-frame CPU of turning ~2000 commands into quads, atlas warm
+// BenchmarkPaintingTwoThousandCommands is the per-frame CPU of turning ~2000 commands into quads, atlas warm
 // (the steady state when nothing new is drawn).
-func BenchmarkAuditPaint2000(b *testing.B) {
+func BenchmarkPaintingTwoThousandCommands(benchmark *testing.B) {
 	var list draw2d.List
-	auditList(&list, 8, 100)
-	painter := auditPainter(b)
+	busyEditorList(&list, 8, 100)
+	painter := newTestPainter(benchmark)
 	layer := &scene.Overlay{Drawing: &list}
-	quads := painter.Paint(layer, nil, auditFrame())
-	b.ReportMetric(float64(len(list.Commands)), "commands")
-	b.ReportMetric(float64(len(quads)), "quads")
-	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
-		painter.Paint(layer, nil, auditFrame())
+	quads := painter.Paint(layer, nil, busyFrame())
+	benchmark.ReportMetric(float64(len(list.Commands)), "commands")
+	benchmark.ReportMetric(float64(len(quads)), "quads")
+	benchmark.ReportAllocs()
+	benchmark.ResetTimer()
+	for range benchmark.N {
+		painter.Paint(layer, nil, busyFrame())
 	}
 }
 
-// BenchmarkAuditFillVertices is the GL-side expansion of the quads into 6 vertices x 8 floats.
-func BenchmarkAuditFillVertices(b *testing.B) {
+// BenchmarkFillingTheVerticesOfAFrame is the GL-side expansion of the quads into 6 vertices x 8 floats.
+func BenchmarkFillingTheVerticesOfAFrame(benchmark *testing.B) {
 	var list draw2d.List
-	auditList(&list, 8, 100)
-	painter := auditPainter(b)
-	quads := painter.Paint(&scene.Overlay{Drawing: &list}, nil, auditFrame())
+	busyEditorList(&list, 8, 100)
+	painter := newTestPainter(benchmark)
+	quads := painter.Paint(&scene.Overlay{Drawing: &list}, nil, busyFrame())
 	vertices := fillVerticesCopy(nil, quads)
-	b.SetBytes(int64(len(vertices) * 4))
-	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
+	benchmark.SetBytes(int64(len(vertices) * 4))
+	benchmark.ReportAllocs()
+	benchmark.ResetTimer()
+	for range benchmark.N {
 		vertices = fillVerticesCopy(vertices, quads)
 	}
 }
 
-// BenchmarkAuditFillPacked is the same quads as 24-byte instances.
-func BenchmarkAuditFillPacked(b *testing.B) {
+// BenchmarkFillingPackedInstances is the same quads as 24-byte instances.
+func BenchmarkFillingPackedInstances(benchmark *testing.B) {
 	var list draw2d.List
-	auditList(&list, 8, 100)
-	painter := auditPainter(b)
-	quads := painter.Paint(&scene.Overlay{Drawing: &list}, nil, auditFrame())
+	busyEditorList(&list, 8, 100)
+	painter := newTestPainter(benchmark)
+	quads := painter.Paint(&scene.Overlay{Drawing: &list}, nil, busyFrame())
 	instances := fillPacked(nil, quads)
-	b.SetBytes(int64(len(instances)) * int64(unsafe.Sizeof(packedInstance{})))
-	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
+	benchmark.SetBytes(int64(len(instances)) * int64(unsafe.Sizeof(packedInstance{})))
+	benchmark.ReportAllocs()
+	benchmark.ResetTimer()
+	for range benchmark.N {
 		instances = fillPacked(instances, quads)
 	}
 }
 
-// BenchmarkAuditDrawingOrder is the stable sort by layer done every frame (drawing.go:32).
-func BenchmarkAuditDrawingOrder(b *testing.B) {
+// BenchmarkSortingCommandsByLayer is the stable sort by layer done every frame (drawing.go:32).
+func BenchmarkSortingCommandsByLayer(benchmark *testing.B) {
 	var list draw2d.List
-	auditList(&list, 8, 100)
-	painter := auditPainter(b)
-	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
+	busyEditorList(&list, 8, 100)
+	painter := newTestPainter(benchmark)
+	benchmark.ReportAllocs()
+	benchmark.ResetTimer()
+	for range benchmark.N {
 		painter.drawingOrder(&list)
 	}
 }
 
-// BenchmarkAuditClipQuads cuts 10 000 quads, a third of them crossing the clip edge.
-func BenchmarkAuditClipQuads(b *testing.B) {
-	painter := auditPainter(b)
+// BenchmarkClippingQuads cuts 10 000 quads, a third of them crossing the clip edge.
+func BenchmarkClippingQuads(benchmark *testing.B) {
+	painter := newTestPainter(benchmark)
 	source := make([]Quad, 10000)
 	for index := range source {
 		x := float32(index%100) * 12
@@ -197,24 +190,24 @@ func BenchmarkAuditClipQuads(b *testing.B) {
 		source[index] = Quad{Screen: [4]float32{x, y, x + 10, y + 10}, Atlas: [4]float32{0, 0, 10, 10}, Color: [4]float32{1, 1, 1, 1}}
 	}
 	clip := rectangle{5, 5, 800, 800}
-	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
+	benchmark.ReportAllocs()
+	benchmark.ResetTimer()
+	for range benchmark.N {
 		painter.quads = append(painter.quads[:0], source...)
 		painter.clipQuads(0, clip)
 	}
 }
 
-// BenchmarkAuditHashList measures what a "skip the frame when the list did not change" check
+// BenchmarkHashingAList measures what a "skip the frame when the list did not change" check
 // costs: hashing every command (fixed fields and text) with maphash.
-func BenchmarkAuditHashList(b *testing.B) {
+func BenchmarkHashingAList(benchmark *testing.B) {
 	var list draw2d.List
-	auditList(&list, 8, 100)
+	busyEditorList(&list, 8, 100)
 	seed := maphash.MakeSeed()
-	b.ReportAllocs()
-	b.ResetTimer()
+	benchmark.ReportAllocs()
+	benchmark.ResetTimer()
 	var sink uint64
-	for range b.N {
+	for range benchmark.N {
 		sink ^= hashList(seed, &list)
 	}
 	_ = sink
@@ -233,18 +226,18 @@ func hashList(seed maphash.Seed, list *draw2d.List) uint64 {
 	return hash.Sum64()
 }
 
-// BenchmarkAuditPrebuildFace is the cold cost of a new (face, size) pair: the ~200 prebuilt
+// BenchmarkPrebuildingAFace is the cold cost of a new (face, size) pair: the ~200 prebuilt
 // characters rasterised and copied into the atlas. Every new text size, weight or screen scale
 // pays it once.
-func BenchmarkAuditPrebuildFace(b *testing.B) {
-	painter := auditPainter(b)
-	b.ReportAllocs()
-	b.ResetTimer()
-	for iteration := range b.N {
+func BenchmarkPrebuildingAFace(benchmark *testing.B) {
+	painter := newTestPainter(benchmark)
+	benchmark.ReportAllocs()
+	benchmark.ResetTimer()
+	for iteration := range benchmark.N {
 		if painter.atlas.Size() >= 4096 { // keep inserting into a non-full atlas
-			b.StopTimer()
-			painter = auditPainter(b)
-			b.StartTimer()
+			benchmark.StopTimer()
+			painter = newTestPainter(benchmark)
+			benchmark.StartTimer()
 		}
 		painter.prebuild(regularFace, 10+iteration%40)
 		delete(painter.prebuilt, faceKey{regularFace, 10 + iteration%40})
@@ -255,38 +248,53 @@ func BenchmarkAuditPrebuildFace(b *testing.B) {
 			}
 		}
 	}
-	b.ReportMetric(float64(len(PrebuiltCharacters)), "glyphs/op")
+	benchmark.ReportMetric(float64(len(PrebuiltCharacters)), "glyphs/op")
 }
 
-// BenchmarkAuditRasteriseGlyph is one glyph rasterised (no atlas copy).
-func BenchmarkAuditRasteriseGlyph(b *testing.B) {
-	painter := auditPainter(b)
+// BenchmarkRasterisingAGlyph is one glyph rasterised (no atlas copy).
+func BenchmarkRasterisingAGlyph(benchmark *testing.B) {
+	painter := newTestPainter(benchmark)
 	face := painter.fonts.face(regularFace, 26)
-	b.ReportAllocs()
-	b.ResetTimer()
-	for iteration := range b.N {
+	benchmark.ReportAllocs()
+	benchmark.ResetTimer()
+	for iteration := range benchmark.N {
 		rasteriseGlyph(face, rune('A'+iteration%26))
 	}
 }
 
-// BenchmarkAuditShadowMask is a shadow corner picture drawn (circleMask with math.Hypot), the
+// BenchmarkMakingAShadowMask is a shadow corner picture drawn (circleMask with math.Hypot), the
 // cost of a new shadow radius/blur pair.
-func BenchmarkAuditShadowMask(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
+func BenchmarkMakingAShadowMask(benchmark *testing.B) {
+	benchmark.ReportAllocs()
+	for range benchmark.N {
 		radius, blur := 16, 24
 		inner, outer := float64(radius-blur), float64(radius+blur)
 		circleMask(radius+blur, func(distance float64) float64 { return 1 - smoothStep(inner, outer, distance) })
 	}
 }
 
-// BenchmarkAuditAtlasGrow is the CPU copy when the atlas doubles 512 -> 1024 -> 2048 (the GPU then
+// BenchmarkGrowingTheAtlas is the CPU copy when the atlas doubles 512 -> 1024 -> 2048 (the GPU then
 // receives the whole 4 MiB image again).
-func BenchmarkAuditAtlasGrow(b *testing.B) {
-	b.ReportAllocs()
-	for range b.N {
+func BenchmarkGrowingTheAtlas(benchmark *testing.B) {
+	benchmark.ReportAllocs()
+	for range benchmark.N {
 		atlas := NewAtlas() // 512
 		atlas.grow()        // 1024
 		atlas.grow()        // 2048
+	}
+}
+
+func TestPaintingAFrameAfterTheFirstAllocatesNothing(test *testing.T) {
+	var list draw2d.List
+	busyEditorList(&list, 8, 100)
+	painter := newTestPainter(test)
+	layer := &scene.Overlay{Drawing: &list, Labels: []*scene.Label{
+		{Text: "Near boat", Icon: "sailboat", Badge: "2", Point: graphics.Vec4{0, 0, 2, 1}},
+		{Text: "Far boat", Point: graphics.Vec4{3, 0, -2, 1}},
+	}}
+	painter.Paint(layer, nil, busyFrame()) // the first frame fills the atlas
+	allocations := testing.AllocsPerRun(20, func() { painter.Paint(layer, nil, busyFrame()) })
+	if allocations != 0 {
+		test.Fatalf("a frame allocates %v times", allocations)
 	}
 }

@@ -3,9 +3,10 @@ package overlay
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"image"
 	"image/png"
+
+	"github.com/akrck02/go-renderer/failure"
 )
 
 // A colour emoji font, as Android's NotoColorEmoji, has no outlines: each emoji is a PNG picture,
@@ -38,8 +39,6 @@ type colourPicture struct {
 	left, top, width, height, advance float32
 }
 
-var errNoColourTables = errors.New("no colour bitmap tables (CBDT and CBLC)")
-
 // parseColourFont reads the tables of a colour emoji font.
 func parseColourFont(data []byte) (*colourFont, error) {
 	tables, err := tableDirectory(data)
@@ -48,7 +47,7 @@ func parseColourFont(data []byte) (*colourFont, error) {
 	}
 	bitmapData, bitmapLookup, characterTable := tables["CBDT"], tables["CBLC"], tables["cmap"]
 	if bitmapData == nil || bitmapLookup == nil {
-		return nil, errNoColourTables
+		return nil, failure.Wrap(colourFontInvalid, "no colour bitmap tables (CBDT and CBLC)", nil)
 	}
 	characters, err := parseCharacterMap(characterTable)
 	if err != nil {
@@ -64,14 +63,14 @@ func parseColourFont(data []byte) (*colourFont, error) {
 // tableDirectory finds a font's tables by their tags.
 func tableDirectory(data []byte) (map[string][]byte, error) {
 	if len(data) < 12 {
-		return nil, errors.New("too short for a font")
+		return nil, failure.Wrap(colourFontInvalid, "too short for a font", nil)
 	}
 	count := int(binary.BigEndian.Uint16(data[4:]))
 	tables := map[string][]byte{}
 	for index := range count {
 		record := 12 + 16*index
 		if record+16 > len(data) {
-			return nil, errors.New("the table directory runs past the end")
+			return nil, failure.Wrap(colourFontInvalid, "the table directory runs past the end", nil)
 		}
 		offset, length := int(binary.BigEndian.Uint32(data[record+8:])), int(binary.BigEndian.Uint32(data[record+12:]))
 		if offset < 0 || length < 0 || offset+length > len(data) {
@@ -86,7 +85,7 @@ func tableDirectory(data []byte) (map[string][]byte, error) {
 // best at every size.
 func largestStrike(table []byte) (bitmapStrike, error) {
 	if len(table) < 8 {
-		return bitmapStrike{}, errors.New("CBLC too short")
+		return bitmapStrike{}, failure.Wrap(colourFontInvalid, "CBLC too short", nil)
 	}
 	count := int(binary.BigEndian.Uint32(table[4:]))
 	var best bitmapStrike
@@ -112,7 +111,7 @@ func largestStrike(table []byte) (bitmapStrike, error) {
 		}
 	}
 	if best.pixelsPerEm == 0 {
-		return bitmapStrike{}, errors.New("CBLC has no strike")
+		return bitmapStrike{}, failure.Wrap(colourFontInvalid, "CBLC has no strike", nil)
 	}
 	return best, nil
 }
@@ -283,7 +282,7 @@ type characterMap struct {
 
 func parseCharacterMap(table []byte) (characterMap, error) {
 	if len(table) < 4 {
-		return characterMap{}, errors.New("no cmap")
+		return characterMap{}, failure.Wrap(colourFontInvalid, "no cmap", nil)
 	}
 	count := int(binary.BigEndian.Uint16(table[2:]))
 	var found characterMap
@@ -314,7 +313,7 @@ func parseCharacterMap(table []byte) (characterMap, error) {
 		}
 	}
 	if found.groups == nil && found.segments == nil {
-		return characterMap{}, errors.New("no Unicode cmap of format 12 or 4")
+		return characterMap{}, failure.Wrap(colourFontInvalid, "no Unicode cmap of format 12 or 4", nil)
 	}
 	return found, nil
 }

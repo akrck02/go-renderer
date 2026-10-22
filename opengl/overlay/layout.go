@@ -6,10 +6,10 @@
 package overlay
 
 import (
+	"cmp"
 	"image"
-	"log"
 	"math"
-	"sort"
+	"slices"
 
 	"github.com/akrck02/go-renderer/draw2d"
 	"github.com/akrck02/go-renderer/graphics"
@@ -81,7 +81,8 @@ type Painter struct {
 	fonts    *fonts
 	prebuilt map[faceKey]bool
 	warned   map[string]bool
-	// Warn reports a problem once (an unknown icon name); nil = the standard logger.
+	// Warn hears of a problem once (an unknown icon name); nil = not reported. The program
+	// chooses where it goes, as slog.Warn.
 	Warn func(message string)
 
 	quads     []Quad
@@ -89,7 +90,8 @@ type Painter struct {
 	// snapshotLayer is the layer of the last snapshot taken in this frame, or noSnapshotLayer.
 	snapshotLayer int
 	occupied      []rectangle
-	order         []int // the drawing's commands sorted by layer, reused every frame
+	order         []int         // the drawing's commands sorted by layer, reused every frame
+	placedLabels  []placedLabel // the labels on screen this frame, reused
 	shown         []*draw2d.Image
 	runes         []rune // a text's characters, reused: converting every text every frame is garbage
 
@@ -226,7 +228,7 @@ type placedLabel struct {
 // paintLabels draws the labels nearest first, skipping any that would cover one already drawn
 // (or the header and the notices), so a crowded view stays readable.
 func (painter *Painter) paintLabels(labels []*scene.Label, anchors map[*scene.Node]graphics.Mat4, frame Frame) {
-	placed := make([]placedLabel, 0, len(labels))
+	placed := painter.placedLabels[:0]
 	for _, label := range labels {
 		if label == nil || label.Hidden || label.IsEmpty() {
 			continue
@@ -240,10 +242,17 @@ func (painter *Painter) paintLabels(labels []*scene.Label, anchors map[*scene.No
 			placed = append(placed, placedLabel{label, projection})
 		}
 	}
-	sort.SliceStable(placed, func(first, second int) bool { return placed[first].projection.Depth < placed[second].projection.Depth })
+	painter.placedLabels = placed
+	slices.SortStableFunc(placed, nearerFirst)
 	for _, candidate := range placed {
 		painter.paintLabel(candidate, frame.scale())
 	}
+}
+
+// nearerFirst orders two labels by their depth, the nearer first. Declared once, so sorting
+// makes no closure every frame.
+func nearerFirst(first, second placedLabel) int {
+	return cmp.Compare(first.projection.Depth, second.projection.Depth)
 }
 
 // labelGap is the space between a label's anchor and the bottom of the label, in layout pixels.
@@ -427,9 +436,7 @@ func (painter *Painter) iconCharacter(name string) rune {
 func (painter *Painter) warn(message string) {
 	if painter.Warn != nil {
 		painter.Warn(message)
-		return
 	}
-	log.Print(message)
 }
 
 func quote(text string) string { return "\"" + text + "\"" }
