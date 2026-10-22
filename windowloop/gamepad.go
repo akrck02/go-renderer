@@ -21,7 +21,7 @@ const gamePadDeadZone = 0.15
 type gamePad struct{ present bool }
 
 // read copies the first game pad's sticks into the input state, and leaves them at rest once when
-// the pad goes. GLFW's reading of a pad allocates (its binding returns a new state each time), so
+// the pad goes; when a pad connects, it also sets its layout. GLFW's reading of a pad allocates (its binding returns a new state each time), so
 // it is read only while a pad is there.
 func (pad *gamePad) read(state *input.State) {
 	present := glfw.Joystick1.IsGamepad()
@@ -32,6 +32,10 @@ func (pad *gamePad) read(state *input.State) {
 		}
 		pad.present = false
 		return
+	}
+	if !pad.present {
+		// read once on connecting: the GUID's vendor says whose names the buttons carry
+		state.SetPadLayout(input.PadLayoutFromGUID(glfw.Joystick1.GetGUID()))
 	}
 	pad.present = true
 	if reading := glfw.Joystick1.GetGamepadState(); reading != nil { // nil: the pad went between the calls
