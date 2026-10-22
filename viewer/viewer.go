@@ -164,6 +164,7 @@ func newApplication(session *viewer, options Options, title string) *window.Appl
 	}
 	// without waiting for the display the GPU keeps its speed, so measurements are steady
 	app.DisableVsync = options.Measure.BenchmarkFrames > 0 || options.Rendering.NoVsync
+	app.ShowFramesPerSecond = true // with -no-vsync the title shows how fast it really draws
 	// a still scene costs nothing while nobody touches it; a simulation or a benchmark draws on
 	app.DrawOnDemand = !options.Rendering.Continuous && session.update == nil && options.Measure.BenchmarkFrames == 0
 	if app.DrawOnDemand && session.edit == nil {

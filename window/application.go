@@ -55,6 +55,9 @@ type Options struct {
 	FlatOnly bool
 	// DisableVsync draws frames as fast as possible instead of waiting for the display (benchmarks).
 	DisableVsync bool
+	// ShowFramesPerSecond writes the frames drawn each second in the title, for a window that
+	// draws every frame (not on demand).
+	ShowFramesPerSecond bool
 }
 
 // Callbacks are what the program does every frame. Each may be nil.
