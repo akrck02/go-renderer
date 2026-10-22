@@ -178,6 +178,47 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 <span class="p">)</span>
 </code></pre>
 
+<h3 id="padlayout">PadLayout</h3>
+
+<p>PadLayout is the naming of a pad&rsquo;s buttons, after the maker of the pad.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">PadLayout</span> <span class="kt">int</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="c1">// XboxLayout is the default: an Xbox pad&#39;s names, the layout most pads copy.</span>
+	<span class="nx">XboxLayout</span> <span class="nx">PadLayout</span> <span class="p">=</span> <span class="kc">iota</span>
+	<span class="c1">// PlayStationLayout names the face buttons ✕ ○ □ △.</span>
+	<span class="nx">PlayStationLayout</span>
+	<span class="c1">// NintendoLayout swaps A with B and X with Y, as a Nintendo pad prints them.</span>
+	<span class="nx">NintendoLayout</span>
+<span class="p">)</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func PadLayoutFromGUID(guid string) PadLayout</code></td>
+<td>PadLayoutFromGUID is the layout of a pad from its SDL-style GUID (as GLFW gives it), whose bytes 4 and 5 are the vendor, little-endian: &ldquo;030000004c05…&rdquo; is a Sony pad.</td>
+</tr>
+
+<tr>
+<td><code>func PadLayoutFromName(name string) PadLayout</code></td>
+<td>PadLayoutFromName is the layout of a pad from the name a browser gives it (the Gamepad API&rsquo;s id), which holds the vendor: Chrome writes &ldquo;… Vendor: 054c Product: 09cc)&rdquo;, Firefox starts with &ldquo;054c-09cc-…&rdquo;.</td>
+</tr>
+
+<tr>
+<td><code>func PadLayoutFromVendor(vendor uint16) PadLayout</code></td>
+<td>PadLayoutFromVendor is the layout of a pad made by a USB vendor.</td>
+</tr>
+</tbody>
+</table>
+
 <h3 id="state">State</h3>
 
 <p>State is the input state for the current frame.</p>
@@ -347,6 +388,11 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 </tr>
 
 <tr>
+<td><code>func (state *State) PadLayout() PadLayout</code></td>
+<td>PadLayout is the layout of the pad being read; XboxLayout until the backend sets another.</td>
+</tr>
+
+<tr>
 <td><code>func (state *State) PadPressed(button PadButton) bool</code></td>
 <td>PadPressed tells whether a game pad&rsquo;s button went down this frame.</td>
 </tr>
@@ -404,6 +450,11 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 <tr>
 <td><code>func (state *State) SetPadButton(button PadButton, isDown bool)</code></td>
 <td>SetPadButton records a game pad&rsquo;s button as held or let go; going down presses it this frame.</td>
+</tr>
+
+<tr>
+<td><code>func (state *State) SetPadLayout(layout PadLayout)</code></td>
+<td>SetPadLayout records the layout of the pad being read; the backend sets it when a pad connects.</td>
 </tr>
 
 <tr>

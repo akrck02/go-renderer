@@ -241,6 +241,14 @@ slider being dragged does not turn the camera. <code>camera.Orbit</code>
 (drag, pan, zoom), <code>camera.Walk</code> (first person on the ground) and <code>camera.Plan</code> (a flat map, from
 above or isometric) turn it into a camera placement.</p>
 
+<p>A game pad is read by position, whatever its maker: <code>PadA</code> is always the bottom face button. What
+is printed on that button is not: A on an Xbox pad, ✕ on a PlayStation pad, B on a Nintendo pad.
+<code>State.PadLayout()</code> says which (<code>XboxLayout</code>, <code>PlayStationLayout</code>, <code>NintendoLayout</code>), so a game can
+write a hint with the name the player sees. The window loop sets it when a pad connects, from the
+USB vendor in the pad&rsquo;s GUID (<code>PadLayoutFromGUID</code>); the browser from the vendor in the Gamepad
+API&rsquo;s id (<code>PadLayoutFromName</code>). A vendor it does not know, Android and the 3DS read as an Xbox pad:
+the layout most pads copy (and the 3DS&rsquo;s own buttons already carry Nintendo&rsquo;s names).</p>
+
 <p>On a touch screen the first finger is the pointer (<code>input.TouchPointer</code>): it moves the cursor and
 holds the left button, so a tap is a click and a drag turns the orbit. A second finger lets the
 button go, and every finger on the screen is in <code>State.Touches</code>. <code>input.TwoFingers</code> turns two
