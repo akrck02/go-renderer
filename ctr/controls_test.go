@@ -13,7 +13,7 @@ func TestTheCrossIsTheArrowKeys(test *testing.T) {
 	if !state.Down(input.KeyUp) || !state.Pressed(input.KeyUp) || !state.Down(input.KeyMinus) {
 		test.Fatal("up and L should hold the up arrow and minus")
 	}
-	state.EndFrame()
+	state.Feed().EndFrame()
 	controls.Apply(state, Reading{})
 	if state.Down(input.KeyUp) || state.Down(input.KeyMinus) {
 		test.Fatal("letting go should release the keys")
@@ -27,8 +27,8 @@ func TestBIsTheSystemsBack(test *testing.T) {
 	if !state.Down(input.KeyEscape) {
 		test.Fatal("B should hold Escape")
 	}
-	state.EndFrame()
-	if !state.BackUnanswered() {
+	state.Feed().EndFrame()
+	if !state.Feed().BackUnanswered() {
 		test.Fatal("B should be the system's back")
 	}
 }
@@ -40,12 +40,12 @@ func TestDraggingOnTheTouchScreenDragsThePointer(test *testing.T) {
 	if !state.Button(input.MouseLeft) || state.CursorX != 100 || state.CursorY != 50 {
 		test.Fatalf("a touch should press the pointer at 100, 50; it is at %v, %v", state.CursorX, state.CursorY)
 	}
-	state.EndFrame()
+	state.Feed().EndFrame()
 	controls.Apply(state, Reading{Held: ButtonTouch, TouchX: 130, TouchY: 40})
 	if state.CursorDeltaX != 30 || state.CursorDeltaY != -10 {
 		test.Fatalf("moved by %v, %v; want 30, -10", state.CursorDeltaX, state.CursorDeltaY)
 	}
-	state.EndFrame()
+	state.Feed().EndFrame()
 	controls.Apply(state, Reading{}) // lifted: libctru reports no position
 	if state.Button(input.MouseLeft) || !state.ButtonReleased(input.MouseLeft) {
 		test.Fatal("lifting the finger should release the pointer")
@@ -73,12 +73,12 @@ func TestTheCirclePadIsTheStick(test *testing.T) {
 	state := input.NewState()
 	var controls Controls
 	controls.Apply(state, Reading{CircleX: 156, CircleY: 0})
-	if state.StickX != 1 || state.StickY != 0 {
-		test.Fatalf("the pad at its right edge is the stick right: %v, %v", state.StickX, state.StickY)
+	if x, y := state.Stick(); x != 1 || y != 0 {
+		test.Fatalf("the pad at its right edge is the stick right: %v, %v", x, y)
 	}
 	controls.Apply(state, Reading{CircleX: 5, CircleY: -5})
-	if state.StickX != 0 || state.StickY != 0 {
-		test.Fatalf("the pad at rest is no stick: %v, %v", state.StickX, state.StickY)
+	if x, y := state.Stick(); x != 0 || y != 0 {
+		test.Fatalf("the pad at rest is no stick: %v, %v", x, y)
 	}
 }
 
@@ -101,7 +101,7 @@ func TestTheCStickIsTheRightStick(test *testing.T) {
 	var controls Controls
 	state := input.NewState()
 	controls.Apply(state, Reading{CStickX: 146, CStickY: 146})
-	if state.RightStickX != 1 || state.RightStickY != 1 {
-		test.Fatalf("the C-stick up and right reads as the right stick at %v, %v", state.RightStickX, state.RightStickY)
+	if x, y := state.RightStick(); x != 1 || y != 1 {
+		test.Fatalf("the C-stick up and right reads as the right stick at %v, %v", x, y)
 	}
 }

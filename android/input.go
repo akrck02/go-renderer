@@ -92,7 +92,7 @@ func (reader *touches) key(event *C.AInputEvent) bool {
 	if code == C.AKEYCODE_BACK {
 		// the program answers it (a dialog closes); one it leaves unanswered leaves the program
 		if C.AKeyEvent_getAction(event) == C.AKEY_EVENT_ACTION_DOWN && C.AKeyEvent_getRepeatCount(event) == 0 {
-			reader.state.PressBack()
+			reader.state.Feed().PressBack()
 		}
 		return true
 	}
@@ -104,13 +104,13 @@ func (reader *touches) key(event *C.AInputEvent) bool {
 	}
 	if key != input.KeyUnknown {
 		if pressed && C.AKeyEvent_getRepeatCount(event) > 0 {
-			reader.state.RepeatKey(key)
+			reader.state.Feed().RepeatKey(key)
 		} else {
-			reader.state.SetKey(key, pressed)
+			reader.state.Feed().SetKey(key, pressed)
 		}
 	}
 	if pressed && character != 0 {
-		reader.state.AddCharacter(character)
+		reader.state.Feed().AddCharacter(character)
 	}
 	return key != input.KeyUnknown || character != 0
 }

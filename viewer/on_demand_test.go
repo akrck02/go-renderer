@@ -26,8 +26,8 @@ func step(test *testing.T, session *viewer, app *window.Application) bool {
 	if err := session.advance(app, 1.0/60); err != nil {
 		test.Fatal(err)
 	}
-	app.Input.EndFrame()
-	_, wanted := app.Input.TakeFrameRequest()
+	app.Input.Feed().EndFrame()
+	_, wanted := app.Input.Feed().TakeFrameRequest()
 	return wanted
 }
 
@@ -48,13 +48,13 @@ func TestAStillViewAsksForNoFrames(test *testing.T) {
 func TestHoldingAKeyKeepsDrawing(test *testing.T) {
 	session, app := newOnDemandSession(test)
 	step(test, session, app)
-	app.Input.SetKey(input.KeyL, true) // turns the sun
+	app.Input.Feed().SetKey(input.KeyL, true) // turns the sun
 	for frame := 0; frame < 3; frame++ {
 		if !step(test, session, app) {
 			test.Fatalf("frame %d: a held key should ask for the next frame", frame)
 		}
 	}
-	app.Input.SetKey(input.KeyL, false)
+	app.Input.Feed().SetKey(input.KeyL, false)
 	step(test, session, app)
 	if step(test, session, app) {
 		test.Error("once the key is let go and the sun still, frames should stop")

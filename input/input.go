@@ -123,10 +123,10 @@ type Clipboard interface {
 }
 
 // MultiClickInterval is the longest pause between the presses of a double click, and
-// MultiClickDistance how far, in window coordinates, the pointer may move between them.
+// MultiClickDistancePixels how far, in window coordinates, the pointer may move between them.
 const (
-	MultiClickInterval = 400 * time.Millisecond
-	MultiClickDistance = 4.0
+	MultiClickInterval       = 400 * time.Millisecond
+	MultiClickDistancePixels = 4.0
 )
 
 // State is the input state for the current frame.
@@ -148,12 +148,10 @@ type State struct {
 	CursorDeltaY       float64
 	ScrollDelta        float64 // vertical scroll since the previous frame
 	ScrollDeltaX       float64 // horizontal scroll since the previous frame (trackpads, tilting wheels)
-	// StickX and StickY are a game pad's main stick where there is one (a console's circle pad, a
-	// pad's left stick), from -1 to 1 each way, right and up positive; 0 at rest or without one.
-	// RightStickX and RightStickY are its second stick (a New 3DS's C-stick, a pad's right one).
-	// The backend sets them every frame.
-	StickX, StickY           float64
-	RightStickX, RightStickY float64
+	// stickX, stickY, rightStickX and rightStickY are a game pad's sticks (Stick, RightStick),
+	// set by the backend every frame (Feed.SetStick).
+	stickX, stickY           float64
+	rightStickX, rightStickY float64
 	hasCursorPosition        bool
 	leaving                  bool // the pointer goes off the window when this frame ends (PointerLeaves)
 	backPressed              bool // the system's back, this step (PressBack)
@@ -193,7 +191,8 @@ func isValidKey(key Key) bool { return key > KeyUnknown && key < keyCount }
 func isValidButton(button MouseButton) bool { return button >= 0 && button < mouseButtonCount }
 
 // SetKey records a key transition (called by the backend).
-func (state *State) SetKey(key Key, isDown bool) {
+func (feed Feed) SetKey(key Key, isDown bool) {
+	state := feed.state
 	if !isValidKey(key) {
 		return
 	}
@@ -205,7 +204,8 @@ func (state *State) SetKey(key Key, isDown bool) {
 }
 
 // RepeatKey records that the system repeated a held key (called by the backend).
-func (state *State) RepeatKey(key Key) {
+func (feed Feed) RepeatKey(key Key) {
+	state := feed.state
 	if isValidKey(key) {
 		state.keysTypedNow[key] = true
 	}
@@ -213,12 +213,14 @@ func (state *State) RepeatKey(key Key) {
 
 // AddCharacter records a character typed, after the keyboard layout and dead keys (called by the
 // backend): "ñ" is one character, whatever keys made it.
-func (state *State) AddCharacter(character rune) {
+func (feed Feed) AddCharacter(character rune) {
+	state := feed.state
 	state.characters = append(state.characters, character)
 }
 
 // SetButton records a mouse button transition (called by the backend).
-func (state *State) SetButton(button MouseButton, isDown bool) {
+func (feed Feed) SetButton(button MouseButton, isDown bool) {
+	state := feed.state
 	if !isValidButton(button) {
 		return
 	}
@@ -239,7 +241,7 @@ func (state *State) countClicks(button MouseButton) int {
 	previous := state.lastPress
 	isRepeat := previous.count > 0 && previous.button == button &&
 		now.Sub(previous.at) <= MultiClickInterval &&
-		abs(state.CursorX-previous.x) <= MultiClickDistance && abs(state.CursorY-previous.y) <= MultiClickDistance
+		abs(state.CursorX-previous.x) <= MultiClickDistancePixels && abs(state.CursorY-previous.y) <= MultiClickDistancePixels
 	count := 1
 	if isRepeat {
 		count = previous.count + 1
@@ -263,7 +265,8 @@ func abs(value float64) float64 {
 }
 
 // MoveCursor records a new cursor position (called by the backend).
-func (state *State) MoveCursor(x, y float64) {
+func (feed Feed) MoveCursor(x, y float64) {
+	state := feed.state
 	if state.hasCursorPosition {
 		state.CursorDeltaX += x - state.CursorX
 		state.CursorDeltaY += y - state.CursorY
@@ -273,7 +276,7 @@ func (state *State) MoveCursor(x, y float64) {
 }
 
 // PressBack records the system's back: a phone's back gesture or button (called by the backend).
-func (state *State) PressBack() { state.backPressed = true }
+func (feed Feed) PressBack() { feed.state.backPressed = true }
 
 // TakeBack answers the system's back in this step, and tells whether there was one to answer: the
 // part of the program the person is in goes back (a dialog closes, a screen returns to the one
@@ -289,7 +292,8 @@ func (state *State) TakeBack() bool {
 
 // BackUnanswered tells whether the last step had a back that nobody took, once, for the backend to
 // leave the program.
-func (state *State) BackUnanswered() bool {
+func (feed Feed) BackUnanswered() bool {
+	state := feed.state
 	unanswered := state.backUnanswered
 	state.backUnanswered = false
 	return unanswered
@@ -298,13 +302,13 @@ func (state *State) BackUnanswered() bool {
 // PointerLeaves takes the pointer off the window once this frame ends: a finger lifted from a
 // touch screen leaves nothing under it, so no control stays lit as if a mouse rested on it. The
 // frame itself still has the pointer where the finger was, for the release to land there.
-func (state *State) PointerLeaves() { state.leaving = true }
+func (feed Feed) PointerLeaves() { feed.state.leaving = true }
 
 // AddScroll records scroll movement (called by the backend).
-func (state *State) AddScroll(delta float64) { state.ScrollDelta += delta }
+func (feed Feed) AddScroll(delta float64) { feed.state.ScrollDelta += delta }
 
 // AddHorizontalScroll records sideways scroll movement (called by the backend).
-func (state *State) AddHorizontalScroll(delta float64) { state.ScrollDeltaX += delta }
+func (feed Feed) AddHorizontalScroll(delta float64) { feed.state.ScrollDeltaX += delta }
 
 // Down reports whether a key is held.
 func (state *State) Down(key Key) bool { return isValidKey(key) && state.keysHeld[key] }
@@ -426,7 +430,8 @@ func (state *State) RequestFrame(delay time.Duration) {
 
 // TakeFrameRequest returns how long until the frame asked for with RequestFrame (0 when it is
 // due) and forgets the request; false when none was made (called by the backend).
-func (state *State) TakeFrameRequest() (time.Duration, bool) {
+func (feed Feed) TakeFrameRequest() (time.Duration, bool) {
+	state := feed.state
 	if state.frameWanted.IsZero() {
 		return 0, false
 	}
@@ -437,7 +442,8 @@ func (state *State) TakeFrameRequest() (time.Duration, bool) {
 
 // HasInput tells whether anything arrived during this step: keys, characters, buttons, pointer
 // movement or scrolling.
-func (state *State) HasInput() bool {
+func (feed Feed) HasInput() bool {
+	state := feed.state
 	return state.keysTypedNow != [keyCount]bool{} || len(state.characters) > 0 ||
 		state.buttonsPressedNow != [mouseButtonCount]bool{} || state.buttonsReleasedNow != [mouseButtonCount]bool{} ||
 		state.CursorDeltaX != 0 || state.CursorDeltaY != 0 || state.ScrollDelta != 0 || state.ScrollDeltaX != 0
@@ -451,7 +457,8 @@ func (state *State) AnyHeld() bool {
 
 // EndFrame clears per-frame movement, presses, typed characters and claims; the backend calls it
 // after each update step.
-func (state *State) EndFrame() {
+func (feed Feed) EndFrame() {
+	state := feed.state
 	state.CursorDeltaX, state.CursorDeltaY, state.ScrollDelta, state.ScrollDeltaX = 0, 0, 0, 0
 	state.keysPressedNow = [keyCount]bool{}
 	state.padPressedNow = [padButtonCount]bool{}

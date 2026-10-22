@@ -6,7 +6,7 @@ import (
 	"github.com/akrck02/go-renderer/scene"
 )
 
-func TestMaterialPatternsAndGlow(test *testing.T) {
+func TestMaterialExtrasGivePatternsAndGlow(test *testing.T) {
 	file := &gltfFile{document: gltfDocument{Materials: []gltfMaterialDefinition{
 		{Name: "street", Extras: map[string]any{"kind": "lit", "pattern": "cobbles", "patternScale": 0.0004}},
 		{Name: "flowers", Extras: map[string]any{"kind": "glow"}},

@@ -117,14 +117,14 @@ func (controls *Controls) Apply(state *input.State, reading Reading) {
 	changed := reading.Held ^ controls.previous.Held
 	for _, mapping := range buttonKeys {
 		if changed&mapping.button != 0 {
-			state.SetKey(mapping.key, reading.Held&mapping.button != 0)
+			state.Feed().SetKey(mapping.key, reading.Held&mapping.button != 0)
 		}
 	}
 	if controls.Pressed(reading)&ButtonB != 0 {
-		state.PressBack()
+		state.Feed().PressBack()
 	}
-	state.StickX, state.StickY = reading.Circle()
-	state.RightStickX, state.RightStickY = reading.CStick() // at rest until StartMotionControls
+	state.Feed().SetStick(reading.Circle())
+	state.Feed().SetRightStick(reading.CStick()) // at rest until StartMotionControls
 	controls.applyTouch(state, reading)
 	controls.previous = reading
 }

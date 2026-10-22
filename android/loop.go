@@ -308,11 +308,11 @@ func (current *activityWindow) paintWhenDue() error {
 	current.readInsets()
 	current.updateSizes()
 	state := current.app.Input
-	hadInput := state.HasInput()
+	hadInput := state.Feed().HasInput()
 	if err := current.clock.StepOnce(current.app); err != nil {
 		return err
 	}
-	if state.BackUnanswered() {
+	if state.Feed().BackUnanswered() {
 		C.leave_program() // nothing in the program went back: it leaves, as phones' own do
 	}
 	// a new surface (back from the background) is empty, and a surface behind its window's new size
@@ -329,7 +329,7 @@ func (current *activityWindow) paintWhenDue() error {
 	if behind {
 		current.asked = true // drawn at the size before a rotation: again, now the surface has the new one
 	}
-	if delay, wantedFrame := state.TakeFrameRequest(); wantedFrame {
+	if delay, wantedFrame := state.Feed().TakeFrameRequest(); wantedFrame {
 		at := time.Now().Add(delay)
 		if current.frameAt.IsZero() || at.Before(current.frameAt) {
 			current.frameAt = at

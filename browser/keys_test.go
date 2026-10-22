@@ -47,7 +47,7 @@ func TestTheWheelScrollsInLinesUpPositive(test *testing.T) {
 	}
 }
 
-func TestPointerButtons(test *testing.T) {
+func TestTheMouseButtonsPressAndRelease(test *testing.T) {
 	if button, known := mouseButtonFrom(2); !known || button != input.MouseRight {
 		test.Errorf("button 2 = %v, %v; want the right button", button, known)
 	}

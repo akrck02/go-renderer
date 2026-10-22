@@ -51,7 +51,7 @@ func TestDraggingMovesTheMapWithTheCursor(test *testing.T) {
 	plan := NewPlan(graphics.Vector{0, 0, 0, 1}, 10)
 	state := input.NewState()
 	state.WindowHeight = 100
-	state.SetButton(input.MouseLeft, true)
+	state.Feed().SetButton(input.MouseLeft, true)
 	state.CursorDeltaX = 10 // a tenth of the window to the right: the map follows, so the centre moves west
 	var view Camera
 	plan.Update(state, 0, &view)
@@ -68,7 +68,7 @@ func TestDraggingMovesTheMapWithTheCursor(test *testing.T) {
 func TestScrollZoomsAndQuarterTurnsRotate(test *testing.T) {
 	plan := NewPlan(graphics.Vector{0, 0, 0, 1}, 10)
 	state := input.NewState()
-	state.AddScroll(1)
+	state.Feed().AddScroll(1)
 	var view Camera
 	plan.Update(state, 0, &view)
 	if plan.Span >= 10 {
@@ -80,7 +80,7 @@ func TestScrollZoomsAndQuarterTurnsRotate(test *testing.T) {
 		test.Errorf("span %v, want it clamped to %v", plan.Span, plan.MaximumSpan)
 	}
 	state = input.NewState()
-	state.SetKey(input.KeyE, true)
+	state.Feed().SetKey(input.KeyE, true)
 	plan.Update(state, 0, &view)
 	if plan.Turns != 1 || !near(view.Up[0], 1) || !near(view.Up[2], 0) {
 		test.Errorf("after E: %d turns, screen up %v; want east up", plan.Turns, view.Up)

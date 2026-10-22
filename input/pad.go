@@ -27,7 +27,8 @@ const (
 )
 
 // SetPadButton records a game pad's button as held or let go; going down presses it this frame.
-func (state *State) SetPadButton(button PadButton, isDown bool) {
+func (feed Feed) SetPadButton(button PadButton, isDown bool) {
+	state := feed.state
 	if button < 0 || button >= padButtonCount {
 		return
 	}

@@ -34,7 +34,7 @@ func TestWalkingSpeedLimitsKeepTheSceneRange(test *testing.T) {
 func TestANewWalkingSpeedIsShownAsANotice(test *testing.T) {
 	session := &viewer{world: &scene.Scene{}, walk: &camera.Walk{Speed: 1, RunFactor: 4}, sceneSize: 100}
 	state := input.NewState()
-	state.SetKey(input.KeyRightBracket, true)
+	state.Feed().SetKey(input.KeyRightBracket, true)
 	session.adjustWalkingSpeed(state)
 	notices := session.world.Overlay.Notices
 	if len(notices) != 1 || !strings.Contains(notices[0].Text, "1.5") {

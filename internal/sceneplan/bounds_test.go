@@ -24,7 +24,7 @@ func TestFrustumKeepsWhatTheCameraSees(test *testing.T) {
 	}
 }
 
-func TestBoxDistanceAndTransform(test *testing.T) {
+func TestABoxMeasuresItsDistanceAndFollowsATransform(test *testing.T) {
 	unit := box{graphics.Vector{0, 0, 0, 1}, graphics.Vector{1, 1, 1, 1}}
 	if unit.distanceTo(graphics.Vector{0.5, 0.5, 0.5, 1}) != 0 || unit.distanceTo(graphics.Vector{4, 0.5, 0.5, 1}) != 3 {
 		test.Errorf("wrong distance to box")

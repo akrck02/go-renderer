@@ -105,7 +105,7 @@ func testFrame() Frame {
 	return Frame{ViewProjection: projection.Multiply(view), Width: 800, Height: 600, Scale: 1}
 }
 
-func TestProjection(test *testing.T) {
+func TestAPointIsProjectedOntoTheScreen(test *testing.T) {
 	frame := testFrame()
 	centre := Project(graphics.Vector{0, 0, 0, 1}, frame)
 	if !centre.Visible || abs(centre.X-400) > 0.5 || abs(centre.Y-300) > 0.5 {
@@ -161,7 +161,7 @@ func TestLabelsKeepTheirSizeOnScreen(test *testing.T) {
 	}
 }
 
-func TestPillSizes(test *testing.T) {
+func TestAPillIsSizedToItsText(test *testing.T) {
 	painter := newTestPainter(test)
 	iconOnly := painter.measurePill(pillContent{icon: "anchor"}, labelStyle, 1)
 	if iconOnly.width != iconOnly.height || iconOnly.height != 24 {

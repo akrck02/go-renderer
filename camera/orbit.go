@@ -124,11 +124,12 @@ func (orbit *Orbit) applyKeyboard(state *input.State, seconds float64) {
 // applyStick moves the target over the ground the way the stick leans, as a game moves its
 // player: up goes away from the camera, right to its right, half a screen's height a second at most.
 func (orbit *Orbit) applyStick(state *input.State, seconds float64) {
-	if state.StickX == 0 && state.StickY == 0 {
+	stickX, stickY := state.Stick()
+	if stickX == 0 && stickY == 0 {
 		return
 	}
 	pixels := float64(max(state.WindowHeight, 1)) * seconds / 2
-	moveX, moveZ := orbit.groundOffset(state.StickX*pixels, -state.StickY*pixels, state.WindowHeight)
+	moveX, moveZ := orbit.groundOffset(stickX*pixels, -stickY*pixels, state.WindowHeight)
 	orbit.Target[0] += float32(moveX)
 	orbit.Target[2] += float32(moveZ)
 }

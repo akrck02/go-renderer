@@ -46,12 +46,12 @@ func TestAdvanceCatchesUpAtMostAQuarterOfASecond(test *testing.T) {
 func TestAStepClearsTheStepsInput(test *testing.T) {
 	updates := 0
 	app := countingApplication(&updates)
-	app.Input.MoveCursor(10, 10)
-	app.Input.MoveCursor(20, 10)
+	app.Input.Feed().MoveCursor(10, 10)
+	app.Input.Feed().MoveCursor(20, 10)
 	if err := RunUpdateStep(app, 0.1); err != nil {
 		test.Fatal(err)
 	}
-	if app.Input.HasInput() {
+	if app.Input.Feed().HasInput() {
 		test.Fatal("the cursor's movement is still there after the step")
 	}
 }
