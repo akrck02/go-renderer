@@ -68,8 +68,13 @@ The menu on the left (or the files in `docs/`) follows this order.
 
 - [Packages](5-reference/0-packages.md): every type and function
 
+**When something goes wrong**
+
+- [Troubleshooting](7-troubleshooting.md): the errors people meet, and the fix
+
 **The project**
 
+- [Contributing](8-contributing.md): the code's layout, building, testing, proposing a change
 - [Optimization plan](6-project/1-optimization-plan.md)
 - [Roadmap](6-project/2-roadmap.md)
 
