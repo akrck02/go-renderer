@@ -123,7 +123,7 @@ func (session *viewer) run(options Options, title string, loadingTime time.Durat
 		if !errors.Is(err, metal.ErrUnavailable) || options.Backend == Metal {
 			return err
 		}
-		session.world.Overlay.AddNotice(fallbackIcon, "Drawing through OpenGL: "+err.Error(), graphics.Vec4{})
+		session.world.Overlay.AddNotice(fallbackIcon, "Drawing through OpenGL: "+err.Error(), graphics.Vector{})
 		app.Input = input.NewState()
 	}
 	return runOpenGL(session, app)
@@ -182,7 +182,7 @@ func newViewer(world *scene.Scene, startWalking bool) *viewer {
 	if size <= 0 || math.IsInf(float64(size), 0) {
 		size = 10
 	}
-	center := graphics.Vec4{(minimum[0] + maximum[0]) / 2, 0, (minimum[2] + maximum[2]) / 2, 1}
+	center := graphics.Vector{(minimum[0] + maximum[0]) / 2, 0, (minimum[2] + maximum[2]) / 2, 1}
 	session := &viewer{world: world, sceneSize: size, started: time.Now(), fixedTime: math.NaN(),
 		lowest: minimum[1], highest: maximum[1],
 		baseFogNear: world.Environment.FogNear, baseFogFar: world.Environment.FogFar}
@@ -197,20 +197,20 @@ func newViewer(world *scene.Scene, startWalking bool) *viewer {
 	return session
 }
 
-func newOrbitFor(world *scene.Scene, center graphics.Vec4, size float32) *camera.Orbit {
+func newOrbitFor(world *scene.Scene, center graphics.Vector, size float32) *camera.Orbit {
 	orbit := camera.NewOrbit(center, float64(size)*1.1)
 	orbit.MaximumDistance = float64(size) * 3
 	orbit.Ground = world.GroundHeight
 	return orbit
 }
 
-func newPlanFor(world *scene.Scene, center graphics.Vec4, size float32) *camera.Plan {
+func newPlanFor(world *scene.Scene, center graphics.Vector, size float32) *camera.Plan {
 	plan := camera.NewPlan(center, float64(size)*1.05)
 	plan.Ground = world.GroundHeight
 	return plan
 }
 
-func newWalkFor(world *scene.Scene, center graphics.Vec4, size float32) *camera.Walk {
+func newWalkFor(world *scene.Scene, center graphics.Vector, size float32) *camera.Walk {
 	walk := camera.NewWalk(center[0], center[2], size*0.00004, size*0.00075)
 	walk.Ground = world.GroundHeight
 	walk.Blocked = func(x, z float32) bool { return isUnderWater(world, x, z) }
@@ -431,7 +431,7 @@ func (session *viewer) adjustWalkingSpeed(state *input.State) {
 	minimum, maximum := session.walkLimits[0], session.walkLimits[1]
 	session.walk.Speed = float32(math.Max(float64(minimum), math.Min(float64(maximum), float64(session.walk.Speed*factor))))
 	notice := fmt.Sprintf("Walking at %.4g units a second (shift: ×%.0f)", session.walk.Speed, session.walk.RunFactor)
-	session.world.Overlay.AddNotice(walkingIcon, notice, graphics.Vec4{})
+	session.world.Overlay.AddNotice(walkingIcon, notice, graphics.Vector{})
 }
 
 // The icons of the viewer's notices (Lucide's names).
@@ -529,8 +529,8 @@ func (session *viewer) syncVerticalScale() {
 
 // sunDirectionFromAngles converts azimuth (from north, clockwise, radians) and elevation to a
 // direction towards the sun, with -Z as north and +X as east.
-func sunDirectionFromAngles(azimuth, elevation float64) graphics.Vec4 {
-	return graphics.Vec4{
+func sunDirectionFromAngles(azimuth, elevation float64) graphics.Vector {
+	return graphics.Vector{
 		float32(math.Sin(azimuth) * math.Cos(elevation)),
 		float32(math.Sin(elevation)),
 		float32(-math.Cos(azimuth) * math.Cos(elevation)),
@@ -538,7 +538,7 @@ func sunDirectionFromAngles(azimuth, elevation float64) graphics.Vec4 {
 	}
 }
 
-func sunAnglesFromDirection(direction graphics.Vec4) (azimuth, elevation float64) {
+func sunAnglesFromDirection(direction graphics.Vector) (azimuth, elevation float64) {
 	unit := direction.Normalize()
 	return math.Atan2(float64(unit[0]), float64(-unit[2])), math.Asin(float64(unit[1]))
 }

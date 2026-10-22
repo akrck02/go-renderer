@@ -47,7 +47,7 @@ func hill(side int, height float32) *scene.Mesh {
 		Ground: true,
 		Material: &scene.Material{
 			Kind:         scene.KindLit,
-			BaseColor:    graphics.Vec4{0.45, 0.6, 0.3, 1},
+			BaseColor:    graphics.Vector{0.45, 0.6, 0.3, 1},
 			Pattern:      scene.PatternGrass,
 			PatternScale: 1,
 		},
@@ -85,7 +85,7 @@ normal, halfway between two faces, and the box would look like a blurred pebble)
 ```go
 // box is a box standing on the origin: width along x, height up y, depth along z. Each face has
 // vertices of its own, so its normals stay flat and its edges sharp.
-func box(width, height, depth float32, color graphics.Vec4) *scene.Mesh {
+func box(width, height, depth float32, color graphics.Vector) *scene.Mesh {
 	x, z := width/2, depth/2
 	corners := [8][3]float32{
 		{-x, 0, -z}, {x, 0, -z}, {x, 0, z}, {-x, 0, z}, // bottom
@@ -123,8 +123,8 @@ func main() {
 	island := &scene.Node{Name: "island", Transform: graphics.Identity(), Mesh: hill(60, 4)}
 	tower := &scene.Node{
 		Name:      "lighthouse",
-		Transform: graphics.Translate(graphics.Vec4{0, 4, 0, 1}),
-		Mesh:      box(2, 8, 2, graphics.Vec4{0.9, 0.9, 0.85, 1}),
+		Transform: graphics.Translate(graphics.Vector{0, 4, 0, 1}),
+		Mesh:      box(2, 8, 2, graphics.Vector{0.9, 0.9, 0.85, 1}),
 	}
 	world.Nodes = append(world.Nodes, island, tower)
 
@@ -134,7 +134,7 @@ func main() {
 }
 ```
 
-> 📝 **`Vec4`'s fourth number.** A *point* has 1 there and a *direction* 0: a translation moves
+> 📝 **`Vector`'s fourth number.** A *point* has 1 there and a *direction* 0: a translation moves
 > points but not directions. Colours use it as opacity.
 
 `options.RegisterFlags` gives your program every flag of the viewer for free: try
@@ -163,12 +163,12 @@ four metres east of it and turned 30°.
 <summary>🔓 Show the solution</summary>
 
 ```go
-house := box(3, 2.5, 4, graphics.Vec4{0.6, 0.45, 0.3, 1})
+house := box(3, 2.5, 4, graphics.Vector{0.6, 0.45, 0.3, 1})
 house.Material.Pattern, house.Material.PatternScale = scene.PatternPlanks, 0.3
 height, _ := world.GroundHeight(4, 0)
 world.Nodes = append(world.Nodes, &scene.Node{
 	Name:      "house",
-	Transform: graphics.Translate(graphics.Vec4{4, height, 0, 1}).Multiply(graphics.RotateY(30 * math.Pi / 180)),
+	Transform: graphics.Translate(graphics.Vector{4, height, 0, 1}).Multiply(graphics.RotateY(30 * math.Pi / 180)),
 	Mesh:      house,
 })
 ```

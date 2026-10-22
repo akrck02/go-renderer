@@ -79,16 +79,16 @@ func cellsPerSide(count int) int {
 }
 
 // originsArea returns the box around the instance positions.
-func originsArea(transforms []graphics.Mat4) box {
+func originsArea(transforms []graphics.Matrix) box {
 	area := emptyBox()
 	for _, transform := range transforms {
-		area.include(graphics.Vec4{transform[12], transform[13], transform[14], 1})
+		area.include(graphics.Vector{transform[12], transform[13], transform[14], 1})
 	}
 	return area
 }
 
 // cellIndex returns the cell of an instance from its position on the ground plane.
-func cellIndex(transform graphics.Mat4, area box, perSide int) int {
+func cellIndex(transform graphics.Matrix, area box, perSide int) int {
 	column := cellCoordinate(transform[12], area.minimum[0], area.maximum[0], perSide)
 	row := cellCoordinate(transform[14], area.minimum[2], area.maximum[2], perSide)
 	return row*perSide + column
@@ -125,8 +125,8 @@ func measureCells(cells []instanceCell, packed []float32, meshBounds box) {
 	}
 }
 
-func unpackTransform(packed []float32, instance int) graphics.Mat4 {
-	var transform graphics.Mat4
+func unpackTransform(packed []float32, instance int) graphics.Matrix {
+	var transform graphics.Matrix
 	copy(transform[:], packed[instance*FloatsPerInstance:instance*FloatsPerInstance+16])
 	return transform
 }
@@ -148,7 +148,7 @@ func nonEmptyCells(cells []instanceCell) ([]instanceCell, []int) {
 func packInstance(instances *scene.Instances, instance int, destination []float32) {
 	transform := instances.Transforms[instance]
 	copy(destination[0:16], transform[:])
-	color := graphics.Vec4{1, 1, 1, 1}
+	color := graphics.Vector{1, 1, 1, 1}
 	if instance < len(instances.Colors) {
 		color = instances.Colors[instance]
 	}

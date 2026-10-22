@@ -77,12 +77,12 @@ type OpenGLRenderer struct {
 | Function or method | |
 |---|---|
 | `func (r *OpenGLRenderer) Render3dModel(space graphics.CoordinateSpace, model *models.Model, shader *string) error` |  |
-| `func (r *OpenGLRenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vec4, shader *string) error` |  |
+| `func (r *OpenGLRenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vector, shader *string) error` |  |
 | `func (r *OpenGLRenderer) RenderImage(` |  |
 | `func (r *OpenGLRenderer) RenderPolygon(` |  |
 | `func (r *OpenGLRenderer) RenderRectangle(` |  |
 | `func (r *OpenGLRenderer) RenderTriangle(` |  |
-| `func (r *OpenGLRenderer) SetMatrices(projection, view, model graphics.Mat4)` |  |
+| `func (r *OpenGLRenderer) SetMatrices(projection, view, model graphics.Matrix)` |  |
 
 ### PassTimes
 

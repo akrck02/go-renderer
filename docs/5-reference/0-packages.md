@@ -29,7 +29,7 @@ root), so they say exactly what `go doc` says; for the whole comment of anything
 | [`camera`](4-camera.md) | Orbit, walking and map controllers; the ray through a pixel |
 | [`draw2d`](5-draw2d.md) | A list of flat shapes in layout pixels, which the backends paint over everything |
 | [`loaders`](6-loaders.md) | glTF 2.0 with the renderer's extras |
-| [`graphics`](7-graphics.md) | `Vec4`, `Mat4`, transformations and projections |
+| [`graphics`](7-graphics.md) | `Vector`, `Matrix`, transformations and projections |
 | [`models`](8-models.md) | The application loop (`Application`), the camera, and the immediate-mode `Renderer` contract |
 | [`scene/sample`](9-scene-sample.md) | A made-up island that uses every feature, needing no files |
 | [`failure`](18-failure.md) | Error codes: `Define`, `Wrap`, checked with `errors.Is` |
@@ -62,7 +62,7 @@ These hold across every package.
 |---|---|
 | **Axes** | y is up; the ground is the x–z plane; north is −z |
 | **Units** | The scene's units are yours (metres, kilometres); some defaults scale with the scene's size |
-| **Points and directions** | A `Vec4` with 1 last is a point, with 0 a direction; colours use it as opacity |
+| **Points and directions** | A `Vector` with 1 last is a point, with 0 a direction; colours use it as opacity |
 | **Matrices** | Column-major, as OpenGL; `a.Multiply(b)` applies `b` first; translation in elements 12, 13, 14 |
 | **Scene colours** | Linear RGB(A), 0 to 1, lit and gamma-corrected by the renderer |
 | **Screen colours** | `draw2d.Color` and the overlay's tints are as seen on screen, not gamma-corrected |

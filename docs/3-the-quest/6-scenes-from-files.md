@@ -128,17 +128,17 @@ Try it on your own first, then compare with the solution.
 
 ```go
 height, _ := world.GroundHeight(18, 0)
-second := &scene.Node{Name: "east lighthouse", Transform: graphics.Translate(graphics.Vec4{18, height, 0, 1}),
-	Mesh: box(1.5, 5, 1.5, graphics.Vec4{0.75, 0.2, 0.15, 1})}
-secondLamp := &scene.Node{Name: "east lamp", Transform: graphics.Translate(graphics.Vec4{0, 5, 0, 1}),
-	Mesh: box(2, 0.4, 0.4, graphics.Vec4{1, 0.85, 0.3, 1})}
+second := &scene.Node{Name: "east lighthouse", Transform: graphics.Translate(graphics.Vector{18, height, 0, 1}),
+	Mesh: box(1.5, 5, 1.5, graphics.Vector{0.75, 0.2, 0.15, 1})}
+secondLamp := &scene.Node{Name: "east lamp", Transform: graphics.Translate(graphics.Vector{0, 5, 0, 1}),
+	Mesh: box(2, 0.4, 0.4, graphics.Vector{1, 0.85, 0.3, 1})}
 secondLamp.Mesh.Material.Kind = scene.KindGlow
 second.Children = append(second.Children, secondLamp)
 world.Nodes = append(world.Nodes, second)
 world.Overlay.AddLabel(&scene.Label{Node: second, Height: 6, Icon: "lightbulb", Text: "East Light"})
 
 // in the edit function, after the first lamp:
-secondLamp.Transform = graphics.Translate(graphics.Vec4{0, 5, 0, 1}).Multiply(graphics.RotateY(-angle))
+secondLamp.Transform = graphics.Translate(graphics.Vector{0, 5, 0, 1}).Multiply(graphics.RotateY(-angle))
 ```
 
 </details>

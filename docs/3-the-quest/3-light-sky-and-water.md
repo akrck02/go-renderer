@@ -26,17 +26,17 @@ ground below it, so the shore shines turquoise and the open sea turns dark blue 
 world.Environment.Water = &scene.Water{
 	Level:   1,    // one metre above zero: the hill's edges go under
 	Size:    2000, // how far the plane reaches
-	Shallow: graphics.Vec4{0.1, 0.5, 0.55, 1},
-	Deep:    graphics.Vec4{0.02, 0.12, 0.25, 1},
+	Shallow: graphics.Vector{0.1, 0.5, 0.55, 1},
+	Deep:    graphics.Vector{0.02, 0.12, 0.25, 1},
 }
 ```
 
 ### Fog and wind
 
 ```go
-world.Environment.FogColor = graphics.Vec4{0.75, 0.8, 0.85, 1}
+world.Environment.FogColor = graphics.Vector{0.75, 0.8, 0.85, 1}
 world.Environment.FogNear, world.Environment.FogFar = 80, 400 // FogFar 0 means no fog
-world.Environment.Wind = scene.Wind{Direction: graphics.Vec4{1, 0, 0.3, 0}, Strength: 0.5}
+world.Environment.Wind = scene.Wind{Direction: graphics.Vector{1, 0, 0.3, 0}, Strength: 0.5}
 ```
 
 The wind moves the clouds and bends every material with a `Sway`. Plants are modelled with their
@@ -53,7 +53,7 @@ or pictures (a skybox). Start from Earth's:
 
 ```go
 sky := scene.DefaultSky()
-sky.Clouds = scene.Clouds{Coverage: 0.4, Color: graphics.Vec4{1, 1, 1, 1}, Speed: 0.01, Scale: 1}
+sky.Clouds = scene.Clouds{Coverage: 0.4, Color: graphics.Vector{1, 1, 1, 1}, Speed: 0.01, Scale: 1}
 world.Environment.Sky = sky
 ```
 
@@ -88,8 +88,8 @@ outer one, and lights the lit materials it reaches, besides the sun and the sky:
 
 ```go
 world.Lights = []scene.PointLight{{
-	Position: graphics.Vec4{2, 3.2, 0, 1},       // the lamp, at the top of the tower
-	Color:    graphics.Vec4{1, 0.85, 0.5, 1.5},  // warm, at one and a half times (alpha is the intensity)
+	Position: graphics.Vector{2, 3.2, 0, 1},       // the lamp, at the top of the tower
+	Color:    graphics.Vector{1, 0.85, 0.5, 1.5},  // warm, at one and a half times (alpha is the intensity)
 	Inner:    0.5,
 	Outer:    6,
 }}
@@ -135,9 +135,9 @@ foliage turned a little brown.
 <summary>🔓 Show the solution</summary>
 
 ```go
-world.Environment.Snow = &scene.Snow{Level: 2.5, Blend: 0.5, Color: graphics.Vec4{0.95, 0.97, 1, 1}}
+world.Environment.Snow = &scene.Snow{Level: 2.5, Blend: 0.5, Color: graphics.Vector{0.95, 0.97, 1, 1}}
 forest.Mesh.Material.Foliage = true // takes the season's tint
-world.Environment.FoliageTint = graphics.Vec4{0.55, 0.45, 0.3, 0.5} // the colour, and how much
+world.Environment.FoliageTint = graphics.Vector{0.55, 0.45, 0.3, 0.5} // the colour, and how much
 ```
 
 Snow settles on surfaces facing up, so the tower's walls stay clear.

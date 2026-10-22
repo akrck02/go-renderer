@@ -133,7 +133,7 @@ type SceneRenderer struct {
 	planTime       time.Duration // how long sceneplan took for the last frame (PlanTime)
 	bound          *Shader
 	frame          sceneplan.Frame
-	viewProjection graphics.Mat4 // of the eye being drawn, in the PICA200's clip space
+	viewProjection graphics.Matrix // of the eye being drawn, in the PICA200's clip space
 }
 
 // waterLocations are where scene.v.pica reads each uniform.
@@ -262,7 +262,7 @@ func (renderer *SceneRenderer) PaintOn(surface Surface, world *scene.Scene, came
 }
 
 // drawEye draws the planned frame with one view-projection.
-func (renderer *SceneRenderer) drawEye(viewProjection graphics.Mat4, frame sceneplan.Frame) {
+func (renderer *SceneRenderer) drawEye(viewProjection graphics.Matrix, frame sceneplan.Frame) {
 	renderer.viewProjection = viewProjection
 	renderer.bound = nil
 	C.prepareScene()
@@ -381,11 +381,11 @@ func (renderer *SceneRenderer) prepareShaded(command sceneplan.Command) {
 	places := renderer.waterPlaces
 	setVector(places.baseColour, sceneplan.BaseColorOf(command.Material))
 	setVector(places.weights, materialWeights(command.Material.Kind, renderer.light.brightness))
-	setVector(places.minimumAlpha, graphics.Vec4{minimumAlpha(command.Material.Kind), 0, 0, 0})
+	setVector(places.minimumAlpha, graphics.Vector{minimumAlpha(command.Material.Kind), 0, 0, 0})
 	SetMatrix(places.model, command.World)
 	normal := sceneplan.NormalMatrix(command.World) // column by column
 	for row := range 3 {
-		setVector(places.normalMatrix+row, graphics.Vec4{normal[row], normal[3+row], normal[6+row], 0})
+		setVector(places.normalMatrix+row, graphics.Vector{normal[row], normal[3+row], normal[6+row], 0})
 	}
 	lamps := lampUniformsOf(command.Lights, renderer.frame.Lights)
 	for slot := range lamps.positions {
@@ -553,7 +553,7 @@ func (onGPU *meshOnGPU) free() {
 	onGPU.pieces = nil
 }
 
-func setVector(location int, value graphics.Vec4) {
+func setVector(location int, value graphics.Vector) {
 	if location < 0 {
 		return
 	}

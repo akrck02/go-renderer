@@ -150,7 +150,7 @@ func LoadGLB(path string) (*models.Model, error) {
 					maxZ = z
 				}
 
-				mesh.Vertices = append(mesh.Vertices, graphics.Vec4{x, y, z, 1.0})
+				mesh.Vertices = append(mesh.Vertices, graphics.Vector{x, y, z, 1.0})
 			}
 
 			// Load Indices

@@ -13,9 +13,9 @@ const (
 )
 
 type Camera struct {
-	Position    graphics.Vec4
-	Target      graphics.Vec4
-	Up          graphics.Vec4
+	Position    graphics.Vector
+	Target      graphics.Vector
+	Up          graphics.Vector
 	FieldOfView float64 // vertical field of view in radians (0 = pi/4)
 	Near        float32 // near clipping plane (0 = 0.1)
 	Far         float32 // far clipping plane (0 = 1000)
@@ -30,7 +30,7 @@ func (camera Camera) IsOrthographic() bool { return camera.OrthographicHeight > 
 
 // ProjectionMatrix returns the camera's projection for OpenGL, perspective or orthographic, for a
 // screen of this width over height.
-func (camera Camera) ProjectionMatrix(aspect float64) graphics.Mat4 {
+func (camera Camera) ProjectionMatrix(aspect float64) graphics.Matrix {
 	fieldOfView, near, far := camera.Projection()
 	if !camera.IsOrthographic() {
 		return graphics.PerspectiveOpenGL(fieldOfView, aspect, float64(near), float64(far))
@@ -57,7 +57,7 @@ func (camera Camera) Projection() (fieldOfView float64, near, far float32) {
 
 type Application struct {
 	Type       ApplicationType
-	Background graphics.Vec4
+	Background graphics.Vector
 	Width      int
 	Height     int
 	// MinWidth and MinHeight, when above 0, stop the window from being made smaller.
@@ -95,7 +95,7 @@ type Application struct {
 	// Stop, when set by Update or Draw, ends a window application after the current frame.
 	Stop             bool
 	Camera           Camera
-	ModelMatrix      graphics.Mat4
-	ViewMatrix       graphics.Mat4
-	ProjectionMatrix graphics.Mat4
+	ModelMatrix      graphics.Matrix
+	ViewMatrix       graphics.Matrix
+	ProjectionMatrix graphics.Matrix
 }

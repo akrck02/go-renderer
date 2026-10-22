@@ -8,13 +8,13 @@ import (
 	"github.com/akrck02/go-renderer/scene"
 )
 
-var unitBox = box{graphics.Vec4{-0.5, 0, -0.5, 1}, graphics.Vec4{0.5, 1, 0.5, 1}}
+var unitBox = box{graphics.Vector{-0.5, 0, -0.5, 1}, graphics.Vector{0.5, 1, 0.5, 1}}
 
 func forest(count int) *scene.Instances {
 	random := rand.New(rand.NewSource(1))
 	instances := &scene.Instances{}
 	for index := 0; index < count; index++ {
-		position := graphics.Vec4{random.Float32() * 100, 0, random.Float32() * 100, 0}
+		position := graphics.Vector{random.Float32() * 100, 0, random.Float32() * 100, 0}
 		instances.Transforms = append(instances.Transforms, graphics.Translate(position))
 	}
 	return instances
@@ -40,7 +40,7 @@ func TestGridKeepsEveryInstanceOnce(test *testing.T) {
 func TestUpdatedInstanceMovesAndWidensItsCell(test *testing.T) {
 	instances := forest(5000)
 	grid := buildInstanceGrid(instances, unitBox)
-	instances.Transforms[42] = graphics.Translate(graphics.Vec4{500, 0, 500, 0})
+	instances.Transforms[42] = graphics.Translate(graphics.Vector{500, 0, 500, 0})
 	cell := grid.updateInstance(instances, 42, unitBox)
 	if unpackTransform(grid.packed, grid.slots[42]) != instances.Transforms[42] {
 		test.Fatalf("the packed instance was not updated")

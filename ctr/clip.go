@@ -9,7 +9,7 @@ import (
 // openGLToPICA turns OpenGL's clip space into the PICA200's: a quarter turn, because the screens
 // are mounted on their side (x from y, y from -x), and depth from [-w, w] to [-w, 0]. sceneplan
 // plans frames with OpenGL's matrices, so this goes in front of its view-projection.
-var openGLToPICA = graphics.Mat4{
+var openGLToPICA = graphics.Matrix{
 	0, -1, 0, 0, // column 0: x goes to -y
 	1, 0, 0, 0, // column 1: y goes to x
 	0, 0, 0.5, 0, // column 2: z is halved…
@@ -17,7 +17,7 @@ var openGLToPICA = graphics.Mat4{
 }
 
 // PICAViewProjection is an OpenGL view-projection matrix (sceneplan's) made ready for the PICA200.
-func PICAViewProjection(openGL graphics.Mat4) graphics.Mat4 {
+func PICAViewProjection(openGL graphics.Matrix) graphics.Matrix {
 	return openGLToPICA.Multiply(openGL)
 }
 
@@ -53,7 +53,7 @@ func EyeCamera(camera models.Camera, eye Eye, separation float32) models.Camera 
 // EyeViewProjection is an eye's OpenGL view-projection: its camera's, with the picture moved
 // sideways so that what lies at the focal distance falls on the same place for both eyes, on the
 // plane of the screen; nearer comes out of it, farther goes in.
-func EyeViewProjection(camera models.Camera, eye Eye, separation, focalDistance float32, width, height int) graphics.Mat4 {
+func EyeViewProjection(camera models.Camera, eye Eye, separation, focalDistance float32, width, height int) graphics.Matrix {
 	matrices := sceneplan.ComputeCameraMatrices(EyeCamera(camera, eye, separation), width, height)
 	// A point straight ahead at the focal distance is seen by this eye half the separation to
 	// the other side; moving clip x by this share of w puts it back in the middle.
@@ -64,7 +64,7 @@ func EyeViewProjection(camera models.Camera, eye Eye, separation, focalDistance 
 }
 
 // cameraRight is the camera's right, of unit length.
-func cameraRight(camera models.Camera) graphics.Vec4 {
-	forward := graphics.Vec4{camera.Target[0] - camera.Position[0], camera.Target[1] - camera.Position[1], camera.Target[2] - camera.Position[2], 0}
+func cameraRight(camera models.Camera) graphics.Vector {
+	forward := graphics.Vector{camera.Target[0] - camera.Position[0], camera.Target[1] - camera.Position[1], camera.Target[2] - camera.Position[2], 0}
 	return forward.Cross(camera.Up).Normalize()
 }

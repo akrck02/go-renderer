@@ -104,17 +104,17 @@ func constellationsFromExtras(value any) []scene.Constellation {
 			Name:  name,
 			Stars: directionsFromExtras(values["stars"]),
 			Lines: linesFromExtras(values["lines"]),
-			Color: extraVector(values, "color", graphics.Vec4{0.75, 0.85, 1, 1}),
+			Color: extraVector(values, "color", graphics.Vector{0.75, 0.85, 1, 1}),
 		})
 	}
 	return constellations
 }
 
-func directionsFromExtras(value any) []graphics.Vec4 {
+func directionsFromExtras(value any) []graphics.Vector {
 	list, _ := value.([]any)
-	directions := make([]graphics.Vec4, 0, len(list))
+	directions := make([]graphics.Vector, 0, len(list))
 	for _, entry := range list {
-		directions = append(directions, extraVector(map[string]any{"direction": entry}, "direction", graphics.Vec4{}).Normalize())
+		directions = append(directions, extraVector(map[string]any{"direction": entry}, "direction", graphics.Vector{}).Normalize())
 	}
 	return directions
 }

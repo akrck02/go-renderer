@@ -28,11 +28,11 @@ func main() {
 		Version:    "v0.0.1",
 		Width:      1000,
 		Height:     800,
-		Background: graphics.Vec4{0.2, 0.3, 0.3, 1.0},
+		Background: graphics.Vector{0.2, 0.3, 0.3, 1.0},
 		Camera: models.Camera{
-			Position: graphics.Vec4{0, 0, 1, 0},
-			Target:   graphics.Vec4{0, 0, 0, 0},
-			Up:       graphics.Vec4{0, 1, 0, 0},
+			Position: graphics.Vector{0, 0, 1, 0},
+			Target:   graphics.Vector{0, 0, 0, 0},
+			Up:       graphics.Vector{0, 1, 0, 0},
 		},
 		ModelMatrix: graphics.Identity(),
 	}
@@ -78,7 +78,7 @@ var first = true
 
 func Draw(app *models.Application) error {
 
-	triangle := []graphics.Vec4{
+	triangle := []graphics.Vector{
 		{-0.5, 0.8, 0, 0},  // top
 		{-0.65, 0.5, 0, 0}, // left
 		{-0.35, 0.5, 0, 0}, // right
@@ -86,7 +86,7 @@ func Draw(app *models.Application) error {
 
 	app.Renderer.RenderTriangle(graphics.WorldSpace, triangle, nil, true)
 
-	rectangle := graphics.Vec4{0, 0, 0}
+	rectangle := graphics.Vector{0, 0, 0}
 	app.Renderer.RenderRectangle(graphics.WorldSpace, rectangle, 0.4, 0.3, nil, true)
 
 	return nil

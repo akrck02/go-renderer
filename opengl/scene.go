@@ -129,15 +129,15 @@ func (program *shaderProgram) location(name string) int32 {
 	return location
 }
 
-func (program *shaderProgram) setVector3(name string, value graphics.Vec4) {
+func (program *shaderProgram) setVector3(name string, value graphics.Vector) {
 	gl.Uniform3f(program.location(name), value[0], value[1], value[2])
 }
 
-func (program *shaderProgram) setVector4(name string, value graphics.Vec4) {
+func (program *shaderProgram) setVector4(name string, value graphics.Vector) {
 	gl.Uniform4fv(program.location(name), 1, &value[0])
 }
 
-func (program *shaderProgram) setMatrix(name string, value graphics.Mat4) {
+func (program *shaderProgram) setMatrix(name string, value graphics.Matrix) {
 	gl.UniformMatrix4fv(program.location(name), 1, false, &value[0])
 }
 

@@ -64,9 +64,9 @@ func InterleaveHarmonics(variation *scene.LevelVariation) []float32 {
 }
 
 // ColorOrWhite returns the colour, or white when it is unset.
-func ColorOrWhite(color graphics.Vec4) graphics.Vec4 {
-	if color == (graphics.Vec4{}) {
-		return graphics.Vec4{1, 1, 1, 1}
+func ColorOrWhite(color graphics.Vector) graphics.Vector {
+	if color == (graphics.Vector{}) {
+		return graphics.Vector{1, 1, 1, 1}
 	}
 	return color
 }

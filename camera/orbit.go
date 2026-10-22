@@ -11,7 +11,7 @@ import (
 // Orbit rotates around a target: left drag rotates, right drag (or shift + left drag) pans,
 // scroll zooms. Arrow keys rotate and +/- zoom from the keyboard.
 type Orbit struct {
-	Target          graphics.Vec4
+	Target          graphics.Vector
 	Distance        float64
 	Yaw             float64 // radians around the vertical axis
 	Pitch           float64 // radians; 0 looks from the horizon, pi/2 from straight above
@@ -26,7 +26,7 @@ type Orbit struct {
 }
 
 // NewOrbit returns an orbit controller with sensible defaults for a scene of the given size.
-func NewOrbit(target graphics.Vec4, sceneSize float64) *Orbit {
+func NewOrbit(target graphics.Vector, sceneSize float64) *Orbit {
 	return &Orbit{
 		Target: target, Distance: sceneSize, Yaw: 0.4, Pitch: 0.95,
 		MinimumDistance: sceneSize * 0.002, MaximumDistance: sceneSize * 3,
@@ -46,7 +46,7 @@ func (orbit *Orbit) Update(state *input.State, seconds float64, camera *models.C
 	orbit.placeTargetOnGround()
 	camera.Position = orbit.cameraPositionAboveGround()
 	camera.Target = orbit.Target
-	camera.Up = graphics.Vec4{0, 1, 0, 0}
+	camera.Up = graphics.Vector{0, 1, 0, 0}
 }
 
 // Gesture applies what two fingers did (input.TwoFingers), as a map does: the ground that was
@@ -157,9 +157,9 @@ func (orbit *Orbit) placeTargetOnGround() {
 	}
 }
 
-func (orbit *Orbit) cameraPositionAboveGround() graphics.Vec4 {
+func (orbit *Orbit) cameraPositionAboveGround() graphics.Vector {
 	cosinePitch, sinePitch := math.Cos(orbit.Pitch), math.Sin(orbit.Pitch)
-	position := graphics.Vec4{
+	position := graphics.Vector{
 		orbit.Target[0] + float32(orbit.Distance*cosinePitch*math.Sin(orbit.Yaw)),
 		orbit.Target[1] + float32(orbit.Distance*sinePitch),
 		orbit.Target[2] + float32(orbit.Distance*cosinePitch*math.Cos(orbit.Yaw)),

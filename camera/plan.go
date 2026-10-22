@@ -17,7 +17,7 @@ var isometricElevation = math.Atan(1 / math.Sqrt2)
 // Any drag moves the map with the cursor, scroll and +/- zoom, arrows move it too, and Q and E
 // turn it a quarter.
 type Plan struct {
-	Target        graphics.Vec4
+	Target        graphics.Vector
 	Span          float64 // world units from the bottom to the top of the screen
 	Isometric     bool
 	Turns         int     // quarter turns: 0 has north up in the top view
@@ -31,7 +31,7 @@ type Plan struct {
 }
 
 // NewPlan returns a plan view of a scene of the given size, showing all of it.
-func NewPlan(target graphics.Vec4, sceneSize float64) *Plan {
+func NewPlan(target graphics.Vector, sceneSize float64) *Plan {
 	return &Plan{
 		Target: target, Span: sceneSize, Distance: sceneSize * 4,
 		MinimumSpan: sceneSize * 0.0005, MaximumSpan: sceneSize * 3, ZoomSpeed: 0.12,
@@ -80,7 +80,7 @@ func (plan *Plan) place(camera *models.Camera) {
 	upX, upZ, _, _ := plan.groundAxes()
 	elevation := plan.elevation()
 	horizontal, vertical := math.Cos(elevation), math.Sin(elevation)
-	camera.Position = graphics.Vec4{
+	camera.Position = graphics.Vector{
 		plan.Target[0] - float32(plan.Distance*horizontal*upX),
 		plan.Target[1] + float32(plan.Distance*vertical),
 		plan.Target[2] - float32(plan.Distance*horizontal*upZ),
@@ -89,7 +89,7 @@ func (plan *Plan) place(camera *models.Camera) {
 	camera.Target = plan.Target
 	// the screen's up: towards the heading, tilted up as the view tilts (straight above, it is
 	// the heading itself, which keeps it from being parallel to the line of sight)
-	camera.Up = graphics.Vec4{float32(upX * vertical), float32(horizontal), float32(upZ * vertical), 0}
+	camera.Up = graphics.Vector{float32(upX * vertical), float32(horizontal), float32(upZ * vertical), 0}
 	camera.OrthographicHeight = float32(plan.Span)
 	camera.Near = float32(plan.Distance * 0.01)
 	camera.Far = float32(plan.Distance * 2)

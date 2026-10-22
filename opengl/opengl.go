@@ -39,10 +39,10 @@ func (opengl *OpenGL) StartLoop(app *models.Application) error {
 	opengl.init(app)
 
 	// Initialize state
-	if app.Camera.Up == (graphics.Vec4{}) {
-		app.Camera.Up = graphics.Vec4{0, 1, 0, 0}
+	if app.Camera.Up == (graphics.Vector{}) {
+		app.Camera.Up = graphics.Vector{0, 1, 0, 0}
 	}
-	if app.ModelMatrix == (graphics.Mat4{}) {
+	if app.ModelMatrix == (graphics.Matrix{}) {
 		app.ModelMatrix = graphics.Identity()
 	}
 
@@ -87,8 +87,8 @@ func setInputs(opengl *OpenGL, app *models.Application) {
 
 			// Get camera axes for relative movement/rotation
 			view := graphics.LookAt(app.Camera.Position, app.Camera.Target, app.Camera.Up)
-			right := graphics.Vec4{view[0], view[4], view[8], 0} // First row of View is Right in World Space
-			up := graphics.Vec4{view[1], view[5], view[9], 0}    // Second row of View is Up in World Space
+			right := graphics.Vector{view[0], view[4], view[8], 0} // First row of View is Right in World Space
+			up := graphics.Vector{view[1], view[5], view[9], 0}    // Second row of View is Up in World Space
 
 			switch key {
 			// Movement

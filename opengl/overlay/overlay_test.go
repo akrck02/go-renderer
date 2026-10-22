@@ -74,7 +74,7 @@ func TestUnknownIconsWarnOnceAndDrawNothing(test *testing.T) {
 	var warnings []string
 	painter.Warn = func(message string) { warnings = append(warnings, message) }
 	overlay := &scene.Overlay{}
-	overlay.AddLabel(&scene.Label{Icon: "sea-serpent", Point: graphics.Vec4{0, 0, 0, 1}})
+	overlay.AddLabel(&scene.Label{Icon: "sea-serpent", Point: graphics.Vector{0, 0, 0, 1}})
 	frame := testFrame()
 	for range 3 {
 		if quads := painter.Paint(overlay, nil, frame); len(quads) != 0 {
@@ -101,28 +101,28 @@ func TestWithoutWarnAProblemGoesToTheDefaultLogger(test *testing.T) {
 // testFrame looks at the origin from 10 units south, on an 800 × 600 screen.
 func testFrame() Frame {
 	projection := graphics.PerspectiveOpenGL(0.8, 800.0/600.0, 0.1, 100)
-	view := graphics.LookAt(graphics.Vec4{0, 0, 10, 1}, graphics.Vec4{0, 0, 0, 1}, graphics.Vec4{0, 1, 0, 0})
+	view := graphics.LookAt(graphics.Vector{0, 0, 10, 1}, graphics.Vector{0, 0, 0, 1}, graphics.Vector{0, 1, 0, 0})
 	return Frame{ViewProjection: projection.Multiply(view), Width: 800, Height: 600, Scale: 1}
 }
 
 func TestProjection(test *testing.T) {
 	frame := testFrame()
-	centre := Project(graphics.Vec4{0, 0, 0, 1}, frame)
+	centre := Project(graphics.Vector{0, 0, 0, 1}, frame)
 	if !centre.Visible || abs(centre.X-400) > 0.5 || abs(centre.Y-300) > 0.5 {
 		test.Fatalf("the target falls in the middle of the screen: %+v", centre)
 	}
-	above := Project(graphics.Vec4{0, 1, 0, 1}, frame)
+	above := Project(graphics.Vector{0, 1, 0, 1}, frame)
 	if above.Y >= centre.Y {
 		test.Fatalf("up in the world is up on screen")
 	}
-	if behind := Project(graphics.Vec4{0, 0, 20, 1}, frame); behind.Visible {
+	if behind := Project(graphics.Vector{0, 0, 20, 1}, frame); behind.Visible {
 		test.Fatalf("points behind the camera are hidden")
 	}
-	if aside := Project(graphics.Vec4{100, 0, 0, 1}, frame); aside.Visible {
+	if aside := Project(graphics.Vector{100, 0, 0, 1}, frame); aside.Visible {
 		test.Fatalf("points off screen are hidden")
 	}
 	frame.VerticalScale = 2
-	if exaggerated := Project(graphics.Vec4{0, 1, 0, 1}, frame); exaggerated.Y >= above.Y {
+	if exaggerated := Project(graphics.Vector{0, 1, 0, 1}, frame); exaggerated.Y >= above.Y {
 		test.Fatalf("the vertical exaggeration lifts the point")
 	}
 }
@@ -132,7 +132,7 @@ func TestLabelsSitOverTheirAnchor(test *testing.T) {
 	boat := &scene.Node{Name: "boat"}
 	overlay := &scene.Overlay{}
 	overlay.AddLabel(&scene.Label{Node: boat, Text: "Boat", Icon: "sailboat"})
-	anchors := map[*scene.Node]graphics.Mat4{boat: graphics.Translate(graphics.Vec4{0, 0, 0, 0})}
+	anchors := map[*scene.Node]graphics.Matrix{boat: graphics.Translate(graphics.Vector{0, 0, 0, 0})}
 	area := boundsOf(painter.Paint(overlay, anchors, testFrame()))
 	if abs((area[0]+area[2])/2-400) > 2 {
 		test.Fatalf("the label is centred on its anchor: %v", area)
@@ -147,8 +147,8 @@ func TestLabelsSitOverTheirAnchor(test *testing.T) {
 
 func TestLabelsKeepTheirSizeOnScreen(test *testing.T) {
 	painter := newTestPainter(test)
-	near := &scene.Overlay{Labels: []*scene.Label{{Text: "Quay", Point: graphics.Vec4{0, 0, 5, 1}}}}
-	far := &scene.Overlay{Labels: []*scene.Label{{Text: "Quay", Point: graphics.Vec4{0, 0, -50, 1}}}}
+	near := &scene.Overlay{Labels: []*scene.Label{{Text: "Quay", Point: graphics.Vector{0, 0, 5, 1}}}}
+	far := &scene.Overlay{Labels: []*scene.Label{{Text: "Quay", Point: graphics.Vector{0, 0, -50, 1}}}}
 	nearArea, farArea := boundsOf(painter.Paint(near, nil, testFrame())), boundsOf(painter.Paint(far, nil, testFrame()))
 	if nearArea[2]-nearArea[0] != farArea[2]-farArea[0] || nearArea[3]-nearArea[1] != farArea[3]-farArea[1] {
 		test.Fatalf("near %v and far %v should be the same size", nearArea, farArea)
@@ -187,8 +187,8 @@ func TestPillSizes(test *testing.T) {
 
 func TestOverlappingLabelsGiveWayToTheNearest(test *testing.T) {
 	painter := newTestPainter(test)
-	near := &scene.Label{Text: "Near boat", Point: graphics.Vec4{0, 0, 2, 1}}
-	far := &scene.Label{Text: "Far boat", Point: graphics.Vec4{0.01, 0, -2, 1}}
+	near := &scene.Label{Text: "Near boat", Point: graphics.Vector{0, 0, 2, 1}}
+	far := &scene.Label{Text: "Far boat", Point: graphics.Vector{0.01, 0, -2, 1}}
 	overlay := &scene.Overlay{Labels: []*scene.Label{far, near}}
 	painter.Paint(overlay, nil, testFrame())
 	if len(painter.occupied) != 1 {
@@ -203,7 +203,7 @@ func TestOverlappingLabelsGiveWayToTheNearest(test *testing.T) {
 func TestHeaderAndNoticesStackInTheCorner(test *testing.T) {
 	painter := newTestPainter(test)
 	overlay := &scene.Overlay{Header: []scene.HeaderLine{{Icon: "clock", Text: "12:00"}, {Text: "10 boats"}}}
-	overlay.AddNotice("anchor", "A boat came in", graphics.Vec4{})
+	overlay.AddNotice("anchor", "A boat came in", graphics.Vector{})
 	painter.Paint(overlay, nil, testFrame())
 	if len(painter.occupied) != 2 {
 		test.Fatalf("a header card and a notice, got %d areas", len(painter.occupied))
@@ -220,7 +220,7 @@ func TestHeaderAndNoticesStackInTheCorner(test *testing.T) {
 func TestFadingNoticesAreTranslucent(test *testing.T) {
 	painter := newTestPainter(test)
 	overlay := &scene.Overlay{NoticeDuration: 2}
-	overlay.AddNotice("", "A boat came in", graphics.Vec4{})
+	overlay.AddNotice("", "A boat came in", graphics.Vector{})
 	overlay.Advance(1.5)
 	for _, quad := range painter.Paint(overlay, nil, testFrame()) {
 		if quad.Color[3] > 0.5 {

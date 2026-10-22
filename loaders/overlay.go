@@ -13,7 +13,7 @@ import (
 // "pinned" becomes a line of the header instead, in the order of the numbers.
 func readOverlay(loaded *scene.Scene) {
 	var pinned []pinnedLine
-	loaded.Walk(func(node *scene.Node, world graphics.Mat4) {
+	loaded.Walk(func(node *scene.Node, world graphics.Matrix) {
 		label, found := labelFromTags(node.Tags)
 		if !found {
 			return
@@ -59,6 +59,6 @@ func pinnedFromTags(tags map[string]any, label *scene.Label) (pinnedLine, bool) 
 
 // verticalScaleOf returns how much a transform stretches heights, to turn a mesh's top into world
 // units.
-func verticalScaleOf(transform graphics.Mat4) float32 {
+func verticalScaleOf(transform graphics.Matrix) float32 {
 	return float32(math.Sqrt(float64(transform[4]*transform[4] + transform[5]*transform[5] + transform[6]*transform[6])))
 }

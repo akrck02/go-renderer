@@ -145,8 +145,8 @@ func ambientColour(ambient [4]float32) uint32 {
 // Orthographic is citro3d's Mtx_Ortho for a right-handed view: an orthographic projection with
 // the depth range the PICA200 wants, [-1, 0], for a picture that is not a screen (a texture drawn
 // into), which is not turned as the screens are.
-func Orthographic(left, right, bottom, top, near, far float32) graphics.Mat4 {
-	var matrix graphics.Mat4
+func Orthographic(left, right, bottom, top, near, far float32) graphics.Matrix {
+	var matrix graphics.Matrix
 	set(&matrix, 0, 0, 2/(right-left))
 	set(&matrix, 0, 3, (left+right)/(left-right))
 	set(&matrix, 1, 1, 2/(top-bottom))

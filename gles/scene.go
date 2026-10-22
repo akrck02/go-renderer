@@ -142,7 +142,7 @@ func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view scene
 		return
 	}
 	renderer.setModel(command.World)
-	program.setVector4("tint", graphics.Vec4{1, 1, 1, 1})
+	program.setVector4("tint", graphics.Vector{1, 1, 1, 1})
 	renderer.drawMesh(mesh)
 	renderer.planner.Count(sceneplan.MainPass, mesh, 0)
 }
@@ -156,14 +156,14 @@ func (renderer *SceneRenderer) drawInstances(command sceneplan.Command, view sce
 			continue
 		}
 		renderer.setModel(command.World)
-		renderer.program.setVector4("tint", graphics.Vec4{1, 1, 1, 1})
+		renderer.program.setVector4("tint", graphics.Vector{1, 1, 1, 1})
 		renderer.drawMesh(instances.MergedFor(batch.Mesh, batch.Count))
 		renderer.planner.Count(sceneplan.MainPass, batch.Mesh, batch.Count)
 	}
 }
 
 // setModel sets the model matrix and the normal matrix that goes with it.
-func (renderer *SceneRenderer) setModel(model graphics.Mat4) {
+func (renderer *SceneRenderer) setModel(model graphics.Matrix) {
 	renderer.program.setMatrix("model", model)
 	renderer.program.setMatrix3("normalMatrix", sceneplan.NormalMatrix(model))
 }
@@ -230,8 +230,8 @@ func describeSceneVertexLayout(functions Functions) {
 }
 
 // linearToScreen turns a linear colour into the screen's gamma, as the scene shader does.
-func linearToScreen(color graphics.Vec4) graphics.Vec4 {
-	return graphics.Vec4{gammaOf(color[0]), gammaOf(color[1]), gammaOf(color[2]), color[3]}
+func linearToScreen(color graphics.Vector) graphics.Vector {
+	return graphics.Vector{gammaOf(color[0]), gammaOf(color[1]), gammaOf(color[2]), color[3]}
 }
 
 func gammaOf(channel float32) float32 {

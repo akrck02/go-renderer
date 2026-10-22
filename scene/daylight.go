@@ -12,17 +12,17 @@ import (
 type Daylight struct {
 	DayAmount      float32 // 1 in full day, 0 at night
 	TwilightAmount float32 // 1 with the sun on the horizon, 0 far from it
-	Zenith         graphics.Vec4
-	Horizon        graphics.Vec4
-	Fog            graphics.Vec4
-	SkyLight       graphics.Vec4 // ambient light from the sky
-	GroundLight    graphics.Vec4 // ambient light bounced from the ground
-	SunVisible     float32       // how much of the sun disc is above the horizon
-	LightDirection graphics.Vec4 // towards the light that shades the scene
-	LightColor     graphics.Vec4
-	MoonDirection  graphics.Vec4
-	StarRotation   graphics.Mat4 // turns world directions into celestial directions
-	Brightness     float32       // overall light level (1 day, low at night) for materials that are not lit
+	Zenith         graphics.Vector
+	Horizon        graphics.Vector
+	Fog            graphics.Vector
+	SkyLight       graphics.Vector // ambient light from the sky
+	GroundLight    graphics.Vector // ambient light bounced from the ground
+	SunVisible     float32         // how much of the sun disc is above the horizon
+	LightDirection graphics.Vector // towards the light that shades the scene
+	LightColor     graphics.Vector
+	MoonDirection  graphics.Vector
+	StarRotation   graphics.Matrix // turns world directions into celestial directions
+	Brightness     float32         // overall light level (1 day, low at night) for materials that are not lit
 }
 
 // Daylight computes the sky and the lighting for the current sun direction.
@@ -55,7 +55,7 @@ func (light *Daylight) paintSky(environment Environment, sky *Sky) {
 func (light *Daylight) chooseLight(environment Environment, sky *Sky, sunHeight float32) {
 	warmth := light.TwilightAmount * 0.6
 	sunStrength := smoothStep(-0.02, 0.12, sunHeight)
-	sunColor := mixColor(environment.SunColor, multiplyColor(environment.SunColor, graphics.Vec4{1, 0.55, 0.35, 1}), warmth)
+	sunColor := mixColor(environment.SunColor, multiplyColor(environment.SunColor, graphics.Vector{1, 0.55, 0.35, 1}), warmth)
 	light.LightDirection, light.LightColor = environment.SunDirection.Normalize(), scaleColor(sunColor, sunStrength)
 	light.MoonDirection = moonDirection(environment.SunDirection, sky.Moon)
 	if sky.Moon == nil {
@@ -69,10 +69,10 @@ func (light *Daylight) chooseLight(environment Environment, sky *Sky, sunHeight 
 }
 
 // moonDirection is the configured direction or, when unset, the opposite of the sun.
-func moonDirection(sunDirection graphics.Vec4, moon *Moon) graphics.Vec4 {
-	if moon == nil || moon.Direction == (graphics.Vec4{}) {
+func moonDirection(sunDirection graphics.Vector, moon *Moon) graphics.Vector {
+	if moon == nil || moon.Direction == (graphics.Vector{}) {
 		unit := sunDirection.Normalize()
-		return graphics.Vec4{-unit[0], -unit[1], -unit[2], 0}
+		return graphics.Vector{-unit[0], -unit[1], -unit[2], 0}
 	}
 	return moon.Direction.Normalize()
 }
@@ -85,10 +85,10 @@ func moonIllumination(phase float32) float32 {
 // starRotation turns the night sky around the celestial pole together with the sun, so the stars
 // move as the day passes: it is the angle of the sun around the pole, measured from midnight (the
 // sun at the lowest point of its circle), when celestial and world directions coincide.
-func starRotation(sunDirection, pole graphics.Vec4) graphics.Mat4 {
+func starRotation(sunDirection, pole graphics.Vector) graphics.Matrix {
 	axis := pole.Normalize()
-	if axis == (graphics.Vec4{}) {
-		axis = graphics.Vec4{0, 1, 0, 0}
+	if axis == (graphics.Vector{}) {
+		axis = graphics.Vector{0, 1, 0, 0}
 	}
 	reference := perpendicularTo(axis)
 	sideways := axis.Cross(reference)
@@ -98,10 +98,10 @@ func starRotation(sunDirection, pole graphics.Vec4) graphics.Mat4 {
 }
 
 // perpendicularTo returns a unit vector perpendicular to the axis, preferring the horizon plane.
-func perpendicularTo(axis graphics.Vec4) graphics.Vec4 {
-	helper := graphics.Vec4{0, 1, 0, 0}
+func perpendicularTo(axis graphics.Vector) graphics.Vector {
+	helper := graphics.Vector{0, 1, 0, 0}
 	if math.Abs(float64(axis[1])) > 0.99 {
-		helper = graphics.Vec4{0, 0, -1, 0}
+		helper = graphics.Vector{0, 0, -1, 0}
 	}
 	return helper.Cross(axis).Cross(axis).Normalize()
 }
@@ -115,18 +115,18 @@ func clampUnit(value float32) float32 {
 	return float32(math.Max(0, math.Min(1, float64(value))))
 }
 
-func mixColor(from, to graphics.Vec4, amount float32) graphics.Vec4 {
-	var result graphics.Vec4
+func mixColor(from, to graphics.Vector, amount float32) graphics.Vector {
+	var result graphics.Vector
 	for component := range result {
 		result[component] = from[component] + (to[component]-from[component])*amount
 	}
 	return result
 }
 
-func scaleColor(color graphics.Vec4, factor float32) graphics.Vec4 {
-	return graphics.Vec4{color[0] * factor, color[1] * factor, color[2] * factor, color[3]}
+func scaleColor(color graphics.Vector, factor float32) graphics.Vector {
+	return graphics.Vector{color[0] * factor, color[1] * factor, color[2] * factor, color[3]}
 }
 
-func multiplyColor(first, second graphics.Vec4) graphics.Vec4 {
-	return graphics.Vec4{first[0] * second[0], first[1] * second[1], first[2] * second[2], first[3] * second[3]}
+func multiplyColor(first, second graphics.Vector) graphics.Vector {
+	return graphics.Vector{first[0] * second[0], first[1] * second[1], first[2] * second[2], first[3] * second[3]}
 }

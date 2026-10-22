@@ -7,8 +7,8 @@ import "github.com/akrck02/go-renderer/graphics"
 // It lights the lit materials it reaches, besides the sun and the sky; each draw takes the few
 // that reach it (see sceneplan.MaxLightsPerDraw).
 type PointLight struct {
-	Position graphics.Vec4 // in the world, before the vertical scale
+	Position graphics.Vector // in the world, before the vertical scale
 	// Color is linear, like the materials'; its alpha is the intensity (1 a plain lamp, up to a few).
-	Color        graphics.Vec4
+	Color        graphics.Vector
 	Inner, Outer float32
 }

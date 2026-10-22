@@ -358,7 +358,7 @@ func (file *gltfFile) buildMaterials() []*scene.Material {
 		materials[materialNumber] = &scene.Material{
 			Name:        definition.Name,
 			Kind:        materialKindFromExtras(definition.Extras),
-			BaseColor:   vectorOrDefault(definition.PbrMetallicRoughness.BaseColorFactor, graphics.Vec4{1, 1, 1, 1}),
+			BaseColor:   vectorOrDefault(definition.PbrMetallicRoughness.BaseColorFactor, graphics.Vector{1, 1, 1, 1}),
 			DoubleSided: definition.DoubleSided,
 			Transparent: definition.AlphaMode == "BLEND",
 			Sway:        extraNumber(definition.Extras, "sway", 0),
@@ -500,16 +500,16 @@ func (file *gltfFile) buildNode(nodeNumber int, meshes [][]*scene.Mesh) (*scene.
 	return node, nil
 }
 
-func nodeTransform(definition gltfNodeDefinition) graphics.Mat4 {
+func nodeTransform(definition gltfNodeDefinition) graphics.Matrix {
 	if len(definition.Matrix) == 16 {
-		var matrix graphics.Mat4
+		var matrix graphics.Matrix
 		copy(matrix[:], definition.Matrix)
 		return matrix
 	}
 	return graphics.FromTranslationRotationScale(
-		vectorOrDefault(definition.Translation, graphics.Vec4{}),
-		vectorOrDefault(definition.Rotation, graphics.Vec4{0, 0, 0, 1}),
-		vectorOrDefault(definition.Scale, graphics.Vec4{1, 1, 1, 1}),
+		vectorOrDefault(definition.Translation, graphics.Vector{}),
+		vectorOrDefault(definition.Rotation, graphics.Vector{0, 0, 0, 1}),
+		vectorOrDefault(definition.Scale, graphics.Vector{1, 1, 1, 1}),
 	)
 }
 
@@ -560,38 +560,38 @@ func (file *gltfFile) readInstances(extension *gltfInstancingExtension) (*scene.
 	}, nil
 }
 
-func instanceTransforms(count int, translations, rotations, scales []float32) []graphics.Mat4 {
-	transforms := make([]graphics.Mat4, count)
+func instanceTransforms(count int, translations, rotations, scales []float32) []graphics.Matrix {
+	transforms := make([]graphics.Matrix, count)
 	for instance := 0; instance < count; instance++ {
 		transforms[instance] = graphics.FromTranslationRotationScale(
-			elementOrDefault(translations, instance, 3, graphics.Vec4{}),
-			elementOrDefault(rotations, instance, 4, graphics.Vec4{0, 0, 0, 1}),
-			elementOrDefault(scales, instance, 3, graphics.Vec4{1, 1, 1, 1}),
+			elementOrDefault(translations, instance, 3, graphics.Vector{}),
+			elementOrDefault(rotations, instance, 4, graphics.Vector{0, 0, 0, 1}),
+			elementOrDefault(scales, instance, 3, graphics.Vector{1, 1, 1, 1}),
 		)
 	}
 	return transforms
 }
 
-func instanceColors(count int, colors []float32, components int) []graphics.Vec4 {
+func instanceColors(count int, colors []float32, components int) []graphics.Vector {
 	if components < 3 || len(colors) < count*components {
 		return nil
 	}
-	result := make([]graphics.Vec4, count)
+	result := make([]graphics.Vector, count)
 	for instance := 0; instance < count; instance++ {
-		result[instance] = elementOrDefault(colors, instance, components, graphics.Vec4{1, 1, 1, 1})
+		result[instance] = elementOrDefault(colors, instance, components, graphics.Vector{1, 1, 1, 1})
 	}
 	return result
 }
 
 // elementOrDefault returns element number `index` of a flat array with `size` components per element.
-func elementOrDefault(values []float32, index, size int, fallback graphics.Vec4) graphics.Vec4 {
+func elementOrDefault(values []float32, index, size int, fallback graphics.Vector) graphics.Vector {
 	if (index+1)*size > len(values) {
 		return fallback
 	}
 	return vectorOrDefault(values[index*size:(index+1)*size], fallback)
 }
 
-func vectorOrDefault(values []float32, fallback graphics.Vec4) graphics.Vec4 {
+func vectorOrDefault(values []float32, fallback graphics.Vector) graphics.Vector {
 	result := fallback
 	for component := 0; component < len(values) && component < 4; component++ {
 		result[component] = values[component]
@@ -599,7 +599,7 @@ func vectorOrDefault(values []float32, fallback graphics.Vec4) graphics.Vec4 {
 	return result
 }
 
-func extraVector(extras map[string]any, key string, fallback graphics.Vec4) graphics.Vec4 {
+func extraVector(extras map[string]any, key string, fallback graphics.Vector) graphics.Vector {
 	values, found := extras[key].([]any)
 	if !found {
 		return fallback
@@ -638,7 +638,7 @@ func applyEnvironment(environment *scene.Environment, extras map[string]any) {
 	}
 	if snow, found := extras["snow"].(map[string]any); found {
 		environment.Snow = &scene.Snow{Level: extraNumber(snow, "level", 0), Blend: extraNumber(snow, "blend", 0),
-			Color: extraVector(snow, "color", graphics.Vec4{0.92, 0.94, 0.97, 1})}
+			Color: extraVector(snow, "color", graphics.Vector{0.92, 0.94, 0.97, 1})}
 	}
 	environment.FoliageTint = extraVector(extras, "foliageTint", environment.FoliageTint)
 	if wind, found := extras["wind"].(map[string]any); found {
@@ -656,8 +656,8 @@ func applyFog(environment *scene.Environment, fog map[string]any) {
 func waterFromExtras(water map[string]any) *scene.Water {
 	return &scene.Water{
 		Level:      extraNumber(water, "level", 0),
-		Deep:       extraVector(water, "deep", graphics.Vec4{0.05, 0.22, 0.28, 0.85}),
-		Shallow:    extraVector(water, "shallow", graphics.Vec4{0.3, 0.62, 0.6, 0.5}),
+		Deep:       extraVector(water, "deep", graphics.Vector{0.05, 0.22, 0.28, 0.85}),
+		Shallow:    extraVector(water, "shallow", graphics.Vector{0.3, 0.62, 0.6, 0.5}),
 		Size:       extraNumber(water, "size", 1000),
 		WaveLength: extraNumber(water, "waveLength", 0),
 		FloorDepth: extraNumber(water, "floorDepth", 0),

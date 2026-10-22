@@ -7,7 +7,7 @@ import (
 )
 
 func TestPICAMatrixGoesRowByRowWithComponentsReversed(test *testing.T) {
-	translation := graphics.Translate(graphics.Vec4{10, 20, 30, 1})
+	translation := graphics.Translate(graphics.Vector{10, 20, 30, 1})
 	laidOut := PICAMatrix(translation)
 	// The first row is (1, 0, 0, 10): reversed, w first.
 	if laidOut[0] != 10 || laidOut[3] != 1 {
@@ -21,7 +21,7 @@ func TestPICAMatrixGoesRowByRowWithComponentsReversed(test *testing.T) {
 func TestOrthographicTiltPutsTheScreenCornersOnTheClipCorners(test *testing.T) {
 	projection := OrthographicTilt(0, 400, 0, 240, 0, 1)
 	cases := []struct {
-		point      graphics.Vec4
+		point      graphics.Vector
 		clipX      float32
 		clipY      float32
 		clipZ      float32
@@ -29,9 +29,9 @@ func TestOrthographicTiltPutsTheScreenCornersOnTheClipCorners(test *testing.T) {
 	}{
 		// The quarter turn: screen x runs along clip y, and screen y along clip x. Depth goes
 		// from -1 at the near plane to 0 at the far one (looking down -z).
-		{graphics.Vec4{0, 0, 0, 1}, -1, 1, -1, "bottom left, near"},
-		{graphics.Vec4{400, 240, 0, 1}, 1, -1, -1, "top right, near"},
-		{graphics.Vec4{200, 120, -1, 1}, 0, 0, 0, "centre, far"},
+		{graphics.Vector{0, 0, 0, 1}, -1, 1, -1, "bottom left, near"},
+		{graphics.Vector{400, 240, 0, 1}, 1, -1, -1, "top right, near"},
+		{graphics.Vector{200, 120, -1, 1}, 0, 0, 0, "centre, far"},
 	}
 	for _, testCase := range cases {
 		clip := projection.Apply(testCase.point)

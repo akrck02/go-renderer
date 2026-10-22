@@ -98,13 +98,13 @@ func (program *program) setVector2(name string, first, second float32) {
 	}
 }
 
-func (program *program) setVector3(name string, vector graphics.Vec4) {
+func (program *program) setVector3(name string, vector graphics.Vector) {
 	if location, send := program.changed(name, vector[0], vector[1], vector[2]); send {
 		program.functions.Uniform3f(location, vector[0], vector[1], vector[2])
 	}
 }
 
-func (program *program) setVector4(name string, vector graphics.Vec4) {
+func (program *program) setVector4(name string, vector graphics.Vector) {
 	if location, send := program.changed(name, vector[:]...); send {
 		program.functions.Uniform4f(location, vector[0], vector[1], vector[2], vector[3])
 	}
@@ -116,7 +116,7 @@ func (program *program) setMatrix3(name string, matrix [9]float32) {
 	}
 }
 
-func (program *program) setMatrix(name string, matrix graphics.Mat4) {
+func (program *program) setMatrix(name string, matrix graphics.Matrix) {
 	if location, send := program.changed(name, matrix[:]...); send {
 		program.functions.UniformMatrix4(location, matrix)
 	}

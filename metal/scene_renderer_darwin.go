@@ -522,7 +522,7 @@ func (renderer *SceneRenderer) drawConstellations(encoder unsafe.Pointer, sky *s
 			C.sceneEncoderDraw(encoder, C.scenePrimitiveLines, C.int(lines.First), C.int(lines.Count), 0)
 		}
 	}
-	uniforms.lineColor = graphics.Vec4{1, 1, 1, 1}
+	uniforms.lineColor = graphics.Vector{1, 1, 1, 1}
 	C.sceneEncoderSetPipeline(encoder, renderer.pipelines.constellationPoints)
 	C.sceneEncoderSetVertexBytes(encoder, unsafe.Pointer(&uniforms), size, 1)
 	C.sceneEncoderSetFragmentBytes(encoder, unsafe.Pointer(&uniforms), size, 0)

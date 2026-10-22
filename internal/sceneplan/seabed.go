@@ -10,7 +10,7 @@ import (
 // SeabedRegion is the box the seabed map sees from straight above: its projection (OpenGL clip
 // space) and the heights at depth 0 and 1.
 type SeabedRegion struct {
-	ViewProjection graphics.Mat4
+	ViewProjection graphics.Matrix
 	Top, Bottom    float32
 }
 
@@ -75,7 +75,7 @@ func anyMeshDirty(commands []Command) bool {
 }
 
 // boundsOfCommands returns the world bounding box of the commands' meshes.
-func boundsOfCommands(commands []Command) (minimum, maximum graphics.Vec4) {
+func boundsOfCommands(commands []Command) (minimum, maximum graphics.Vector) {
 	partial := &scene.Scene{}
 	for _, command := range commands {
 		partial.Nodes = append(partial.Nodes, &scene.Node{Transform: command.World, Mesh: command.Node.Mesh, Instances: command.Node.Instances})
@@ -84,13 +84,13 @@ func boundsOfCommands(commands []Command) (minimum, maximum graphics.Vec4) {
 }
 
 // fitSeabedRegion looks straight down on the bounding box, with a small margin on every side.
-func fitSeabedRegion(minimum, maximum graphics.Vec4) SeabedRegion {
+func fitSeabedRegion(minimum, maximum graphics.Vector) SeabedRegion {
 	margin := float32(math.Max(float64(maximum[0]-minimum[0]), float64(maximum[2]-minimum[2]))) * 0.01
 	top, bottom := maximum[1]+margin, minimum[1]-margin
 	centerX, centerZ := (minimum[0]+maximum[0])/2, (minimum[2]+maximum[2])/2
 	halfWidth := (maximum[0]-minimum[0])/2 + margin
 	halfDepth := (maximum[2]-minimum[2])/2 + margin
-	view := graphics.LookAt(graphics.Vec4{centerX, top, centerZ, 1}, graphics.Vec4{centerX, bottom, centerZ, 1}, graphics.Vec4{0, 0, -1, 0})
+	view := graphics.LookAt(graphics.Vector{centerX, top, centerZ, 1}, graphics.Vector{centerX, bottom, centerZ, 1}, graphics.Vector{0, 0, -1, 0})
 	projection := graphics.OrthographicOpenGL(-halfWidth, halfWidth, -halfDepth, halfDepth, 0, top-bottom)
 	return SeabedRegion{ViewProjection: projection.Multiply(view), Top: top, Bottom: bottom}
 }

@@ -49,7 +49,7 @@ func TestMetalClipSpaceKeepsThePictureAndHalvesTheDepthRange(test *testing.T) {
 	projection := graphics.PerspectiveOpenGL(0.8, 1.5, 1, 100)
 	converted := metalClipSpace(projection)
 	for _, depth := range []float32{-1, -10, -100} {
-		point := graphics.Vec4{2, 3, depth, 1}
+		point := graphics.Vector{2, 3, depth, 1}
 		opengl, metal := projection.Apply(point), converted.Apply(point)
 		if opengl[0] != metal[0] || opengl[1] != metal[1] || opengl[3] != metal[3] {
 			test.Fatalf("x, y and w must not change: %v and %v", opengl, metal)

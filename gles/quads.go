@@ -109,7 +109,7 @@ func (pass *quadPass) paintFlat(layer *scene.Overlay, width, height int, scale f
 }
 
 // paintScene paints a scene's overlay, its labels following their nodes.
-func (pass *quadPass) paintScene(world *scene.Scene, viewProjection graphics.Mat4, width, height int, scale float32) {
+func (pass *quadPass) paintScene(world *scene.Scene, viewProjection graphics.Matrix, width, height int, scale float32) {
 	if world.Overlay.IsEmpty() {
 		return
 	}

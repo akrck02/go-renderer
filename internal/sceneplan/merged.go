@@ -44,7 +44,7 @@ func MergeInstances(into, mesh *scene.Mesh, packed []float32, count int) {
 	into.Colors, into.Indices = into.Colors[:0], into.Indices[:0]
 	for instance := range count {
 		values := packed[instance*FloatsPerInstance:]
-		placement, tint := graphics.Mat4(values[0:16]), graphics.Vec4(values[16:20])
+		placement, tint := graphics.Matrix(values[0:16]), graphics.Vector(values[16:20])
 		turn := NormalMatrix(placement)
 		for vertex := range vertices {
 			into.Positions = appendPoint(into.Positions, placement.Apply(mesh.Vertex(uint32(vertex))))
@@ -58,7 +58,7 @@ func MergeInstances(into, mesh *scene.Mesh, packed []float32, count int) {
 	}
 }
 
-func appendPoint(values []float32, point graphics.Vec4) []float32 {
+func appendPoint(values []float32, point graphics.Vector) []float32 {
 	return append(values, point[0], point[1], point[2])
 }
 
@@ -75,7 +75,7 @@ func appendNormal(values []float32, turn [9]float32, normal []float32) []float32
 }
 
 // appendTinted is a vertex's colour (white when the mesh has none) times the instance's tint.
-func appendTinted(values, colors []float32, vertex int, tint graphics.Vec4) []float32 {
+func appendTinted(values, colors []float32, vertex int, tint graphics.Vector) []float32 {
 	color := [4]float32{1, 1, 1, 1}
 	if len(colors) >= 4*(vertex+1) {
 		color = [4]float32(colors[4*vertex : 4*vertex+4])
@@ -109,7 +109,7 @@ func (MergingStore) RewriteInstances(handle any, position int, packed []float32)
 
 // NormalMatrix is the inverse transpose of a model matrix's rotation and scale: what turns normals
 // so they stay perpendicular to surfaces scaled differently along each axis.
-func NormalMatrix(model graphics.Mat4) [9]float32 {
+func NormalMatrix(model graphics.Matrix) [9]float32 {
 	inverse, invertible := model.Inverse()
 	if !invertible {
 		inverse = graphics.Identity()

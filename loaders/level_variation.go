@@ -21,8 +21,8 @@ func (file *gltfFile) applyLevelVariation(environment *scene.Environment, extras
 	if !found || environment.Water == nil {
 		return nil
 	}
-	minimum := extraVector(definition, "minimum", graphics.Vec4{})
-	maximum := extraVector(definition, "maximum", graphics.Vec4{})
+	minimum := extraVector(definition, "minimum", graphics.Vector{})
+	maximum := extraVector(definition, "maximum", graphics.Vector{})
 	variation := &scene.LevelVariation{
 		MinimumX: minimum[0], MinimumZ: minimum[1], MaximumX: maximum[0], MaximumZ: maximum[1],
 		Columns: int(extraNumber(definition, "columns", 0)), Rows: int(extraNumber(definition, "rows", 0)),

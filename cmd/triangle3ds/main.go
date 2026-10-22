@@ -61,7 +61,7 @@ func main() {
 	projectionLocation := shader.Uniform("projection")
 	modelViewLocation := shader.Uniform("modelView")
 	projection := ctr.OrthographicTilt(0, 400, 0, 240, 0, 1)
-	centre := graphics.Translate(graphics.Vec4{200, 120, 0, 1})
+	centre := graphics.Translate(graphics.Vector{200, 120, 0, 1})
 
 	println("press START to exit")
 	started := time.Now()
@@ -73,7 +73,7 @@ func main() {
 			break
 		}
 		turn := time.Since(started).Seconds() * math.Pi / 2 // a quarter turn a second
-		modelView := centre.Multiply(graphics.Rotate(graphics.Vec4{0, 0, 1, 0}, turn))
+		modelView := centre.Multiply(graphics.Rotate(graphics.Vector{0, 0, 1, 0}, turn))
 
 		screen.BeginFrame(skyBlue)
 		ctr.SetMatrix(projectionLocation, projection)

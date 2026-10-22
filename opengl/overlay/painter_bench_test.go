@@ -289,8 +289,8 @@ func TestPaintingAFrameAfterTheFirstAllocatesNothing(test *testing.T) {
 	busyEditorList(&list, 8, 100)
 	painter := newTestPainter(test)
 	layer := &scene.Overlay{Drawing: &list, Labels: []*scene.Label{
-		{Text: "Near boat", Icon: "sailboat", Badge: "2", Point: graphics.Vec4{0, 0, 2, 1}},
-		{Text: "Far boat", Point: graphics.Vec4{3, 0, -2, 1}},
+		{Text: "Near boat", Icon: "sailboat", Badge: "2", Point: graphics.Vector{0, 0, 2, 1}},
+		{Text: "Far boat", Point: graphics.Vector{3, 0, -2, 1}},
 	}}
 	painter.Paint(layer, nil, busyFrame()) // the first frame fills the atlas
 	allocations := testing.AllocsPerRun(20, func() { painter.Paint(layer, nil, busyFrame()) })

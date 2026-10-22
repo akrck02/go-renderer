@@ -16,8 +16,8 @@ const MaxLightsPerDraw = 4
 // FrameLight is a scene's point light as the shaders take it: its position with the vertical scale,
 // its colour times its intensity, and its radii.
 type FrameLight struct {
-	Position     graphics.Vec4
-	Color        graphics.Vec4 // linear, times the intensity
+	Position     graphics.Vector
+	Color        graphics.Vector // linear, times the intensity
 	Inner, Outer float32
 }
 
@@ -40,7 +40,7 @@ func (planner *Planner) prepareLights(world *scene.Scene) []FrameLight {
 		position := light.Position
 		position[1] *= planner.verticalScale
 		intensity := light.Color[3]
-		colour := graphics.Vec4{light.Color[0] * intensity, light.Color[1] * intensity, light.Color[2] * intensity, 1}
+		colour := graphics.Vector{light.Color[0] * intensity, light.Color[1] * intensity, light.Color[2] * intensity, 1}
 		// the inner radius stays short of the outer one: a fade over no distance is undefined in GLSL
 		inner := min(max(light.Inner, 0), light.Outer*innerShareMost)
 		lights = append(lights, FrameLight{Position: position, Color: colour, Inner: inner, Outer: light.Outer})
@@ -85,7 +85,7 @@ func (chosen *DrawLights) insert(index uint16, distance float32, distances *[Max
 }
 
 // squaredDistanceTo is the squared distance from the box to a point: 0 inside it.
-func (bounds box) squaredDistanceTo(point graphics.Vec4) float32 {
+func (bounds box) squaredDistanceTo(point graphics.Vector) float32 {
 	total := float32(0)
 	for axis := range 3 {
 		outside := max(bounds.minimum[axis]-point[axis], 0, point[axis]-bounds.maximum[axis])
@@ -96,7 +96,7 @@ func (bounds box) squaredDistanceTo(point graphics.Vec4) float32 {
 
 // lightsOfNode chooses the lights a node's mesh takes: those that reach its box, nearest first.
 // Instances are measured by the box round all of them.
-func (planner *Planner) lightsOfNode(node *scene.Node, transform graphics.Mat4) DrawLights {
+func (planner *Planner) lightsOfNode(node *scene.Node, transform graphics.Matrix) DrawLights {
 	if len(planner.lights) == 0 {
 		return DrawLights{}
 	}

@@ -53,7 +53,7 @@ func main() {
 	}
 	println("press START to exit")
 
-	camera := models.Camera{Target: graphics.Vec4{0, 0, 0, 1}, Up: graphics.Vec4{0, 1, 0, 0}, Far: 20000}
+	camera := models.Camera{Target: graphics.Vector{0, 0, 0, 1}, Up: graphics.Vector{0, 1, 0, 0}, Far: 20000}
 	started := time.Now()
 	lastReport := started
 	frames := 0
@@ -64,7 +64,7 @@ func main() {
 			break
 		}
 		turn := 2 * math.Pi * time.Since(started).Seconds() / orbitPeriod.Seconds()
-		camera.Position = graphics.Vec4{float32(orbitRadius * math.Sin(turn)), orbitHeight, float32(orbitRadius * math.Cos(turn)), 1}
+		camera.Position = graphics.Vector{float32(orbitRadius * math.Sin(turn)), orbitHeight, float32(orbitRadius * math.Cos(turn)), 1}
 
 		renderer.Draw(world, camera)
 		processing += ctr.ProcessingTime()

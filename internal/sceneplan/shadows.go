@@ -60,7 +60,7 @@ const orthographicShadowReach = 0.95
 // shadowCenter places the shadowed region in front of the camera: half an extent ahead along the
 // view direction, or at the target when it is nearer. The region then covers what is closest to
 // the viewer, including the ground under a walking camera whose target is only a direction.
-func shadowCenter(camera models.Camera, extent float32) graphics.Vec4 {
+func shadowCenter(camera models.Camera, extent float32) graphics.Vector {
 	if camera.IsOrthographic() {
 		return camera.Target // the middle of the screen
 	}
@@ -69,7 +69,7 @@ func shadowCenter(camera models.Camera, extent float32) graphics.Vec4 {
 		return camera.Target
 	}
 	ahead := float32(math.Min(float64(targetDistance), float64(extent*0.5))) / targetDistance
-	return graphics.Vec4{
+	return graphics.Vector{
 		camera.Position[0] + (camera.Target[0]-camera.Position[0])*ahead,
 		camera.Position[1] + (camera.Target[1]-camera.Position[1])*ahead,
 		camera.Position[2] + (camera.Target[2]-camera.Position[2])*ahead,
@@ -77,7 +77,7 @@ func shadowCenter(camera models.Camera, extent float32) graphics.Vec4 {
 	}
 }
 
-func distance(first, second graphics.Vec4) float32 {
+func distance(first, second graphics.Vector) float32 {
 	deltaX, deltaY, deltaZ := first[0]-second[0], first[1]-second[1], first[2]-second[2]
 	return float32(math.Sqrt(float64(deltaX*deltaX + deltaY*deltaY + deltaZ*deltaZ)))
 }
@@ -88,21 +88,21 @@ func clampFloat(value, minimum, maximum float32) float32 {
 
 // ShadowRegion is what the lighting pass needs to look up the shadow map.
 type ShadowRegion struct {
-	LightView, LightProjection graphics.Mat4 // OpenGL clip space
-	TexelSize                  float32       // in shadow map coordinates
-	NormalOffset               float32       // in world units
+	LightView, LightProjection graphics.Matrix // OpenGL clip space
+	TexelSize                  float32         // in shadow map coordinates
+	NormalOffset               float32         // in world units
 }
 
 // LightViewProjection is the light's projection times its view.
-func (region ShadowRegion) LightViewProjection() graphics.Mat4 {
+func (region ShadowRegion) LightViewProjection() graphics.Matrix {
 	return region.LightProjection.Multiply(region.LightView)
 }
 
 // fitShadowRegion places the light's orthographic box around the camera target. The box centre
 // is snapped to whole texels so shadows do not shimmer when the camera moves.
-func fitShadowRegion(sunDirection, center graphics.Vec4, extent, depthRange float32, resolution int32) ShadowRegion {
+func fitShadowRegion(sunDirection, center graphics.Vector, extent, depthRange float32, resolution int32) ShadowRegion {
 	lightView := sunOrientation(sunDirection)
-	centerInLight := lightView.Apply(graphics.Vec4{center[0], center[1], center[2], 1})
+	centerInLight := lightView.Apply(graphics.Vector{center[0], center[1], center[2], 1})
 	texelWorldSize := 2 * extent / float32(resolution)
 	snappedX := float32(math.Round(float64(centerInLight[0]/texelWorldSize))) * texelWorldSize
 	snappedY := float32(math.Round(float64(centerInLight[1]/texelWorldSize))) * texelWorldSize
@@ -114,11 +114,11 @@ func fitShadowRegion(sunDirection, center graphics.Vec4, extent, depthRange floa
 }
 
 // sunOrientation is a view matrix looking from the sun towards the world origin.
-func sunOrientation(sunDirection graphics.Vec4) graphics.Mat4 {
+func sunOrientation(sunDirection graphics.Vector) graphics.Matrix {
 	towardsSun := sunDirection.Normalize()
-	up := graphics.Vec4{0, 1, 0, 0}
+	up := graphics.Vector{0, 1, 0, 0}
 	if math.Abs(float64(towardsSun[1])) > 0.99 {
-		up = graphics.Vec4{0, 0, -1, 0}
+		up = graphics.Vector{0, 0, -1, 0}
 	}
-	return graphics.LookAt(graphics.Vec4{towardsSun[0], towardsSun[1], towardsSun[2], 1}, graphics.Vec4{0, 0, 0, 1}, up)
+	return graphics.LookAt(graphics.Vector{towardsSun[0], towardsSun[1], towardsSun[2], 1}, graphics.Vector{0, 0, 0, 1}, up)
 }
