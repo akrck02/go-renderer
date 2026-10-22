@@ -126,6 +126,7 @@ func (backend *Backend) Set(text string) error {
 	return nil
 }
 
+// String is the backend as its flag writes it: automatic, metal or opengl.
 func (backend *Backend) String() string {
 	if *backend == Automatic {
 		return "automatic"

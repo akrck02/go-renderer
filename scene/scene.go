@@ -28,6 +28,7 @@ const (
 // small on screen.
 type Pattern int
 
+// The patterns; PatternNone leaves the material's colour as it is.
 const (
 	PatternNone     Pattern = iota
 	PatternCobbles          // irregular paving stones with joints (horizontal surfaces)

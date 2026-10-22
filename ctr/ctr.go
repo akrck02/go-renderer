@@ -391,11 +391,13 @@ func freeLinearMemory(data unsafe.Pointer) {
 }
 
 // ProcessingTime is how long, in milliseconds, the last frame took to prepare on the processor,
-// and DrawingTime how long the GPU took to draw it, as citro3d measures them.
+// as citro3d measures it.
 func ProcessingTime() float32 {
 	return float32(C.C3D_GetProcessingTime())
 }
 
+// DrawingTime is how long, in milliseconds, the GPU took to draw the last frame, as citro3d
+// measures it.
 func DrawingTime() float32 {
 	return float32(C.C3D_GetDrawingTime())
 }

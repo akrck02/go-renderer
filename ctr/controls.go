@@ -14,6 +14,7 @@ import (
 // Buttons are held buttons, one bit each, numbered as libctru numbers them (KEY_A, KEY_B, …).
 type Buttons uint32
 
+// The 3DS's buttons, each its bit in Buttons.
 const (
 	ButtonA      Buttons = 1 << 0
 	ButtonB      Buttons = 1 << 1

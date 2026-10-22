@@ -86,6 +86,7 @@ func appendTinted(values, colors []float32, vertex int, tint graphics.Vec4) []fl
 // MergingStore keeps the planner's instance batches as MergedBatch.
 type MergingStore struct{}
 
+// FillBatch keeps a batch's packed instances in a MergedBatch, reusing the one it had.
 func (MergingStore) FillBatch(handle any, mesh *scene.Mesh, packed []float32) any {
 	batch, _ := handle.(*MergedBatch)
 	if batch == nil {
@@ -96,6 +97,7 @@ func (MergingStore) FillBatch(handle any, mesh *scene.Mesh, packed []float32) an
 	return batch
 }
 
+// RewriteInstances replaces some packed instances of a MergedBatch in place.
 func (MergingStore) RewriteInstances(handle any, position int, packed []float32) {
 	batch, _ := handle.(*MergedBatch)
 	if batch == nil {
