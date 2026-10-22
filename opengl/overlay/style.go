@@ -52,10 +52,10 @@ const (
 )
 
 // hasTint tells whether a colour was given (a zero alpha means "use the default").
-func hasTint(tint graphics.Vec4) bool { return tint[3] > 0 }
+func hasTint(tint graphics.Vector) bool { return tint[3] > 0 }
 
 // iconColour is the tint, or the text colour when there is none.
-func iconColour(tint graphics.Vec4) [4]float32 {
+func iconColour(tint graphics.Vector) [4]float32 {
 	if !hasTint(tint) {
 		return ink
 	}
@@ -63,7 +63,7 @@ func iconColour(tint graphics.Vec4) [4]float32 {
 }
 
 // colours returns the fill and the border of a pill of this style with a tint.
-func (style pillStyle) colours(tint graphics.Vec4) (fill, border [4]float32) {
+func (style pillStyle) colours(tint graphics.Vector) (fill, border [4]float32) {
 	if !style.tinted {
 		return pillFill, pillBorder
 	}

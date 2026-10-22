@@ -38,7 +38,7 @@ newest first:
 
 ```go
 world.Overlay.Header = []scene.HeaderLine{{Icon: "trees", Text: treeCount(forest.Instances)}}
-world.Overlay.AddNotice("anchor", "A boat came in", graphics.Vec4{}) // a zero tint: the text's colour
+world.Overlay.AddNotice("anchor", "A boat came in", graphics.Vector{}) // a zero tint: the text's colour
 ```
 
 ```go

@@ -48,13 +48,13 @@ An application implements an update and a draw, and calls the renderer every fra
 
 ```go
 type Renderer interface {
-	RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vec4, shader *string, fill bool) error
-	RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vec4, shader *string, fill bool) error
-	RenderRectangle(space graphics.CoordinateSpace, coordinates graphics.Vec4, width, height float32, shader *string, fill bool) error
-	RenderImage(space graphics.CoordinateSpace, bytes []byte, coordinates graphics.Vec4, width, height float32, shader *string) error
-	Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vec4, shader *string) error
+	RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error
+	RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error
+	RenderRectangle(space graphics.CoordinateSpace, coordinates graphics.Vector, width, height float32, shader *string, fill bool) error
+	RenderImage(space graphics.CoordinateSpace, bytes []byte, coordinates graphics.Vector, width, height float32, shader *string) error
+	Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vector, shader *string) error
 	Render3dModel(space graphics.CoordinateSpace, model *Model, shader *string) error
-	SetMatrices(projection, view, model graphics.Mat4)
+	SetMatrices(projection, view, model graphics.Matrix)
 }
 ```
 

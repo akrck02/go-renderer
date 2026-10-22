@@ -4,17 +4,21 @@ import (
 	"math"
 )
 
-// Vec4 represents a 4D vector or 3D coordinate with padding [X, Y, Z, W].
-// Aligns perfectly to 16 bytes, matching GPU hardware expectations across all APIs.
-type Vec4 [4]float32
+// Vector is a point or a direction in 3D with a fourth value, w: [x, y, z, w]. Points carry w = 1
+// and directions w = 0, so one matrix can both move points and turn directions. Sixteen bytes,
+// the size GPUs expect, so it copies into OpenGL, Vulkan or Metal buffers as it is.
+type Vector [4]float32
 
-// Mat4 represents a 4x4 matrix flattened into a column-major 16-element array.
-// Allows direct, zero-allocation memory copying into Vulkan, OpenGL, or Metal buffers.
-type Mat4 [16]float32
+// Matrix is a 4 × 4 matrix flattened into 16 values, column after column (column-major), the
+// order OpenGL, Vulkan and Metal read. Element (row, column) is at index column*4 + row.
+type Matrix [16]float32
 
-// Identity returns a 4x4 identity matrix.
-func Identity() Mat4 {
-	return Mat4{
+// matrixSize is the number of rows (and columns) of a Matrix.
+const matrixSize = 4
+
+// Identity returns the matrix that changes nothing: ones on the diagonal, zeros elsewhere.
+func Identity() Matrix {
+	return Matrix{
 		1, 0, 0, 0,
 		0, 1, 0, 0,
 		0, 0, 1, 0,
@@ -22,242 +26,221 @@ func Identity() Mat4 {
 	}
 }
 
-// Multiply multiplies two 4x4 matrices (A * B).
-func (a Mat4) Multiply(b Mat4) Mat4 {
-	var res Mat4
-	for col := range 4 {
-		bColIdx := col * 4
-		for row := range 4 {
-			res[bColIdx+row] =
-				a[0+row]*b[bColIdx+0] +
-					a[4+row]*b[bColIdx+1] +
-					a[8+row]*b[bColIdx+2] +
-					a[12+row]*b[bColIdx+3]
+// Multiply returns matrix × other: the transform that applies other first, then matrix.
+func (matrix Matrix) Multiply(other Matrix) Matrix {
+	var result Matrix
+	for column := range matrixSize {
+		columnStart := column * matrixSize
+		for row := range matrixSize {
+			result[columnStart+row] =
+				matrix[0+row]*other[columnStart+0] +
+					matrix[4+row]*other[columnStart+1] +
+					matrix[8+row]*other[columnStart+2] +
+					matrix[12+row]*other[columnStart+3]
 		}
 	}
-	return res
+	return result
 }
 
-// Translate returns a translation matrix using a Vec4 (ignoring W component).
-func Translate(v Vec4) Mat4 {
-	m := Identity()
-	m[12] = v[0] // Column 3, Row 0
-	m[13] = v[1] // Column 3, Row 1
-	m[14] = v[2] // Column 3, Row 2
-	return m
+// Translate returns the matrix that moves points by offset (its w is ignored).
+func Translate(offset Vector) Matrix {
+	matrix := Identity()
+	matrix[12] = offset[0] // column 3, row 0
+	matrix[13] = offset[1] // column 3, row 1
+	matrix[14] = offset[2] // column 3, row 2
+	return matrix
 }
 
-// Scale returns a scaling matrix using a Vec4.
-func Scale(v Vec4) Mat4 {
-	m := Identity()
-	m[0] = v[0]  // Column 0, Row 0
-	m[5] = v[1]  // Column 1, Row 1
-	m[10] = v[2] // Column 2, Row 2
-	return m
+// Scale returns the matrix that stretches x, y and z by the factors of factors (its w is ignored).
+func Scale(factors Vector) Matrix {
+	matrix := Identity()
+	matrix[0] = factors[0]  // column 0, row 0
+	matrix[5] = factors[1]  // column 1, row 1
+	matrix[10] = factors[2] // column 2, row 2
+	return matrix
 }
 
-// RotateY returns a rotation matrix around the Y axis (in radians).
-func RotateY(rad float64) Mat4 {
-	m := Identity()
-	cos := float32(math.Cos(rad))
-	sin := float32(math.Sin(rad))
+// RotateY returns the matrix that turns points around the y axis by radians.
+func RotateY(radians float64) Matrix {
+	matrix := Identity()
+	cosine := float32(math.Cos(radians))
+	sine := float32(math.Sin(radians))
 
-	m[0] = cos  // Col 0, Row 0
-	m[2] = -sin // Col 0, Row 2
-	m[8] = sin  // Col 2, Row 0
-	m[10] = cos // Col 2, Row 2
-	return m
+	matrix[0] = cosine  // column 0, row 0
+	matrix[2] = -sine   // column 0, row 2
+	matrix[8] = sine    // column 2, row 0
+	matrix[10] = cosine // column 2, row 2
+	return matrix
 }
 
-// RotateX returns a rotation matrix around the X axis (in radians).
-func RotateX(rad float64) Mat4 {
-	m := Identity()
-	cos := float32(math.Cos(rad))
-	sin := float32(math.Sin(rad))
+// RotateX returns the matrix that turns points around the x axis by radians.
+func RotateX(radians float64) Matrix {
+	matrix := Identity()
+	cosine := float32(math.Cos(radians))
+	sine := float32(math.Sin(radians))
 
-	m[5] = cos  // Col 1, Row 1
-	m[6] = sin  // Col 1, Row 2
-	m[9] = -sin // Col 2, Row 1
-	m[10] = cos // Col 2, Row 2
-	return m
+	matrix[5] = cosine  // column 1, row 1
+	matrix[6] = sine    // column 1, row 2
+	matrix[9] = -sine   // column 2, row 1
+	matrix[10] = cosine // column 2, row 2
+	return matrix
 }
 
-// Rotate returns a rotation matrix around an arbitrary axis.
-func Rotate(axis Vec4, rad float64) Mat4 {
-	m := Identity()
+// Rotate returns the matrix that turns points around axis (any length but zero) by radians,
+// counter-clockwise when the axis points at the viewer.
+func Rotate(axis Vector, radians float64) Matrix {
+	matrix := Identity()
 	axis = axis.Normalize()
 	x, y, z := axis[0], axis[1], axis[2]
-	s := float32(math.Sin(rad))
-	c := float32(math.Cos(rad))
-	oc := 1.0 - c
+	sine := float32(math.Sin(radians))
+	cosine := float32(math.Cos(radians))
+	oneMinusCosine := 1.0 - cosine
 
-	m[0] = x*x*oc + c
-	m[1] = y*x*oc + z*s
-	m[2] = z*x*oc - y*s
+	matrix[0] = x*x*oneMinusCosine + cosine
+	matrix[1] = y*x*oneMinusCosine + z*sine
+	matrix[2] = z*x*oneMinusCosine - y*sine
 
-	m[4] = x*y*oc - z*s
-	m[5] = y*y*oc + c
-	m[6] = z*y*oc + x*s
+	matrix[4] = x*y*oneMinusCosine - z*sine
+	matrix[5] = y*y*oneMinusCosine + cosine
+	matrix[6] = z*y*oneMinusCosine + x*sine
 
-	m[8] = x*z*oc + y*s
-	m[9] = y*z*oc - x*s
-	m[10] = z*z*oc + c
+	matrix[8] = x*z*oneMinusCosine + y*sine
+	matrix[9] = y*z*oneMinusCosine - x*sine
+	matrix[10] = z*z*oneMinusCosine + cosine
 
-	return m
+	return matrix
 }
 
-// Apply transforms a Vec4 using the matrix (m * v).
-func (m Mat4) Apply(v Vec4) Vec4 {
-	return Vec4{
-		m[0]*v[0] + m[4]*v[1] + m[8]*v[2] + m[12]*v[3],
-		m[1]*v[0] + m[5]*v[1] + m[9]*v[2] + m[13]*v[3],
-		m[2]*v[0] + m[6]*v[1] + m[10]*v[2] + m[14]*v[3],
-		m[3]*v[0] + m[7]*v[1] + m[11]*v[2] + m[15]*v[3],
+// Apply returns vector transformed by the matrix (matrix × vector).
+func (matrix Matrix) Apply(vector Vector) Vector {
+	return Vector{
+		matrix[0]*vector[0] + matrix[4]*vector[1] + matrix[8]*vector[2] + matrix[12]*vector[3],
+		matrix[1]*vector[0] + matrix[5]*vector[1] + matrix[9]*vector[2] + matrix[13]*vector[3],
+		matrix[2]*vector[0] + matrix[6]*vector[1] + matrix[10]*vector[2] + matrix[14]*vector[3],
+		matrix[3]*vector[0] + matrix[7]*vector[1] + matrix[11]*vector[2] + matrix[15]*vector[3],
 	}
 }
 
-// Cross computes the 3D cross product of two Vec4 vectors (W component is ignored).
-func (v Vec4) Cross(other Vec4) Vec4 {
-	return Vec4{
-		v[1]*other[2] - v[2]*other[1],
-		v[2]*other[0] - v[0]*other[2],
-		v[0]*other[1] - v[1]*other[0],
+// Cross returns the cross product of the two vectors' x, y and z: a direction square to both
+// (w is ignored and the result's is 0).
+func (vector Vector) Cross(other Vector) Vector {
+	return Vector{
+		vector[1]*other[2] - vector[2]*other[1],
+		vector[2]*other[0] - vector[0]*other[2],
+		vector[0]*other[1] - vector[1]*other[0],
 		0.0,
 	}
 }
 
-// Normalize returns the unit vector of a Vec4.
-func (v Vec4) Normalize() Vec4 {
-	length := float32(math.Sqrt(float64(v[0]*v[0] + v[1]*v[1] + v[2]*v[2])))
+// Normalize returns the direction of the vector with a length of 1 (w becomes 0); the zero
+// vector stays zero.
+func (vector Vector) Normalize() Vector {
+	length := float32(math.Sqrt(float64(vector[0]*vector[0] + vector[1]*vector[1] + vector[2]*vector[2])))
 	if length == 0 {
-		return Vec4{}
+		return Vector{}
 	}
-	return Vec4{v[0] / length, v[1] / length, v[2] / length, 0.0}
+	return Vector{vector[0] / length, vector[1] / length, vector[2] / length, 0.0}
 }
 
-// Dot computes the 3D dot product of two vectors (ignoring W).
-func (v Vec4) Dot(other Vec4) float32 {
-	return v[0]*other[0] + v[1]*other[1] + v[2]*other[2]
+// Dot returns the dot product of the two vectors' x, y and z (w is ignored).
+func (vector Vector) Dot(other Vector) float32 {
+	return vector[0]*other[0] + vector[1]*other[1] + vector[2]*other[2]
 }
 
-// Add returns a new Vec4 that is the sum of v and other.
-func (v Vec4) Add(other Vec4) Vec4 {
-	return Vec4{v[0] + other[0], v[1] + other[1], v[2] + other[2], v[3] + other[3]}
+// Add returns the sum of the two vectors, w included.
+func (vector Vector) Add(other Vector) Vector {
+	return Vector{vector[0] + other[0], vector[1] + other[1], vector[2] + other[2], vector[3] + other[3]}
 }
 
-// Move applies a translation to a slice of Vec4 vertices.
-func Move(vertices []Vec4, delta Vec4) []Vec4 {
-	res := make([]Vec4, len(vertices))
-	for i, v := range vertices {
-		res[i] = v.Add(delta)
+// Move adds offset to every vertex, in place: it allocates nothing.
+func Move(vertices []Vector, offset Vector) {
+	for index := range vertices {
+		vertices[index] = vertices[index].Add(offset)
 	}
-	return res
 }
 
-// LookAt creates a Right-Handed View Matrix.
-// Works universally for OpenGL, Vulkan, and Metal since view space is independent of clip space.
-func LookAt(eye, center, up Vec4) Mat4 {
-	f := Vec4{center[0] - eye[0], center[1] - eye[1], center[2] - eye[2], 0.0}.Normalize()
-	s := f.Cross(up).Normalize()
-	u := s.Cross(f)
+// LookAt returns the view matrix of an eye looking at target, with up saying which way is up
+// (right-handed). It suits OpenGL, Vulkan and Metal alike: view space does not depend on the
+// backend, only clip space does (see the Perspective functions).
+func LookAt(eye, target, up Vector) Matrix {
+	forward := Vector{target[0] - eye[0], target[1] - eye[1], target[2] - eye[2], 0.0}.Normalize()
+	side := forward.Cross(up).Normalize()
+	trueUp := side.Cross(forward)
 
-	m := Identity()
-	m[0] = s[0]
-	m[4] = s[1]
-	m[8] = s[2]
+	matrix := Identity()
+	matrix[0] = side[0]
+	matrix[4] = side[1]
+	matrix[8] = side[2]
 
-	m[1] = u[0]
-	m[5] = u[1]
-	m[9] = u[2]
+	matrix[1] = trueUp[0]
+	matrix[5] = trueUp[1]
+	matrix[9] = trueUp[2]
 
-	m[2] = -f[0]
-	m[6] = -f[1]
-	m[10] = -f[2]
+	matrix[2] = -forward[0]
+	matrix[6] = -forward[1]
+	matrix[10] = -forward[2]
 
-	m[12] = -s.Dot(eye)
-	m[13] = -u.Dot(eye)
-	m[14] = f.Dot(eye)
-	return m
+	matrix[12] = -side.Dot(eye)
+	matrix[13] = -trueUp.Dot(eye)
+	matrix[14] = forward.Dot(eye)
+	return matrix
 }
 
-// --- API-SPECIFIC PROJECTION MATRICES ---
+// The projections below differ by backend: each GPU interface has its own clip space (which way
+// y points, and whether depth runs from -1 or from 0).
 
-// PerspectiveOpenGL creates a Projection Matrix tailored for OpenGL.
-// - Y-axis points UP (+1 is top)
-// - Depth (Z) maps to [-1, 1]
-func PerspectiveOpenGL(fovyRad, aspect, near, far float64) Mat4 {
-	g := float32(1.0 / math.Tan(fovyRad/2.0))
-	n := float32(near)
-	f := float32(far)
-	asp := float32(aspect)
-
-	m := Mat4{}
-	m[0] = g / asp
-	m[5] = g
-	m[10] = (f + n) / (n - f)
-	m[11] = -1.0
-	m[14] = (2.0 * f * n) / (n - f)
-	return m
+// perspectiveTerms returns what every perspective shares: the focal length (one over the tangent
+// of half the vertical field of view) and the arguments as float32.
+func perspectiveTerms(fieldOfViewRadians, aspect, near, far float64) (focalLength, aspect32, near32, far32 float32) {
+	return float32(1.0 / math.Tan(fieldOfViewRadians/2.0)), float32(aspect), float32(near), float32(far)
 }
 
-// PerspectiveVulkan creates a Projection Matrix tailored for Vulkan.
-// - Y-axis points DOWN (+1 is bottom)
-// - Depth (Z) maps to [0, 1]
-func PerspectiveVulkan(fovyRad, aspect, near, far float64) Mat4 {
-	g := float32(1.0 / math.Tan(fovyRad/2.0))
-	n := float32(near)
-	f := float32(far)
-	asp := float32(aspect)
-
-	m := Mat4{}
-	m[0] = g / asp
-	m[5] = -g // Negative flattens Y axis natively
-	m[10] = f / (n - f)
-	m[11] = -1.0
-	m[14] = (n * f) / (n - f)
-	return m
+// PerspectiveOpenGL returns a perspective projection for OpenGL: y points up and depth runs from
+// -1 (near) to 1 (far). fieldOfViewRadians is vertical; aspect is width over height.
+func PerspectiveOpenGL(fieldOfViewRadians, aspect, near, far float64) Matrix {
+	focalLength, aspect32, near32, far32 := perspectiveTerms(fieldOfViewRadians, aspect, near, far)
+	matrix := Matrix{}
+	matrix[0] = focalLength / aspect32
+	matrix[5] = focalLength
+	matrix[10] = (far32 + near32) / (near32 - far32)
+	matrix[11] = -1.0
+	matrix[14] = (2.0 * far32 * near32) / (near32 - far32)
+	return matrix
 }
 
-// PerspectiveMetal creates a Projection Matrix tailored for Apple's Metal API.
-// - Y-axis points UP (+1 is top, same as OpenGL)
-// - Depth (Z) maps to [0, 1] (same as Vulkan)
-func PerspectiveMetal(fovyRad, aspect, near, far float64) Mat4 {
-	g := float32(1.0 / math.Tan(fovyRad/2.0))
-	n := float32(near)
-	f := float32(far)
-	asp := float32(aspect)
-
-	m := Mat4{}
-	m[0] = g / asp
-	m[5] = g
-	m[10] = f / (n - f)
-	m[11] = -1.0
-	m[14] = (n * f) / (n - f)
-	return m
+// PerspectiveVulkan returns a perspective projection for Vulkan: y points down and depth runs
+// from 0 (near) to 1 (far).
+func PerspectiveVulkan(fieldOfViewRadians, aspect, near, far float64) Matrix {
+	focalLength, aspect32, near32, far32 := perspectiveTerms(fieldOfViewRadians, aspect, near, far)
+	matrix := Matrix{}
+	matrix[0] = focalLength / aspect32
+	matrix[5] = -focalLength // Vulkan's y points down
+	matrix[10] = far32 / (near32 - far32)
+	matrix[11] = -1.0
+	matrix[14] = (near32 * far32) / (near32 - far32)
+	return matrix
 }
 
-// Inverse returns the inverse of a 4x4 matrix and false when it is singular.
-func (m Mat4) Inverse() (Mat4, bool) {
-	var inverse Mat4
-	inverse[0] = m[5]*m[10]*m[15] - m[5]*m[11]*m[14] - m[9]*m[6]*m[15] + m[9]*m[7]*m[14] + m[13]*m[6]*m[11] - m[13]*m[7]*m[10]
-	inverse[4] = -m[4]*m[10]*m[15] + m[4]*m[11]*m[14] + m[8]*m[6]*m[15] - m[8]*m[7]*m[14] - m[12]*m[6]*m[11] + m[12]*m[7]*m[10]
-	inverse[8] = m[4]*m[9]*m[15] - m[4]*m[11]*m[13] - m[8]*m[5]*m[15] + m[8]*m[7]*m[13] + m[12]*m[5]*m[11] - m[12]*m[7]*m[9]
-	inverse[12] = -m[4]*m[9]*m[14] + m[4]*m[10]*m[13] + m[8]*m[5]*m[14] - m[8]*m[6]*m[13] - m[12]*m[5]*m[10] + m[12]*m[6]*m[9]
-	inverse[1] = -m[1]*m[10]*m[15] + m[1]*m[11]*m[14] + m[9]*m[2]*m[15] - m[9]*m[3]*m[14] - m[13]*m[2]*m[11] + m[13]*m[3]*m[10]
-	inverse[5] = m[0]*m[10]*m[15] - m[0]*m[11]*m[14] - m[8]*m[2]*m[15] + m[8]*m[3]*m[14] + m[12]*m[2]*m[11] - m[12]*m[3]*m[10]
-	inverse[9] = -m[0]*m[9]*m[15] + m[0]*m[11]*m[13] + m[8]*m[1]*m[15] - m[8]*m[3]*m[13] - m[12]*m[1]*m[11] + m[12]*m[3]*m[9]
-	inverse[13] = m[0]*m[9]*m[14] - m[0]*m[10]*m[13] - m[8]*m[1]*m[14] + m[8]*m[2]*m[13] + m[12]*m[1]*m[10] - m[12]*m[2]*m[9]
-	inverse[2] = m[1]*m[6]*m[15] - m[1]*m[7]*m[14] - m[5]*m[2]*m[15] + m[5]*m[3]*m[14] + m[13]*m[2]*m[7] - m[13]*m[3]*m[6]
-	inverse[6] = -m[0]*m[6]*m[15] + m[0]*m[7]*m[14] + m[4]*m[2]*m[15] - m[4]*m[3]*m[14] - m[12]*m[2]*m[7] + m[12]*m[3]*m[6]
-	inverse[10] = m[0]*m[5]*m[15] - m[0]*m[7]*m[13] - m[4]*m[1]*m[15] + m[4]*m[3]*m[13] + m[12]*m[1]*m[7] - m[12]*m[3]*m[5]
-	inverse[14] = -m[0]*m[5]*m[14] + m[0]*m[6]*m[13] + m[4]*m[1]*m[14] - m[4]*m[2]*m[13] - m[12]*m[1]*m[6] + m[12]*m[2]*m[5]
-	inverse[3] = -m[1]*m[6]*m[11] + m[1]*m[7]*m[10] + m[5]*m[2]*m[11] - m[5]*m[3]*m[10] - m[9]*m[2]*m[7] + m[9]*m[3]*m[6]
-	inverse[7] = m[0]*m[6]*m[11] - m[0]*m[7]*m[10] - m[4]*m[2]*m[11] + m[4]*m[3]*m[10] + m[8]*m[2]*m[7] - m[8]*m[3]*m[6]
-	inverse[11] = -m[0]*m[5]*m[11] + m[0]*m[7]*m[9] + m[4]*m[1]*m[11] - m[4]*m[3]*m[9] - m[8]*m[1]*m[7] + m[8]*m[3]*m[5]
-	inverse[15] = m[0]*m[5]*m[10] - m[0]*m[6]*m[9] - m[4]*m[1]*m[10] + m[4]*m[2]*m[9] + m[8]*m[1]*m[6] - m[8]*m[2]*m[5]
-	determinant := m[0]*inverse[0] + m[1]*inverse[4] + m[2]*inverse[8] + m[3]*inverse[12]
+// PerspectiveMetal returns a perspective projection for Metal: y points up, as in OpenGL, and
+// depth runs from 0 (near) to 1 (far), as in Vulkan.
+func PerspectiveMetal(fieldOfViewRadians, aspect, near, far float64) Matrix {
+	focalLength, aspect32, near32, far32 := perspectiveTerms(fieldOfViewRadians, aspect, near, far)
+	matrix := Matrix{}
+	matrix[0] = focalLength / aspect32
+	matrix[5] = focalLength
+	matrix[10] = far32 / (near32 - far32)
+	matrix[11] = -1.0
+	matrix[14] = (near32 * far32) / (near32 - far32)
+	return matrix
+}
+
+// Inverse returns the matrix that undoes this one, and false for a matrix that cannot be undone
+// (its determinant is zero, as when a scale squashes an axis to nothing).
+func (matrix Matrix) Inverse() (Matrix, bool) {
+	inverse := cofactors(matrix)
+	determinant := matrix[0]*inverse[0] + matrix[1]*inverse[4] + matrix[2]*inverse[8] + matrix[3]*inverse[12]
 	if determinant == 0 {
-		return Mat4{}, false
+		return Matrix{}, false
 	}
 	for element := range inverse {
 		inverse[element] /= determinant
@@ -265,21 +248,45 @@ func (m Mat4) Inverse() (Mat4, bool) {
 	return inverse, true
 }
 
-// FromTranslationRotationScale builds a matrix from a translation, a rotation quaternion (x, y, z, w) and a scale.
-func FromTranslationRotationScale(translation Vec4, rotation Vec4, scale Vec4) Mat4 {
+// cofactors returns the adjugate of the matrix (the transposed matrix of its cofactors): the
+// inverse times the determinant, written out in full.
+func cofactors(matrix Matrix) Matrix {
+	var result Matrix
+	result[0] = matrix[5]*matrix[10]*matrix[15] - matrix[5]*matrix[11]*matrix[14] - matrix[9]*matrix[6]*matrix[15] + matrix[9]*matrix[7]*matrix[14] + matrix[13]*matrix[6]*matrix[11] - matrix[13]*matrix[7]*matrix[10]
+	result[4] = -matrix[4]*matrix[10]*matrix[15] + matrix[4]*matrix[11]*matrix[14] + matrix[8]*matrix[6]*matrix[15] - matrix[8]*matrix[7]*matrix[14] - matrix[12]*matrix[6]*matrix[11] + matrix[12]*matrix[7]*matrix[10]
+	result[8] = matrix[4]*matrix[9]*matrix[15] - matrix[4]*matrix[11]*matrix[13] - matrix[8]*matrix[5]*matrix[15] + matrix[8]*matrix[7]*matrix[13] + matrix[12]*matrix[5]*matrix[11] - matrix[12]*matrix[7]*matrix[9]
+	result[12] = -matrix[4]*matrix[9]*matrix[14] + matrix[4]*matrix[10]*matrix[13] + matrix[8]*matrix[5]*matrix[14] - matrix[8]*matrix[6]*matrix[13] - matrix[12]*matrix[5]*matrix[10] + matrix[12]*matrix[6]*matrix[9]
+	result[1] = -matrix[1]*matrix[10]*matrix[15] + matrix[1]*matrix[11]*matrix[14] + matrix[9]*matrix[2]*matrix[15] - matrix[9]*matrix[3]*matrix[14] - matrix[13]*matrix[2]*matrix[11] + matrix[13]*matrix[3]*matrix[10]
+	result[5] = matrix[0]*matrix[10]*matrix[15] - matrix[0]*matrix[11]*matrix[14] - matrix[8]*matrix[2]*matrix[15] + matrix[8]*matrix[3]*matrix[14] + matrix[12]*matrix[2]*matrix[11] - matrix[12]*matrix[3]*matrix[10]
+	result[9] = -matrix[0]*matrix[9]*matrix[15] + matrix[0]*matrix[11]*matrix[13] + matrix[8]*matrix[1]*matrix[15] - matrix[8]*matrix[3]*matrix[13] - matrix[12]*matrix[1]*matrix[11] + matrix[12]*matrix[3]*matrix[9]
+	result[13] = matrix[0]*matrix[9]*matrix[14] - matrix[0]*matrix[10]*matrix[13] - matrix[8]*matrix[1]*matrix[14] + matrix[8]*matrix[2]*matrix[13] + matrix[12]*matrix[1]*matrix[10] - matrix[12]*matrix[2]*matrix[9]
+	result[2] = matrix[1]*matrix[6]*matrix[15] - matrix[1]*matrix[7]*matrix[14] - matrix[5]*matrix[2]*matrix[15] + matrix[5]*matrix[3]*matrix[14] + matrix[13]*matrix[2]*matrix[7] - matrix[13]*matrix[3]*matrix[6]
+	result[6] = -matrix[0]*matrix[6]*matrix[15] + matrix[0]*matrix[7]*matrix[14] + matrix[4]*matrix[2]*matrix[15] - matrix[4]*matrix[3]*matrix[14] - matrix[12]*matrix[2]*matrix[7] + matrix[12]*matrix[3]*matrix[6]
+	result[10] = matrix[0]*matrix[5]*matrix[15] - matrix[0]*matrix[7]*matrix[13] - matrix[4]*matrix[1]*matrix[15] + matrix[4]*matrix[3]*matrix[13] + matrix[12]*matrix[1]*matrix[7] - matrix[12]*matrix[3]*matrix[5]
+	result[14] = -matrix[0]*matrix[5]*matrix[14] + matrix[0]*matrix[6]*matrix[13] + matrix[4]*matrix[1]*matrix[14] - matrix[4]*matrix[2]*matrix[13] - matrix[12]*matrix[1]*matrix[6] + matrix[12]*matrix[2]*matrix[5]
+	result[3] = -matrix[1]*matrix[6]*matrix[11] + matrix[1]*matrix[7]*matrix[10] + matrix[5]*matrix[2]*matrix[11] - matrix[5]*matrix[3]*matrix[10] - matrix[9]*matrix[2]*matrix[7] + matrix[9]*matrix[3]*matrix[6]
+	result[7] = matrix[0]*matrix[6]*matrix[11] - matrix[0]*matrix[7]*matrix[10] - matrix[4]*matrix[2]*matrix[11] + matrix[4]*matrix[3]*matrix[10] + matrix[8]*matrix[2]*matrix[7] - matrix[8]*matrix[3]*matrix[6]
+	result[11] = -matrix[0]*matrix[5]*matrix[11] + matrix[0]*matrix[7]*matrix[9] + matrix[4]*matrix[1]*matrix[11] - matrix[4]*matrix[3]*matrix[9] - matrix[8]*matrix[1]*matrix[7] + matrix[8]*matrix[3]*matrix[5]
+	result[15] = matrix[0]*matrix[5]*matrix[10] - matrix[0]*matrix[6]*matrix[9] - matrix[4]*matrix[1]*matrix[10] + matrix[4]*matrix[2]*matrix[9] + matrix[8]*matrix[1]*matrix[6] - matrix[8]*matrix[2]*matrix[5]
+	return result
+}
+
+// FromTranslationRotationScale returns the matrix that scales, then rotates by the quaternion
+// rotation (x, y, z, w), then moves by translation: the order glTF nodes use.
+func FromTranslationRotationScale(translation Vector, rotation Vector, scale Vector) Matrix {
 	x, y, z, w := rotation[0], rotation[1], rotation[2], rotation[3]
-	matrix := Mat4{
+	return Matrix{
 		(1 - 2*(y*y+z*z)) * scale[0], 2 * (x*y + z*w) * scale[0], 2 * (x*z - y*w) * scale[0], 0,
 		2 * (x*y - z*w) * scale[1], (1 - 2*(x*x+z*z)) * scale[1], 2 * (y*z + x*w) * scale[1], 0,
 		2 * (x*z + y*w) * scale[2], 2 * (y*z - x*w) * scale[2], (1 - 2*(x*x+y*y)) * scale[2], 0,
 		translation[0], translation[1], translation[2], 1,
 	}
-	return matrix
 }
 
-// OrthographicOpenGL creates an orthographic projection for OpenGL (depth mapped to [-1, 1]).
-func OrthographicOpenGL(left, right, bottom, top, near, far float32) Mat4 {
-	return Mat4{
+// OrthographicOpenGL returns a projection without perspective for OpenGL: the box from (left,
+// bottom, -near) to (right, top, -far) fills the screen, depth mapped to [-1, 1].
+func OrthographicOpenGL(left, right, bottom, top, near, far float32) Matrix {
+	return Matrix{
 		2 / (right - left), 0, 0, 0,
 		0, 2 / (top - bottom), 0, 0,
 		0, 0, -2 / (far - near), 0,

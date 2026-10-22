@@ -73,7 +73,7 @@ func (renderer *skyRenderer) draw(environment scene.Environment, light scene.Day
 	gl.DepthFunc(gl.LEQUAL)
 }
 
-func (renderer *skyRenderer) drawDome(environment scene.Environment, light scene.Daylight, camera models.Camera, inverse graphics.Mat4, seconds float64) {
+func (renderer *skyRenderer) drawDome(environment scene.Environment, light scene.Daylight, camera models.Camera, inverse graphics.Matrix, seconds float64) {
 	sky := environment.EffectiveSky()
 	program := renderer.program
 	gl.UseProgram(program.handle)
@@ -112,7 +112,7 @@ func setStars(program *shaderProgram, stars scene.Stars) {
 	program.setFloat("starDaytimeVisibility", stars.DaytimeVisibility)
 }
 
-func setMoon(program *shaderProgram, moon *scene.Moon, direction graphics.Vec4) {
+func setMoon(program *shaderProgram, moon *scene.Moon, direction graphics.Vector) {
 	if moon == nil {
 		program.setInteger("moonEnabled", 0)
 		return
@@ -276,7 +276,7 @@ func drawConstellationLines(program *shaderProgram, buffers *constellationBuffer
 
 func drawConstellationStars(program *shaderProgram, buffers *constellationBuffers, sky *scene.Sky) {
 	program.setInteger("drawingPoints", 1)
-	program.setVector4("lineColor", graphics.Vec4{1, 1, 1, 1})
+	program.setVector4("lineColor", graphics.Vector{1, 1, 1, 1})
 	gl.DrawArrays(gl.POINTS, 0, buffers.pointCount)
 }
 

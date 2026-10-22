@@ -61,9 +61,9 @@ func main() {
 func mapCamera(world *scene.Scene) models.Camera {
 	centre, size := middleAndSize(world)
 	return models.Camera{
-		Position:           graphics.Vec4{centre[0], size, centre[2], 1},
+		Position:           graphics.Vector{centre[0], size, centre[2], 1},
 		Target:             centre,
-		Up:                 graphics.Vec4{0, 0, -1, 0}, // north at the top
+		Up:                 graphics.Vector{0, 0, -1, 0}, // north at the top
 		OrthographicHeight: size,
 		Far:                size * 3,
 	}
@@ -73,17 +73,17 @@ func mapCamera(world *scene.Scene) models.Camera {
 func shoreCamera(world *scene.Scene) models.Camera {
 	centre, size := middleAndSize(world)
 	return models.Camera{
-		Position: graphics.Vec4{centre[0], size / 4, centre[2] + size*0.7, 1},
+		Position: graphics.Vector{centre[0], size / 4, centre[2] + size*0.7, 1},
 		Target:   centre,
-		Up:       graphics.Vec4{0, 1, 0, 0},
+		Up:       graphics.Vector{0, 1, 0, 0},
 		Far:      size * 4,
 	}
 }
 
 // middleAndSize is the middle of a scene's ground and the larger of its two sides.
-func middleAndSize(world *scene.Scene) (graphics.Vec4, float32) {
+func middleAndSize(world *scene.Scene) (graphics.Vector, float32) {
 	minimum, maximum := world.Bounds()
-	centre := graphics.Vec4{(minimum[0] + maximum[0]) / 2, 0, (minimum[2] + maximum[2]) / 2, 1}
+	centre := graphics.Vector{(minimum[0] + maximum[0]) / 2, 0, (minimum[2] + maximum[2]) / 2, 1}
 	return centre, max(maximum[0]-minimum[0], maximum[2]-minimum[2])
 }
 ```

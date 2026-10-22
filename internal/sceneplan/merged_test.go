@@ -34,7 +34,7 @@ func TestInstancesAreMergedIntoOneMesh(test *testing.T) {
 	triangle := &scene.Mesh{Positions: []float32{0, 0, 0, 1, 0, 0, 0, 1, 0}, Normals: []float32{0, 0, 1, 0, 0, 1, 0, 0, 1},
 		Indices: []uint32{0, 1, 2}}
 	packed := make([]float32, 2*FloatsPerInstance)
-	first, second := graphics.Identity(), graphics.Translate(graphics.Vec4{10, 0, 0, 0})
+	first, second := graphics.Identity(), graphics.Translate(graphics.Vector{10, 0, 0, 0})
 	copy(packed[0:16], first[:])
 	copy(packed[16:20], []float32{1, 0, 0, 1}) // red
 	copy(packed[20:36], second[:])

@@ -67,10 +67,10 @@ type Lighting struct {
 
 // Frame is what the layout needs to know about the frame being drawn.
 type Frame struct {
-	ViewProjection graphics.Mat4 // the camera's projection times its view
-	Width, Height  int           // framebuffer size in pixels
-	Scale          float32       // framebuffer pixels per layout pixel: 2 on a high-density screen; 0 = 1
-	VerticalScale  float32       // the scene's vertical exaggeration; 0 = 1
+	ViewProjection graphics.Matrix // the camera's projection times its view
+	Width, Height  int             // framebuffer size in pixels
+	Scale          float32         // framebuffer pixels per layout pixel: 2 on a high-density screen; 0 = 1
+	VerticalScale  float32         // the scene's vertical exaggeration; 0 = 1
 }
 
 // Painter lays out overlays frame after frame, keeping the atlas and the fonts between frames.
@@ -120,7 +120,7 @@ func (painter *Painter) Pictures() *Pictures { return painter.pictures }
 // Paint lays out the whole overlay for a frame. anchors holds the world transform of the nodes
 // labels are anchored to (scene.WorldTransforms); labels whose node is missing are not drawn.
 // The returned slice is reused by the next call.
-func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]graphics.Mat4, frame Frame) []Quad {
+func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]graphics.Matrix, frame Frame) []Quad {
 	painter.quads, painter.occupied = painter.quads[:0], painter.occupied[:0]
 	painter.snapshots, painter.snapshotLayer = painter.snapshots[:0], noSnapshotLayer
 	painter.lights, painter.lightings, painter.lit = painter.lights[:0], painter.lightings[:0], 0
@@ -188,7 +188,7 @@ type Projection struct {
 
 // Project places a world point on screen, applying the vertical exaggeration as the scene
 // shaders do.
-func Project(point graphics.Vec4, frame Frame) Projection {
+func Project(point graphics.Vector, frame Frame) Projection {
 	point[1] *= frame.verticalScale()
 	point[3] = 1
 	clip := frame.ViewProjection.Apply(point)
@@ -207,14 +207,14 @@ func Project(point graphics.Vec4, frame Frame) Projection {
 
 // anchorPoint returns the world point a label stands on: its node's origin or its point, lifted
 // by its height.
-func anchorPoint(label *scene.Label, anchors map[*scene.Node]graphics.Mat4) (graphics.Vec4, bool) {
+func anchorPoint(label *scene.Label, anchors map[*scene.Node]graphics.Matrix) (graphics.Vector, bool) {
 	point := label.Point
 	if label.Node != nil {
 		transform, found := anchors[label.Node]
 		if !found {
-			return graphics.Vec4{}, false
+			return graphics.Vector{}, false
 		}
-		point = transform.Apply(graphics.Vec4{0, 0, 0, 1})
+		point = transform.Apply(graphics.Vector{0, 0, 0, 1})
 	}
 	point[1] += label.Height
 	return point, true
@@ -228,7 +228,7 @@ type placedLabel struct {
 
 // paintLabels draws the labels nearest first, skipping any that would cover one already drawn
 // (or the header and the notices), so a crowded view stays readable.
-func (painter *Painter) paintLabels(labels []*scene.Label, anchors map[*scene.Node]graphics.Mat4, frame Frame) {
+func (painter *Painter) paintLabels(labels []*scene.Label, anchors map[*scene.Node]graphics.Matrix, frame Frame) {
 	placed := painter.placedLabels[:0]
 	for _, label := range labels {
 		if label == nil || label.Hidden || label.IsEmpty() {
@@ -353,7 +353,7 @@ func (painter *Painter) paintNotices(notices []scene.VisibleNotice, top int, sca
 // pillContent is what goes in a pill or a header row: an icon, a text, and the icon's colour.
 type pillContent struct {
 	icon, text string
-	tint       graphics.Vec4
+	tint       graphics.Vector
 }
 
 // measuredContent is an icon and a text measured in screen pixels, ready to draw.
@@ -366,7 +366,7 @@ type measuredContent struct {
 	iconSize   int
 	gap        int
 	width      int
-	tint       graphics.Vec4
+	tint       graphics.Vector
 	textFace   faceName
 	textSize   int
 	iconColour [4]float32

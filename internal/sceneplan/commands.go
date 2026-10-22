@@ -12,7 +12,7 @@ import (
 // Command is one node to draw this frame.
 type Command struct {
 	Node                  *scene.Node
-	World                 graphics.Mat4
+	World                 graphics.Matrix
 	Material              *scene.Material
 	SquaredCameraDistance float32
 	Transparent           bool
@@ -25,7 +25,7 @@ type Command struct {
 // CameraMatrices are the matrices of one frame, in OpenGL's clip space (depth from -1 to 1); a
 // backend with another clip space converts them.
 type CameraMatrices struct {
-	Projection, View, ViewProjection graphics.Mat4
+	Projection, View, ViewProjection graphics.Matrix
 }
 
 // ComputeCameraMatrices returns the camera's matrices for a framebuffer of this size.
@@ -67,21 +67,21 @@ func CastsShadow(command Command) bool {
 }
 
 // BaseColorOf returns a material's colour, white when it is unset.
-func BaseColorOf(material *scene.Material) graphics.Vec4 {
-	if material.BaseColor == (graphics.Vec4{}) {
-		return graphics.Vec4{1, 1, 1, 1}
+func BaseColorOf(material *scene.Material) graphics.Vector {
+	if material.BaseColor == (graphics.Vector{}) {
+		return graphics.Vector{1, 1, 1, 1}
 	}
 	return material.BaseColor
 }
 
 func materialOrDefault(material *scene.Material) *scene.Material {
 	if material == nil {
-		return &scene.Material{BaseColor: graphics.Vec4{1, 1, 1, 1}}
+		return &scene.Material{BaseColor: graphics.Vector{1, 1, 1, 1}}
 	}
 	return material
 }
 
-func squaredHorizontalDistance(first, second graphics.Vec4) float32 {
+func squaredHorizontalDistance(first, second graphics.Vector) float32 {
 	deltaX, deltaZ := first[0]-second[0], first[2]-second[2]
 	return deltaX*deltaX + deltaZ*deltaZ
 }
@@ -102,14 +102,14 @@ func (planner *Planner) collectCommands(world *scene.Scene, camera models.Camera
 }
 
 // collectNode adds a node's command, when it has a mesh.
-func (planner *Planner) collectNode(node *scene.Node, transform graphics.Mat4) {
+func (planner *Planner) collectNode(node *scene.Node, transform graphics.Matrix) {
 	if node.Mesh == nil {
 		return
 	}
 	material := materialOrDefault(node.Mesh.Material)
 	planner.commands = append(planner.commands, Command{
 		Node: node, World: transform, Material: material, Transparent: IsTransparent(material),
-		SquaredCameraDistance: squaredHorizontalDistance(transform.Apply(graphics.Vec4{0, 0, 0, 1}), planner.walkCamera.Position),
+		SquaredCameraDistance: squaredHorizontalDistance(transform.Apply(graphics.Vector{0, 0, 0, 1}), planner.walkCamera.Position),
 		Lights:                planner.lightsOfNode(node, transform),
 	})
 }
@@ -148,7 +148,7 @@ func splitOpaqueAndTransparent(commands []Command) (opaque, transparent []Comman
 }
 
 // defaultDeepWater is the colour of deep water when the scene gives none: a dark, translucent teal.
-var defaultDeepWater = graphics.Vec4{0.05, 0.22, 0.28, 0.85}
+var defaultDeepWater = graphics.Vector{0.05, 0.22, 0.28, 0.85}
 
 // waterFloorDarkening is how much darker than deep water the floor under it is drawn.
 const waterFloorDarkening = 0.6
@@ -161,11 +161,11 @@ func (planner *Planner) waterCommand(water *scene.Water, camera models.Camera) C
 	}
 	mesh := planner.waterPlane.Mesh
 	deepColor := water.Deep
-	if deepColor == (graphics.Vec4{}) {
+	if deepColor == (graphics.Vector{}) {
 		deepColor = defaultDeepWater
 	}
 	mesh.Material.BaseColor = deepColor
-	world := graphics.Translate(graphics.Vec4{camera.Position[0], water.Level, camera.Position[2], 0})
+	world := graphics.Translate(graphics.Vector{camera.Position[0], water.Level, camera.Position[2], 0})
 	return Command{Node: planner.waterPlane, World: world, Material: mesh.Material, SquaredCameraDistance: -1, Transparent: true, SeaSurface: true}
 }
 
@@ -179,9 +179,9 @@ func (planner *Planner) waterFloorCommand(water *scene.Water, camera models.Came
 	}
 	material := planner.waterFloor.Mesh.Material
 	deep := water.Deep
-	material.BaseColor = graphics.Vec4{deep[0] * waterFloorDarkening, deep[1] * waterFloorDarkening, deep[2] * waterFloorDarkening, 1}
+	material.BaseColor = graphics.Vector{deep[0] * waterFloorDarkening, deep[1] * waterFloorDarkening, deep[2] * waterFloorDarkening, 1}
 	depth := water.Level - water.EffectiveFloorDepth()
-	world := graphics.Translate(graphics.Vec4{camera.Position[0], depth, camera.Position[2], 0})
+	world := graphics.Translate(graphics.Vector{camera.Position[0], depth, camera.Position[2], 0})
 	return Command{Node: planner.waterFloor, World: world, Material: material}
 }
 
@@ -249,15 +249,15 @@ func WaveLengthFor(water *scene.Water) float32 {
 }
 
 // ShallowColorOf is the colour of shallow water, with a default when it is unset.
-func ShallowColorOf(water *scene.Water) graphics.Vec4 {
-	if water.Shallow == (graphics.Vec4{}) {
-		return graphics.Vec4{0.3, 0.62, 0.6, 0.5}
+func ShallowColorOf(water *scene.Water) graphics.Vector {
+	if water.Shallow == (graphics.Vector{}) {
+		return graphics.Vector{0.3, 0.62, 0.6, 0.5}
 	}
 	return water.Shallow
 }
 
 // WindDirection is the horizontal direction of the wind, normalised, as x and z.
 func WindDirection(wind scene.Wind) (float32, float32) {
-	direction := graphics.Vec4{wind.Direction[0], 0, wind.Direction[2], 0}.Normalize()
+	direction := graphics.Vector{wind.Direction[0], 0, wind.Direction[2], 0}.Normalize()
 	return direction[0], direction[2]
 }

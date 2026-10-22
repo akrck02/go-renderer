@@ -338,7 +338,7 @@ func (shader *Shader) Free() {
 }
 
 // SetMatrix sets a 4×4 matrix uniform of the vertex shader in use.
-func SetMatrix(location int, matrix graphics.Mat4) {
+func SetMatrix(location int, matrix graphics.Matrix) {
 	if location < 0 {
 		return
 	}

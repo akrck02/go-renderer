@@ -13,8 +13,8 @@ func TestEveryFunctionSaysItIsNotImplemented(test *testing.T) {
 	calls := map[string]error{
 		"RenderPolygon":   renderer.RenderPolygon(graphics.CoordinateSpace(0), nil, nil, false),
 		"RenderTriangle":  renderer.RenderTriangle(graphics.CoordinateSpace(0), nil, nil, false),
-		"RenderRectangle": renderer.RenderRectangle(graphics.CoordinateSpace(0), graphics.Vec4{}, 1, 1, nil, false),
-		"RenderImage":     renderer.RenderImage(graphics.CoordinateSpace(0), nil, graphics.Vec4{}, 1, 1, nil),
+		"RenderRectangle": renderer.RenderRectangle(graphics.CoordinateSpace(0), graphics.Vector{}, 1, 1, nil, false),
+		"RenderImage":     renderer.RenderImage(graphics.CoordinateSpace(0), nil, graphics.Vector{}, 1, 1, nil),
 		"Render3dObject":  renderer.Render3dObject(graphics.CoordinateSpace(0), nil, nil),
 		"Render3dModel":   renderer.Render3dModel(graphics.CoordinateSpace(0), nil, nil),
 		"StartLoop":       backend.StartLoop(nil),

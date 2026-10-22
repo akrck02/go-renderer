@@ -7,7 +7,7 @@ import (
 )
 
 // groundTriangle is a walkable triangle in world space.
-type groundTriangle [3]graphics.Vec4
+type groundTriangle [3]graphics.Vector
 
 // groundIndex is a uniform grid over the XZ plane holding the triangles of walkable meshes,
 // so that height queries only test the few triangles near the point.
@@ -32,7 +32,7 @@ func (scene *Scene) GroundHeight(x, z float32) (float32, bool) {
 
 func collectGroundTriangles(scene *Scene) []groundTriangle {
 	var triangles []groundTriangle
-	scene.Walk(func(node *Node, world graphics.Mat4) {
+	scene.Walk(func(node *Node, world graphics.Matrix) {
 		if node.Mesh == nil || !node.Mesh.Ground || node.Instances != nil {
 			return
 		}

@@ -10,12 +10,12 @@ import (
 )
 
 // groundDistance is how far apart two points are on the ground, from above.
-func groundDistance(from, to graphics.Vec4) float64 {
+func groundDistance(from, to graphics.Vector) float64 {
 	return math.Hypot(float64(to[0]-from[0]), float64(to[2]-from[2]))
 }
 
 func TestTheStickUpMovesTheOrbitAwayFromTheCamera(test *testing.T) {
-	orbit := NewOrbit(graphics.Vec4{0, 0, 0, 1}, 100)
+	orbit := NewOrbit(graphics.Vector{0, 0, 0, 1}, 100)
 	var camera models.Camera
 	state := input.NewState()
 	state.WindowWidth, state.WindowHeight = 400, 240
@@ -29,7 +29,7 @@ func TestTheStickUpMovesTheOrbitAwayFromTheCamera(test *testing.T) {
 }
 
 func TestTheStickRightMovesThePlanRight(test *testing.T) {
-	plan := NewPlan(graphics.Vec4{0, 0, 0, 1}, 100)
+	plan := NewPlan(graphics.Vector{0, 0, 0, 1}, 100)
 	var camera models.Camera
 	state := input.NewState()
 	state.WindowWidth, state.WindowHeight = 400, 240

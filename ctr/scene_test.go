@@ -65,7 +65,7 @@ func TestAMeshWithoutIndicesIsAListOfTriangles(test *testing.T) {
 }
 
 func TestEachMaterialKindPicksOneShading(test *testing.T) {
-	cases := map[scene.MaterialKind]graphics.Vec4{
+	cases := map[scene.MaterialKind]graphics.Vector{
 		scene.KindLit:       {1, 0, 0, 0},
 		scene.KindUnlit:     {0, 1, 0, 0},
 		scene.KindWater:     {0, 0, 1, 0},
@@ -80,49 +80,49 @@ func TestEachMaterialKindPicksOneShading(test *testing.T) {
 }
 
 func TestTheFogIsOffWithoutAFarDistance(test *testing.T) {
-	shading := shadingFor(scene.Environment{FogNear: 10, VerticalScale: 1}, scene.Daylight{LightDirection: graphics.Vec4{0, 1, 0, 0}}, cameraAt(0, 0, 0))
+	shading := shadingFor(scene.Environment{FogNear: 10, VerticalScale: 1}, scene.Daylight{LightDirection: graphics.Vector{0, 1, 0, 0}}, cameraAt(0, 0, 0))
 	if shading.fog[1] != 0 {
 		test.Fatalf("fog %v, want no fog", shading.fog)
 	}
-	shading = shadingFor(scene.Environment{FogNear: 10, FogFar: 20, VerticalScale: 1}, scene.Daylight{LightDirection: graphics.Vec4{0, 1, 0, 0}}, cameraAt(0, 0, 0))
+	shading = shadingFor(scene.Environment{FogNear: 10, FogFar: 20, VerticalScale: 1}, scene.Daylight{LightDirection: graphics.Vector{0, 1, 0, 0}}, cameraAt(0, 0, 0))
 	if shading.fog[0] != 10 || shading.fog[1] != 0.1 {
 		test.Fatalf("fog %v, want near 10 and 1/10", shading.fog)
 	}
 }
 
 func TestTheHorizonIsPackedInTheScreensGamma(test *testing.T) {
-	if got := screenColour(graphics.Vec4{1, 0, 0.2195, 1}); got != 0xFF0080FF {
+	if got := screenColour(graphics.Vector{1, 0, 0.2195, 1}); got != 0xFF0080FF {
 		test.Fatalf("%08X, want FF0080FF", got)
 	}
 }
 
 func cameraAt(x, y, z float32) models.Camera {
-	return models.Camera{Position: graphics.Vec4{x, y, z, 1}}
+	return models.Camera{Position: graphics.Vector{x, y, z, 1}}
 }
 
 func TestBothEyesSeeTheFocalPointInTheSamePlace(test *testing.T) {
-	camera := models.Camera{Position: graphics.Vec4{0, 0, 10, 1}, Target: graphics.Vec4{0, 0, 0, 1}, Up: graphics.Vec4{0, 1, 0, 0}}
-	screenX := func(eye Eye, point graphics.Vec4) float32 {
+	camera := models.Camera{Position: graphics.Vector{0, 0, 10, 1}, Target: graphics.Vector{0, 0, 0, 1}, Up: graphics.Vector{0, 1, 0, 0}}
+	screenX := func(eye Eye, point graphics.Vector) float32 {
 		clip := EyeViewProjection(camera, eye, 1, 10, 400, 240).Apply(point)
 		return clip[0] / clip[3]
 	}
-	focal := graphics.Vec4{0, 0, 0, 1}
+	focal := graphics.Vector{0, 0, 0, 1}
 	if !near(screenX(LeftEye, focal), screenX(RightEye, focal)) {
 		test.Fatalf("the focal point is at %v and %v", screenX(LeftEye, focal), screenX(RightEye, focal))
 	}
 	// Nearer than the focal distance: the left eye sees it more to the right (it comes out).
-	nearer := graphics.Vec4{0, 0, 5, 1}
+	nearer := graphics.Vector{0, 0, 5, 1}
 	if screenX(LeftEye, nearer) <= screenX(RightEye, nearer) {
 		test.Fatalf("a nearer point is at %v (left) and %v (right)", screenX(LeftEye, nearer), screenX(RightEye, nearer))
 	}
-	farther := graphics.Vec4{0, 0, -20, 1}
+	farther := graphics.Vector{0, 0, -20, 1}
 	if screenX(LeftEye, farther) >= screenX(RightEye, farther) {
 		test.Fatalf("a farther point is at %v (left) and %v (right)", screenX(LeftEye, farther), screenX(RightEye, farther))
 	}
 }
 
 func TestTheEyesStandApartAlongTheCamerasRight(test *testing.T) {
-	camera := models.Camera{Position: graphics.Vec4{0, 0, 10, 1}, Target: graphics.Vec4{0, 0, 0, 1}, Up: graphics.Vec4{0, 1, 0, 0}}
+	camera := models.Camera{Position: graphics.Vector{0, 0, 10, 1}, Target: graphics.Vector{0, 0, 0, 1}, Up: graphics.Vector{0, 1, 0, 0}}
 	left, right := EyeCamera(camera, LeftEye, 2), EyeCamera(camera, RightEye, 2)
 	if !near(left.Position[0], -1) || !near(right.Position[0], 1) || !near(right.Target[0], 1) {
 		test.Fatalf("left at %v, right at %v looking at %v", left.Position, right.Position, right.Target)

@@ -83,7 +83,7 @@ Frame is what the layout needs to know about the frame being drawn.
 
 ```go
 type Frame struct {
-	ViewProjection graphics.Mat4 // the camera's projection times its view
+	ViewProjection graphics.Matrix // the camera's projection times its view
 	Width, Height  int           // framebuffer size in pixels
 	Scale          float32       // framebuffer pixels per layout pixel: 2 on a high-density screen; 0 = 1
 	VerticalScale  float32       // the scene's vertical exaggeration; 0 = 1
@@ -155,7 +155,7 @@ type Painter struct {
 | `func (painter *Painter) Atlas() *Atlas` | Atlas returns the image the quads point into. |
 | `func (painter *Painter) Lightings() []Lighting` | Lightings list where, in the quads Paint just gave, the backend lights what it drew so far; empty when nothing is lit, which then costs nothing. |
 | `func (painter *Painter) Lights() []LightQuad` | Lights are the lights Paint laid out, which the Lightings take in turn. |
-| `func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]graphics.Mat4, frame Frame) []Quad` | Paint lays out the whole overlay for a frame. |
+| `func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]graphics.Matrix, frame Frame) []Quad` | Paint lays out the whole overlay for a frame. |
 | `func (painter *Painter) Pictures() *Pictures` | Pictures returns the image pictured quads read their colours from. |
 | `func (painter *Painter) Report(message string)` | Report tells the program of a problem a frame works around: through Warn when the program set it, otherwise as a warning of the default slog logger. |
 | `func (painter *Painter) Snapshots() []Snapshot` | Snapshots lists where, in the quads Paint just gave, the backend takes and blurs a picture of the frame so far; empty when nothing on screen is frosted, which then costs nothing. |
@@ -193,7 +193,7 @@ type Projection struct {
 
 | Function or method | |
 |---|---|
-| `func Project(point graphics.Vec4, frame Frame) Projection` | Project places a world point on screen, applying the vertical exaggeration as the scene shaders do. |
+| `func Project(point graphics.Vector, frame Frame) Projection` | Project places a world point on screen, applying the vertical exaggeration as the scene shaders do. |
 
 ### Quad
 

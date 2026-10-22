@@ -35,7 +35,7 @@ Orbit rotates around a target: left drag rotates, right drag (or shift + left dr
 
 ```go
 type Orbit struct {
-	Target          graphics.Vec4
+	Target          graphics.Vector
 	Distance        float64
 	Yaw             float64 // radians around the vertical axis
 	Pitch           float64 // radians; 0 looks from the horizon, pi/2 from straight above
@@ -52,7 +52,7 @@ type Orbit struct {
 
 | Function or method | |
 |---|---|
-| `func NewOrbit(target graphics.Vec4, sceneSize float64) *Orbit` | NewOrbit returns an orbit controller with sensible defaults for a scene of the given size. |
+| `func NewOrbit(target graphics.Vector, sceneSize float64) *Orbit` | NewOrbit returns an orbit controller with sensible defaults for a scene of the given size. |
 | `func (orbit *Orbit) Gesture(gesture input.Gesture, windowWidth, windowHeight int)` | Gesture applies what two fingers did (input.TwoFingers), as a map does: the ground that was between the fingers stays between them while they spread (closer), turn (the view turns with them) and move together. |
 | `func (orbit *Orbit) Update(state *input.State, seconds float64, camera *models.Camera)` | Update applies this frame's input and places the camera. |
 
@@ -62,7 +62,7 @@ Plan looks at the ground like a map, without perspective: from straight above, w
 
 ```go
 type Plan struct {
-	Target        graphics.Vec4
+	Target        graphics.Vector
 	Span          float64 // world units from the bottom to the top of the screen
 	Isometric     bool
 	Turns         int     // quarter turns: 0 has north up in the top view
@@ -78,7 +78,7 @@ type Plan struct {
 
 | Function or method | |
 |---|---|
-| `func NewPlan(target graphics.Vec4, sceneSize float64) *Plan` | NewPlan returns a plan view of a scene of the given size, showing all of it. |
+| `func NewPlan(target graphics.Vector, sceneSize float64) *Plan` | NewPlan returns a plan view of a scene of the given size, showing all of it. |
 | `func (plan *Plan) Update(state *input.State, seconds float64, camera *models.Camera)` | Update applies this frame's input and places the camera. |
 
 ### Ray
@@ -87,16 +87,16 @@ Ray is a half-line in the scene as it is drawn: from Origin along Direction (of 
 
 ```go
 type Ray struct {
-	Origin, Direction graphics.Vec4
+	Origin, Direction graphics.Vector
 }
 ```
 
 | Function or method | |
 |---|---|
 | `func RayThrough(view models.Camera, width, height int, x, y float64) (Ray, bool)` | RayThrough returns the ray from the camera through a point of the window: x and y in window pixels from the top-left corner of a window width × height pixels (where the pointer is). |
-| `func (ray Ray) At(distance float32) graphics.Vec4` | At returns the point at a distance along the ray. |
-| `func (ray Ray) PointAtHeight(height float32) (graphics.Vec4, bool)` | PointAtHeight returns where the ray meets the horizontal plane at a drawn height: a flat floor, a table top. |
-| `func (ray Ray) PointOnGround(ground func(x, z float32) (float32, bool), verticalScale, lowest, highest float32) (graphics.Vec4, bool)` | PointOnGround returns the first point where the ray meets a relief: ground gives the height of the ground at a point (in true heights, as scene.Scene.GroundHeight does, false where there is none), verticalScale is the exaggeration it is drawn with, and lowest and highest bound the ground's true heights (the scene's bounds), so the search only covers where it can be. |
+| `func (ray Ray) At(distance float32) graphics.Vector` | At returns the point at a distance along the ray. |
+| `func (ray Ray) PointAtHeight(height float32) (graphics.Vector, bool)` | PointAtHeight returns where the ray meets the horizontal plane at a drawn height: a flat floor, a table top. |
+| `func (ray Ray) PointOnGround(ground func(x, z float32) (float32, bool), verticalScale, lowest, highest float32) (graphics.Vector, bool)` | PointOnGround returns the first point where the ray meets a relief: ground gives the height of the ground at a point (in true heights, as scene.Scene.GroundHeight does, false where there is none), verticalScale is the exaggeration it is drawn with, and lowest and highest bound the ground's true heights (the scene's bounds), so the search only covers where it can be. |
 
 ### Walk
 

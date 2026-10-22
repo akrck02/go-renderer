@@ -9,7 +9,7 @@ import "github.com/akrck02/go-renderer/models"
 ```go
 type Application struct {
 	Type       ApplicationType
-	Background graphics.Vec4
+	Background graphics.Vector
 	Width      int
 	Height     int
 	// MinWidth and MinHeight, when above 0, stop the window from being made smaller.
@@ -47,9 +47,9 @@ type Application struct {
 	// Stop, when set by Update or Draw, ends a window application after the current frame.
 	Stop             bool
 	Camera           Camera
-	ModelMatrix      graphics.Mat4
-	ViewMatrix       graphics.Mat4
-	ProjectionMatrix graphics.Mat4
+	ModelMatrix      graphics.Matrix
+	ViewMatrix       graphics.Matrix
+	ProjectionMatrix graphics.Matrix
 }
 ```
 
@@ -70,9 +70,9 @@ const (
 
 ```go
 type Camera struct {
-	Position    graphics.Vec4
-	Target      graphics.Vec4
-	Up          graphics.Vec4
+	Position    graphics.Vector
+	Target      graphics.Vector
+	Up          graphics.Vector
 	FieldOfView float64 // vertical field of view in radians (0 = pi/4)
 	Near        float32 // near clipping plane (0 = 0.1)
 	Far         float32 // far clipping plane (0 = 1000)
@@ -87,7 +87,7 @@ type Camera struct {
 |---|---|
 | `func (camera Camera) IsOrthographic() bool` | IsOrthographic tells whether the camera has no perspective. |
 | `func (camera Camera) Projection() (fieldOfView float64, near, far float32)` | Projection returns the camera frustum values, filling defaults for zero fields. |
-| `func (camera Camera) ProjectionMatrix(aspect float64) graphics.Mat4` | ProjectionMatrix returns the camera's projection for OpenGL, perspective or orthographic, for a screen of this width over height. |
+| `func (camera Camera) ProjectionMatrix(aspect float64) graphics.Matrix` | ProjectionMatrix returns the camera's projection for OpenGL, perspective or orthographic, for a screen of this width over height. |
 
 ### GraphicsApi
 
@@ -118,7 +118,7 @@ const (
 
 ```go
 type Mesh struct {
-	Vertices []graphics.Vec4
+	Vertices []graphics.Vector
 	Indices  []uint32
 }
 ```
@@ -135,13 +135,13 @@ type Model struct {
 
 ```go
 type Renderer interface {
-	RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vec4, shader *string, fill bool) error
-	RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vec4, shader *string, fill bool) error
-	RenderRectangle(space graphics.CoordinateSpace, coordinates graphics.Vec4, width float32, height float32, shader *string, fill bool) error
-	RenderImage(space graphics.CoordinateSpace, bytes []byte, coordinates graphics.Vec4, width float32, height float32, shader *string) error
-	Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vec4, shader *string) error
+	RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error
+	RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error
+	RenderRectangle(space graphics.CoordinateSpace, coordinates graphics.Vector, width float32, height float32, shader *string, fill bool) error
+	RenderImage(space graphics.CoordinateSpace, bytes []byte, coordinates graphics.Vector, width float32, height float32, shader *string) error
+	Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vector, shader *string) error
 	Render3dModel(space graphics.CoordinateSpace, model *Model, shader *string) error
-	SetMatrices(projection, view, model graphics.Mat4)
+	SetMatrices(projection, view, model graphics.Matrix)
 }
 ```
 

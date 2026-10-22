@@ -8,9 +8,9 @@ import (
 
 func TestDaylightFollowsTheSun(test *testing.T) {
 	environment := DefaultEnvironment()
-	environment.SunDirection = graphics.Vec4{0, 1, 0.2, 0}.Normalize()
+	environment.SunDirection = graphics.Vector{0, 1, 0.2, 0}.Normalize()
 	day := environment.Daylight()
-	environment.SunDirection = graphics.Vec4{0, -1, 0.2, 0}.Normalize()
+	environment.SunDirection = graphics.Vector{0, -1, 0.2, 0}.Normalize()
 	night := environment.Daylight()
 	if day.DayAmount < 0.99 || night.DayAmount > 0.01 {
 		test.Fatalf("day amount: day %v night %v", day.DayAmount, night.DayAmount)
@@ -24,10 +24,10 @@ func TestDaylightFollowsTheSun(test *testing.T) {
 }
 
 func TestStarsTurnWithTheSun(test *testing.T) {
-	pole := graphics.Vec4{0, 1, 0, 0}
-	morning := starRotation(graphics.Vec4{1, 0, 0, 0}, pole)
-	evening := starRotation(graphics.Vec4{-1, 0, 0, 0}, pole)
-	star := graphics.Vec4{0, 0, -1, 0}
+	pole := graphics.Vector{0, 1, 0, 0}
+	morning := starRotation(graphics.Vector{1, 0, 0, 0}, pole)
+	evening := starRotation(graphics.Vector{-1, 0, 0, 0}, pole)
+	star := graphics.Vector{0, 0, -1, 0}
 	if morning.Apply(star) == evening.Apply(star) {
 		test.Fatalf("the celestial direction of a star should change with the sun")
 	}

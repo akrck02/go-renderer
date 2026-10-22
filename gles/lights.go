@@ -85,7 +85,7 @@ func (layer *lightLayer) light(lighting overlay.Lighting, target Framebuffer, wi
 	functions.ActiveTexture(Texture0 + lightTextureUnit)
 	functions.BindTexture(Texture2D, layer.target.texture)
 	layer.multiplyProgram.setInteger("light", lightTextureUnit)
-	layer.multiplyProgram.setVector4("area", graphics.Vec4(lighting.Area))
+	layer.multiplyProgram.setVector4("area", graphics.Vector(lighting.Area))
 	layer.multiplyProgram.setVector2("screenSize", float32(width), float32(height))
 	functions.Enable(Blend)
 	// screen × light + light × screen: twice the light, so half is neutral; the screen's alpha stays

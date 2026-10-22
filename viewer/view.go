@@ -38,10 +38,10 @@ func (view View) Ray(x, y float64) (camera.Ray, bool) {
 
 // PointOnPlane returns the point of the window (x, y in window pixels) on the horizontal plane at a
 // true height: a flat floor. It is false when that point is not in sight.
-func (view View) PointOnPlane(x, y float64, height float32) (graphics.Vec4, bool) {
+func (view View) PointOnPlane(x, y float64, height float32) (graphics.Vector, bool) {
 	ray, ok := view.Ray(x, y)
 	if !ok {
-		return graphics.Vec4{}, false
+		return graphics.Vector{}, false
 	}
 	scale := view.world.Environment.EffectiveVerticalScale()
 	point, hit := ray.PointAtHeight(height * scale)
@@ -51,10 +51,10 @@ func (view View) PointOnPlane(x, y float64, height float32) (graphics.Vec4, bool
 
 // PointOnGround returns the point of the window (x, y in window pixels) on the scene's walkable
 // ground (meshes marked Ground), with its true height. It is false when the pointer is not on it.
-func (view View) PointOnGround(x, y float64) (graphics.Vec4, bool) {
+func (view View) PointOnGround(x, y float64) (graphics.Vector, bool) {
 	ray, ok := view.Ray(x, y)
 	if !ok {
-		return graphics.Vec4{}, false
+		return graphics.Vector{}, false
 	}
 	return ray.PointOnGround(view.world.GroundHeight, view.world.Environment.EffectiveVerticalScale(), view.lowest, view.highest)
 }

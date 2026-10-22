@@ -52,7 +52,7 @@ top-left corner; the first line is a little bigger and bolder, for a clock or a 
 Notices are short messages under the header:
 
 ```go
-world.Overlay.AddNotice("anchor", "Boat 4 moored at the north quay", graphics.Vec4{})
+world.Overlay.AddNotice("anchor", "Boat 4 moored at the north quay", graphics.Vector{})
 ```
 
 They show newest first, at most `MaximumNotices` at a time (5 by default), for

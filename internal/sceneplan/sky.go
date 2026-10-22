@@ -11,7 +11,7 @@ import (
 // its colour.
 type LineRange struct {
 	First, Count int32
-	Color        graphics.Vec4
+	Color        graphics.Vector
 }
 
 // ConstellationVertices lays out every star first (drawn as points) and then the line segments of
@@ -53,6 +53,6 @@ func ConstellationVisibility(sky *scene.Sky, light scene.Daylight) float32 {
 }
 
 // LineColor is the colour a constellation's lines are drawn with: its own, more transparent.
-func LineColor(color graphics.Vec4) graphics.Vec4 {
-	return graphics.Vec4{color[0], color[1], color[2], color[3] * 0.55}
+func LineColor(color graphics.Vector) graphics.Vector {
+	return graphics.Vector{color[0], color[1], color[2], color[3] * 0.55}
 }

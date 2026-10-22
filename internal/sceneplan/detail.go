@@ -67,7 +67,7 @@ type instancedDetail struct {
 	// the cells' boxes in world units, for the world matrix and vertical scale they were made for:
 	// the same every frame unless the node moves or the relief's exaggeration changes
 	worldCells        []box
-	worldCellsFor     graphics.Mat4
+	worldCellsFor     graphics.Matrix
 	worldCellsScale   float32
 	worldCellsLargest []float32
 }
@@ -173,7 +173,7 @@ func (selection *instanceSelection) rewriteInstance(store BatchStore, grid *inst
 }
 
 // choose picks the visible cells and their levels, and fills the batches that changed.
-func (selection *instanceSelection) choose(store BatchStore, detail *instancedDetail, world graphics.Mat4, verticalScale float32, view Viewpoint) {
+func (selection *instanceSelection) choose(store BatchStore, detail *instancedDetail, world graphics.Matrix, verticalScale float32, view Viewpoint) {
 	levels := detail.mesh.LevelCount()
 	selection.resetLevels(levels)
 	worldCells, largest := detail.cellsInWorld(world, verticalScale)
@@ -194,7 +194,7 @@ func (selection *instanceSelection) choose(store BatchStore, detail *instancedDe
 
 // cellsInWorld are the cells' boxes in world units (grown a little, as the instances sway) and the
 // size of their largest instance, made again only when the node moves or the exaggeration changes.
-func (detail *instancedDetail) cellsInWorld(world graphics.Mat4, verticalScale float32) ([]box, []float32) {
+func (detail *instancedDetail) cellsInWorld(world graphics.Matrix, verticalScale float32) ([]box, []float32) {
 	if detail.worldCells != nil && detail.worldCellsFor == world && detail.worldCellsScale == verticalScale {
 		return detail.worldCells, detail.worldCellsLargest
 	}
@@ -241,10 +241,10 @@ func (selection *instanceSelection) fill(store BatchStore, detail *instancedDeta
 }
 
 // largestScale returns the largest axis scale of a transform.
-func largestScale(transform graphics.Mat4) float32 {
+func largestScale(transform graphics.Matrix) float32 {
 	largest := 0.0
 	for column := 0; column < 3; column++ {
-		axis := graphics.Vec4{transform[column*4], transform[column*4+1], transform[column*4+2], 0}
+		axis := graphics.Vector{transform[column*4], transform[column*4+1], transform[column*4+2], 0}
 		largest = math.Max(largest, math.Sqrt(float64(axis.Dot(axis))))
 	}
 	return float32(largest)

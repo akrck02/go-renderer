@@ -137,8 +137,8 @@ type View struct {
 | Function or method | |
 |---|---|
 | `func (view View) FrameGround(minimumX, minimumZ, maximumX, maximumZ float32)` | FrameGround asks the cameras to show a rectangle of ground whole (x and z from minimum to maximum): they aim at its middle and the map's span fits it in the window. |
-| `func (view View) PointOnGround(x, y float64) (graphics.Vec4, bool)` | PointOnGround returns the point of the window (x, y in window pixels) on the scene's walkable ground (meshes marked Ground), with its true height. |
-| `func (view View) PointOnPlane(x, y float64, height float32) (graphics.Vec4, bool)` | PointOnPlane returns the point of the window (x, y in window pixels) on the horizontal plane at a true height: a flat floor. |
+| `func (view View) PointOnGround(x, y float64) (graphics.Vector, bool)` | PointOnGround returns the point of the window (x, y in window pixels) on the scene's walkable ground (meshes marked Ground), with its true height. |
+| `func (view View) PointOnPlane(x, y float64, height float32) (graphics.Vector, bool)` | PointOnPlane returns the point of the window (x, y in window pixels) on the horizontal plane at a true height: a flat floor. |
 | `func (view View) Ray(x, y float64) (camera.Ray, bool)` | Ray returns the ray from the camera through a point of the window, in drawn heights. |
 | `func (view View) Span() float64` | Span is how much ground the map shows from the bottom of the window to its top, in world units: a program shows its zoom from it. |
 | `func (view View) ZoomBy(factor float64)` | ZoomBy asks the cameras to come nearer by a factor (2 shows half as much, 0.5 twice as much), keeping what they aim at, as a zoom button does. |

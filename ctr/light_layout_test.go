@@ -90,12 +90,12 @@ func TestTheAmbientIsClearedAtHalf(test *testing.T) {
 func TestOrthographicPutsTheLightCanvasCornersOnTheClipCorners(test *testing.T) {
 	projection := Orthographic(0, lightCanvasWidth, lightCanvasHeight, 0, 0, 1)
 	cases := []struct {
-		point        graphics.Vec4
+		point        graphics.Vector
 		clipX, clipY float32
 		name         string
 	}{
-		{graphics.Vec4{0, 0, 0, 1}, -1, 1, "top left"},
-		{graphics.Vec4{lightCanvasWidth, lightCanvasHeight, 0, 1}, 1, -1, "bottom right"},
+		{graphics.Vector{0, 0, 0, 1}, -1, 1, "top left"},
+		{graphics.Vector{lightCanvasWidth, lightCanvasHeight, 0, 1}, 1, -1, "bottom right"},
 	}
 	for _, testCase := range cases {
 		clip := projection.Apply(testCase.point)

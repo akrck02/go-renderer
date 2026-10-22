@@ -7,23 +7,23 @@ import (
 
 type SoftwareRenderer struct{}
 
-func (SoftwareRenderer) RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vec4, shader *string, fill bool) error {
+func (SoftwareRenderer) RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error {
 	return NotImplemented
 }
 
-func (SoftwareRenderer) RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vec4, shader *string, fill bool) error {
+func (SoftwareRenderer) RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error {
 	return NotImplemented
 }
 
-func (SoftwareRenderer) RenderRectangle(space graphics.CoordinateSpace, coordinates graphics.Vec4, width float32, height float32, shader *string, fill bool) error {
+func (SoftwareRenderer) RenderRectangle(space graphics.CoordinateSpace, coordinates graphics.Vector, width float32, height float32, shader *string, fill bool) error {
 	return NotImplemented
 }
 
-func (SoftwareRenderer) RenderImage(space graphics.CoordinateSpace, bytes []byte, coordinates graphics.Vec4, width float32, height float32, shader *string) error {
+func (SoftwareRenderer) RenderImage(space graphics.CoordinateSpace, bytes []byte, coordinates graphics.Vector, width float32, height float32, shader *string) error {
 	return NotImplemented
 }
 
-func (SoftwareRenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vec4, shader *string) error {
+func (SoftwareRenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vector, shader *string) error {
 	return NotImplemented
 }
 
@@ -31,4 +31,4 @@ func (SoftwareRenderer) Render3dModel(space graphics.CoordinateSpace, model *mod
 	return NotImplemented
 }
 
-func (SoftwareRenderer) SetMatrices(projection, view, model graphics.Mat4) {}
+func (SoftwareRenderer) SetMatrices(projection, view, model graphics.Matrix) {}

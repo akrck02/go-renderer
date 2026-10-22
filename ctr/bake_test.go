@@ -11,8 +11,8 @@ import (
 
 func upwardLight() lightKey {
 	return lightKey{
-		sunDirection: graphics.Vec4{0, 1, 0, 0}, sunColour: graphics.Vec4{0.5, 0.5, 0.5, 0},
-		ambientGround: graphics.Vec4{0.1, 0.1, 0.1, 0}, ambientSpan: graphics.Vec4{0.2, 0.2, 0.2, 0},
+		sunDirection: graphics.Vector{0, 1, 0, 0}, sunColour: graphics.Vector{0.5, 0.5, 0.5, 0},
+		ambientGround: graphics.Vector{0.1, 0.1, 0.1, 0}, ambientSpan: graphics.Vector{0.2, 0.2, 0.2, 0},
 		brightness: 0.5, verticalScale: 1,
 	}
 }
@@ -29,7 +29,7 @@ func bakedColour(baked []float32, vertex int) [4]uint32 {
 func TestALitSurfaceFacingTheSunGetsSkyAndSun(test *testing.T) {
 	// Facing up: sky and ground light 0.1 + 0.2, sun 0.5, on white: 0.8, to the screen's gamma.
 	mesh := &scene.Mesh{Positions: []float32{1, 2, 3}, Normals: []float32{0, 1, 0}}
-	baked := bakeVertices(nil, mesh, bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vec4{1, 1, 1, 1}, kind: scene.KindLit, light: upwardLight()})
+	baked := bakeVertices(nil, mesh, bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vector{1, 1, 1, 1}, kind: scene.KindLit, light: upwardLight()})
 	if baked[0] != 1 || baked[1] != 2 || baked[2] != 3 {
 		test.Fatalf("position %v, want 1 2 3", baked[0:3])
 	}
@@ -41,7 +41,7 @@ func TestALitSurfaceFacingTheSunGetsSkyAndSun(test *testing.T) {
 
 func TestASurfaceFacingDownGetsOnlyTheGroundLight(test *testing.T) {
 	mesh := &scene.Mesh{Positions: []float32{0, 0, 0}, Normals: []float32{0, -1, 0}}
-	baked := bakeVertices(nil, mesh, bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vec4{1, 1, 1, 1}, kind: scene.KindLit, light: upwardLight()})
+	baked := bakeVertices(nil, mesh, bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vector{1, 1, 1, 1}, kind: scene.KindLit, light: upwardLight()})
 	want := uint32(math.Round(math.Pow(0.1, 1/2.2) * 255))
 	if got := bakedColour(baked, 0); got[0] != want {
 		test.Fatalf("red %d, want %d", got[0], want)
@@ -50,7 +50,7 @@ func TestASurfaceFacingDownGetsOnlyTheGroundLight(test *testing.T) {
 
 func TestAnUnlitSurfaceTakesTheBrightness(test *testing.T) {
 	mesh := &scene.Mesh{Positions: []float32{0, 0, 0}, Normals: []float32{0, -1, 0}, Colors: []float32{1, 0, 0, 0.5}}
-	baked := bakeVertices(nil, mesh, bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vec4{1, 1, 1, 1}, kind: scene.KindUnlit, light: upwardLight()})
+	baked := bakeVertices(nil, mesh, bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vector{1, 1, 1, 1}, kind: scene.KindUnlit, light: upwardLight()})
 	want := uint32(math.Round(math.Pow(0.5, 1/2.2) * 255))
 	if got := bakedColour(baked, 0); got != [4]uint32{want, 0, 0, 128} {
 		test.Fatalf("colour %v, want %d 0 0 128", got, want)
@@ -61,7 +61,7 @@ func TestATurnedNodeTurnsItsLight(test *testing.T) {
 	// A half turn around x: the normal that pointed up points down.
 	upsideDown := [9]float32{1, 0, 0, 0, -1, 0, 0, 0, -1}
 	mesh := &scene.Mesh{Positions: []float32{0, 0, 0}, Normals: []float32{0, 1, 0}}
-	baked := bakeVertices(nil, mesh, bakeKey{normalMatrix: upsideDown, baseColour: graphics.Vec4{1, 1, 1, 1}, kind: scene.KindLit, light: upwardLight()})
+	baked := bakeVertices(nil, mesh, bakeKey{normalMatrix: upsideDown, baseColour: graphics.Vector{1, 1, 1, 1}, kind: scene.KindLit, light: upwardLight()})
 	want := uint32(math.Round(math.Pow(0.1, 1/2.2) * 255))
 	if got := bakedColour(baked, 0); got[0] != want {
 		test.Fatalf("red %d, want the ground light only, %d", got[0], want)
@@ -98,7 +98,7 @@ func TestTheGammaTableMatchesThePower(test *testing.T) {
 
 func TestBakingAgainReusesTheBuffer(test *testing.T) {
 	mesh := &scene.Mesh{Positions: []float32{0, 0, 0, 1, 0, 0, 0, 1, 0}, Normals: []float32{0, 1, 0, 0, 1, 0, 0, 1, 0}}
-	key := bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vec4{1, 1, 1, 1}, kind: scene.KindLit, light: upwardLight()}
+	key := bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vector{1, 1, 1, 1}, kind: scene.KindLit, light: upwardLight()}
 	first := bakeVertices(nil, mesh, key)
 	again := bakeVertices(first, mesh, key)
 	if &again[0] != &first[0] {
@@ -109,14 +109,14 @@ func TestBakingAgainReusesTheBuffer(test *testing.T) {
 // lampAbove is a white lamp at intensity 1, one unit over the origin, reaching three.
 func lampAbove() lampKey {
 	return lampKey{count: 1, model: graphics.Identity(), lights: [4]sceneplan.FrameLight{
-		{Position: graphics.Vec4{0, 1, 0, 1}, Color: graphics.Vec4{1, 1, 1, 1}, Inner: 0.5, Outer: 3},
+		{Position: graphics.Vector{0, 1, 0, 1}, Color: graphics.Vector{1, 1, 1, 1}, Inner: 0.5, Outer: 3},
 	}}
 }
 
 func TestALampLightsTheVerticesItReaches(test *testing.T) {
 	// two vertices facing up: one under the lamp, one out of its reach
 	mesh := &scene.Mesh{Positions: []float32{0, 0, 0, 10, 0, 0}, Normals: []float32{0, 1, 0, 0, 1, 0}}
-	key := bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vec4{0.5, 0.5, 0.5, 1}, kind: scene.KindLit, light: upwardLight()}
+	key := bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vector{0.5, 0.5, 0.5, 1}, kind: scene.KindLit, light: upwardLight()}
 	unlit := bakeVertices(nil, mesh, key)
 	key.lamps = lampAbove()
 	lit := bakeVertices(nil, mesh, key)
@@ -143,11 +143,11 @@ func TestAMovingLampBakesAgainAndAStillOneDoesNot(test *testing.T) {
 }
 
 // shaderLampLight is scene.v.pica's lamp light, step by step, from the uniforms it reads.
-func shaderLampLight(uniforms lampUniforms, world, normal graphics.Vec4) graphics.Vec4 {
-	var total graphics.Vec4
+func shaderLampLight(uniforms lampUniforms, world, normal graphics.Vector) graphics.Vector {
+	var total graphics.Vector
 	for slot := range uniforms.positions {
 		position, colour := uniforms.positions[slot], uniforms.colours[slot]
-		towards := graphics.Vec4{position[0] - world[0], position[1] - world[1], position[2] - world[2], 0}
+		towards := graphics.Vector{position[0] - world[0], position[1] - world[1], position[2] - world[2], 0}
 		distance := float32(math.Sqrt(float64(max(towards.Dot(towards), 1e-5))))
 		facing := max(normal.Dot(towards)/distance, 0)
 		share := min(max((distance-position[3])*colour[3], 0), 1)
@@ -161,14 +161,14 @@ func shaderLampLight(uniforms lampUniforms, world, normal graphics.Vec4) graphic
 
 func TestAMovingNodeIsLitOnTheGPUAsABakedOneIs(test *testing.T) {
 	lamps := lampAbove()
-	lamps.lights[1] = sceneplan.FrameLight{Position: graphics.Vec4{2, 0.5, 0, 1}, Color: graphics.Vec4{0, 0.5, 1, 1}, Inner: 0, Outer: 4}
+	lamps.lights[1] = sceneplan.FrameLight{Position: graphics.Vector{2, 0.5, 0, 1}, Color: graphics.Vector{0, 0.5, 1, 1}, Inner: 0, Outer: 4}
 	lamps.count = 2
 	frameLights := lamps.lights[:2]
 	uniforms := lampUniformsOf(sceneplan.DrawLights{Indices: [4]uint16{0, 1}, Count: 2}, frameLights)
-	up := graphics.Vec4{0, 1, 0, 0}
+	up := graphics.Vector{0, 1, 0, 0}
 	for _, position := range [][]float32{{0, 0, 0}, {1, 0, 0}, {2.5, 0, 0}, {10, 0, 0}} {
 		baked := lamps.lightAt(position, up, 1)
-		shaded := shaderLampLight(uniforms, graphics.Vec4{position[0], position[1], position[2], 1}, up)
+		shaded := shaderLampLight(uniforms, graphics.Vector{position[0], position[1], position[2], 1}, up)
 		for channel := range 3 {
 			if math.Abs(float64(baked[channel]-shaded[channel])) > 1e-4 {
 				test.Errorf("at %v the GPU's lamps give %v, the bake %v", position, shaded, baked)
@@ -176,7 +176,7 @@ func TestAMovingNodeIsLitOnTheGPUAsABakedOneIs(test *testing.T) {
 			}
 		}
 	}
-	if uniforms.colours[2] != (graphics.Vec4{}) {
+	if uniforms.colours[2] != (graphics.Vector{}) {
 		test.Errorf("an unused lamp's colour is %v, wanted none", uniforms.colours[2])
 	}
 }

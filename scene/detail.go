@@ -36,7 +36,7 @@ func (mesh *Mesh) LevelForScreenSize(screenSize float32) int {
 }
 
 // Bounds returns the box around the mesh positions in its own coordinates.
-func (mesh *Mesh) Bounds() (minimum, maximum graphics.Vec4) {
+func (mesh *Mesh) Bounds() (minimum, maximum graphics.Vector) {
 	box := newBoundingBox()
 	for index := uint32(0); int(index) < mesh.VertexCount(); index++ {
 		box.include(mesh.Vertex(index))

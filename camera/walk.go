@@ -36,10 +36,10 @@ func (walk *Walk) Update(state *input.State, seconds float64, camera *models.Cam
 		walk.move(state, seconds)
 		walk.Steer(float32(state.StickY), float32(state.StickX), seconds) // the stick walks, as on a phone's screen
 	}
-	eye := graphics.Vec4{walk.X, walk.groundUnderFeet() + walk.EyeHeight, walk.Z, 1}
+	eye := graphics.Vector{walk.X, walk.groundUnderFeet() + walk.EyeHeight, walk.Z, 1}
 	camera.Position = eye
 	camera.Target = eye.Add(walk.viewDirection())
-	camera.Up = graphics.Vec4{0, 1, 0, 0}
+	camera.Up = graphics.Vector{0, 1, 0, 0}
 }
 
 func isLooking(state *input.State) bool {
@@ -134,9 +134,9 @@ func (walk *Walk) groundUnderFeet() float32 {
 	return highest
 }
 
-func (walk *Walk) viewDirection() graphics.Vec4 {
+func (walk *Walk) viewDirection() graphics.Vector {
 	cosinePitch := math.Cos(walk.Pitch)
-	return graphics.Vec4{
+	return graphics.Vector{
 		float32(math.Sin(walk.Yaw) * cosinePitch),
 		float32(math.Sin(walk.Pitch)),
 		float32(-math.Cos(walk.Yaw) * cosinePitch),

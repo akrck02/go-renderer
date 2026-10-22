@@ -40,7 +40,7 @@ type Planner struct {
 	ground     []Command
 	opaque     []Command
 	walkCamera models.Camera
-	collectOne func(node *scene.Node, transform graphics.Mat4) // made once: a closure made every frame is garbage
+	collectOne func(node *scene.Node, transform graphics.Matrix) // made once: a closure made every frame is garbage
 }
 
 // NewPlanner makes a planner whose instance batches live in batches.

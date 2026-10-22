@@ -14,12 +14,12 @@ import (
 )
 
 type OpenGLRenderer struct {
-	projection graphics.Mat4
-	view       graphics.Mat4
-	model      graphics.Mat4
+	projection graphics.Matrix
+	view       graphics.Matrix
+	model      graphics.Matrix
 }
 
-func (r *OpenGLRenderer) SetMatrices(projection, view, model graphics.Mat4) {
+func (r *OpenGLRenderer) SetMatrices(projection, view, model graphics.Matrix) {
 	r.projection = projection
 	r.view = view
 	r.model = model
@@ -27,7 +27,7 @@ func (r *OpenGLRenderer) SetMatrices(projection, view, model graphics.Mat4) {
 
 func (r *OpenGLRenderer) RenderPolygon(
 	space graphics.CoordinateSpace,
-	coordinates []graphics.Vec4,
+	coordinates []graphics.Vector,
 	shader *string,
 	fill bool,
 ) error {
@@ -36,12 +36,12 @@ func (r *OpenGLRenderer) RenderPolygon(
 
 func (r *OpenGLRenderer) RenderTriangle(
 	space graphics.CoordinateSpace,
-	coordinates []graphics.Vec4,
+	coordinates []graphics.Vector,
 	shader *string,
 	fill bool,
 ) error {
 
-	setupUniforms(r.projection, r.view, r.model, graphics.Vec4{1, 1, 1, 1})
+	setupUniforms(r.projection, r.view, r.model, graphics.Vector{1, 1, 1, 1})
 
 	// makeVao initializes and returns a vertex array from the points provided.
 	var vbo uint32
@@ -68,19 +68,19 @@ func (r *OpenGLRenderer) RenderTriangle(
 
 func (r *OpenGLRenderer) RenderRectangle(
 	space graphics.CoordinateSpace,
-	coordinates graphics.Vec4,
+	coordinates graphics.Vector,
 	width float32,
 	height float32,
 	shader *string,
 	fill bool,
 ) error {
 
-	setupUniforms(r.projection, r.view, r.model, graphics.Vec4{1, 1, 1, 1})
+	setupUniforms(r.projection, r.view, r.model, graphics.Vector{1, 1, 1, 1})
 
 	halfWidth := width / 2
 	halfHeight := height / 2
 
-	vertices := []graphics.Vec4{
+	vertices := []graphics.Vector{
 		{coordinates[0] + halfWidth, coordinates[1] + halfHeight, coordinates[2], 0}, // top right
 		{coordinates[0] + halfWidth, coordinates[1] - halfHeight, coordinates[2], 0}, // bottom right
 		{coordinates[0] - halfWidth, coordinates[1] - halfHeight, coordinates[2], 0}, // bottom left
@@ -123,7 +123,7 @@ func (r *OpenGLRenderer) RenderRectangle(
 func (r *OpenGLRenderer) RenderImage(
 	space graphics.CoordinateSpace,
 	bytes []byte,
-	coordinates graphics.Vec4,
+	coordinates graphics.Vector,
 	width float32,
 	height float32,
 	shader *string,
@@ -131,9 +131,9 @@ func (r *OpenGLRenderer) RenderImage(
 	return nil
 }
 
-func (r *OpenGLRenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vec4, shader *string) error {
+func (r *OpenGLRenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vector, shader *string) error {
 
-	setupUniforms(r.projection, r.view, r.model, graphics.Vec4{1, 1, 1, 1})
+	setupUniforms(r.projection, r.view, r.model, graphics.Vector{1, 1, 1, 1})
 
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
@@ -159,7 +159,7 @@ func (r *OpenGLRenderer) Render3dObject(space graphics.CoordinateSpace, vertices
 
 func (r *OpenGLRenderer) Render3dModel(space graphics.CoordinateSpace, model *models.Model, shader *string) error {
 
-	setupUniforms(r.projection, r.view, r.model, graphics.Vec4{1, 1, 1, 1})
+	setupUniforms(r.projection, r.view, r.model, graphics.Vector{1, 1, 1, 1})
 
 	for _, mesh := range model.Meshes {
 
@@ -199,7 +199,7 @@ func (r *OpenGLRenderer) Render3dModel(space graphics.CoordinateSpace, model *mo
 	return nil
 }
 
-func setupUniforms(projection, view, model graphics.Mat4, color graphics.Vec4) {
+func setupUniforms(projection, view, model graphics.Matrix, color graphics.Vector) {
 	var program int32
 	gl.GetIntegerv(gl.CURRENT_PROGRAM, &program)
 

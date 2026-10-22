@@ -132,7 +132,7 @@ func TestQuadVerticesKeepTheirCornersAndColour(test *testing.T) {
 }
 
 func islandCamera() models.Camera {
-	return models.Camera{Position: graphics.Vec4{0, 600, 900, 1}, Target: graphics.Vec4{0, 0, 0, 1}, Up: graphics.Vec4{0, 1, 0, 0}, Far: 20000}
+	return models.Camera{Position: graphics.Vector{0, 600, 900, 1}, Target: graphics.Vector{0, 0, 0, 1}, Up: graphics.Vector{0, 1, 0, 0}, Far: 20000}
 }
 
 func TestTheSceneRendererDrawsTheSampleIsland(test *testing.T) {
@@ -373,8 +373,8 @@ func TestADrawUnderALampGetsTheLampsUniforms(test *testing.T) {
 	world := scene.New()
 	world.Nodes = []*scene.Node{{Name: "crate", Mesh: &scene.Mesh{Positions: []float32{-1, 0, -1, 1, 0, -1, 0, 0, 1},
 		Normals: []float32{0, 1, 0, 0, 1, 0, 0, 1, 0}, Indices: []uint32{0, 1, 2}}}}
-	world.Lights = []scene.PointLight{{Position: graphics.Vec4{0, 1, 0, 1}, Color: graphics.Vec4{1, 1, 1, 1}, Outer: 3}}
-	camera := models.Camera{Position: graphics.Vec4{0, 5, 5, 1}, Up: graphics.Vec4{0, 1, 0, 0}, FieldOfView: 1, Near: 0.1, Far: 100}
+	world.Lights = []scene.PointLight{{Position: graphics.Vector{0, 1, 0, 1}, Color: graphics.Vector{1, 1, 1, 1}, Outer: 3}}
+	camera := models.Camera{Position: graphics.Vector{0, 5, 5, 1}, Up: graphics.Vector{0, 1, 0, 0}, FieldOfView: 1, Near: 0.1, Far: 100}
 	renderer.Draw(world, camera, 640, 480)
 	for _, name := range []string{"lightCount", "lightPositions[0]", "lightColors[0]"} {
 		if _, asked := fake.uniforms[name]; !asked {

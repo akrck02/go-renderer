@@ -36,12 +36,12 @@ type WebGPURenderer struct{}
 | Function or method | |
 |---|---|
 | `func (WebGPURenderer) Render3dModel(space graphics.CoordinateSpace, model *models.Model, shader *string) error` |  |
-| `func (WebGPURenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vec4, shader *string) error` |  |
-| `func (WebGPURenderer) RenderImage(space graphics.CoordinateSpace, bytes []byte, coordinates graphics.Vec4, width float32, height float32, shader *string) error` |  |
-| `func (WebGPURenderer) RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vec4, shader *string, fill bool) error` |  |
-| `func (WebGPURenderer) RenderRectangle(space graphics.CoordinateSpace, coordinates graphics.Vec4, width float32, height float32, shader *string, fill bool) error` |  |
-| `func (WebGPURenderer) RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vec4, shader *string, fill bool) error` |  |
-| `func (WebGPURenderer) SetMatrices(projection, view, model graphics.Mat4)` |  |
+| `func (WebGPURenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vector, shader *string) error` |  |
+| `func (WebGPURenderer) RenderImage(space graphics.CoordinateSpace, bytes []byte, coordinates graphics.Vector, width float32, height float32, shader *string) error` |  |
+| `func (WebGPURenderer) RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error` |  |
+| `func (WebGPURenderer) RenderRectangle(space graphics.CoordinateSpace, coordinates graphics.Vector, width float32, height float32, shader *string, fill bool) error` |  |
+| `func (WebGPURenderer) RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error` |  |
+| `func (WebGPURenderer) SetMatrices(projection, view, model graphics.Matrix)` |  |
 
 ---
 
