@@ -169,6 +169,95 @@ Triangles after phase 2: 2.2 M in the overview, 0.46 M close, 1.15 M walking.
 
 Phase 3 changed the file size, not the speed: 76 → 33 MB, loading ~60 ms.
 
+## Baseline (2026-10-22)
+
+Before the rewrite towards 1.0 ([proposal 1](../proposals/1-towards-version-1.md)), every Go
+benchmark was run and kept here, so a rewritten package can show it is no slower and allocates no
+more. Run them again with:
+
+```bash
+DISPLAY=:95 go test -run xxx -bench . -benchmem -count 3 ./...   # any display works for opengl
+```
+
+Machine: AMD Ryzen 5 5600G (8 threads), Linux, Go 1.26.8; the OpenGL ones under Xvfb with Mesa's
+llvmpipe, so their times measure the software driver, not a GPU. Each time is the median of three
+runs. The four marked *new* were added for this baseline: a frame's hot paths that had none.
+
+| Package | Benchmark | ns/op | B/op | allocs/op | After A/B: ns/op | B/op | allocs/op | After C/D: ns/op | B/op | allocs/op |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `internal/sceneplan` | PlanningAFrameOfTheSampleIsland (*new*: `Plan` with shadows, after the first frame) | 2,262 | 288 | 2 | 2,190 | 0 | **0** | 2,187 | 0 | 0 |
+| `internal/sceneplan` | UpdateThousandInstances | 367,029 | 12,568 | 0 | 364,487 | 12,587 | 0 | 354,031 | 14,189 | 0 |
+| `internal/sceneplan` | RebuildGrid | 36,349,470 | 9,585,181 | 9 | 36,452,780 | 9,552,659 | 9 | 35,270,624 | 9,522,104 | 9 |
+| `draw2d` | BuildingAListOfThreeHundredControls (*new*: shadow, rectangle, text and icon each) | 31,244 | 14 | 0 | 30,878 | 13 | 0 | 31,114 | 14 | 0 |
+| `input` | ReadingAPadForAFrame (*new*: every button set and read, then `EndFrame`) | 19 | 0 | 0 | 19 | 0 | 0 | 16 | 0 | 0 |
+| `opengl` | AFrameUnlit (a 2D list drawn and read back) | 690,528 | 182 | 3 | 700,047 | 130 | **0** | 696,341 | 131 | 0 |
+| `opengl` | AFrameWithEightLights | 2,038,480 | 466 | 4 | 2,049,664 | 387 | **0** | 2,045,226 | 395 | 0 |
+| `opengl/overlay` | PaintingTwoThousandCommands, was AuditPaint2000 (the overlay's frame) | 589,448 | 24 | 1 | 589,816 | 0 | **0** | 401,580 | 0 | 0 |
+| `opengl/overlay` | PaintingAnApplicationFrame, hiddenRows=0 (was AuditRegisterPaint) | 149,075 | 24 | 1 | 148,771 | 0 | **0** | 124,021 | 0 | 0 |
+| `opengl/overlay` | PaintingAnApplicationFrame, hiddenRows=1000 | 148,738 | 24 | 1 | 148,154 | 0 | **0** | 124,153 | 0 | 0 |
+| `opengl/overlay` | FillingTheVerticesOfAFrame (was AuditFillVertices) | 105,612 | 0 | 0 | 105,346 | 0 | 0 | 105,343 | 0 | 0 |
+| `opengl/overlay` | FillingPackedInstances (was AuditFillPacked) | 58,160 | 0 | 0 | 58,174 | 0 | 0 | 57,831 | 0 | 0 |
+| `opengl/overlay` | ClippingQuads (was AuditClipQuads) | 268,652 | 159 | 0 | 267,548 | 153 | 0 | 157,550 | 90 | 0 |
+| `opengl/overlay` | HashingAList (was AuditHashList) | 19,342 | 0 | 0 | 19,472 | 0 | 0 | 19,474 | 0 | 0 |
+| `opengl/overlay` | SortingCommandsByLayer (was AuditDrawingOrder) | 793 | 0 | 0 | 639 | 0 | 0 | 494 | 0 | 0 |
+| `opengl/overlay` | SortingAnApplicationFrameByLayer, hiddenRows=0 / 1000 (was AuditRegisterDrawingOrder) | 176 | 0 | 0 | 142 | 0 | 0 | 97 | 0 | 0 |
+| `opengl/overlay` | PaintingALineOfText (was AuditRegisterTextLine) | 1,485 | 0 | 0 | 1,487 | 0 | 0 | 1,279 | 0 | 0 |
+| `opengl/overlay` | FindingAGlyph (was AuditRegisterHasGlyph) | 57 | 0 | 0 | 56 | 0 | 0 | 39 | 0 | 0 |
+| `opengl/overlay` | RasterisingAGlyph (once per new glyph) | 2,916 | 390 | 2 | 2,944 | 390 | 2 | 2,932 | 390 | 2 |
+| `opengl/overlay` | MakingAShadowMask (once per new shadow size) | 175,587 | 6,592 | 2 | 175,540 | 6,592 | 2 | 176,060 | 6,592 | 2 |
+| `opengl/overlay` | PrebuildingAFace (loading) | 2,212,267 | 877,105 | 413 | 2,216,968 | 903,106 | 413 | 2,231,749 | 899,324 | 413 |
+| `opengl/overlay` | GrowingTheAtlas (loading) | 6,615,328 | 5,505,313 | 8 | 6,628,332 | 5,505,313 | 8 | 6,639,473 | 5,505,313 | 8 |
+
+What it says, in short:
+
+* **Planning a frame is cheap** (about 2 µs for the sample island) but still allocates twice; a
+  frame of the 2D overlay allocates once (24 B), and an OpenGL frame three or four times. Those are
+  the allocations per frame the rewrite should bring to zero.
+* **A busy interface costs ~31 µs to describe** (300 controls) and ~150–590 µs to lay out: layout,
+  not description, is where the 2D frame's processor time goes.
+* **Rebuilding an instance grid** (36 ms, 9.6 MB) happens when instances change, not every frame;
+  moving a thousand instances is 0.37 ms with no allocation.
+* There were 18 benchmarks before (not the 34 the proposal counted: several names repeat with
+  sub-cases); the overlay's were named `Audit…` from an earlier review, and are now named for what
+  they measure.
+
+### After phases A and B (2026-10-22)
+
+The *After A/B* columns are the same benchmarks once [the audit's](../proposals/1-audit.md)
+phases A and B were done, measured the same way. **No frame allocates any more**: planning the
+island, laying out the overlay and drawing an OpenGL 2D frame (with lights and a blurred backdrop)
+make no garbage, and a test in each package (`testing.AllocsPerRun`) keeps it so. The times did
+not move beyond the runs' noise (about 2 % for the OpenGL frames, which measure Mesa's software
+driver). The OpenGL frames still report about 130–390 bytes per frame and no allocation: their
+first frame is measured with the rest and grows the vertex buffers once, spread over every frame.
+
+### After phases C and D (2026-10-22)
+
+The *After C/D* columns are the same benchmarks once the audit's phases C and D were done, measured
+the same way (`-count 3`, the median). Phases C and D were about names and errors, not speed, but
+the imperative held: nothing may be slower or allocate more than *After A/B*. Two benchmarks had
+grown from changes elsewhere in the binary (ordering commands by layer, +23 %; updating instances,
++1 %), and three more by under 1 % (painting a frame and a line of text, clipping): each was
+compared with the *After A/B* commit in the same session, and won back with real work rather than
+waved off as noise:
+
+* **Ordering commands** writes the order in place and checks the layers without a branch on the
+  index: 488 ns from 639.
+* **Moving a box's corners** skips the matrix's fourth row (a point's w is always 1): updating a
+  thousand instances takes 352 µs from 364, and rebuilding the grid 35.3 ms from 36.5.
+* **Clipping** keeps a quad wholly inside the clip where it is, instead of copying it twice: 157 µs
+  from 268 for 10 000 quads.
+* **Finding a glyph** looks a character up once in its own face, not twice: 39 ns from 56. A line
+  of text paints in 1.28 µs from 1.49, a busy application frame in 124 µs from 149, two thousand
+  commands in 400 µs from 590.
+
+The OpenGL frames measure Mesa's software driver and move by about 2 % from run to run either way;
+compared with the *After A/B* build in one session they are the same, as are building a draw list
+and the loading benchmarks (prebuilding a face, a shadow mask, growing the atlas), which move by
+under 1 % either way between runs. The bytes of the benchmarks that make no allocation
+(`UpdateThousandInstances`' 12–14 KB, a frame's 13–14 or 125–134 B) are their setup, or the first
+frame's growth, spread over however many runs the benchmark chose; no frame allocates, and the
+`AllocsPerRun` tests still say so.
 ---
 
 [← All the documentation](../1-overview.md)

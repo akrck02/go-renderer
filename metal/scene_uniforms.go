@@ -1,10 +1,10 @@
 package metal
 
 import (
+	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
+	"github.com/akrck02/go-renderer/internal/sceneplan"
 	"github.com/akrck02/go-renderer/scene"
-	"github.com/akrck02/go-renderer/sceneplan"
 )
 
 // The uniform blocks of the scene shaders (scene_shaders.go), byte for byte: every field is four
@@ -12,21 +12,21 @@ import (
 // and offsets against the shader's.
 
 type frameUniforms struct {
-	projection           graphics.Mat4 // Metal clip space
-	view                 graphics.Mat4
-	lightViewProjection  graphics.Mat4 // Metal clip space
-	seabedViewProjection graphics.Mat4 // Metal clip space
-	sunDirection         graphics.Vec4
-	sunColor             graphics.Vec4
-	skyColor             graphics.Vec4
-	horizonColor         graphics.Vec4
-	groundColor          graphics.Vec4
-	fogColor             graphics.Vec4
-	cameraPosition       graphics.Vec4
-	foliageTint          graphics.Vec4
-	snowColor            graphics.Vec4
-	waterShallowColor    graphics.Vec4
-	levelVariationArea   graphics.Vec4
+	projection           graphics.Matrix // Metal clip space
+	view                 graphics.Matrix
+	lightViewProjection  graphics.Matrix // Metal clip space
+	seabedViewProjection graphics.Matrix // Metal clip space
+	sunDirection         graphics.Vector
+	sunColor             graphics.Vector
+	skyColor             graphics.Vector
+	horizonColor         graphics.Vector
+	groundColor          graphics.Vector
+	fogColor             graphics.Vector
+	cameraPosition       graphics.Vector
+	foliageTint          graphics.Vector
+	snowColor            graphics.Vector
+	waterShallowColor    graphics.Vector
+	levelVariationArea   graphics.Vector
 	windDirection        [2]float32
 	fogRange             [2]float32
 	seabedHeightRange    [2]float32
@@ -50,8 +50,8 @@ type frameUniforms struct {
 }
 
 type drawUniforms struct {
-	model                 graphics.Mat4
-	baseColor             graphics.Vec4
+	model                 graphics.Matrix
+	baseColor             graphics.Vector
 	sway                  float32
 	depthBias             float32
 	patternScale          float32
@@ -63,22 +63,22 @@ type drawUniforms struct {
 	seaSurface            int32
 	lightCount            int32 // the point lights this draw takes, up to sceneplan.MaxLightsPerDraw
 	unused                [2]int32
-	lightPositions        [sceneplan.MaxLightsPerDraw]graphics.Vec4 // xyz: where, w: the outer radius
-	lightColors           [sceneplan.MaxLightsPerDraw]graphics.Vec4 // rgb: linear colour times intensity, w: the inner radius
+	lightPositions        [sceneplan.MaxLightsPerDraw]graphics.Vector // xyz: where, w: the outer radius
+	lightColors           [sceneplan.MaxLightsPerDraw]graphics.Vector // rgb: linear colour times intensity, w: the inner radius
 }
 
 type skyUniforms struct {
-	inverseViewProjection graphics.Mat4 // OpenGL convention: the sky works it out from the screen
-	starRotation          graphics.Mat4
-	cameraPosition        graphics.Vec4
-	sunDirection          graphics.Vec4
-	sunColor              graphics.Vec4
-	skyColor              graphics.Vec4
-	horizonColor          graphics.Vec4
-	twilightColor         graphics.Vec4
-	moonDirection         graphics.Vec4
-	moonColor             graphics.Vec4
-	cloudColor            graphics.Vec4
+	inverseViewProjection graphics.Matrix // OpenGL convention: the sky works it out from the screen
+	starRotation          graphics.Matrix
+	cameraPosition        graphics.Vector
+	sunDirection          graphics.Vector
+	sunColor              graphics.Vector
+	skyColor              graphics.Vector
+	horizonColor          graphics.Vector
+	twilightColor         graphics.Vector
+	moonDirection         graphics.Vector
+	moonColor             graphics.Vector
+	cloudColor            graphics.Vector
 	cloudOffset           [2]float32
 	windDirection         [2]float32
 	time                  float32
@@ -100,10 +100,10 @@ type skyUniforms struct {
 }
 
 type constellationUniforms struct {
-	viewProjection graphics.Mat4 // Metal clip space
-	starRotation   graphics.Mat4
-	cameraPosition graphics.Vec4
-	lineColor      graphics.Vec4
+	viewProjection graphics.Matrix // Metal clip space
+	starRotation   graphics.Matrix
+	cameraPosition graphics.Vector
+	lineColor      graphics.Vector
 	visibility     float32
 	pointSize      float32
 	unused         [2]int32
@@ -115,7 +115,7 @@ type overlaySizes struct {
 
 // metalClipSpace turns an OpenGL projection (depth from -1 to 1) into Metal's (depth from 0 to
 // 1): the same picture, and the same depths once stored.
-func metalClipSpace(projection graphics.Mat4) graphics.Mat4 {
+func metalClipSpace(projection graphics.Matrix) graphics.Matrix {
 	correction := graphics.Identity()
 	correction[10], correction[14] = 0.5, 0.5 // z' = z/2 + w/2
 	return correction.Multiply(projection)
@@ -123,7 +123,7 @@ func metalClipSpace(projection graphics.Mat4) graphics.Mat4 {
 
 // frameUniformsFor fills what every draw of the main pass shares, as the OpenGL renderer's
 // setFrameUniforms, bindForLighting, bindForWater and the level variation do.
-func frameUniformsFor(environment scene.Environment, frame sceneplan.Frame, camera models.Camera, seconds float64, shadowsReady bool) frameUniforms {
+func frameUniformsFor(environment scene.Environment, frame sceneplan.Frame, camera camera.Lens, seconds float64, shadowsReady bool) frameUniforms {
 	light := frame.Light
 	uniforms := frameUniforms{
 		projection: metalClipSpace(frame.Matrices.Projection), view: frame.Matrices.View,
@@ -152,7 +152,7 @@ func frameUniformsFor(environment scene.Environment, frame sceneplan.Frame, came
 		uniforms.waterColorDepth, uniforms.shoreFadeDepth = water.EffectiveColorDepth(), water.EffectiveShoreFade()
 	}
 	if variation := levelVariationOf(environment.Water); variation != nil {
-		uniforms.levelVariationArea = graphics.Vec4{variation.MinimumX, variation.MinimumZ, variation.MaximumX, variation.MaximumZ}
+		uniforms.levelVariationArea = graphics.Vector{variation.MinimumX, variation.MinimumZ, variation.MaximumX, variation.MaximumZ}
 		uniforms.levelVariationAngle = variation.Angle
 	}
 	return uniforms
@@ -182,14 +182,14 @@ func drawUniformsFor(command sceneplan.Command, levelVariationActive bool, frame
 	uniforms.lightCount = int32(command.Lights.Count)
 	for slot, index := range command.Lights.Indices[:command.Lights.Count] {
 		light := &frameLights[index]
-		uniforms.lightPositions[slot] = graphics.Vec4{light.Position[0], light.Position[1], light.Position[2], light.Outer}
-		uniforms.lightColors[slot] = graphics.Vec4{light.Color[0], light.Color[1], light.Color[2], light.Inner}
+		uniforms.lightPositions[slot] = graphics.Vector{light.Position[0], light.Position[1], light.Position[2], light.Outer}
+		uniforms.lightColors[slot] = graphics.Vector{light.Color[0], light.Color[1], light.Color[2], light.Inner}
 	}
 	return uniforms
 }
 
 // skyUniformsFor fills the sky dome's, as the OpenGL sky renderer does.
-func skyUniformsFor(environment scene.Environment, light scene.Daylight, camera models.Camera, inverse graphics.Mat4, seconds float64) skyUniforms {
+func skyUniformsFor(environment scene.Environment, light scene.Daylight, camera camera.Lens, inverse graphics.Matrix, seconds float64) skyUniforms {
 	sky := environment.EffectiveSky()
 	uniforms := skyUniforms{inverseViewProjection: inverse, starRotation: light.StarRotation,
 		cameraPosition: camera.Position, sunDirection: environment.SunDirection.Normalize(), sunColor: environment.SunColor,

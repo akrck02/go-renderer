@@ -17,9 +17,10 @@ import (
 	"github.com/akrck02/go-renderer/gles"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/input"
-	"github.com/akrck02/go-renderer/models"
+	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
 	"github.com/akrck02/go-renderer/scene/sample"
+	"github.com/akrck02/go-renderer/window"
 )
 
 func main() {
@@ -37,16 +38,16 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	renderer, err := gles.NewSceneRenderer(functions)
+	renderer, err := gles.NewSceneRenderer(functions, overlay.Fonts{})
 	if err != nil {
 		return err
 	}
 	world := sample.Island()
 	orbit, size := orbitAround(world)
-	app := &models.Application{Input: input.NewState(), DrawOnDemand: true,
-		Camera: models.Camera{Near: size * 0.001, Far: size * 10}}
-	var shown models.Camera
-	app.Update = func(app *models.Application, step float64) error {
+	app := &window.Application{Input: input.NewState(), Options: window.Options{DrawOnDemand: true},
+		Camera: camera.Lens{Near: size * 0.001, Far: size * 10}}
+	var shown camera.Lens
+	app.Update = func(app *window.Application, step float64) error {
 		orbit.Update(app.Input, step, &app.Camera)
 		if app.Camera != shown {
 			// the camera is still moving (it eases to a stop): draw the next frame too
@@ -71,8 +72,8 @@ func orbitAround(world *scene.Scene) (*camera.Orbit, float32) {
 	if size <= 0 || math.IsInf(float64(size), 0) {
 		size = 10
 	}
-	center := graphics.Vec4{(minimum[0] + maximum[0]) / 2, 0, (minimum[2] + maximum[2]) / 2, 1}
-	orbit := camera.NewOrbit(center, float64(size)*1.1)
+	center := graphics.Vector{(minimum[0] + maximum[0]) / 2, 0, (minimum[2] + maximum[2]) / 2, 1}
+	orbit := camera.NewOrbit(center, size*1.1)
 	orbit.MaximumDistance = float64(size) * 3
 	orbit.Ground = world.GroundHeight
 	return orbit, size

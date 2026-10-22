@@ -14,9 +14,7 @@ package viewer
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math"
-	"os"
 	"runtime"
 	"time"
 
@@ -24,9 +22,10 @@ import (
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/input"
 	"github.com/akrck02/go-renderer/metal"
-	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/opengl"
+	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
+	"github.com/akrck02/go-renderer/window"
 )
 
 // viewer holds the state of an exploration session.
@@ -37,9 +36,9 @@ type viewer struct {
 	orbit          *camera.Orbit
 	walk           *camera.Walk
 	walking        bool
-	plan           *camera.Plan
-	planning       bool       // showing the map (top or isometric view) instead of the orbit
-	fogBeforePlan  [2]float32 // fog near and far to restore when leaving the map
+	mapView        *camera.Map
+	onMap          bool       // showing the map (top or isometric view) instead of the orbit
+	fogBeforeMap   [2]float32 // fog near and far to restore when leaving the map
 	sceneSize      float32
 	walkLimits     [2]float32 // slowest and fastest walking speed [ and ] reach
 	sunAzimuth     float64
@@ -70,11 +69,11 @@ func init() { runtime.LockOSThread() }
 type UpdateFunc func(world *scene.Scene, state *input.State, step float64)
 
 // Run shows the scene until the window closes (or, for a capture or a benchmark, until it is
-// done). It must be called from the main goroutine. loadingTime only appears in benchmarks.
-func Run(world *scene.Scene, options Options, title string, update UpdateFunc, loadingTime time.Duration) error {
+// done). update may be nil. It must be called from the main goroutine.
+func Run(world *scene.Scene, options Options, title string, update UpdateFunc) error {
 	session := newViewer(world, false)
 	session.update = update
-	return session.run(options, title, loadingTime)
+	return session.run(options, title)
 }
 
 // EditFunc changes the scene in answer to the user, at every step the viewer runs, before the
@@ -91,55 +90,60 @@ type EditFunc func(world *scene.Scene, state *input.State, step float64, view Vi
 func Edit(world *scene.Scene, options Options, title string, edit EditFunc) error {
 	session := newViewer(world, false)
 	session.edit = edit
-	return session.run(options, title, 0)
+	return session.run(options, title)
 }
 
 // run applies the options and shows the session until the window closes.
-func (session *viewer) run(options Options, title string, loadingTime time.Duration) error {
-	if options.LookAt != nil {
-		session.orbit.Target[0], session.orbit.Target[2] = options.LookAt[0], options.LookAt[1]
-	}
-	session.plan.Target = session.orbit.Target
-	if options.StartWalking {
-		session.toggleWalking()
-		session.placeWalker(options)
-	}
-	if options.StartMap || options.Isometric {
-		session.enterPlan(options.Isometric)
-		session.plan.Span *= zoomOrOne(options.Zoom)
-	}
-	session.fixedTime = options.Time
-	session.shadowsEnabled = !options.NoShadows
-	session.orbit.Distance *= zoomOrOne(options.Zoom)
-	session.placeSun(options.SunAzimuth, options.SunElevation)
-	if options.Night {
-		session.toggleNight()
-	}
-	if options.Benchmark > 0 {
-		session.benchmark = newBenchmark(options.Benchmark, loadingTime)
+func (session *viewer) run(options Options, title string) error {
+	session.start(options.Start)
+	session.fixedTime = options.Rendering.FixedSeconds
+	session.shadowsEnabled = !options.Rendering.NoShadows
+	if options.Measure.BenchmarkFrames > 0 {
+		session.benchmark = newBenchmark(options.Measure)
 	}
 	app := newApplication(session, options, title)
 	if options.Backend.usesMetal() {
 		err := runMetal(session, app)
-		if !errors.Is(err, metal.ErrUnavailable) || options.Backend == Metal {
+		if !errors.Is(err, metal.Unavailable) || options.Backend == Metal {
 			return err
 		}
-		log.Printf("viewer: %v; drawing through OpenGL", err)
+		session.world.Overlay.AddNotice(fallbackIcon, "Drawing through OpenGL: "+err.Error(), graphics.Vector{})
 		app.Input = input.NewState()
 	}
 	return runOpenGL(session, app)
 }
 
+// start places the view where options say it starts.
+func (session *viewer) start(options Start) {
+	if options.LookAt != nil {
+		session.orbit.Target[0], session.orbit.Target[2] = options.LookAt[0], options.LookAt[1]
+	}
+	session.mapView.Target = session.orbit.Target
+	if options.Walking {
+		session.toggleWalking()
+		session.placeWalker(options)
+	}
+	if options.Map || options.Isometric {
+		session.enterMap(options.Isometric)
+		session.mapView.Span *= zoomOrOne(options.Zoom)
+	}
+	session.orbit.Distance *= zoomOrOne(options.Zoom)
+	session.placeSun(options.SunAzimuthDegrees, options.SunElevationDegrees)
+	if options.Night {
+		session.toggleNight()
+	}
+}
+
 // runOpenGL shows the session through OpenGL.
-func runOpenGL(session *viewer, app *models.Application) error {
+func runOpenGL(session *viewer, app *window.Application) error {
 	session.makeRenderer = func() (sceneDrawer, error) {
-		renderer, err := opengl.NewSceneRenderer()
+		renderer, err := opengl.NewSceneRenderer(overlay.Fonts{})
 		if err != nil {
 			return nil, err
 		}
 		return openGLScene{renderer}, nil
 	}
-	return (&opengl.OpenGL{}).StartLoop(app)
+	return (&opengl.Window{}).Run(app)
 }
 
 func zoomOrOne(zoom float64) float64 {
@@ -149,26 +153,20 @@ func zoomOrOne(zoom float64) float64 {
 	return zoom
 }
 
-func newApplication(session *viewer, options Options, title string) *models.Application {
-	app := &models.Application{
-		Type:        models.WindowApplication,
-		Title:       title,
-		Version:     "",
-		Width:       options.Width,
-		Height:      options.Height,
-		Input:       input.NewState(),
-		ModelMatrix: graphics.Identity(),
-		Renderer:    &opengl.OpenGLRenderer{},
-		Update:      session.advance,
-		Draw:        session.draw,
+func newApplication(session *viewer, options Options, title string) *window.Application {
+	app := &window.Application{
+		Options:   window.Options{Title: title, Width: options.Width, Height: options.Height},
+		Callbacks: window.Callbacks{Update: session.advance, Draw: session.draw},
+		Input:     input.NewState(),
 	}
-	if options.CapturePath != "" {
-		app.Type, app.CapturePath = models.HeadlessApplication, options.CapturePath
+	if options.Measure.CapturePath != "" {
+		app.Kind, app.CapturePath = window.Headless, options.Measure.CapturePath
 	}
 	// without waiting for the display the GPU keeps its speed, so measurements are steady
-	app.DisableVsync = options.Benchmark > 0 || options.NoVsync
+	app.DisableVsync = options.Measure.BenchmarkFrames > 0 || options.Rendering.NoVsync
+	app.ShowFramesPerSecond = true // with -no-vsync the title shows how fast it really draws
 	// a still scene costs nothing while nobody touches it; a simulation or a benchmark draws on
-	app.DrawOnDemand = !options.Continuous && session.update == nil && options.Benchmark == 0
+	app.DrawOnDemand = !options.Rendering.Continuous && session.update == nil && options.Measure.BenchmarkFrames == 0
 	if app.DrawOnDemand && session.edit == nil {
 		// an editor changes the scene and its own drawing, which the view state does not see
 		app.Unchanged = session.unchanged
@@ -183,7 +181,7 @@ func newViewer(world *scene.Scene, startWalking bool) *viewer {
 	if size <= 0 || math.IsInf(float64(size), 0) {
 		size = 10
 	}
-	center := graphics.Vec4{(minimum[0] + maximum[0]) / 2, 0, (minimum[2] + maximum[2]) / 2, 1}
+	center := graphics.Vector{(minimum[0] + maximum[0]) / 2, 0, (minimum[2] + maximum[2]) / 2, 1}
 	session := &viewer{world: world, sceneSize: size, started: time.Now(), fixedTime: math.NaN(),
 		lowest: minimum[1], highest: maximum[1],
 		baseFogNear: world.Environment.FogNear, baseFogFar: world.Environment.FogFar}
@@ -191,27 +189,27 @@ func newViewer(world *scene.Scene, startWalking bool) *viewer {
 	session.dayElevation = math.Max(session.sunElevation, 0.3)
 	session.orbit = newOrbitFor(world, center, size)
 	session.walk = newWalkFor(world, center, size)
-	session.plan = newPlanFor(world, center, size)
+	session.mapView = newMapFor(world, center, size)
 	if startWalking {
 		session.toggleWalking()
 	}
 	return session
 }
 
-func newOrbitFor(world *scene.Scene, center graphics.Vec4, size float32) *camera.Orbit {
-	orbit := camera.NewOrbit(center, float64(size)*1.1)
+func newOrbitFor(world *scene.Scene, center graphics.Vector, size float32) *camera.Orbit {
+	orbit := camera.NewOrbit(center, size*1.1)
 	orbit.MaximumDistance = float64(size) * 3
 	orbit.Ground = world.GroundHeight
 	return orbit
 }
 
-func newPlanFor(world *scene.Scene, center graphics.Vec4, size float32) *camera.Plan {
-	plan := camera.NewPlan(center, float64(size)*1.05)
-	plan.Ground = world.GroundHeight
-	return plan
+func newMapFor(world *scene.Scene, center graphics.Vector, size float32) *camera.Map {
+	view := camera.NewMap(center, size*1.05)
+	view.Ground = world.GroundHeight
+	return view
 }
 
-func newWalkFor(world *scene.Scene, center graphics.Vec4, size float32) *camera.Walk {
+func newWalkFor(world *scene.Scene, center graphics.Vector, size float32) *camera.Walk {
 	walk := camera.NewWalk(center[0], center[2], size*0.00004, size*0.00075)
 	walk.Ground = world.GroundHeight
 	walk.Blocked = func(x, z float32) bool { return isUnderWater(world, x, z) }
@@ -227,8 +225,8 @@ func isUnderWater(world *scene.Scene, x, z float32) bool {
 	return world.Environment.Water != nil && height <= world.Environment.Water.LevelAt(x, z)
 }
 
-func (session *viewer) configureFrustum(view *models.Camera) {
-	view.FieldOfView = 0.73
+func (session *viewer) configureFrustum(view *camera.Lens) {
+	view.FieldOfViewRadians = 0.73
 	view.Far = session.sceneSize * 12
 	view.Near = session.sceneSize * 0.0002
 }
@@ -236,7 +234,7 @@ func (session *viewer) configureFrustum(view *models.Camera) {
 // advance runs the program's update and then the viewer's controls. The controls see the input
 // without what an interface drawn by the program claimed (input.State.Unclaimed), so dragging a
 // slider does not turn the camera and typing a name does not walk.
-func (session *viewer) advance(app *models.Application, seconds float64) error {
+func (session *viewer) advance(app *window.Application, seconds float64) error {
 	before := session.snapshot(app)
 	if session.update != nil {
 		session.update(session.world, app.Input, seconds)
@@ -261,19 +259,19 @@ func (session *viewer) advance(app *models.Application, seconds float64) error {
 // viewState is what a frame of the viewer shows besides the scene's own animation: when it
 // changes during a step, the next step follows at once.
 type viewState struct {
-	camera      models.Camera
+	camera      camera.Lens
 	environment scene.Environment
 	shadows     bool
 }
 
-func (session *viewer) snapshot(app *models.Application) viewState {
+func (session *viewer) snapshot(app *window.Application) viewState {
 	return viewState{camera: app.Camera, environment: session.world.Environment, shadows: session.shadowsEnabled}
 }
 
 // stillChanging tells whether the view is moving, so another frame should follow even without
 // input: a key or button held (walking, turning the sun), the camera or the light still changing
 // (a camera easing to a stop), notices fading.
-func (session *viewer) stillChanging(app *models.Application, before viewState) bool {
+func (session *viewer) stillChanging(app *window.Application, before viewState) bool {
 	return app.Input.AnyHeld() || session.snapshot(app) != before || len(session.world.Overlay.Notices) > 0
 }
 
@@ -286,7 +284,7 @@ type drawnFrame struct {
 // unchanged tells whether a frame would look like the last one shown (the pointer moving over the
 // window with no button held, say), and otherwise remembers it as the one about to be shown. Only
 // for a scene nothing else changes: the water and clouds stand still between the frames drawn.
-func (session *viewer) unchanged(app *models.Application) bool {
+func (session *viewer) unchanged(app *window.Application) bool {
 	current := drawnFrame{view: session.snapshot(app), width: app.Input.FramebufferWidth, height: app.Input.FramebufferHeight}
 	if session.shown != nil && *session.shown == current && len(session.world.Overlay.Notices) == 0 {
 		return true
@@ -296,9 +294,9 @@ func (session *viewer) unchanged(app *models.Application) bool {
 }
 
 // moveCamera lets the camera of the current mode follow the input.
-func (session *viewer) moveCamera(app *models.Application, state *input.State, seconds float64) {
-	if session.planning {
-		session.plan.Update(state, seconds, &app.Camera)
+func (session *viewer) moveCamera(app *window.Application, state *input.State, seconds float64) {
+	if session.onMap {
+		session.mapView.Update(state, seconds, &app.Camera)
 		return
 	}
 	app.Camera.OrthographicHeight = 0
@@ -314,7 +312,7 @@ func (session *viewer) moveCamera(app *models.Application, state *input.State, s
 
 func (session *viewer) handleShortcuts(state *input.State, seconds float64) {
 	if state.Pressed(input.KeyTab) {
-		session.leavePlan()
+		session.leaveMap()
 		session.toggleWalking()
 	}
 	if state.Pressed(input.KeyM) {
@@ -352,51 +350,51 @@ func (session *viewer) toggleWalking() {
 // isometric view, then back to the orbit.
 func (session *viewer) switchMapView() {
 	switch {
-	case !session.planning:
+	case !session.onMap:
 		if session.walking {
 			session.toggleWalking()
 		}
-		session.enterPlan(false)
-	case !session.plan.Isometric:
-		session.plan.Isometric = true
+		session.enterMap(false)
+	case !session.mapView.Isometric:
+		session.mapView.Isometric = true
 	default:
-		session.leavePlan()
+		session.leaveMap()
 	}
 }
 
-// enterPlan shows the map centred where the orbit looks. Fog is lifted: seen from high above
+// enterMap shows the map centred where the orbit looks. Fog is lifted: seen from high above
 // without perspective, it would hide the whole map.
-func (session *viewer) enterPlan(isometric bool) {
-	if session.planning {
-		session.plan.Isometric = isometric
+func (session *viewer) enterMap(isometric bool) {
+	if session.onMap {
+		session.mapView.Isometric = isometric
 		return
 	}
 	environment := &session.world.Environment
-	session.planning, session.plan.Isometric = true, isometric
-	session.plan.Target = session.orbit.Target
-	session.fogBeforePlan = [2]float32{environment.FogNear, environment.FogFar}
+	session.onMap, session.mapView.Isometric = true, isometric
+	session.mapView.Target = session.orbit.Target
+	session.fogBeforeMap = [2]float32{environment.FogNear, environment.FogFar}
 	environment.FogNear, environment.FogFar = 0, 0
 }
 
-// leavePlan goes back to the orbit, centred where the map was, with the fog it had.
-func (session *viewer) leavePlan() {
-	if !session.planning {
+// leaveMap goes back to the orbit, centred where the map was, with the fog it had.
+func (session *viewer) leaveMap() {
+	if !session.onMap {
 		return
 	}
 	environment := &session.world.Environment
-	session.planning = false
-	session.orbit.Target[0], session.orbit.Target[2] = session.plan.Target[0], session.plan.Target[2]
+	session.onMap = false
+	session.orbit.Target[0], session.orbit.Target[2] = session.mapView.Target[0], session.mapView.Target[2]
 	if environment.FogFar == 0 {
-		environment.FogNear, environment.FogFar = session.fogBeforePlan[0], session.fogBeforePlan[1]
+		environment.FogNear, environment.FogFar = session.fogBeforeMap[0], session.fogBeforeMap[1]
 	}
 }
 
 // placeWalker applies the walking options: where the walker faces, looks and how tall it is.
-func (session *viewer) placeWalker(options Options) {
-	if !math.IsNaN(options.Heading) {
-		session.walk.Yaw = options.Heading * math.Pi / 180
+func (session *viewer) placeWalker(options Start) {
+	if !math.IsNaN(options.HeadingDegrees) {
+		session.walk.Yaw = options.HeadingDegrees * math.Pi / 180
 	}
-	session.walk.Pitch = options.Pitch * math.Pi / 180
+	session.walk.Pitch = options.PitchDegrees * math.Pi / 180
 	if options.EyeHeight > 0 {
 		session.walk.EyeHeight = float32(options.EyeHeight)
 	}
@@ -431,8 +429,15 @@ func (session *viewer) adjustWalkingSpeed(state *input.State) {
 	}
 	minimum, maximum := session.walkLimits[0], session.walkLimits[1]
 	session.walk.Speed = float32(math.Max(float64(minimum), math.Min(float64(maximum), float64(session.walk.Speed*factor))))
-	fmt.Printf("walking speed: %.4g units per second (shift: x%.0f)\n", session.walk.Speed, session.walk.RunFactor)
+	notice := fmt.Sprintf("Walking at %.4g units a second (shift: ×%.0f)", session.walk.Speed, session.walk.RunFactor)
+	session.world.Overlay.AddNotice(walkingIcon, notice, graphics.Vector{})
 }
+
+// The icons of the viewer's notices (Lucide's names).
+const (
+	walkingIcon  = "footprints"
+	fallbackIcon = "triangle-alert"
+)
 
 func (session *viewer) toggleFog() {
 	environment := &session.world.Environment
@@ -518,13 +523,13 @@ func (session *viewer) adjustVerticalScale(state *input.State, seconds float64) 
 // syncVerticalScale tells the controllers the current exaggeration so they follow the drawn ground.
 func (session *viewer) syncVerticalScale() {
 	scale := session.world.Environment.EffectiveVerticalScale()
-	session.orbit.VerticalScale, session.walk.VerticalScale, session.plan.VerticalScale = scale, scale, scale
+	session.orbit.VerticalScale, session.walk.VerticalScale, session.mapView.VerticalScale = scale, scale, scale
 }
 
 // sunDirectionFromAngles converts azimuth (from north, clockwise, radians) and elevation to a
 // direction towards the sun, with -Z as north and +X as east.
-func sunDirectionFromAngles(azimuth, elevation float64) graphics.Vec4 {
-	return graphics.Vec4{
+func sunDirectionFromAngles(azimuth, elevation float64) graphics.Vector {
+	return graphics.Vector{
 		float32(math.Sin(azimuth) * math.Cos(elevation)),
 		float32(math.Sin(elevation)),
 		float32(-math.Cos(azimuth) * math.Cos(elevation)),
@@ -532,12 +537,12 @@ func sunDirectionFromAngles(azimuth, elevation float64) graphics.Vec4 {
 	}
 }
 
-func sunAnglesFromDirection(direction graphics.Vec4) (azimuth, elevation float64) {
+func sunAnglesFromDirection(direction graphics.Vector) (azimuth, elevation float64) {
 	unit := direction.Normalize()
 	return math.Atan2(float64(unit[0]), float64(-unit[2])), math.Asin(float64(unit[1]))
 }
 
-func (session *viewer) draw(app *models.Application) error {
+func (session *viewer) draw(app *window.Application) error {
 	if session.renderer == nil {
 		renderer, err := session.makeRenderer()
 		if err != nil {
@@ -553,7 +558,7 @@ func (session *viewer) draw(app *models.Application) error {
 		profiling: session.benchmark != nil && session.benchmark.timing()}
 	statistics := session.renderer.draw(session.world, app.Camera, width, height, session.seconds(), settings)
 	if session.benchmark != nil && session.benchmark.record(statistics) {
-		session.benchmark.report(os.Stdout)
+		session.benchmark.report()
 		app.Stop = true
 	}
 	return nil

@@ -16,7 +16,7 @@ func flatPicture(luma, blue, red byte) YUVPlanes {
 	}
 }
 
-func TestVideoColoursBecomeRGBA(t *testing.T) {
+func TestVideoColoursBecomeRGBA(test *testing.T) {
 	for _, colour := range []struct {
 		name            string
 		luma, blue, red byte
@@ -33,20 +33,20 @@ func TestVideoColoursBecomeRGBA(t *testing.T) {
 		for channel, want := range colour.want {
 			value := [3]byte{got.R, got.G, got.B}[channel]
 			if difference := int(value) - int(want); difference < -3 || difference > 3 || got.A != 255 {
-				t.Errorf("%s turned into %v; want about %v, opaque", colour.name, got, colour.want)
+				test.Errorf("%s turned into %v; want about %v, opaque", colour.name, got, colour.want)
 				break
 			}
 		}
 	}
 }
 
-func TestOnlyTheCropShows(t *testing.T) {
+func TestOnlyTheCropShows(test *testing.T) {
 	planes := flatPicture(235, 128, 128)
 	planes.Luma[1] = 16 // a black pixel just inside the crop's start
 	planes.Crop = image.Rect(1, 0, 3, 2)
 	into := image.NewNRGBA(image.Rect(0, 0, 2, 2))
 	planes.ToRGBA(into)
 	if first := into.NRGBAAt(0, 0); first.R > 3 {
-		t.Fatalf("the picture's first pixel is %v; want the crop's first, black", first)
+		test.Fatalf("the picture's first pixel is %v; want the crop's first, black", first)
 	}
 }

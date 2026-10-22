@@ -18,141 +18,141 @@ func newStateWithClock() (*State, *fakeClock) {
 }
 
 func click(state *State, button MouseButton) {
-	state.SetButton(button, true)
-	state.SetButton(button, false)
+	state.Feed().SetButton(button, true)
+	state.Feed().SetButton(button, false)
 }
 
-func TestButtonEdgesLastOneStep(t *testing.T) {
+func TestButtonEdgesLastOneStep(test *testing.T) {
 	state := NewState()
-	state.SetButton(MouseLeft, true)
+	state.Feed().SetButton(MouseLeft, true)
 	if !state.ButtonPressed(MouseLeft) || state.ButtonReleased(MouseLeft) || !state.Button(MouseLeft) {
-		t.Fatal("a press is seen as pressed and held")
+		test.Fatal("a press is seen as pressed and held")
 	}
-	state.EndFrame()
+	state.Feed().EndFrame()
 	if state.ButtonPressed(MouseLeft) || !state.Button(MouseLeft) {
-		t.Fatal("the press lasts one step; the button stays held")
+		test.Fatal("the press lasts one step; the button stays held")
 	}
-	state.SetButton(MouseLeft, false)
+	state.Feed().SetButton(MouseLeft, false)
 	if !state.ButtonReleased(MouseLeft) || state.Button(MouseLeft) {
-		t.Fatal("letting go is seen as released")
+		test.Fatal("letting go is seen as released")
 	}
 }
 
-func TestQuickClickWithinOneStep(t *testing.T) {
+func TestAQuickClickWithinOneStepIsStillAClick(test *testing.T) {
 	state := NewState()
 	click(state, MouseLeft)
 	if !state.ButtonPressed(MouseLeft) || !state.ButtonReleased(MouseLeft) || state.Button(MouseLeft) {
-		t.Fatal("a press and a release in the same step are both seen")
+		test.Fatal("a press and a release in the same step are both seen")
 	}
 }
 
-func TestDoubleAndTripleClicks(t *testing.T) {
+func TestQuickClicksInOnePlaceCountAsDoubleAndTriple(test *testing.T) {
 	state, clock := newStateWithClock()
-	state.MoveCursor(100, 100)
+	state.Feed().MoveCursor(100, 100)
 	click(state, MouseLeft)
 	if state.Clicks(MouseLeft) != 1 {
-		t.Fatalf("first click, got %d", state.Clicks(MouseLeft))
+		test.Fatalf("first click, got %d", state.Clicks(MouseLeft))
 	}
-	state.EndFrame()
+	state.Feed().EndFrame()
 	clock.now = clock.now.Add(200 * time.Millisecond)
-	state.MoveCursor(102, 101)
+	state.Feed().MoveCursor(102, 101)
 	click(state, MouseLeft)
 	if state.Clicks(MouseLeft) != 2 {
-		t.Fatalf("a second click soon after, close by, makes a double click; got %d", state.Clicks(MouseLeft))
+		test.Fatalf("a second click soon after, close by, makes a double click; got %d", state.Clicks(MouseLeft))
 	}
-	state.EndFrame()
+	state.Feed().EndFrame()
 	clock.now = clock.now.Add(200 * time.Millisecond)
 	click(state, MouseLeft)
 	if state.Clicks(MouseLeft) != 3 {
-		t.Fatalf("triple click, got %d", state.Clicks(MouseLeft))
+		test.Fatalf("triple click, got %d", state.Clicks(MouseLeft))
 	}
-	state.EndFrame()
+	state.Feed().EndFrame()
 	if state.Clicks(MouseLeft) != 0 {
-		t.Fatal("no press this step, no clicks")
+		test.Fatal("no press this step, no clicks")
 	}
 }
 
-func TestSlowOrDistantClicksStartAgain(t *testing.T) {
+func TestSlowOrDistantClicksStartAgain(test *testing.T) {
 	state, clock := newStateWithClock()
 	click(state, MouseLeft)
-	state.EndFrame()
+	state.Feed().EndFrame()
 	clock.now = clock.now.Add(time.Second)
 	click(state, MouseLeft)
 	if state.Clicks(MouseLeft) != 1 {
-		t.Fatal("too slow for a double click")
+		test.Fatal("too slow for a double click")
 	}
-	state.EndFrame()
+	state.Feed().EndFrame()
 	clock.now = clock.now.Add(100 * time.Millisecond)
-	state.MoveCursor(50, 0)
+	state.Feed().MoveCursor(50, 0)
 	click(state, MouseLeft)
 	if state.Clicks(MouseLeft) != 1 {
-		t.Fatal("too far for a double click")
+		test.Fatal("too far for a double click")
 	}
-	state.EndFrame()
+	state.Feed().EndFrame()
 	clock.now = clock.now.Add(100 * time.Millisecond)
 	click(state, MouseRight)
 	if state.Clicks(MouseRight) != 1 {
-		t.Fatal("another button starts a new count")
+		test.Fatal("another button starts a new count")
 	}
 }
 
-func TestRepeatsAndCharacters(t *testing.T) {
+func TestARepeatedKeyIsTypedAgainAndCharactersAreKept(test *testing.T) {
 	state := NewState()
-	state.SetKey(KeyBackspace, true)
+	state.Feed().SetKey(KeyBackspace, true)
 	if !state.Typed(KeyBackspace) {
-		t.Fatal("a press types the key")
+		test.Fatal("a press types the key")
 	}
-	state.EndFrame()
+	state.Feed().EndFrame()
 	if state.Typed(KeyBackspace) {
-		t.Fatal("holding without a repeat does not type again")
+		test.Fatal("holding without a repeat does not type again")
 	}
-	state.RepeatKey(KeyBackspace)
+	state.Feed().RepeatKey(KeyBackspace)
 	if !state.Typed(KeyBackspace) || state.Pressed(KeyBackspace) {
-		t.Fatal("a system repeat types the key but is not a new press")
+		test.Fatal("a system repeat types the key but is not a new press")
 	}
-	state.AddCharacter('ñ')
-	state.AddCharacter('o')
+	state.Feed().AddCharacter('ñ')
+	state.Feed().AddCharacter('o')
 	if state.TypedText() != "ño" {
-		t.Fatalf("got %q", state.TypedText())
+		test.Fatalf("got %q", state.TypedText())
 	}
-	state.EndFrame()
+	state.Feed().EndFrame()
 	if state.TypedText() != "" {
-		t.Fatal("characters last one step")
+		test.Fatal("characters last one step")
 	}
 }
 
-func TestUnclaimedHidesWhatTheInterfaceUses(t *testing.T) {
+func TestUnclaimedHidesWhatTheInterfaceUses(test *testing.T) {
 	state := NewState()
-	state.SetButton(MouseLeft, true)
-	state.MoveCursor(0, 0)
-	state.MoveCursor(10, 0)
-	state.AddScroll(1)
-	state.SetKey(KeyW, true)
-	state.AddCharacter('w')
+	state.Feed().SetButton(MouseLeft, true)
+	state.Feed().MoveCursor(0, 0)
+	state.Feed().MoveCursor(10, 0)
+	state.Feed().AddScroll(1)
+	state.Feed().SetKey(KeyW, true)
+	state.Feed().AddCharacter('w')
 
 	free := state.Unclaimed()
 	if !free.Button(MouseLeft) || free.CursorDeltaX != 10 || !free.Down(KeyW) || free.TypedText() != "w" {
-		t.Fatal("nothing claimed: the copy is the same")
+		test.Fatal("nothing claimed: the copy is the same")
 	}
 
 	state.ClaimMouse()
 	free = state.Unclaimed()
 	if free.Button(MouseLeft) || free.CursorDeltaX != 0 || free.ScrollDelta != 0 || !free.Down(KeyW) {
-		t.Fatal("a claimed mouse is hidden, the keyboard is not")
+		test.Fatal("a claimed mouse is hidden, the keyboard is not")
 	}
 	if free.CursorX != 10 {
-		t.Fatal("the pointer position is still known")
+		test.Fatal("the pointer position is still known")
 	}
 
 	state.ClaimKeyboard()
 	free = state.Unclaimed()
 	if free.Down(KeyW) || free.TypedText() != "" {
-		t.Fatal("a claimed keyboard is hidden")
+		test.Fatal("a claimed keyboard is hidden")
 	}
 
-	state.EndFrame()
+	state.Feed().EndFrame()
 	if state.MouseClaimed() || state.KeyboardClaimed() {
-		t.Fatal("claims last one step")
+		test.Fatal("claims last one step")
 	}
 }
 
@@ -161,80 +161,80 @@ type memoryClipboard struct{ text string }
 func (clipboard *memoryClipboard) ClipboardText() string        { return clipboard.text }
 func (clipboard *memoryClipboard) SetClipboardText(text string) { clipboard.text = text }
 
-func TestClipboardAndCursorShape(t *testing.T) {
+func TestTheClipboardAndTheCursorShapeGoThroughTheState(test *testing.T) {
 	state := NewState()
 	state.SetClipboardText("lost")
 	if state.ClipboardText() != "" {
-		t.Fatal("without a clipboard, nothing is kept")
+		test.Fatal("without a clipboard, nothing is kept")
 	}
 	state.Clipboard = &memoryClipboard{}
 	state.SetClipboardText("Faro")
 	if state.ClipboardText() != "Faro" {
-		t.Fatal("the clipboard keeps the text")
+		test.Fatal("the clipboard keeps the text")
 	}
 	state.SetCursorShape(CursorText)
-	state.EndFrame()
+	state.Feed().EndFrame()
 	if state.CursorShape() != CursorText {
-		t.Fatal("the cursor shape stays until changed")
+		test.Fatal("the cursor shape stays until changed")
 	}
 }
 
-func TestFrameRequestsKeepTheEarliest(t *testing.T) {
+func TestFrameRequestsKeepTheEarliest(test *testing.T) {
 	state := NewState()
 	now := time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
 	state.Now = func() time.Time { return now }
-	if _, wanted := state.TakeFrameRequest(); wanted {
-		t.Fatal("no request made")
+	if _, wanted := state.Feed().TakeFrameRequest(); wanted {
+		test.Fatal("no request made")
 	}
 	state.RequestFrame(500 * time.Millisecond)
 	state.RequestFrame(200 * time.Millisecond)
 	state.RequestFrame(time.Second)
 	now = now.Add(50 * time.Millisecond)
-	if delay, wanted := state.TakeFrameRequest(); !wanted || delay != 150*time.Millisecond {
-		t.Fatalf("got %v, %v", delay, wanted)
+	if delay, wanted := state.Feed().TakeFrameRequest(); !wanted || delay != 150*time.Millisecond {
+		test.Fatalf("got %v, %v", delay, wanted)
 	}
-	if _, wanted := state.TakeFrameRequest(); wanted {
-		t.Fatal("a request is taken once")
-	}
-}
-
-func TestHasInput(t *testing.T) {
-	state := NewState()
-	if state.HasInput() {
-		t.Fatal("nothing happened yet")
-	}
-	state.SetKey(KeyA, true)
-	if !state.HasInput() {
-		t.Fatal("a key went down")
-	}
-	state.EndFrame()
-	if state.HasInput() {
-		t.Fatal("a key held from before is not new input")
-	}
-	state.MoveCursor(1, 1)
-	state.MoveCursor(2, 1)
-	if !state.HasInput() {
-		t.Fatal("the pointer moved")
+	if _, wanted := state.Feed().TakeFrameRequest(); wanted {
+		test.Fatal("a request is taken once")
 	}
 }
 
-func TestAnyHeldFollowsKeysAndButtons(t *testing.T) {
+func TestAnyEventCountsAsInput(test *testing.T) {
+	state := NewState()
+	if state.Feed().HasInput() {
+		test.Fatal("nothing happened yet")
+	}
+	state.Feed().SetKey(KeyA, true)
+	if !state.Feed().HasInput() {
+		test.Fatal("a key went down")
+	}
+	state.Feed().EndFrame()
+	if state.Feed().HasInput() {
+		test.Fatal("a key held from before is not new input")
+	}
+	state.Feed().MoveCursor(1, 1)
+	state.Feed().MoveCursor(2, 1)
+	if !state.Feed().HasInput() {
+		test.Fatal("the pointer moved")
+	}
+}
+
+func TestAnyHeldFollowsKeysAndButtons(test *testing.T) {
 	state := NewState()
 	if state.AnyHeld() {
-		t.Fatal("nothing is held at first")
+		test.Fatal("nothing is held at first")
 	}
-	state.SetKey(KeyW, true)
+	state.Feed().SetKey(KeyW, true)
 	if !state.AnyHeld() {
-		t.Error("a key held down counts")
+		test.Error("a key held down counts")
 	}
-	state.SetKey(KeyW, false)
-	state.SetButton(MouseLeft, true)
+	state.Feed().SetKey(KeyW, false)
+	state.Feed().SetButton(MouseLeft, true)
 	if !state.AnyHeld() {
-		t.Error("a button held down counts")
+		test.Error("a button held down counts")
 	}
-	state.SetButton(MouseLeft, false)
+	state.Feed().SetButton(MouseLeft, false)
 	if state.AnyHeld() {
-		t.Error("nothing is held once both are let go")
+		test.Error("nothing is held once both are let go")
 	}
 }
 
@@ -244,7 +244,7 @@ func TestAFullscreenRequestStaysUntilChangedAndTravelsWithACopy(test *testing.T)
 		test.Fatal("a new state asks for fullscreen")
 	}
 	state.SetFullscreen(true)
-	state.EndFrame()
+	state.Feed().EndFrame()
 	copied := state.Unclaimed()
 	if !state.Fullscreen() || !copied.Fullscreen() {
 		test.Fatal("the request does not last the frame, or does not travel with a copy")
@@ -252,5 +252,18 @@ func TestAFullscreenRequestStaysUntilChangedAndTravelsWithACopy(test *testing.T)
 	copied.SetFullscreen(false)
 	if !state.Fullscreen() {
 		test.Fatal("a copy changed the state it was made from")
+	}
+}
+
+func TestFeedingTheStateAllocatesNothing(test *testing.T) {
+	state := NewState()
+	allocations := testing.AllocsPerRun(100, func() {
+		state.Feed().SetKey(KeyA, true)
+		state.Feed().MoveCursor(10, 20)
+		state.Feed().SetStick(0.5, -0.5)
+		state.Feed().EndFrame()
+	})
+	if allocations != 0 {
+		test.Fatalf("feeding a frame allocated %v times", allocations)
 	}
 }

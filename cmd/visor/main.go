@@ -8,6 +8,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -36,15 +37,24 @@ func main() {
 	}
 	loadingStarted := time.Now()
 	world, name, err := openScene(*sampleName)
+	if errors.Is(err, errUsage) {
+		fmt.Fprintln(os.Stderr, "usage: visor [flags] scene.glb (or -sample island)")
+		flag.PrintDefaults()
+		os.Exit(2)
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	if err := viewer.Run(world, options, "Visor · "+name, nil, time.Since(loadingStarted)); err != nil {
+	options.Measure.LoadingTime = time.Since(loadingStarted)
+	if err := viewer.Run(world, options, "Visor · "+name, nil); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
+
+// errUsage is a command line without a scene to open.
+var errUsage = errors.New("no scene to open")
 
 // openScene builds the named sample, or loads the file given as the argument.
 func openScene(sampleName string) (*scene.Scene, string, error) {
@@ -56,7 +66,7 @@ func openScene(sampleName string) (*scene.Scene, string, error) {
 	case sampleName != "":
 		return nil, "", fmt.Errorf("unknown sample %q: use island or night", sampleName)
 	case flag.NArg() != 1:
-		return nil, "", fmt.Errorf("usage: visor %s scene.glb (or -sample island)", viewer.Usage)
+		return nil, "", errUsage
 	}
 	path := flag.Arg(0)
 	world, err := loaders.LoadScene(path)

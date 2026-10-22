@@ -63,7 +63,7 @@ func ShowAccessibleNodes(nodes []AccessibleNode) {
 }
 
 // first points at a slice's first element, or is nil for an empty one.
-func first[T any](values []T) unsafe.Pointer {
+func first[Element any](values []Element) unsafe.Pointer {
 	if len(values) == 0 {
 		return nil
 	}

@@ -10,21 +10,26 @@ import "C"
 
 import "unsafe"
 
-// Channel is the channel the program's notifications go on: Android 8 and later list it, by its
-// label, in the application's settings, where the person can turn it off. Set it before the first
-// notification; the label follows the person's language best when the program sets it.
-var Channel = struct{ ID, Label string }{ID: "messages", Label: "Messages"}
+// Channel is a channel notifications go on: Android 8 and later list it, by its label, in the
+// application's settings, where the person can turn it off. The label should be in the person's
+// language.
+type Channel struct {
+	ID, Label string
+}
 
-// Notify shows a notification in the system's shade, as other applications' are, even while the
-// program is in the background: a title and a line, and touching it opens the program. The same
-// id replaces the notification shown with it before. It returns false when it could not, most
-// often because the person has not allowed notifications (NotificationsAllowed). Safe from any
-// goroutine.
-func Notify(id int, title, text string) bool {
+// MessagesChannel is a channel for the program's messages, with an English label.
+func MessagesChannel() Channel { return Channel{ID: "messages", Label: "Messages"} }
+
+// Notify shows a notification on a channel in the system's shade, as other applications' are,
+// even while the program is in the background: a title and a line, and touching it opens the
+// program. The same id replaces the notification shown with it before. It returns false when it
+// could not, most often because the person has not allowed notifications (NotificationsAllowed).
+// Safe from any goroutine.
+func Notify(channel Channel, id int, title, text string) bool {
 	if !NotificationsAllowed() {
 		return false
 	}
-	strings := []*C.char{C.CString(Channel.ID), C.CString(Channel.Label), C.CString(title), C.CString(text)}
+	strings := []*C.char{C.CString(channel.ID), C.CString(channel.Label), C.CString(title), C.CString(text)}
 	defer func() {
 		for _, text := range strings {
 			C.free(unsafe.Pointer(text))

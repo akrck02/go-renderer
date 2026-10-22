@@ -10,9 +10,9 @@
 package main
 
 import (
-	"github.com/akrck02/go-renderer/ctr"
+	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
+	"github.com/akrck02/go-renderer/nintendo3ds"
 	"github.com/akrck02/go-renderer/scene"
 )
 
@@ -30,7 +30,7 @@ const (
 )
 
 // gridFloor is a flat square of side units, facing up, cut into cells × cells squares.
-func gridFloor(side float32, cells int, colour graphics.Vec4) *scene.Mesh {
+func gridFloor(side float32, cells int, colour graphics.Vector) *scene.Mesh {
 	mesh := &scene.Mesh{Material: &scene.Material{BaseColor: colour}}
 	step := side / float32(cells)
 	for row := 0; row <= cells; row++ {
@@ -50,26 +50,26 @@ func gridFloor(side float32, cells int, colour graphics.Vec4) *scene.Mesh {
 }
 
 func main() {
-	screen, err := ctr.Open()
+	screen, err := nintendo3ds.OpenScreen()
 	if err != nil {
 		println(err.Error())
 		return
 	}
-	ctr.OpenBottomConsole()
-	renderer, err := ctr.NewSceneRenderer(screen)
+	nintendo3ds.OpenSecondScreenConsole()
+	renderer, err := nintendo3ds.NewSceneRenderer(screen)
 	if err != nil {
 		println(err.Error())
 		return
 	}
 	world, camera := lampWorld()
 	println("lamps: hold A to move the blue one")
-	for frame := 0; ctr.Running(); frame++ {
-		reading := ctr.ReadControls()
-		if reading.Held&ctr.ButtonA != 0 {
+	for frame := 0; nintendo3ds.Running(); frame++ {
+		reading := nintendo3ds.ReadControls()
+		if reading.Held&nintendo3ds.ButtonA != 0 {
 			world.Lights[1].Position[0] = wrapped(world.Lights[1].Position[0] + lampStep)
 		}
 		turning := world.Nodes[2]
-		turning.Transform = graphics.Translate(graphics.Vec4{0, 0.5, -1, 0}).Multiply(graphics.RotateY(float64(frame) * turnStep))
+		turning.Transform = graphics.Translate(graphics.Vector{0, 0.5, -1, 0}).Multiply(graphics.RotateY(float64(frame) * turnStep))
 		renderer.Draw(world, camera)
 		if frame%60 == 0 {
 			println("bakes so far:", renderer.Bakes())
@@ -84,7 +84,7 @@ func wrapped(x float32) float32 {
 	}
 	return x
 }
-func cubeMesh(colour graphics.Vec4) *scene.Mesh {
+func cubeMesh(colour graphics.Vector) *scene.Mesh {
 	mesh := &scene.Mesh{Material: &scene.Material{BaseColor: colour}}
 	faces := [6][3]float32{{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}}
 	for _, normal := range faces {
@@ -106,25 +106,25 @@ func cubeMesh(colour graphics.Vec4) *scene.Mesh {
 	return mesh
 }
 
-func lampWorld() (*scene.Scene, models.Camera) {
+func lampWorld() (*scene.Scene, camera.Lens) {
 	world := scene.New()
-	world.Environment.SunDirection = graphics.Vec4{0.3, -1, 0.2, 0}.Normalize()
+	world.Environment.SunDirection = graphics.Vector{0.3, -1, 0.2, 0}.Normalize()
 	world.Environment.Ambient = 0.15
-	floor := gridFloor(floorSide, floorCells, graphics.Vec4{0.55, 0.55, 0.55, 1})
+	floor := gridFloor(floorSide, floorCells, graphics.Vector{0.55, 0.55, 0.55, 1})
 	world.Nodes = []*scene.Node{{Name: "floor", Mesh: floor}}
 	for index, x := range []float32{-3, 0, 3} {
-		cube := cubeMesh(graphics.Vec4{0.8, 0.8, 0.8, 1})
+		cube := cubeMesh(graphics.Vector{0.8, 0.8, 0.8, 1})
 		world.Nodes = append(world.Nodes, &scene.Node{Name: "cube" + string(rune('a'+index)), Mesh: cube,
-			Transform: graphics.Translate(graphics.Vec4{x, 0.5, -1, 0}), Moving: x == 0})
+			Transform: graphics.Translate(graphics.Vector{x, 0.5, -1, 0}), Moving: x == 0})
 	}
 	{
 		world.Lights = []scene.PointLight{
-			{Position: graphics.Vec4{-4, 1.2, 1, 1}, Color: graphics.Vec4{1, 0.55, 0.2, 2}, Inner: 0.5, Outer: 5},
-			{Position: graphics.Vec4{0, 1.5, 1.5, 1}, Color: graphics.Vec4{0.3, 0.5, 1, 2}, Inner: 0.5, Outer: 4},
-			{Position: graphics.Vec4{4, 1.2, 0.5, 1}, Color: graphics.Vec4{0.3, 1, 0.4, 2}, Inner: 0.5, Outer: 4.5},
+			{Position: graphics.Vector{-4, 1.2, 1, 1}, Color: graphics.Vector{1, 0.55, 0.2, 2}, Inner: 0.5, Outer: 5},
+			{Position: graphics.Vector{0, 1.5, 1.5, 1}, Color: graphics.Vector{0.3, 0.5, 1, 2}, Inner: 0.5, Outer: 4},
+			{Position: graphics.Vector{4, 1.2, 0.5, 1}, Color: graphics.Vector{0.3, 1, 0.4, 2}, Inner: 0.5, Outer: 4.5},
 		}
 	}
-	camera := models.Camera{Position: graphics.Vec4{0, 6, 9, 1}, Target: graphics.Vec4{0, 0, 0, 1},
-		Up: graphics.Vec4{0, 1, 0, 0}, FieldOfView: 0.8, Near: 0.1, Far: 100}
+	camera := camera.Lens{Position: graphics.Vector{0, 6, 9, 1}, Target: graphics.Vector{0, 0, 0, 1},
+		Up: graphics.Vector{0, 1, 0, 0}, FieldOfViewRadians: 0.8, Near: 0.1, Far: 100}
 	return world, camera
 }

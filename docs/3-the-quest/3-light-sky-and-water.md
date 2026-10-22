@@ -5,7 +5,7 @@ fog in the distance, wind in the trees, clouds, and the night, with a lamp that 
 
 | Mission | Pieces | Time |
 |---|---|---|
-| The sea, the wind, clouds and the night | `scene.Environment`, `Water`, `Sky`, `KindGlow` | 15 min |
+| The sea, the wind, clouds and the night | `scene.Environment`, `Water`, `Sky`, `GlowKind` | 15 min |
 
 #### The idea
 
@@ -26,17 +26,17 @@ ground below it, so the shore shines turquoise and the open sea turns dark blue 
 world.Environment.Water = &scene.Water{
 	Level:   1,    // one metre above zero: the hill's edges go under
 	Size:    2000, // how far the plane reaches
-	Shallow: graphics.Vec4{0.1, 0.5, 0.55, 1},
-	Deep:    graphics.Vec4{0.02, 0.12, 0.25, 1},
+	Shallow: graphics.Vector{0.1, 0.5, 0.55, 1},
+	Deep:    graphics.Vector{0.02, 0.12, 0.25, 1},
 }
 ```
 
 ### Fog and wind
 
 ```go
-world.Environment.FogColor = graphics.Vec4{0.75, 0.8, 0.85, 1}
+world.Environment.FogColor = graphics.Vector{0.75, 0.8, 0.85, 1}
 world.Environment.FogNear, world.Environment.FogFar = 80, 400 // FogFar 0 means no fog
-world.Environment.Wind = scene.Wind{Direction: graphics.Vec4{1, 0, 0.3, 0}, Strength: 0.5}
+world.Environment.Wind = scene.Wind{Direction: graphics.Vector{1, 0, 0.3, 0}, Strength: 0.5}
 ```
 
 The wind moves the clouds and bends every material with a `Sway`. Plants are modelled with their
@@ -53,7 +53,7 @@ or pictures (a skybox). Start from Earth's:
 
 ```go
 sky := scene.DefaultSky()
-sky.Clouds = scene.Clouds{Coverage: 0.4, Color: graphics.Vec4{1, 1, 1, 1}, Speed: 0.01, Scale: 1}
+sky.Clouds = scene.Clouds{Coverage: 0.4, Color: graphics.Vector{1, 1, 1, 1}, Speed: 0.01, Scale: 1}
 world.Environment.Sky = sky
 ```
 
@@ -71,7 +71,7 @@ A lighthouse should shine at night. A **glowing** material is lit like any other
 its own colour in the dark:
 
 ```go
-lamp.Mesh.Material.Kind = scene.KindGlow
+lamp.Mesh.Material.Kind = scene.GlowKind
 ```
 
 ```bash
@@ -88,8 +88,8 @@ outer one, and lights the lit materials it reaches, besides the sun and the sky:
 
 ```go
 world.Lights = []scene.PointLight{{
-	Position: graphics.Vec4{2, 3.2, 0, 1},       // the lamp, at the top of the tower
-	Color:    graphics.Vec4{1, 0.85, 0.5, 1.5},  // warm, at one and a half times (alpha is the intensity)
+	Position: graphics.Vector{2, 3.2, 0, 1},       // the lamp, at the top of the tower
+	Color:    graphics.Vector{1, 0.85, 0.5, 1.5},  // warm, at one and a half times (alpha is the intensity)
 	Inner:    0.5,
 	Outer:    6,
 }}
@@ -98,7 +98,7 @@ world.Lights = []scene.PointLight{{
 <p align="center"><img alt="A grey floor at night with three cubes, lit by an orange lamp on the left, a blue one in the middle and a green one on the right: each lights the floor in a soft circle and the faces of the cubes that face it" src="../images/point-lights.png" width="480"></p>
 
 **How many?** As many as the scene wants, but each draw takes at most the four nearest whose
-reach meets it (`sceneplan.MaxLightsPerDraw`), chosen once a frame on the processor, so the
+reach meets it (`MaxLightsPerDraw` in the module's `internal/sceneplan`), chosen once a frame on the processor, so the
 shaders stay short on every platform: this is what Unity's and Godot's forward renderers do on
 phones. Lamps far apart can light a whole village; four lamps piled on one small thing are as
 many as it shows. Move a lamp by changing its position between frames. The 3DS bakes the lamps
@@ -108,11 +108,11 @@ into its colours with the sun (its guide).
 
 | Kind | Shading |
 |---|---|
-| `KindLit` | Sun or moon, sky light, point lights, shadows, fog: most things |
-| `KindUnlit` | Its colour as it is (plus fog): flags, markers, things that should not darken |
-| `KindGlow` | Lit by day, shining in the dark: lamps, windows, glowing flowers |
-| `KindWater` | An animated water surface: a river or a lake above the sea's level |
-| `KindWaterfall` | Translucent falling water |
+| `LitKind` | Sun or moon, sky light, point lights, shadows, fog: most things |
+| `UnlitKind` | Its colour as it is (plus fog): flags, markers, things that should not darken |
+| `GlowKind` | Lit by day, shining in the dark: lamps, windows, glowing flowers |
+| `WaterKind` | An animated water surface: a river or a lake above the sea's level |
+| `WaterfallKind` | Translucent falling water |
 
 #### Checkpoint
 
@@ -124,7 +124,7 @@ The hill rises out of a sea, turquoise at the shore and dark further out; the tr
 
 - `Environment` holds the sun, the sky, fog, water, wind and snow.
 - The sun's height is the time of day; the night comes with the moon and the stars.
-- `Sway` bends plants in the wind; `KindGlow` shines at night; `Lights` light around them.
+- `Sway` bends plants in the wind; `GlowKind` shines at night; `Lights` light around them.
 
 ## Bonus (optional)
 
@@ -135,9 +135,9 @@ foliage turned a little brown.
 <summary>🔓 Show the solution</summary>
 
 ```go
-world.Environment.Snow = &scene.Snow{Level: 2.5, Blend: 0.5, Color: graphics.Vec4{0.95, 0.97, 1, 1}}
+world.Environment.Snow = &scene.Snow{Level: 2.5, Blend: 0.5, Color: graphics.Vector{0.95, 0.97, 1, 1}}
 forest.Mesh.Material.Foliage = true // takes the season's tint
-world.Environment.FoliageTint = graphics.Vec4{0.55, 0.45, 0.3, 0.5} // the colour, and how much
+world.Environment.FoliageTint = graphics.Vector{0.55, 0.45, 0.3, 0.5} // the colour, and how much
 ```
 
 Snow settles on surfaces facing up, so the tower's walls stay clear.

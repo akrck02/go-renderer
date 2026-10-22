@@ -3,15 +3,15 @@ package viewer
 import (
 	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/scene"
+	"github.com/akrck02/go-renderer/window"
 )
 
 // View is what an editing program knows about the view at a step: the camera that drew the frame
 // the user sees, and the window's size. The pointer's position (input.State.CursorX and CursorY)
 // is in the same window pixels.
 type View struct {
-	Camera        models.Camera
+	Camera        camera.Lens
 	Width, Height int // window pixels
 	world         *scene.Scene
 	lowest        float32
@@ -22,13 +22,13 @@ type View struct {
 }
 
 // view returns the view of this step.
-func (session *viewer) view(app *models.Application) View {
+func (session *viewer) view(app *window.Application) View {
 	width, height := app.Input.WindowWidth, app.Input.WindowHeight
 	if width == 0 || height == 0 {
 		width, height = app.Width, app.Height
 	}
 	return View{Camera: app.Camera, Width: width, Height: height, world: session.world,
-		lowest: session.lowest, highest: session.highest, framing: &session.framing, zooming: &session.zooming, span: session.plan.Span}
+		lowest: session.lowest, highest: session.highest, framing: &session.framing, zooming: &session.zooming, span: session.mapView.Span}
 }
 
 // Ray returns the ray from the camera through a point of the window, in drawn heights.
@@ -38,10 +38,10 @@ func (view View) Ray(x, y float64) (camera.Ray, bool) {
 
 // PointOnPlane returns the point of the window (x, y in window pixels) on the horizontal plane at a
 // true height: a flat floor. It is false when that point is not in sight.
-func (view View) PointOnPlane(x, y float64, height float32) (graphics.Vec4, bool) {
+func (view View) PointOnPlane(x, y float64, height float32) (graphics.Vector, bool) {
 	ray, ok := view.Ray(x, y)
 	if !ok {
-		return graphics.Vec4{}, false
+		return graphics.Vector{}, false
 	}
 	scale := view.world.Environment.EffectiveVerticalScale()
 	point, hit := ray.PointAtHeight(height * scale)
@@ -51,10 +51,10 @@ func (view View) PointOnPlane(x, y float64, height float32) (graphics.Vec4, bool
 
 // PointOnGround returns the point of the window (x, y in window pixels) on the scene's walkable
 // ground (meshes marked Ground), with its true height. It is false when the pointer is not on it.
-func (view View) PointOnGround(x, y float64) (graphics.Vec4, bool) {
+func (view View) PointOnGround(x, y float64) (graphics.Vector, bool) {
 	ray, ok := view.Ray(x, y)
 	if !ok {
-		return graphics.Vec4{}, false
+		return graphics.Vector{}, false
 	}
 	return ray.PointOnGround(view.world.GroundHeight, view.world.Environment.EffectiveVerticalScale(), view.lowest, view.highest)
 }
@@ -69,7 +69,7 @@ func (view View) FrameGround(minimumX, minimumZ, maximumX, maximumZ float32) {
 }
 
 // applyFraming moves the cameras to the rectangle the program asked to show, if it asked.
-func (session *viewer) applyFraming(app *models.Application) {
+func (session *viewer) applyFraming(app *window.Application) {
 	framing := session.framing
 	if framing == nil {
 		return
@@ -78,7 +78,7 @@ func (session *viewer) applyFraming(app *models.Application) {
 	width, depth := float64(framing[2]-framing[0]), float64(framing[3]-framing[1])
 	centerX, centerZ := (framing[0]+framing[2])/2, (framing[1]+framing[3])/2
 	session.orbit.Target[0], session.orbit.Target[2] = centerX, centerZ
-	session.plan.Target[0], session.plan.Target[2] = centerX, centerZ
+	session.mapView.Target[0], session.mapView.Target[2] = centerX, centerZ
 	pixelsWide, pixelsHigh := app.Input.WindowWidth, app.Input.WindowHeight
 	if pixelsWide == 0 || pixelsHigh == 0 {
 		pixelsWide, pixelsHigh = app.Width, app.Height
@@ -88,7 +88,7 @@ func (session *viewer) applyFraming(app *models.Application) {
 		span = max(depth, width*float64(pixelsHigh)/float64(pixelsWide))
 	}
 	if span > 0 {
-		session.plan.Span = min(max(span, session.plan.MinimumSpan), session.plan.MaximumSpan)
+		session.mapView.Span = min(max(span, session.mapView.MinimumSpan), session.mapView.MaximumSpan)
 	}
 	app.Input.RequestFrame(0)
 }
@@ -109,13 +109,13 @@ func (view View) ZoomBy(factor float64) {
 func (view View) Span() float64 { return view.span }
 
 // applyZoom moves the cameras by the zoom the program asked for, if it asked.
-func (session *viewer) applyZoom(app *models.Application) {
+func (session *viewer) applyZoom(app *window.Application) {
 	factor := session.zooming
 	if factor == 0 {
 		return
 	}
 	session.zooming = 0
-	session.plan.Span = min(max(session.plan.Span/factor, session.plan.MinimumSpan), session.plan.MaximumSpan)
+	session.mapView.Span = min(max(session.mapView.Span/factor, session.mapView.MinimumSpan), session.mapView.MaximumSpan)
 	session.orbit.Distance /= factor
 	app.Input.RequestFrame(0)
 }

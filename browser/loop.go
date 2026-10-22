@@ -9,7 +9,7 @@ import (
 
 	"github.com/akrck02/go-renderer/frameloop"
 	"github.com/akrck02/go-renderer/input"
-	"github.com/akrck02/go-renderer/models"
+	"github.com/akrck02/go-renderer/window"
 )
 
 // Run drives an application in the canvas until it sets Stop: update steps at the fixed step and
@@ -20,11 +20,11 @@ import (
 //
 // It blocks the calling goroutine, which keeps a WebAssembly program alive (main must not
 // return while the page shows it).
-func Run(canvas *Canvas, app *models.Application, drawFrame func() error) error {
+func Run(canvas *Canvas, app *window.Application, drawFrame func() error) error {
 	if app.Input == nil {
 		app.Input = input.NewState()
 	}
-	loop := &frameLoop{canvas: canvas, app: app, drawFrame: drawFrame, clock: frameloop.NewClock(app.FixedStep),
+	loop := &frameLoop{canvas: canvas, app: app, drawFrame: drawFrame, clock: frameloop.NewClock(app.FixedStepSeconds),
 		onDemand: app.DrawOnDemand, done: make(chan error, 1)}
 	canvas.Attach(app.Input)
 	canvas.changed = loop.request
@@ -77,7 +77,7 @@ var (
 // frameLoop is the state of Run between animation frames.
 type frameLoop struct {
 	canvas        *Canvas
-	app           *models.Application
+	app           *window.Application
 	drawFrame     func() error
 	clock         *frameloop.Clock
 	onDemand      bool
@@ -110,7 +110,7 @@ func (loop *frameLoop) frame() {
 	loop.mutex.Lock()
 	loop.scheduled = false
 	loop.mutex.Unlock()
-	hadInput := loop.app.Input.HasInput()
+	hadInput := loop.app.Input.Feed().HasInput()
 	stepped, err := loop.step()
 	if err != nil {
 		loop.finish(err)
@@ -151,7 +151,7 @@ func (loop *frameLoop) scheduleNext(hadInput bool) {
 		loop.request()
 		return
 	}
-	delay, wanted := loop.app.Input.TakeFrameRequest()
+	delay, wanted := loop.app.Input.Feed().TakeFrameRequest()
 	if !wanted {
 		return
 	}

@@ -50,15 +50,15 @@ static int checkShaderSource(const char *source, const char **functions, int fun
 import "C"
 
 import (
-	"errors"
-	"fmt"
 	"unsafe"
+
+	"github.com/akrck02/go-renderer/failure"
 )
 
 // compileShaderSource compiles Metal Shading Language at run time, as the renderer does, and checks
 // that every named function is in the result. The command-line tools have no offline Metal
 // compiler, so this is how the shaders are checked without Xcode. A computer without a Metal
-// device gives an error wrapping ErrUnavailable.
+// device gives an error wrapping Unavailable.
 func compileShaderSource(source string, functions []string) error {
 	cSource := C.CString(source)
 	defer C.free(unsafe.Pointer(cSource))
@@ -71,15 +71,15 @@ func compileShaderSource(source string, functions []string) error {
 	if len(cFunctions) > 0 {
 		functionList = &cFunctions[0]
 	}
-	var failure *C.char
-	result := C.checkShaderSource(cSource, functionList, C.int(len(functions)), &failure)
+	var problem *C.char
+	result := C.checkShaderSource(cSource, functionList, C.int(len(functions)), &problem)
 	if result == 0 {
 		return nil
 	}
-	defer C.free(unsafe.Pointer(failure))
-	message := C.GoString(failure)
+	defer C.free(unsafe.Pointer(problem))
+	message := C.GoString(problem)
 	if result == C.shaderCheckNoDevice {
-		return fmt.Errorf("%w: %s", ErrUnavailable, message)
+		return failure.Wrap(Unavailable, message, nil)
 	}
-	return errors.New("metal: " + message)
+	return failure.Wrap(ShaderNotCompiled, message, nil)
 }

@@ -149,6 +149,20 @@ lifted while a map is shown.
 Other programs reuse these options: `viewer.Options.RegisterFlags` adds them to any flag set, as
 Go Simulator's live simulator does.
 
+In Go, `viewer.Options` keeps the window's size and the backend at the top and the rest in three
+groups, so a program finds a setting by what it is for:
+
+```go
+options := viewer.DefaultOptions()
+options.Start.Walking = true                 // Start: where the view begins (-walk, -map, -look-at, the sun)
+options.Rendering.NoShadows = true           // Rendering: how frames are drawn (-no-shadows, -continuous, -time)
+options.Measure.CapturePath = "frame.png"    // Measure: a capture or a benchmark instead of exploring
+err := viewer.Run(world, options, "Island", nil)
+```
+
+A benchmark writes its report to `options.Measure.Output` (the standard output by default), with
+the scene's loading time when the program sets `Measure.LoadingTime`.
+
 <table>
 <tr><th width="50%">With shadows (the default)</th><th width="50%">Without (<code>-no-shadows</code>, or <code>O</code>)</th></tr>
 <tr>

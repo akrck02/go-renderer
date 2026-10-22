@@ -3,10 +3,11 @@ package gles
 import (
 	"math"
 
+	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
+	"github.com/akrck02/go-renderer/internal/sceneplan"
+	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
-	"github.com/akrck02/go-renderer/sceneplan"
 )
 
 // SceneRenderer draws a scene.Scene in its simplest form: lit meshes and instances, the light of
@@ -33,13 +34,14 @@ type SceneRenderer struct {
 	frameLights  []sceneplan.FrameLight // the frame's point lights, which each draw takes a few of
 }
 
-// NewSceneRenderer compiles the shaders and prepares the overlay's atlas.
-func NewSceneRenderer(functions Functions) (*SceneRenderer, error) {
+// NewSceneRenderer compiles the shaders and prepares the overlay's atlas; the overlay's text is
+// drawn in fonts (overlay.Fonts{} for the default ones).
+func NewSceneRenderer(functions Functions, fonts overlay.Fonts) (*SceneRenderer, error) {
 	shaders, err := newProgram(functions, sceneVertexShader, sceneFragmentShader, sceneAttributes)
 	if err != nil {
 		return nil, err
 	}
-	quads, err := newQuadPass(functions)
+	quads, err := newQuadPass(functions, fonts)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +51,7 @@ func NewSceneRenderer(functions Functions) (*SceneRenderer, error) {
 
 // Draw draws a frame of the scene seen by the camera, in the target framebuffer of width × height
 // pixels.
-func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int) {
+func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Lens, width, height int) {
 	renderer.functions.BindFramebuffer(FramebufferTarget, renderer.Target)
 	renderer.quads.target = renderer.Target
 	frame := renderer.planner.Plan(world, camera, width, height, sceneplan.ShadowSettings{})
@@ -69,13 +71,13 @@ func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, wi
 // fades into it, so it takes the same gamma as the shaded surfaces.
 func (renderer *SceneRenderer) clear(light scene.Daylight, width, height int) {
 	functions := renderer.functions
-	functions.Viewport(0, 0, width, height)
+	functions.SetViewport(0, 0, width, height)
 	horizon := linearToScreen(light.Horizon)
-	functions.ClearColor(horizon[0], horizon[1], horizon[2], 1)
+	functions.SetClearColor(horizon[0], horizon[1], horizon[2], 1)
 	functions.Clear(ColorBufferBit | DepthBufferBit)
 }
 
-func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, light scene.Daylight, camera models.Camera, matrices sceneplan.CameraMatrices) {
+func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, light scene.Daylight, camera camera.Lens, matrices sceneplan.CameraMatrices) {
 	program := renderer.program
 	program.use()
 	program.setMatrix("viewProjection", matrices.ViewProjection)
@@ -99,11 +101,11 @@ func (renderer *SceneRenderer) drawCommands(commands []sceneplan.Command, view s
 	functions := renderer.functions
 	renderer.program.use()
 	functions.Enable(DepthTest)
-	functions.DepthFunc(LessOrEqual)
+	functions.SetDepthFunction(LessOrEqual)
 	transparent := commands[0].Transparent
 	if transparent {
 		functions.Enable(Blend)
-		functions.DepthMask(false) // translucent surfaces do not hide what is drawn after them
+		functions.SetDepthWrite(false) // translucent surfaces do not hide what is drawn after them
 	}
 	blending := sceneplan.BlendNone
 	for _, command := range commands {
@@ -114,7 +116,7 @@ func (renderer *SceneRenderer) drawCommands(commands []sceneplan.Command, view s
 		renderer.drawCommand(command, view)
 	}
 	if transparent {
-		functions.DepthMask(true)
+		functions.SetDepthWrite(true)
 		functions.Disable(Blend)
 	}
 }
@@ -122,10 +124,10 @@ func (renderer *SceneRenderer) drawCommands(commands []sceneplan.Command, view s
 // blendFor mixes what is drawn next over what is behind it by alpha, or adds its light.
 func (renderer *SceneRenderer) blendFor(blending sceneplan.Blending) {
 	if blending == sceneplan.BlendAdditive {
-		renderer.functions.BlendFuncSeparate(SourceAlpha, One, One, OneMinusSrcAlpha)
+		renderer.functions.SetBlendFactors(SourceAlpha, One, One, OneMinusSourceAlpha)
 		return
 	}
-	renderer.functions.BlendFuncSeparate(SourceAlpha, OneMinusSrcAlpha, One, OneMinusSrcAlpha)
+	renderer.functions.SetBlendFactors(SourceAlpha, OneMinusSourceAlpha, One, OneMinusSourceAlpha)
 }
 
 func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view sceneplan.Viewpoint) {
@@ -142,7 +144,7 @@ func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view scene
 		return
 	}
 	renderer.setModel(command.World)
-	program.setVector4("tint", graphics.Vec4{1, 1, 1, 1})
+	program.setVector4("tint", graphics.Vector{1, 1, 1, 1})
 	renderer.drawMesh(mesh)
 	renderer.planner.Count(sceneplan.MainPass, mesh, 0)
 }
@@ -156,14 +158,14 @@ func (renderer *SceneRenderer) drawInstances(command sceneplan.Command, view sce
 			continue
 		}
 		renderer.setModel(command.World)
-		renderer.program.setVector4("tint", graphics.Vec4{1, 1, 1, 1})
+		renderer.program.setVector4("tint", graphics.Vector{1, 1, 1, 1})
 		renderer.drawMesh(instances.MergedFor(batch.Mesh, batch.Count))
 		renderer.planner.Count(sceneplan.MainPass, batch.Mesh, batch.Count)
 	}
 }
 
 // setModel sets the model matrix and the normal matrix that goes with it.
-func (renderer *SceneRenderer) setModel(model graphics.Mat4) {
+func (renderer *SceneRenderer) setModel(model graphics.Matrix) {
 	renderer.program.setMatrix("model", model)
 	renderer.program.setMatrix3("normalMatrix", sceneplan.NormalMatrix(model))
 }
@@ -209,12 +211,12 @@ func (renderer *SceneRenderer) uploadMesh(mesh *scene.Mesh) *meshBuffers {
 		buffers = &meshBuffers{owner: renderer, vertexBuffer: functions.CreateBuffer(), indexBuffer: functions.CreateBuffer()}
 	}
 	functions.BindBuffer(ArrayBuffer, buffers.vertexBuffer)
-	functions.BufferData(ArrayBuffer, floatBytes(sceneplan.InterleaveVertices(mesh)), StaticDraw)
+	functions.SetBufferData(ArrayBuffer, floatBytes(sceneplan.InterleaveVertices(mesh)), StaticDraw)
 	buffers.indexed = len(mesh.Indices) > 0
 	buffers.count = sceneplan.ElementCount(mesh)
 	if buffers.indexed {
 		functions.BindBuffer(ElementArrayBuffer, buffers.indexBuffer)
-		functions.BufferData(ElementArrayBuffer, indexBytes(mesh.Indices), StaticDraw)
+		functions.SetBufferData(ElementArrayBuffer, indexBytes(mesh.Indices), StaticDraw)
 	}
 	mesh.GPU, mesh.Dirty = buffers, false
 	return buffers
@@ -224,14 +226,14 @@ func (renderer *SceneRenderer) uploadMesh(mesh *scene.Mesh) *meshBuffers {
 // vertices, in the bound vertex buffer; with no vertex array objects, before every draw.
 func describeSceneVertexLayout(functions Functions) {
 	stride := sceneplan.FloatsPerVertex * 4
-	functions.VertexAttribPointer(0, 3, Float, false, stride, 0)
-	functions.VertexAttribPointer(1, 3, Float, false, stride, 3*4)
-	functions.VertexAttribPointer(2, 4, Float, false, stride, 6*4)
+	functions.DescribeVertexAttribute(0, 3, Float, false, stride, 0)
+	functions.DescribeVertexAttribute(1, 3, Float, false, stride, 3*4)
+	functions.DescribeVertexAttribute(2, 4, Float, false, stride, 6*4)
 }
 
 // linearToScreen turns a linear colour into the screen's gamma, as the scene shader does.
-func linearToScreen(color graphics.Vec4) graphics.Vec4 {
-	return graphics.Vec4{gammaOf(color[0]), gammaOf(color[1]), gammaOf(color[2]), color[3]}
+func linearToScreen(color graphics.Vector) graphics.Vector {
+	return graphics.Vector{gammaOf(color[0]), gammaOf(color[1]), gammaOf(color[2]), color[3]}
 }
 
 func gammaOf(channel float32) float32 {

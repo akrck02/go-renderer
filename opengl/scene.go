@@ -4,11 +4,13 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
-	"github.com/akrck02/go-renderer/scene"
-	"github.com/akrck02/go-renderer/sceneplan"
 	"github.com/go-gl/gl/v4.1-core/gl"
+
+	"github.com/akrck02/go-renderer/camera"
+	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/internal/sceneplan"
+	"github.com/akrck02/go-renderer/opengl/overlay"
+	"github.com/akrck02/go-renderer/scene"
 )
 
 // SceneRenderer draws a scene.Scene. Meshes and instances are uploaded once and kept on the
@@ -67,9 +69,20 @@ type instanceBuffers struct {
 
 const bytesPerFloat = 4
 
-// NewSceneRenderer compiles the scene shaders. Call it after the OpenGL context exists.
-func NewSceneRenderer() (*SceneRenderer, error) {
-	sceneProgram, err := newShaderProgram(graphics.SceneVertexShader, graphics.SceneFragmentShader)
+// firstFloat points GL at a slice's first value, or at nothing for an empty slice. gl.Ptr does
+// the same, but takes an interface: handing it the slice copies the slice's header to the heap
+// on every call, which a frame cannot afford.
+func firstFloat(values []float32) unsafe.Pointer {
+	if len(values) == 0 {
+		return nil
+	}
+	return unsafe.Pointer(&values[0])
+}
+
+// NewSceneRenderer compiles the scene shaders; the overlay's text is drawn in fonts
+// (overlay.Fonts{} for the default ones). Call it after the OpenGL context exists.
+func NewSceneRenderer(fonts overlay.Fonts) (*SceneRenderer, error) {
+	sceneProgram, err := newShaderProgram(sceneVertexShader, sceneFragmentShader)
 	if err != nil {
 		return nil, err
 	}
@@ -86,24 +99,14 @@ func NewSceneRenderer() (*SceneRenderer, error) {
 		return nil, err
 	}
 	renderer.levelVariation = newLevelVariationTexture()
-	if renderer.overlay, err = newOverlayRenderer(); err != nil {
+	if renderer.overlay, err = newOverlayRenderer(fonts); err != nil {
 		return nil, err
 	}
 	return renderer, nil
 }
 
 func newShaderProgram(vertexSource, fragmentSource string) (*shaderProgram, error) {
-	vertexShader, err := CompileShader(vertexSource, gl.VERTEX_SHADER)
-	if err != nil {
-		return nil, err
-	}
-	fragmentShader, err := CompileShader(fragmentSource, gl.FRAGMENT_SHADER)
-	if err != nil {
-		return nil, err
-	}
-	handle, err := LinkProgram(vertexShader, fragmentShader)
-	gl.DeleteShader(vertexShader)
-	gl.DeleteShader(fragmentShader)
+	handle, err := newProgram(vertexSource, fragmentSource)
 	if err != nil {
 		return nil, err
 	}
@@ -119,15 +122,15 @@ func (program *shaderProgram) location(name string) int32 {
 	return location
 }
 
-func (program *shaderProgram) setVector3(name string, value graphics.Vec4) {
+func (program *shaderProgram) setVector3(name string, value graphics.Vector) {
 	gl.Uniform3f(program.location(name), value[0], value[1], value[2])
 }
 
-func (program *shaderProgram) setVector4(name string, value graphics.Vec4) {
+func (program *shaderProgram) setVector4(name string, value graphics.Vector) {
 	gl.Uniform4fv(program.location(name), 1, &value[0])
 }
 
-func (program *shaderProgram) setMatrix(name string, value graphics.Mat4) {
+func (program *shaderProgram) setMatrix(name string, value graphics.Matrix) {
 	gl.UniformMatrix4fv(program.location(name), 1, false, &value[0])
 }
 
@@ -141,7 +144,7 @@ func (program *shaderProgram) setInteger(name string, value int32) {
 
 // Draw renders the scene from the camera into the current framebuffer of the given size, then its
 // overlay on top. seconds is the elapsed time, which animates water and waterfalls.
-func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int, seconds float64) {
+func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Lens, width, height int, seconds float64) {
 	renderer.DrawIn(world, camera, Area{Width: width, Height: height}, seconds)
 	renderer.DrawOverlay(world, width, height)
 }
@@ -153,20 +156,20 @@ type Area struct{ X, Y, Width, Height int }
 // DrawIn renders the scene from the camera into an area of the current framebuffer, clearing only
 // that area, and without the scene's overlay: several scenes can share a frame (a preview of a
 // console's two screens), and an overlay over all of them is drawn once after (DrawOverlay).
-func (renderer *SceneRenderer) DrawIn(world *scene.Scene, camera models.Camera, area Area, seconds float64) {
+func (renderer *SceneRenderer) DrawIn(world *scene.Scene, camera camera.Lens, area Area, seconds float64) {
 	renderer.drawArea(world, camera, area, seconds, false)
 }
 
 // DrawOver renders the scene from the camera into an area over what the framebuffer holds there:
 // it clears only the depth and draws no sky, so the scene floats over the one behind it (a radar
 // in a corner of a game's view). Like DrawIn, it leaves the overlay to DrawOverlay.
-func (renderer *SceneRenderer) DrawOver(world *scene.Scene, camera models.Camera, area Area, seconds float64) {
+func (renderer *SceneRenderer) DrawOver(world *scene.Scene, camera camera.Lens, area Area, seconds float64) {
 	renderer.drawArea(world, camera, area, seconds, true)
 }
 
 // drawArea renders the scene into an area: with its background (the horizon's colour and the sky),
 // or over what is there.
-func (renderer *SceneRenderer) drawArea(world *scene.Scene, camera models.Camera, area Area, seconds float64, over bool) {
+func (renderer *SceneRenderer) drawArea(world *scene.Scene, camera camera.Lens, area Area, seconds float64, over bool) {
 	started := time.Now()
 	frame := renderer.planner.Plan(world, camera, area.Width, area.Height, renderer.Shadows)
 	renderer.measurePass("seabed", func() { renderer.seabed.update(frame.Seabed) })
@@ -261,7 +264,7 @@ func clearFrame(light scene.Daylight, area Area, over bool) {
 }
 
 // setFrameUniforms sets what every draw of the frame shares; the light is the sun or the moon.
-func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, light scene.Daylight, camera models.Camera, matrices sceneplan.CameraMatrices, seconds float64) {
+func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, light scene.Daylight, camera camera.Lens, matrices sceneplan.CameraMatrices, seconds float64) {
 	program := renderer.sceneProgram
 	gl.UseProgram(program.handle)
 	program.setMatrix("projection", matrices.Projection)
@@ -451,7 +454,7 @@ func uploadInstances(instances *scene.Instances, mesh *meshBuffers) *instanceBuf
 func fillInstanceBuffer(buffer uint32, data []float32) {
 	gl.BindBuffer(gl.ARRAY_BUFFER, buffer)
 	if len(data) > 0 {
-		gl.BufferData(gl.ARRAY_BUFFER, len(data)*bytesPerFloat, gl.Ptr(data), gl.DYNAMIC_DRAW)
+		gl.BufferData(gl.ARRAY_BUFFER, len(data)*bytesPerFloat, firstFloat(data), gl.DYNAMIC_DRAW)
 	}
 }
 

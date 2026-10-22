@@ -4,11 +4,12 @@ import (
 	"image"
 	"image/draw"
 
-	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
-	"github.com/akrck02/go-renderer/scene"
-	"github.com/akrck02/go-renderer/sceneplan"
 	"github.com/go-gl/gl/v4.1-core/gl"
+
+	"github.com/akrck02/go-renderer/camera"
+	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/internal/sceneplan"
+	"github.com/akrck02/go-renderer/scene"
 )
 
 // skyRenderer draws the sky dome (procedural or images) and the constellations.
@@ -42,11 +43,11 @@ const (
 )
 
 func newSkyRenderer() (*skyRenderer, error) {
-	program, err := newShaderProgram(graphics.SkyVertexShader, graphics.SkyFragmentShader)
+	program, err := newShaderProgram(skyVertexShader, skyFragmentShader)
 	if err != nil {
 		return nil, err
 	}
-	constellationProgram, err := newShaderProgram(graphics.ConstellationVertexShader, graphics.ConstellationFragmentShader)
+	constellationProgram, err := newShaderProgram(constellationVertexShader, constellationFragmentShader)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +58,7 @@ func newSkyRenderer() (*skyRenderer, error) {
 
 // draw paints the sky where the opaque scene left the far plane uncovered, so the covered pixels
 // cost nothing; it leaves depth testing ready for the transparent scene.
-func (renderer *skyRenderer) draw(environment scene.Environment, light scene.Daylight, camera models.Camera, matrices sceneplan.CameraMatrices, seconds float64) {
+func (renderer *skyRenderer) draw(environment scene.Environment, light scene.Daylight, camera camera.Lens, matrices sceneplan.CameraMatrices, seconds float64) {
 	inverse, invertible := matrices.ViewProjection.Inverse()
 	if !invertible {
 		return
@@ -73,7 +74,7 @@ func (renderer *skyRenderer) draw(environment scene.Environment, light scene.Day
 	gl.DepthFunc(gl.LEQUAL)
 }
 
-func (renderer *skyRenderer) drawDome(environment scene.Environment, light scene.Daylight, camera models.Camera, inverse graphics.Mat4, seconds float64) {
+func (renderer *skyRenderer) drawDome(environment scene.Environment, light scene.Daylight, camera camera.Lens, inverse graphics.Matrix, seconds float64) {
 	sky := environment.EffectiveSky()
 	program := renderer.program
 	gl.UseProgram(program.handle)
@@ -112,7 +113,7 @@ func setStars(program *shaderProgram, stars scene.Stars) {
 	program.setFloat("starDaytimeVisibility", stars.DaytimeVisibility)
 }
 
-func setMoon(program *shaderProgram, moon *scene.Moon, direction graphics.Vec4) {
+func setMoon(program *shaderProgram, moon *scene.Moon, direction graphics.Vector) {
 	if moon == nil {
 		program.setInteger("moonEnabled", 0)
 		return
@@ -243,7 +244,7 @@ func toRGBA(source image.Image) *image.RGBA {
 }
 
 // drawConstellations draws the lines and stars of every constellation, fading them with daylight.
-func (renderer *skyRenderer) drawConstellations(sky *scene.Sky, light scene.Daylight, camera models.Camera, matrices sceneplan.CameraMatrices) {
+func (renderer *skyRenderer) drawConstellations(sky *scene.Sky, light scene.Daylight, camera camera.Lens, matrices sceneplan.CameraMatrices) {
 	if len(sky.Constellations) == 0 {
 		return
 	}
@@ -276,7 +277,7 @@ func drawConstellationLines(program *shaderProgram, buffers *constellationBuffer
 
 func drawConstellationStars(program *shaderProgram, buffers *constellationBuffers, sky *scene.Sky) {
 	program.setInteger("drawingPoints", 1)
-	program.setVector4("lineColor", graphics.Vec4{1, 1, 1, 1})
+	program.setVector4("lineColor", graphics.Vector{1, 1, 1, 1})
 	gl.DrawArrays(gl.POINTS, 0, buffers.pointCount)
 }
 

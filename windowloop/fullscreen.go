@@ -1,8 +1,9 @@
 package windowloop
 
 import (
-	"github.com/akrck02/go-renderer/input"
 	"github.com/go-gl/glfw/v3.4/glfw"
+
+	"github.com/akrck02/go-renderer/input"
 )
 
 // Fullscreen puts a window on the whole screen when the application asks (input.State's

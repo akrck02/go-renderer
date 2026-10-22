@@ -1,5 +1,11 @@
+# the programs go build leaves at the root, and their outputs
 3dmodels
 go-renderer
-.DS_Store
+out/
 *.wasm
 wasm_exec.js
+*.3dsx
+
+# secrets and system files
+.env
+.DS_Store

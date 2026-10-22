@@ -66,7 +66,7 @@ the same with a flat floor. They work with every camera: the orbit, walking, and
 angle := 0.0
 edit := func(world *scene.Scene, state *input.State, step float64, view viewer.View) {
 	angle += step * 1.5
-	lamp.Transform = graphics.Translate(graphics.Vec4{0, 8, 0, 1}).Multiply(graphics.RotateY(angle))
+	lamp.Transform = graphics.Translate(graphics.Vector{0, 8, 0, 1}).Multiply(graphics.RotateY(angle))
 	state.RequestFrame(0) // the lamp never stops, so ask for the next frame now
 
 	if !clicked(state) {
@@ -78,7 +78,7 @@ edit := func(world *scene.Scene, state *input.State, step float64, view viewer.V
 	}
 	plant(forest.Instances, point[0], point[1], point[2], 1)
 	world.Overlay.Header[0].Text = treeCount(forest.Instances)
-	world.Overlay.AddNotice("sprout", "A tree was planted", graphics.Vec4{0.3, 0.7, 0.3, 1})
+	world.Overlay.AddNotice("sprout", "A tree was planted", graphics.Vector{0.3, 0.7, 0.3, 1})
 }
 if err := viewer.Edit(world, options, "Island", edit); err != nil {
 	log.Fatal(err)
@@ -178,48 +178,48 @@ func main() {
 	island := &scene.Node{Name: "island", Transform: graphics.Identity(), Mesh: hill(60, 4)}
 	tower := &scene.Node{
 		Name:      "lighthouse",
-		Transform: graphics.Translate(graphics.Vec4{0, 4, 0, 1}),
-		Mesh:      box(2, 8, 2, graphics.Vec4{0.9, 0.9, 0.85, 1}),
+		Transform: graphics.Translate(graphics.Vector{0, 4, 0, 1}),
+		Mesh:      box(2, 8, 2, graphics.Vector{0.9, 0.9, 0.85, 1}),
 	}
 	world.Nodes = append(world.Nodes, island, tower)
 
 	// Lesson 2: a lamp on top of the tower, and a forest.
 	lamp := &scene.Node{
 		Name:      "lamp",
-		Transform: graphics.Translate(graphics.Vec4{0, 8, 0, 1}),
-		Mesh:      box(3, 0.5, 0.5, graphics.Vec4{1, 0.85, 0.3, 1}),
+		Transform: graphics.Translate(graphics.Vector{0, 8, 0, 1}),
+		Mesh:      box(3, 0.5, 0.5, graphics.Vector{1, 0.85, 0.3, 1}),
 	}
 	tower.Children = append(tower.Children, lamp)
 
 	forest := &scene.Node{
 		Name:      "forest",
 		Transform: graphics.Identity(),
-		Mesh:      cone(1, 3, graphics.Vec4{0.2, 0.45, 0.2, 1}),
+		Mesh:      cone(1, 3, graphics.Vector{0.2, 0.45, 0.2, 1}),
 		Instances: &scene.Instances{},
 	}
 	world.Nodes = append(world.Nodes, forest)
 	plantForest(world, forest.Instances, 300)
 
 	// Lesson 3: the sea, fog, wind and clouds; the lamp glows and the trees sway.
-	lamp.Mesh.Material.Kind = scene.KindGlow
+	lamp.Mesh.Material.Kind = scene.GlowKind
 	forest.Mesh.Material.Sway = 0.3
 	world.Environment.Water = &scene.Water{
 		Level:   1,
 		Size:    2000,
-		Shallow: graphics.Vec4{0.1, 0.5, 0.55, 1},
-		Deep:    graphics.Vec4{0.02, 0.12, 0.25, 1},
+		Shallow: graphics.Vector{0.1, 0.5, 0.55, 1},
+		Deep:    graphics.Vector{0.02, 0.12, 0.25, 1},
 	}
-	world.Environment.FogColor = graphics.Vec4{0.75, 0.8, 0.85, 1}
+	world.Environment.FogColor = graphics.Vector{0.75, 0.8, 0.85, 1}
 	world.Environment.FogNear, world.Environment.FogFar = 80, 400
-	world.Environment.Wind = scene.Wind{Direction: graphics.Vec4{1, 0, 0.3, 0}, Strength: 0.5}
+	world.Environment.Wind = scene.Wind{Direction: graphics.Vector{1, 0, 0.3, 0}, Strength: 0.5}
 	sky := scene.DefaultSky()
-	sky.Clouds = scene.Clouds{Coverage: 0.4, Color: graphics.Vec4{1, 1, 1, 1}, Speed: 0.01, Scale: 1}
+	sky.Clouds = scene.Clouds{Coverage: 0.4, Color: graphics.Vector{1, 1, 1, 1}, Speed: 0.01, Scale: 1}
 	world.Environment.Sky = sky
 
 	// Lesson 4: a label over the lighthouse, a header, a notice and a card of our own.
 	world.Overlay.AddLabel(&scene.Label{Node: tower, Height: 9, Icon: "lightbulb", Text: "North Point", Badge: "lit"})
 	world.Overlay.Header = []scene.HeaderLine{{Icon: "trees", Text: treeCount(forest.Instances)}}
-	world.Overlay.AddNotice("anchor", "A boat came in", graphics.Vec4{})
+	world.Overlay.AddNotice("anchor", "A boat came in", graphics.Vector{})
 	card := &draw2d.List{}
 	world.Overlay.Drawing = card
 	drawWindCard(card, world.Environment.Wind.Strength)
@@ -228,7 +228,7 @@ func main() {
 	angle := 0.0
 	edit := func(world *scene.Scene, state *input.State, step float64, view viewer.View) {
 		angle += step * 1.5
-		lamp.Transform = graphics.Translate(graphics.Vec4{0, 8, 0, 1}).Multiply(graphics.RotateY(angle))
+		lamp.Transform = graphics.Translate(graphics.Vector{0, 8, 0, 1}).Multiply(graphics.RotateY(angle))
 		state.RequestFrame(0) // the lamp never stops, so ask for the next frame now
 
 		if !clicked(state) {
@@ -240,7 +240,7 @@ func main() {
 		}
 		plant(forest.Instances, point[0], point[1], point[2], 1)
 		world.Overlay.Header[0].Text = treeCount(forest.Instances)
-		world.Overlay.AddNotice("sprout", "A tree was planted", graphics.Vec4{0.3, 0.7, 0.3, 1})
+		world.Overlay.AddNotice("sprout", "A tree was planted", graphics.Vector{0.3, 0.7, 0.3, 1})
 	}
 	if err := viewer.Edit(world, options, "Island", edit); err != nil {
 		log.Fatal(err)
@@ -269,12 +269,12 @@ func plantForest(world *scene.Scene, forest *scene.Instances, count int) {
 // plant adds a tree of a size to the forest, standing at a point.
 func plant(forest *scene.Instances, x, y, z, size float32) {
 	placement := graphics.FromTranslationRotationScale(
-		graphics.Vec4{x, y, z, 1},          // where
-		graphics.Vec4{0, 0, 0, 1},          // no rotation (a quaternion)
-		graphics.Vec4{size, size, size, 1}, // how big
+		graphics.Vector{x, y, z, 1},          // where
+		graphics.Vector{0, 0, 0, 1},          // no rotation (a quaternion)
+		graphics.Vector{size, size, size, 1}, // how big
 	)
 	forest.Transforms = append(forest.Transforms, placement)
-	forest.Colors = append(forest.Colors, graphics.Vec4{1, 1, 1, 1}) // white keeps the mesh's colour
+	forest.Colors = append(forest.Colors, graphics.Vector{1, 1, 1, 1}) // white keeps the mesh's colour
 	forest.Dirty = true                                              // added one: upload them all again
 }
 
@@ -285,12 +285,12 @@ func treeCount(forest *scene.Instances) string {
 // drawWindCard paints a card in the bottom-left corner with the wind's strength.
 func drawWindCard(drawing *draw2d.List, strength float32) {
 	drawing.Reset()
-	card := draw2d.Rect{X: 16, Y: 380, Width: 180, Height: 52}
-	drawing.Shadow(card, 12, 10, 3, draw2d.Hex("#00000040"))
-	drawing.Rectangle(card, 12, draw2d.Hex("#ffffff"), draw2d.Transparent, 0)
-	drawing.Icon("wind", card.X+14, card.Y+14, 24, draw2d.Hex("#3b6ea5"))
-	drawing.Text("Wind", card.X+50, card.Y+22, 13, draw2d.Bold, draw2d.Hex("#1f2933"))
-	drawing.Text(fmt.Sprintf("strength %.1f", strength), card.X+50, card.Y+40, 12, draw2d.Regular, draw2d.Hex("#52606d"))
+	card := draw2d.Rectangle{X: 16, Y: 380, Width: 180, Height: 52}
+	drawing.Shadow(card, 12, 10, 3, draw2d.MustHex("#00000040"))
+	drawing.Rectangle(card, 12, draw2d.MustHex("#ffffff"), draw2d.Transparent, 0)
+	drawing.Icon("wind", card.X+14, card.Y+14, 24, draw2d.MustHex("#3b6ea5"))
+	drawing.Text("Wind", card.X+50, card.Y+22, 13, draw2d.Bold, draw2d.MustHex("#1f2933"))
+	drawing.Text(fmt.Sprintf("strength %.1f", strength), card.X+50, card.Y+40, 12, draw2d.Regular, draw2d.MustHex("#52606d"))
 }
 
 // hill is a round island: a grid of side × side cells, highest in the middle and under the sea at
@@ -300,8 +300,8 @@ func hill(side int, height float32) *scene.Mesh {
 		Name:   "hill",
 		Ground: true,
 		Material: &scene.Material{
-			Kind:         scene.KindLit,
-			BaseColor:    graphics.Vec4{0.45, 0.6, 0.3, 1},
+			Kind:         scene.LitKind,
+			BaseColor:    graphics.Vector{0.45, 0.6, 0.3, 1},
 			Pattern:      scene.PatternGrass,
 			PatternScale: 1,
 		},
@@ -328,14 +328,14 @@ func hill(side int, height float32) *scene.Mesh {
 
 // box is a box standing on the origin: width along x, height up y, depth along z. Each face has
 // vertices of its own, so its normals stay flat and its edges sharp.
-func box(width, height, depth float32, color graphics.Vec4) *scene.Mesh {
+func box(width, height, depth float32, color graphics.Vector) *scene.Mesh {
 	x, z := width/2, depth/2
 	corners := [8][3]float32{
 		{-x, 0, -z}, {x, 0, -z}, {x, 0, z}, {-x, 0, z}, // bottom
 		{-x, height, -z}, {x, height, -z}, {x, height, z}, {-x, height, z}, // top
 	}
 	faces := [6][4]int{{0, 1, 2, 3}, {7, 6, 5, 4}, {3, 2, 6, 7}, {1, 0, 4, 5}, {2, 1, 5, 6}, {0, 3, 7, 4}}
-	mesh := &scene.Mesh{Name: "box", Material: &scene.Material{Kind: scene.KindLit, BaseColor: color}}
+	mesh := &scene.Mesh{Name: "box", Material: &scene.Material{Kind: scene.LitKind, BaseColor: color}}
 	for _, face := range faces {
 		first := uint32(len(mesh.Positions) / 3)
 		for _, corner := range face {
@@ -348,9 +348,9 @@ func box(width, height, depth float32, color graphics.Vec4) *scene.Mesh {
 }
 
 // cone is a tree: a cone of a radius and a height standing on the origin.
-func cone(radius, height float32, color graphics.Vec4) *scene.Mesh {
+func cone(radius, height float32, color graphics.Vector) *scene.Mesh {
 	const sides = 8
-	mesh := &scene.Mesh{Name: "tree", Material: &scene.Material{Kind: scene.KindLit, BaseColor: color}}
+	mesh := &scene.Mesh{Name: "tree", Material: &scene.Material{Kind: scene.LitKind, BaseColor: color}}
 	mesh.Positions = append(mesh.Positions, 0, height, 0) // the tip
 	for side := range sides {
 		angle := float64(side) / sides * 2 * math.Pi

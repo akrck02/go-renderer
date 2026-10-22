@@ -3,6 +3,7 @@ package overlay
 import (
 	"image"
 	"math"
+	"slices"
 	"sort"
 
 	"github.com/akrck02/go-renderer/draw2d"
@@ -35,13 +36,15 @@ func (painter *Painter) paintDrawing(list *draw2d.List, scale float32) {
 
 // drawingOrder lists the commands by layer, keeping their order within a layer.
 func (painter *Painter) drawingOrder(list *draw2d.List) []int {
-	order := painter.order[:0]
+	commands := list.Commands
+	order := slices.Grow(painter.order[:0], len(commands))[:len(commands)]
 	sorted := true
-	for index := range list.Commands {
-		order = append(order, index)
-		if index > 0 && list.Commands[index].Layer < list.Commands[index-1].Layer {
-			sorted = false
-		}
+	previousLayer := math.MinInt
+	for index := range commands {
+		order[index] = index
+		layer := commands[index].Layer
+		sorted = sorted && layer >= previousLayer
+		previousLayer = layer
 	}
 	painter.order = order
 	if sorted {
@@ -236,7 +239,7 @@ func coverCrop(bounds image.Rectangle, area rectangle) [4]float32 {
 }
 
 // screenArea turns a rectangle in layout pixels into whole screen pixels.
-func screenArea(area draw2d.Rect, scale float32) rectangle {
+func screenArea(area draw2d.Rectangle, scale float32) rectangle {
 	left, top := pixels(area.X, scale), pixels(area.Y, scale)
 	return rectangle{left, top, pixels(area.Right(), scale), pixels(area.Bottom(), scale)}
 }
@@ -348,19 +351,36 @@ func (painter *Painter) paintIcon(command *draw2d.Command, scale float32) {
 // clipQuads cuts the quads from first onwards to a rectangle of the screen, moving their atlas
 // coordinates with their edges, and drops the ones left outside.
 func (painter *Painter) clipQuads(first int, clip rectangle) {
+	limits := [4]float32{float32(clip.left), float32(clip.top), float32(clip.right), float32(clip.bottom)}
+	quads := painter.quads
 	kept := first
-	for index := first; index < len(painter.quads); index++ {
-		quad, visible := clipQuad(painter.quads[index], clip)
-		if visible {
-			painter.quads[kept] = quad
+	for index := first; index < len(quads); index++ {
+		quad := &quads[index]
+		if isInside(quad.Screen, limits) { // most quads: kept as they are, without copying them twice
+			if kept != index {
+				quads[kept] = *quad
+			}
+			kept++
+			continue
+		}
+		if clipped, visible := clipQuad(*quad, limits); visible {
+			quads[kept] = clipped
 			kept++
 		}
 	}
-	painter.quads = painter.quads[:kept]
+	painter.quads = quads[:kept]
 }
 
-func clipQuad(quad Quad, clip rectangle) (Quad, bool) {
-	limits := [4]float32{float32(clip.left), float32(clip.top), float32(clip.right), float32(clip.bottom)}
+// isInside tells whether a quad's screen rectangle lies wholly within the limits (left, top,
+// right, bottom) and covers some area.
+func isInside(screen, limits [4]float32) bool {
+	return screen[0] >= limits[0] && screen[1] >= limits[1] && screen[2] <= limits[2] && screen[3] <= limits[3] &&
+		screen[2] > screen[0] && screen[3] > screen[1]
+}
+
+// clipQuad cuts a quad to the limits (left, top, right, bottom), its atlas and picture with it;
+// false when nothing of it is left.
+func clipQuad(quad Quad, limits [4]float32) (Quad, bool) {
 	for axis := 0; axis < 2; axis++ {
 		low, high := axis, axis+2
 		start, end := quad.Screen[low], quad.Screen[high]
@@ -405,9 +425,10 @@ type Measurer struct {
 	fonts *fonts
 }
 
-// NewMeasurer parses the embedded fonts.
-func NewMeasurer() (*Measurer, error) {
-	loaded, err := loadFonts()
+// NewMeasurer reads the fonts (Fonts{} for the default ones). Give it the fonts the painter draws
+// with, so what is measured is what is drawn.
+func NewMeasurer(chosen Fonts) (*Measurer, error) {
+	loaded, err := loadFonts(chosen)
 	if err != nil {
 		return nil, err
 	}
@@ -416,7 +437,7 @@ func NewMeasurer() (*Measurer, error) {
 
 // MeasureText measures a line at a size in layout pixels on a screen of a density (see
 // draw2d.Measurer). A character the font lacks is measured in the system's font that has it
-// (FontFolders), or as a question mark, as it is drawn.
+// (Fonts.Folders), or as a question mark, as it is drawn.
 func (measurer *Measurer) MeasureText(text string, size float32, weight draw2d.Weight, scale float32) draw2d.TextMetrics {
 	if scale <= 0 {
 		scale = 1

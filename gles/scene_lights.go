@@ -1,6 +1,6 @@
 package gles
 
-import "github.com/akrck02/go-renderer/sceneplan"
+import "github.com/akrck02/go-renderer/internal/sceneplan"
 
 // lightUniformNames are the scene shader's light uniforms as OpenGL ES 2 names each element of an
 // array: positions, then colours.

@@ -24,114 +24,114 @@ func stripes(width, height int) *draw2d.Image {
 	return picture
 }
 
-func TestAnImageCoversItsAreaWithTheMiddleOfAWiderPicture(t *testing.T) {
+func TestAnImageCoversItsAreaWithTheMiddleOfAWiderPicture(test *testing.T) {
 	var list draw2d.List
 	picture := stripes(400, 100) // four times as wide as tall
-	list.Image(picture, draw2d.Rect{X: 10, Y: 20, Width: 100, Height: 100}, 0, white)
-	quads := paintList(t, &list, 1)
+	list.Image(picture, draw2d.Rectangle{X: 10, Y: 20, Width: 100, Height: 100}, 0, white)
+	quads := paintList(test, &list, 1)
 	if len(quads) == 0 {
-		t.Fatal("an image drew nothing")
+		test.Fatal("an image drew nothing")
 	}
 	if bounds := covered(quads); bounds != [4]float32{10, 20, 110, 120} {
-		t.Fatalf("the image covers %v; want its area", bounds)
+		test.Fatalf("the image covers %v; want its area", bounds)
 	}
 	left, right := float32(1e9), float32(-1e9)
 	for _, quad := range quads {
 		if !quad.Pictured {
-			t.Fatal("a quad of an image reads no picture")
+			test.Fatal("a quad of an image reads no picture")
 		}
 		left, right = min(left, quad.Picture[0]), max(right, quad.Picture[2])
 	}
 	// a square area shows the middle 100 of the picture's 400 columns
 	if width := right - left; width < 99 || width > 101 {
-		t.Fatalf("the image reads %v columns of its picture; want the middle 100", width)
+		test.Fatalf("the image reads %v columns of its picture; want the middle 100", width)
 	}
 }
 
-func TestAClippedImageReadsOnlyWhatShows(t *testing.T) {
+func TestAClippedImageReadsOnlyWhatShows(test *testing.T) {
 	var list draw2d.List
-	list.PushClip(draw2d.Rect{X: 0, Y: 0, Width: 60, Height: 600})
-	list.Image(stripes(100, 100), draw2d.Rect{X: 10, Y: 10, Width: 100, Height: 100}, 0, white)
-	quads := paintList(t, &list, 1)
+	list.PushClip(draw2d.Rectangle{X: 0, Y: 0, Width: 60, Height: 600})
+	list.Image(stripes(100, 100), draw2d.Rectangle{X: 10, Y: 10, Width: 100, Height: 100}, 0, white)
+	quads := paintList(test, &list, 1)
 	right := float32(-1e9)
 	for _, quad := range quads {
 		if quad.Screen[2] > 60 {
-			t.Fatalf("a quad reaches %v past the clip at 60", quad.Screen[2])
+			test.Fatalf("a quad reaches %v past the clip at 60", quad.Screen[2])
 		}
 		right = max(right, quad.Picture[2])
 	}
 	// the picture starts one pixel in (its border); half of its 100 columns show
 	if right > 1+50+1 {
-		t.Fatalf("the clipped image reads its picture up to %v; want only the first half", right)
+		test.Fatalf("the clipped image reads its picture up to %v; want only the first half", right)
 	}
 }
 
-func TestAChangedPictureIsCopiedAgainInPlace(t *testing.T) {
-	painter := newTestPainter(t)
+func TestAChangedPictureIsCopiedAgainInPlace(test *testing.T) {
+	painter := newTestPainter(test)
 	picture := stripes(8, 8)
 	var list draw2d.List
-	list.Image(picture, draw2d.Rect{Width: 80, Height: 80}, 0, white)
+	list.Image(picture, draw2d.Rectangle{Width: 80, Height: 80}, 0, white)
 	paint := func() { painter.Paint(&scene.Overlay{Drawing: &list}, nil, Frame{Width: 800, Height: 600, Scale: 1}) }
 	paint()
 	pictures := painter.Pictures()
 	if whole, _ := pictures.Pending(); !whole {
-		t.Fatal("a new atlas does not ask to be uploaded whole")
+		test.Fatal("a new atlas does not ask to be uploaded whole")
 	}
 	pictures.Uploaded()
 	paint()
 	if whole, areas := pictures.Pending(); whole || len(areas) != 0 {
-		t.Fatal("the same picture drawn again asks for an upload")
+		test.Fatal("the same picture drawn again asks for an upload")
 	}
 	picture.Pixels.SetNRGBA(0, 0, color.NRGBA{G: 255, A: 255})
 	picture.Changed()
 	paint()
 	whole, areas := pictures.Pending()
 	if whole || len(areas) != 1 || areas[0].Dx() != 10 {
-		t.Fatalf("whole %v, areas %v after the picture changed; want its own 10×10 area with the border", whole, areas)
+		test.Fatalf("whole %v, areas %v after the picture changed; want its own 10×10 area with the border", whole, areas)
 	}
 	bounds, _ := pictures.bounds(picture)
 	if got := pictures.Image.NRGBAAt(bounds.Min.X, bounds.Min.Y); got.G != 255 {
-		t.Fatalf("the atlas holds %v where the picture changed; want the new green", got)
+		test.Fatalf("the atlas holds %v where the picture changed; want the new green", got)
 	}
 }
 
-func TestAFullAtlasKeepsOnlyThisFramesPictures(t *testing.T) {
+func TestAFullAtlasKeepsOnlyThisFramesPictures(test *testing.T) {
 	pictures := NewPictures()
 	large := func() *draw2d.Image { return draw2d.NewImage(image.NewNRGBA(image.Rect(0, 0, 2000, 2000))) }
 	first := []*draw2d.Image{large(), large(), large(), large()}
 	pictures.prepare(first)
 	if pictures.Size() != maximumPicturesSize {
-		t.Fatalf("atlas %d wide for four large pictures; want it grown to %d", pictures.Size(), maximumPicturesSize)
+		test.Fatalf("atlas %d wide for four large pictures; want it grown to %d", pictures.Size(), maximumPicturesSize)
 	}
 	pictures.Uploaded()
 	next := []*draw2d.Image{large()}
 	pictures.prepare(next)
 	if _, found := pictures.bounds(next[0]); !found {
-		t.Fatal("a picture that did not fit was not drawn after the atlas emptied")
+		test.Fatal("a picture that did not fit was not drawn after the atlas emptied")
 	}
 	if _, found := pictures.bounds(first[0]); found {
-		t.Fatal("an earlier frame's picture is still there after the atlas emptied")
+		test.Fatal("an earlier frame's picture is still there after the atlas emptied")
 	}
 	if whole, _ := pictures.Pending(); !whole {
-		t.Fatal("an emptied atlas does not ask to be uploaded whole")
+		test.Fatal("an emptied atlas does not ask to be uploaded whole")
 	}
 }
 
-func TestALargePictureIsScaledDown(t *testing.T) {
+func TestALargePictureIsScaledDown(test *testing.T) {
 	width, height := keptSize(draw2d.NewBlankImage(4000, 1000))
 	if width != maximumPictureSide || height != 512 {
-		t.Fatalf("a 4000×1000 picture is kept at %d×%d; want %d×512", width, height, maximumPictureSide)
+		test.Fatalf("a 4000×1000 picture is kept at %d×%d; want %d×512", width, height, maximumPictureSide)
 	}
 }
 
-func TestASharpPictureMarksItsQuadsSharp(t *testing.T) {
+func TestASharpPictureMarksItsQuadsSharp(test *testing.T) {
 	var list draw2d.List
 	pixelArt, photograph := stripes(16, 16), stripes(16, 16)
 	pixelArt.Sharp = true
-	list.Image(pixelArt, draw2d.Rect{X: 0, Y: 0, Width: 64, Height: 64}, 0, white)
-	list.Image(photograph, draw2d.Rect{X: 100, Y: 0, Width: 64, Height: 64}, 0, white)
+	list.Image(pixelArt, draw2d.Rectangle{X: 0, Y: 0, Width: 64, Height: 64}, 0, white)
+	list.Image(photograph, draw2d.Rectangle{X: 100, Y: 0, Width: 64, Height: 64}, 0, white)
 	sharp, blended := 0, 0
-	for _, quad := range paintList(t, &list, 1) {
+	for _, quad := range paintList(test, &list, 1) {
 		switch {
 		case !quad.Pictured:
 		case quad.Sharp:
@@ -141,6 +141,6 @@ func TestASharpPictureMarksItsQuadsSharp(t *testing.T) {
 		}
 	}
 	if sharp == 0 || blended == 0 {
-		t.Fatalf("%d sharp and %d blended pictured quads", sharp, blended)
+		test.Fatalf("%d sharp and %d blended pictured quads", sharp, blended)
 	}
 }

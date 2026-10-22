@@ -8,7 +8,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/akrck02/go-renderer/models"
+	"github.com/akrck02/go-renderer/window"
 )
 
 // Clock runs Application.Update at a fixed time step, independent of the frame rate, so that
@@ -36,7 +36,7 @@ func (clock *Clock) Steps() int { return clock.steps }
 
 // Advance runs as many update steps as the elapsed time requires (at most a quarter of a second
 // worth, so a stall does not trigger a long catch-up).
-func (clock *Clock) Advance(app *models.Application) error {
+func (clock *Clock) Advance(app *window.Application) error {
 	elapsed := time.Since(clock.previous).Seconds()
 	clock.previous = time.Now()
 	clock.accumulated += math.Min(elapsed, 0.25)
@@ -53,7 +53,7 @@ func (clock *Clock) Advance(app *models.Application) error {
 // StepOnce runs exactly one update step and restarts the clock from now: a loop that draws on
 // demand runs one step per frame, and after a long sleep the clock would otherwise catch up in a
 // burst.
-func (clock *Clock) StepOnce(app *models.Application) error {
+func (clock *Clock) StepOnce(app *window.Application) error {
 	clock.previous, clock.accumulated = time.Now(), 0
 	clock.steps++
 	return RunUpdateStep(app, clock.step)
@@ -61,7 +61,7 @@ func (clock *Clock) StepOnce(app *models.Application) error {
 
 // BorrowStep runs one update step now, taken from the time of the next one: for a frame that has
 // to be laid out again (the window changed size) before a step is due.
-func (clock *Clock) BorrowStep(app *models.Application) error {
+func (clock *Clock) BorrowStep(app *window.Application) error {
 	if err := RunUpdateStep(app, clock.step); err != nil {
 		return err
 	}
@@ -87,14 +87,14 @@ func (clock *Clock) SleepUntilNextStep() {
 }
 
 // RunUpdateStep calls the application update once and clears the per-step input deltas.
-func RunUpdateStep(app *models.Application, step float64) error {
+func RunUpdateStep(app *window.Application, step float64) error {
 	if app.Update != nil {
 		if err := app.Update(app, step); err != nil {
 			return err
 		}
 	}
 	if app.Input != nil {
-		app.Input.EndFrame()
+		app.Input.Feed().EndFrame()
 	}
 	return nil
 }

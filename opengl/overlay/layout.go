@@ -6,10 +6,10 @@
 package overlay
 
 import (
+	"cmp"
 	"image"
-	"log"
 	"math"
-	"sort"
+	"slices"
 
 	"github.com/akrck02/go-renderer/draw2d"
 	"github.com/akrck02/go-renderer/graphics"
@@ -67,10 +67,10 @@ type Lighting struct {
 
 // Frame is what the layout needs to know about the frame being drawn.
 type Frame struct {
-	ViewProjection graphics.Mat4 // the camera's projection times its view
-	Width, Height  int           // framebuffer size in pixels
-	Scale          float32       // framebuffer pixels per layout pixel: 2 on a high-density screen; 0 = 1
-	VerticalScale  float32       // the scene's vertical exaggeration; 0 = 1
+	ViewProjection graphics.Matrix // the camera's projection times its view
+	Width, Height  int             // framebuffer size in pixels
+	Scale          float32         // framebuffer pixels per layout pixel: 2 on a high-density screen; 0 = 1
+	VerticalScale  float32         // the scene's vertical exaggeration; 0 = 1
 }
 
 // Painter lays out overlays frame after frame, keeping the atlas and the fonts between frames.
@@ -81,7 +81,9 @@ type Painter struct {
 	fonts    *fonts
 	prebuilt map[faceKey]bool
 	warned   map[string]bool
-	// Warn reports a problem once (an unknown icon name); nil = the standard logger.
+	// Warn hears of a problem once (an unknown icon name, lights a GPU cannot draw); nil = the
+	// default slog logger, which the program sets with slog.SetDefault (on the Nintendo 3DS, a line
+	// on the console).
 	Warn func(message string)
 
 	quads     []Quad
@@ -89,7 +91,8 @@ type Painter struct {
 	// snapshotLayer is the layer of the last snapshot taken in this frame, or noSnapshotLayer.
 	snapshotLayer int
 	occupied      []rectangle
-	order         []int // the drawing's commands sorted by layer, reused every frame
+	order         []int         // the drawing's commands sorted by layer, reused every frame
+	placedLabels  []placedLabel // the labels on screen this frame, reused
 	shown         []*draw2d.Image
 	runes         []rune // a text's characters, reused: converting every text every frame is garbage
 
@@ -99,9 +102,9 @@ type Painter struct {
 	frameArea [4]float32  // the whole frame on screen, what a lighting with no clip lights
 }
 
-// NewPainter parses the embedded fonts and prepares an empty atlas.
-func NewPainter() (*Painter, error) {
-	loaded, err := loadFonts()
+// NewPainter reads the fonts (Fonts{} for the default ones) and prepares an empty atlas.
+func NewPainter(chosen Fonts) (*Painter, error) {
+	loaded, err := loadFonts(chosen)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +120,7 @@ func (painter *Painter) Pictures() *Pictures { return painter.pictures }
 // Paint lays out the whole overlay for a frame. anchors holds the world transform of the nodes
 // labels are anchored to (scene.WorldTransforms); labels whose node is missing are not drawn.
 // The returned slice is reused by the next call.
-func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]graphics.Mat4, frame Frame) []Quad {
+func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]graphics.Matrix, frame Frame) []Quad {
 	painter.quads, painter.occupied = painter.quads[:0], painter.occupied[:0]
 	painter.snapshots, painter.snapshotLayer = painter.snapshots[:0], noSnapshotLayer
 	painter.lights, painter.lightings, painter.lit = painter.lights[:0], painter.lightings[:0], 0
@@ -185,7 +188,7 @@ type Projection struct {
 
 // Project places a world point on screen, applying the vertical exaggeration as the scene
 // shaders do.
-func Project(point graphics.Vec4, frame Frame) Projection {
+func Project(point graphics.Vector, frame Frame) Projection {
 	point[1] *= frame.verticalScale()
 	point[3] = 1
 	clip := frame.ViewProjection.Apply(point)
@@ -204,14 +207,14 @@ func Project(point graphics.Vec4, frame Frame) Projection {
 
 // anchorPoint returns the world point a label stands on: its node's origin or its point, lifted
 // by its height.
-func anchorPoint(label *scene.Label, anchors map[*scene.Node]graphics.Mat4) (graphics.Vec4, bool) {
+func anchorPoint(label *scene.Label, anchors map[*scene.Node]graphics.Matrix) (graphics.Vector, bool) {
 	point := label.Point
 	if label.Node != nil {
 		transform, found := anchors[label.Node]
 		if !found {
-			return graphics.Vec4{}, false
+			return graphics.Vector{}, false
 		}
-		point = transform.Apply(graphics.Vec4{0, 0, 0, 1})
+		point = transform.Apply(graphics.Vector{0, 0, 0, 1})
 	}
 	point[1] += label.Height
 	return point, true
@@ -225,8 +228,8 @@ type placedLabel struct {
 
 // paintLabels draws the labels nearest first, skipping any that would cover one already drawn
 // (or the header and the notices), so a crowded view stays readable.
-func (painter *Painter) paintLabels(labels []*scene.Label, anchors map[*scene.Node]graphics.Mat4, frame Frame) {
-	placed := make([]placedLabel, 0, len(labels))
+func (painter *Painter) paintLabels(labels []*scene.Label, anchors map[*scene.Node]graphics.Matrix, frame Frame) {
+	placed := painter.placedLabels[:0]
 	for _, label := range labels {
 		if label == nil || label.Hidden || label.IsEmpty() {
 			continue
@@ -240,10 +243,17 @@ func (painter *Painter) paintLabels(labels []*scene.Label, anchors map[*scene.No
 			placed = append(placed, placedLabel{label, projection})
 		}
 	}
-	sort.SliceStable(placed, func(first, second int) bool { return placed[first].projection.Depth < placed[second].projection.Depth })
+	painter.placedLabels = placed
+	slices.SortStableFunc(placed, nearerFirst)
 	for _, candidate := range placed {
 		painter.paintLabel(candidate, frame.scale())
 	}
+}
+
+// nearerFirst orders two labels by their depth, the nearer first. Declared once, so sorting
+// makes no closure every frame.
+func nearerFirst(first, second placedLabel) int {
+	return cmp.Compare(first.projection.Depth, second.projection.Depth)
 }
 
 // labelGap is the space between a label's anchor and the bottom of the label, in layout pixels.
@@ -343,7 +353,7 @@ func (painter *Painter) paintNotices(notices []scene.VisibleNotice, top int, sca
 // pillContent is what goes in a pill or a header row: an icon, a text, and the icon's colour.
 type pillContent struct {
 	icon, text string
-	tint       graphics.Vec4
+	tint       graphics.Vector
 }
 
 // measuredContent is an icon and a text measured in screen pixels, ready to draw.
@@ -356,7 +366,7 @@ type measuredContent struct {
 	iconSize   int
 	gap        int
 	width      int
-	tint       graphics.Vec4
+	tint       graphics.Vector
 	textFace   faceName
 	textSize   int
 	iconColour [4]float32
@@ -419,17 +429,21 @@ func (painter *Painter) iconCharacter(name string) rune {
 	}
 	if !painter.warned[name] {
 		painter.warned[name] = true
-		painter.warn("overlay: no icon named " + quote(name) + " (see https://lucide.dev/icons)")
+		painter.Report("overlay: no icon named " + quote(name) + " (see https://lucide.dev/icons)")
 	}
 	return 0
 }
 
-func (painter *Painter) warn(message string) {
+// Report tells the program of a problem a frame works around: through Warn when the program set
+// it, otherwise through warnByDefault (the default slog logger; a line on the console on the
+// Nintendo 3DS, where slog would cost about 42 KB of every program). Backends that draw with the painter
+// report through it too, so a program hears of every problem in one place.
+func (painter *Painter) Report(message string) {
 	if painter.Warn != nil {
 		painter.Warn(message)
 		return
 	}
-	log.Print(message)
+	warnByDefault(message)
 }
 
 func quote(text string) string { return "\"" + text + "\"" }
