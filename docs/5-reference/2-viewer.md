@@ -169,7 +169,7 @@ View is what an editing program knows about the view at a step: the camera that 
 
 ```go
 type View struct {
-	Camera        camera.Camera
+	Camera        camera.Lens
 	Width, Height int // window pixels
 
 	// Has unexported fields.

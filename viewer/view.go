@@ -11,7 +11,7 @@ import (
 // the user sees, and the window's size. The pointer's position (input.State.CursorX and CursorY)
 // is in the same window pixels.
 type View struct {
-	Camera        camera.Camera
+	Camera        camera.Lens
 	Width, Height int // window pixels
 	world         *scene.Scene
 	lowest        float32

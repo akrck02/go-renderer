@@ -10,7 +10,7 @@ import (
 )
 
 // nightGround is a grey floor twenty units across, at night, seen from straight above.
-func nightGround() (*scene.Scene, camera.Camera) {
+func nightGround() (*scene.Scene, camera.Lens) {
 	world := scene.New()
 	world.Environment.SunDirection = graphics.Vector{0, -1, 0, 0}
 	world.Environment.Ambient = 0.05
@@ -18,7 +18,7 @@ func nightGround() (*scene.Scene, camera.Camera) {
 		Normals: []float32{0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0}, Indices: []uint32{0, 1, 2, 0, 2, 3},
 		Material: &scene.Material{BaseColor: graphics.Vector{0.5, 0.5, 0.5, 1}}}
 	world.Nodes = []*scene.Node{{Name: "floor", Mesh: floor}}
-	camera := camera.Camera{Position: graphics.Vector{0, 12, 0.001, 1}, Target: graphics.Vector{0, 0, 0, 1},
+	camera := camera.Lens{Position: graphics.Vector{0, 12, 0.001, 1}, Target: graphics.Vector{0, 0, 0, 1},
 		Up: graphics.Vector{0, 0, -1, 0}, FieldOfViewRadians: 1, Near: 0.1, Far: 100}
 	return world, camera
 }

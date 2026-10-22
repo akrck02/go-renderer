@@ -225,7 +225,7 @@ func isUnderWater(world *scene.Scene, x, z float32) bool {
 	return world.Environment.Water != nil && height <= world.Environment.Water.LevelAt(x, z)
 }
 
-func (session *viewer) configureFrustum(view *camera.Camera) {
+func (session *viewer) configureFrustum(view *camera.Lens) {
 	view.FieldOfViewRadians = 0.73
 	view.Far = session.sceneSize * 12
 	view.Near = session.sceneSize * 0.0002
@@ -259,7 +259,7 @@ func (session *viewer) advance(app *window.Application, seconds float64) error {
 // viewState is what a frame of the viewer shows besides the scene's own animation: when it
 // changes during a step, the next step follows at once.
 type viewState struct {
-	camera      camera.Camera
+	camera      camera.Lens
 	environment scene.Environment
 	shadows     bool
 }

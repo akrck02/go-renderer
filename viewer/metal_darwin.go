@@ -17,7 +17,7 @@ func runMetal(session *viewer, app *window.Application) error {
 
 type metalScene struct{ renderer *metal.SceneRenderer }
 
-func (scene metalScene) draw(world *scene.Scene, camera camera.Camera, width, height int, seconds float64, settings drawSettings) sceneplan.FrameStatistics {
+func (scene metalScene) draw(world *scene.Scene, camera camera.Lens, width, height int, seconds float64, settings drawSettings) sceneplan.FrameStatistics {
 	renderer := scene.renderer
 	renderer.Shadows.Enabled, renderer.OverlayScale, renderer.Profiling = settings.shadows, settings.overlayScale, settings.profiling
 	renderer.Draw(world, camera, width, height, seconds)

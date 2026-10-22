@@ -26,7 +26,7 @@ type frameShading struct {
 	fog           graphics.Vector // fog near, 1 / (far - near) (0 without fog), -, -
 }
 
-func shadingFor(environment scene.Environment, light scene.Daylight, camera camera.Camera) frameShading {
+func shadingFor(environment scene.Environment, light scene.Daylight, camera camera.Lens) frameShading {
 	sunDirection := light.LightDirection.Normalize()
 	ambient := environment.Ambient
 	verticalScale := environment.EffectiveVerticalScale()

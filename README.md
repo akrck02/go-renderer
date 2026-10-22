@@ -42,7 +42,7 @@ I write most of my code by hand, so I want to be clear about where AI was used h
   screen reader's side on Android (`android/screenreader*`, with the Java class in `android/java`),
   and the first drawing on the Nintendo 3DS (`nintendo3ds`, with its C, and `cmd/triangle3ds`).
 - **My hand-written parts, refactored by the AI at my request (2026-10-22):** the `Renderer`
-  contract and `models` (split into `immediate`, `window` and `camera.Camera`), the `graphics`
+  contract and `models` (split into `immediate`, `window` and `camera.Lens`), the `graphics`
   maths (`Vec4`/`Mat4` became `Vector`/`Matrix`), the first OpenGL work (`opengl.Window`,
   `opengl.Renderer`), `loaders.LoadModel`, the root `main.go` and the stubs: whole-word names,
   comments, coded errors instead of panics and prints. This refactoring is pending my review.

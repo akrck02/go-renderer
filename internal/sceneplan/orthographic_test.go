@@ -11,7 +11,7 @@ import (
 // screen, not how far away it stands.
 func TestShadowsOfAMapFollowWhatIsOnScreen(test *testing.T) {
 	settings := ShadowSettings{}
-	mapCamera := camera.Camera{Position: graphics.Vector{0, 400, 0, 1}, Target: graphics.Vector{3, 0, 4, 1}, OrthographicHeight: 10}
+	mapCamera := camera.Lens{Position: graphics.Vector{0, 400, 0, 1}, Target: graphics.Vector{3, 0, 4, 1}, OrthographicHeight: 10}
 	extent := settings.extent(mapCamera, 100)
 	if extent < 9 || extent > 10 {
 		test.Errorf("extent %v for 10 units on screen, want about 9.5", extent)
@@ -26,7 +26,7 @@ func TestShadowsOfAMapFollowWhatIsOnScreen(test *testing.T) {
 }
 
 func TestAMapCameraSeesEverySizeTheSameFromAnyDistance(test *testing.T) {
-	camera := camera.Camera{Position: graphics.Vector{0, 400, 0, 1}, Target: graphics.Vector{0, 0, 0, 1}, Up: graphics.Vector{0, 0, -1, 0},
+	camera := camera.Lens{Position: graphics.Vector{0, 400, 0, 1}, Target: graphics.Vector{0, 0, 0, 1}, Up: graphics.Vector{0, 0, -1, 0},
 		OrthographicHeight: 20, Near: 1, Far: 1000}
 	view := newViewpoint(camera.ProjectionMatrix(1.6).Multiply(graphics.LookAt(camera.Position, camera.Target, camera.Up)), camera)
 	if near, far := view.apparentSize(2, 10), view.apparentSize(2, 800); near != far || near != 0.1 {

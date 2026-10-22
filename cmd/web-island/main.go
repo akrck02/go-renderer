@@ -45,8 +45,8 @@ func run() error {
 	world := sample.Island()
 	orbit, size := orbitAround(world)
 	app := &window.Application{Input: input.NewState(), Options: window.Options{DrawOnDemand: true},
-		Camera: camera.Camera{Near: size * 0.001, Far: size * 10}}
-	var shown camera.Camera
+		Camera: camera.Lens{Near: size * 0.001, Far: size * 10}}
+	var shown camera.Lens
 	app.Update = func(app *window.Application, step float64) error {
 		orbit.Update(app.Input, step, &app.Camera)
 		if app.Camera != shown {
