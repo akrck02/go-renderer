@@ -59,14 +59,15 @@ type SceneRenderer struct {
 const seabedResolution = 2048
 
 // NewSceneRenderer puts a Metal layer in a window made with no OpenGL context and prepares the
-// shaders, the shadow and seabed maps.
-func NewSceneRenderer(window *glfw.Window, vsync bool) (*SceneRenderer, error) {
+// shaders, the shadow and seabed maps; the overlay's text is drawn in fonts (overlay.Fonts{} for
+// the default ones).
+func NewSceneRenderer(window *glfw.Window, vsync bool, fonts overlay.Fonts) (*SceneRenderer, error) {
 	var problem *C.char
 	device := C.sceneDeviceCreate(window.GetCocoaWindow(), C.int(boolean(vsync)), &problem)
 	if device == nil {
 		return nil, takeFailure(problem)
 	}
-	painter, err := overlay.NewPainter()
+	painter, err := overlay.NewPainter(fonts)
 	if err != nil {
 		return nil, err
 	}

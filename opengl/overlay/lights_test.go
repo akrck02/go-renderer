@@ -12,7 +12,7 @@ import (
 // paintWithLights lays out a list at a scale and gives its quads, lights and lightings.
 func paintWithLights(test *testing.T, list *draw2d.List, scale float32) ([]Quad, []LightQuad, []Lighting) {
 	test.Helper()
-	painter, err := NewPainter()
+	painter, err := NewPainter(Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}

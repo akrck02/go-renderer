@@ -11,6 +11,7 @@ import (
 	"github.com/go-gl/glfw/v3.4/glfw"
 
 	"github.com/akrck02/go-renderer/draw2d"
+	"github.com/akrck02/go-renderer/opengl/overlay"
 )
 
 // lightTestSide is the side of the hidden window the light tests draw in, in pixels.
@@ -158,7 +159,7 @@ func TestALightingUnderAClipLeavesTheRestOfTheFrame(test *testing.T) {
 func openLightTestWindow(test testing.TB, width, height int) *FlatRenderer {
 	test.Helper()
 	openTestContext(test, width, height)
-	renderer, err := NewFlatRenderer()
+	renderer, err := NewFlatRenderer(overlay.Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}

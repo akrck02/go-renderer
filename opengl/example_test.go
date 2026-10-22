@@ -8,6 +8,7 @@ import (
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/input"
 	"github.com/akrck02/go-renderer/opengl"
+	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
 	"github.com/akrck02/go-renderer/scene/sample"
 	"github.com/akrck02/go-renderer/window"
@@ -34,7 +35,7 @@ func ExampleFlatRenderer() {
 	app.Draw = func(app *window.Application) error {
 		if renderer == nil { // the OpenGL context exists from the first frame
 			var err error
-			if renderer, err = opengl.NewFlatRenderer(); err != nil {
+			if renderer, err = opengl.NewFlatRenderer(overlay.Fonts{}); err != nil {
 				return err
 			}
 		}
@@ -70,7 +71,7 @@ func ExampleSceneRenderer_DrawIn() {
 	app.Draw = func(app *window.Application) error {
 		if renderer == nil {
 			var err error
-			if renderer, err = opengl.NewSceneRenderer(); err != nil {
+			if renderer, err = opengl.NewSceneRenderer(overlay.Fonts{}); err != nil {
 				return err
 			}
 		}
@@ -100,7 +101,7 @@ func ExampleSceneRenderer_DrawOver() {
 	app.Draw = func(app *window.Application) error {
 		if renderer == nil {
 			var err error
-			if renderer, err = opengl.NewSceneRenderer(); err != nil {
+			if renderer, err = opengl.NewSceneRenderer(overlay.Fonts{}); err != nil {
 				return err
 			}
 		}

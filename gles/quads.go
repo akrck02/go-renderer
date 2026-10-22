@@ -58,8 +58,8 @@ type quadPass struct {
 	target Framebuffer
 }
 
-func newQuadPass(functions Functions) (*quadPass, error) {
-	painter, err := overlay.NewPainter()
+func newQuadPass(functions Functions, fonts overlay.Fonts) (*quadPass, error) {
+	painter, err := overlay.NewPainter(fonts)
 	if err != nil {
 		return nil, err
 	}

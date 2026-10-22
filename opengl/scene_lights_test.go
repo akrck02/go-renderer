@@ -5,6 +5,7 @@ import (
 
 	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
 )
 
@@ -26,7 +27,7 @@ func nightGround() (*scene.Scene, camera.Camera) {
 // is much brighter than without the lamp, and a corner out of its reach is as dark.
 func TestALampLightsTheGroundAroundIt(test *testing.T) {
 	openTestContext(test, lightTestSide, lightTestSide)
-	renderer, err := NewSceneRenderer()
+	renderer, err := NewSceneRenderer(overlay.Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}

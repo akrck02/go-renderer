@@ -405,9 +405,10 @@ type Measurer struct {
 	fonts *fonts
 }
 
-// NewMeasurer parses the embedded fonts.
-func NewMeasurer() (*Measurer, error) {
-	loaded, err := loadFonts()
+// NewMeasurer reads the fonts (Fonts{} for the default ones). Give it the fonts the painter draws
+// with, so what is measured is what is drawn.
+func NewMeasurer(chosen Fonts) (*Measurer, error) {
+	loaded, err := loadFonts(chosen)
 	if err != nil {
 		return nil, err
 	}
@@ -416,7 +417,7 @@ func NewMeasurer() (*Measurer, error) {
 
 // MeasureText measures a line at a size in layout pixels on a screen of a density (see
 // draw2d.Measurer). A character the font lacks is measured in the system's font that has it
-// (FontFolders), or as a question mark, as it is drawn.
+// (Fonts.Folders), or as a question mark, as it is drawn.
 func (measurer *Measurer) MeasureText(text string, size float32, weight draw2d.Weight, scale float32) draw2d.TextMetrics {
 	if scale <= 0 {
 		scale = 1

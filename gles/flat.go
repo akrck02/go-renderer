@@ -2,6 +2,7 @@ package gles
 
 import (
 	"github.com/akrck02/go-renderer/draw2d"
+	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
 )
 
@@ -19,9 +20,10 @@ type FlatRenderer struct {
 	layer     scene.Overlay
 }
 
-// NewFlatRenderer compiles the shaders and prepares the atlas.
-func NewFlatRenderer(functions Functions) (*FlatRenderer, error) {
-	quads, err := newQuadPass(functions)
+// NewFlatRenderer compiles the shaders and prepares the atlas; text is drawn in fonts
+// (overlay.Fonts{} for the default ones).
+func NewFlatRenderer(functions Functions, fonts overlay.Fonts) (*FlatRenderer, error) {
+	quads, err := newQuadPass(functions, fonts)
 	if err != nil {
 		return nil, err
 	}

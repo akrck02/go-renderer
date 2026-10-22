@@ -68,7 +68,7 @@ func applicationList(hiddenRows int) *draw2d.List {
 func BenchmarkPaintingAnApplicationFrame(benchmark *testing.B) {
 	for _, hiddenRows := range []int{0, 1000} {
 		benchmark.Run(fmt.Sprintf("hiddenRows=%d", hiddenRows), func(benchmark *testing.B) {
-			painter, err := NewPainter()
+			painter, err := NewPainter(Fonts{})
 			if err != nil {
 				benchmark.Fatal(err)
 			}
@@ -94,7 +94,7 @@ func BenchmarkPaintingAnApplicationFrame(benchmark *testing.B) {
 func BenchmarkSortingAnApplicationFrameByLayer(benchmark *testing.B) {
 	for _, hiddenRows := range []int{0, 1000} {
 		benchmark.Run(fmt.Sprintf("hiddenRows=%d", hiddenRows), func(benchmark *testing.B) {
-			painter, err := NewPainter()
+			painter, err := NewPainter(Fonts{})
 			if err != nil {
 				benchmark.Fatal(err)
 			}
@@ -111,7 +111,7 @@ func BenchmarkSortingAnApplicationFrameByLayer(benchmark *testing.B) {
 // BenchmarkPaintingALineOfText is painting one 12-character line: per rune a glyph presence
 // check through the font (drawable), an atlas map lookup and a quad.
 func BenchmarkPaintingALineOfText(benchmark *testing.B) {
-	painter, err := NewPainter()
+	painter, err := NewPainter(Fonts{})
 	if err != nil {
 		benchmark.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func BenchmarkPaintingALineOfText(benchmark *testing.B) {
 
 // BenchmarkFindingAGlyph isolates the per-rune font lookup drawable does.
 func BenchmarkFindingAGlyph(benchmark *testing.B) {
-	painter, err := NewPainter()
+	painter, err := NewPainter(Fonts{})
 	if err != nil {
 		benchmark.Fatal(err)
 	}

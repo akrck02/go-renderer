@@ -15,7 +15,7 @@ import (
 
 func newTestPainter(test testing.TB) *Painter {
 	test.Helper()
-	painter, err := NewPainter()
+	painter, err := NewPainter(Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}
@@ -250,7 +250,7 @@ func abs(value float32) float32 {
 
 // A program can draw text in its own fonts, and codes in a monospaced one.
 func TestTextCanUseAProgramsFontsAndAMonospacedOneForCodes(test *testing.T) {
-	measurer, err := NewMeasurer()
+	measurer, err := NewMeasurer(Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}
@@ -259,9 +259,7 @@ func TestTextCanUseAProgramsFontsAndAMonospacedOneForCodes(test *testing.T) {
 	if narrow.Width != wide.Width {
 		test.Errorf("monospaced codes: iiii %v wide, MMMM %v", narrow.Width, wide.Width)
 	}
-	defer UseFonts(Fonts{})
-	UseFonts(Fonts{Regular: gomonobold.TTF})
-	chosen, err := NewMeasurer()
+	chosen, err := NewMeasurer(Fonts{Regular: gomonobold.TTF})
 	if err != nil {
 		test.Fatal(err)
 	}

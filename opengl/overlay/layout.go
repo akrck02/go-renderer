@@ -102,9 +102,9 @@ type Painter struct {
 	frameArea [4]float32  // the whole frame on screen, what a lighting with no clip lights
 }
 
-// NewPainter parses the embedded fonts and prepares an empty atlas.
-func NewPainter() (*Painter, error) {
-	loaded, err := loadFonts()
+// NewPainter reads the fonts (Fonts{} for the default ones) and prepares an empty atlas.
+func NewPainter(chosen Fonts) (*Painter, error) {
+	loaded, err := loadFonts(chosen)
 	if err != nil {
 		return nil, err
 	}

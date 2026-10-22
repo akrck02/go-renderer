@@ -17,10 +17,8 @@ import (
 // NotoColorEmoji), as pictures in the picture atlas, in the same draw call as the text. Each is
 // scaled once to each size it is drawn at, so it stays sharp and does not shimmer.
 
-// systemEmoji is the system's colour emoji font, read the first time an emoji is drawn, shared by
-// every painter and measurer.
-var systemEmoji = &emojiFont{}
-
+// emojiFont is the system's colour emoji fonts in some folders, read the first time an emoji is
+// drawn (see systemFontsIn).
 type emojiFont struct {
 	mutex    sync.Mutex
 	folders  []string
@@ -60,14 +58,14 @@ func (emoji *emojiFont) glyph(character rune, size int) (*emojiGlyph, bool) {
 	return glyph, glyph != nil
 }
 
-// find reads the system's colour emoji fonts, the first time, and again when the folders changed.
+// find reads the system's colour emoji fonts, the first time.
 // Android 13 and later draw their own emoji from vector outlines (COLRv1), which are not read
 // here; they keep the pictures too, in NotoColorEmojiLegacy, for programs like this one.
 func (emoji *emojiFont) find() {
-	if emoji.searched && slices.Equal(emoji.folders, FontFolders) {
+	if emoji.searched {
 		return
 	}
-	emoji.searched, emoji.folders = true, slices.Clone(FontFolders)
+	emoji.searched = true
 	emoji.fonts, emoji.decoded, emoji.glyphs = nil, map[rune]image.Image{}, map[emojiKey]*emojiGlyph{}
 	for _, path := range colourEmojiFiles(emoji.folders) {
 		data, err := os.ReadFile(path)
