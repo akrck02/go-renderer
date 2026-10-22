@@ -497,6 +497,64 @@ New in T1; copied from go-engine. Nothing to audit.
    work, `LoadGLB`, the Metal stub. Decided by the author, ideally together, because they are
    1.0's largest break and go-ui and go-engine should move once.
 
+## Phases A and B: what was done (2026-10-22)
+
+**A — nothing breaks, frame cost first.**
+
+- **No frame allocates.** Planning the sample island (the water's nodes are kept), laying out the
+  overlay (labels sorted with `slices.SortStableFunc` into a reused buffer) and an OpenGL 2D frame
+  with lights and a blurred backdrop (what GL fills through a pointer lives in the renderer;
+  vertices go to GL as a pointer to their first value) all make no garbage. Each has a
+  `testing.AllocsPerRun` test; the numbers are in the
+  [optimization plan](../6-project/1-optimization-plan.md#after-phases-a-and-b-2026-10-22).
+- **Error codes** in every AI-written package, each in its `errors.go` with a test:
+  `overlay.font-not-read`, `opengl.framebuffer-incomplete`, `windowloop.not-on-main-thread`,
+  `gles.shader-not-compiled`/`program-not-linked`, `draw2d.invalid-colour`/`image-not-decoded`,
+  `loaders.file-not-read`/`invalid-gltf`/`unsupported-accessor`/`image-not-decoded`,
+  `viewer.invalid-point`/`unknown-backend`, `metal.unavailable`/`shader-not-compiled`/
+  `nothing-captured`, `browser.canvas-not-found`/`webgl2-missing`, `android.video-not-opened`,
+  `ctr.screen-not-opened`/`invalid-shader`/`invalid-vertices`/`out-of-linear-memory`.
+  `metal.ErrUnavailable` stays as a deprecated alias of `metal.Unavailable` (Go UI checks it);
+  `browser.ErrNoCanvas` and `ErrNoWebGL2` were used by nobody and were replaced.
+- **No printing in AI-written library code.** Problems a frame works around go to
+  `overlay.Painter.Report`: the program's `Warn` when it sets one, otherwise the default `slog`
+  logger, which the program chooses. The viewer shows the walking speed and the fall back from
+  Metal as notices. (On the 3DS, `log/slog` adds about 42 KB to a `.3dsx`.)
+- **Comments** on every public name of the AI-written packages; tests call their `*testing.T`
+  `test`; the overlay's `Audit…` benchmarks are named for what they measure.
+- **Repository.** `.gitignore` covers `.env`, `out/` and `.3dsx` builds. The compiled `.shbin`
+  shaders stay in git: `go:embed` needs them, and a program importing `ctr` should not need
+  devkitPro. `go generate ./ctr` assembles them again with picasso, byte for byte the same.
+
+**B — a smaller API, nothing broken outside.**
+
+- `sceneplan` is `internal/sceneplan`.
+- The OpenGL shader sources live in `opengl`, unexported; what every backend's shaders agree on
+  (`SharpPictureOffset`, `AmbientLight`, the backdrop blur's weights) is `internal/shading`.
+  `graphics` keeps the maths (and the author's `shaders.go`).
+- `windowloop` no longer re-exports `frameloop`'s clock.
+
+Go UI and go-engine build and pass their tests against this branch (desktop, WebAssembly and
+Android vetted; a go-engine game built for the 3DS).
+
+**Not done in A and B, and why.**
+
+- *Phase C (breaking):* fonts as an option of `NewPainter` (the global `UseFonts`, and
+  `FontFolders`/`PrebuiltCharacters` read at import, would have to go, and Go UI calls
+  `UseFonts`); `draw2d.Hex` → `MustHex`; `scene.ColorFromHex`, `DefaultNoticeSeconds`; the rest of
+  the order's third step. Test names as sentences (`TestRectIntersect`…) wait for each package's
+  rewrite.
+- *Not breaking, but not API:* splitting `windowloop.Run` and its tests (R7), `camera.Plan`'s
+  magic numbers.
+- *Phase D (the author's code), left as it was:* the panics and prints of `opengl/opengl.go`,
+  `opengl/window.go` and `opengl/renderer.go` (`CompileShader`, `LinkProgram` and the texture
+  loader return text errors, call `log.Fatalf` or panic); `loaders.LoadGLB`'s prints and text
+  error; the `metal` stub's "Graphics API not implemented yet!"; comments on the public names of
+  `models`, `graphics` (`space.go`, `shaders.go`), `opengl/renderer.go` and the stubs; the root
+  `main.go`. Two AI-written lines inside `opengl/opengl.go` were changed: `StartLoop`'s
+  main-thread error (marked for codes above) and its calls of `windowloop`'s clock, now
+  `frameloop`'s.
+
 ---
 
 [← Proposal 1](1-towards-version-1.md)
