@@ -83,7 +83,7 @@ func Wake() {
 // window is the drawing thread's state.
 type activityWindow struct {
 	app      *window.Application
-	draw     func(gl GL, fresh bool) error
+	draw     func(functions GL, fresh bool) error
 	hidden   func() // the program's, when it leaves the screen (Options.Hidden)
 	shown    func() // and when it comes back (Options.Shown)
 	clock    *frameloop.Clock
@@ -104,7 +104,7 @@ type activityWindow struct {
 // draw paints one frame with gl; fresh says the graphics context is new (the first frame, or the
 // first after coming back from the background), when renderers must be made again. It must be
 // called from main.
-func Run(app *window.Application, options Options, draw func(gl GL, fresh bool) error) error {
+func Run(app *window.Application, options Options, draw func(functions GL, fresh bool) error) error {
 	keepCrashReports()
 	if app.Input == nil {
 		app.Input = input.NewState()
