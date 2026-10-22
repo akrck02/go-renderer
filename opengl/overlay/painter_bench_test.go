@@ -22,18 +22,18 @@ import (
 // outside the clip (texts are kept by draw2d and cut by clipQuads). 8 panels x 100 rows = ~2000 commands.
 func busyEditorList(list *draw2d.List, panels, rows int) {
 	list.Reset()
-	ink, surface, line := draw2d.Hex("#18212e"), draw2d.Hex("#ffffff"), draw2d.Hex("#18212e22")
-	accent := draw2d.Hex("#2f6feb")
+	ink, surface, line := draw2d.MustHex("#18212e"), draw2d.MustHex("#ffffff"), draw2d.MustHex("#18212e22")
+	accent := draw2d.MustHex("#2f6feb")
 	for panel := 0; panel < panels; panel++ {
-		area := draw2d.Rect{X: 8 + float32(panel)*158, Y: 40, Width: 150, Height: 660}
-		list.Shadow(area, 8, 12, 4, draw2d.Hex("#0000003a"))
+		area := draw2d.Rectangle{X: 8 + float32(panel)*158, Y: 40, Width: 150, Height: 660}
+		list.Shadow(area, 8, 12, 4, draw2d.MustHex("#0000003a"))
 		list.Rectangle(area, 8, surface, line, 1)
 		list.Text(fmt.Sprintf("Panel %d", panel), area.X+12, area.Y+20, 14, draw2d.Bold, ink)
 		list.PushClip(area.Inset(4))
 		for row := 0; row < rows; row++ {
 			y := area.Y + 32 + float32(row)*24 // rows run past the panel bottom: some are clipped away
 			list.Text(fmt.Sprintf("Item %d", row), area.X+12, y+16, 13, draw2d.Regular, ink)
-			button := draw2d.Rect{X: area.X + 64, Y: y + 2, Width: 78, Height: 20}
+			button := draw2d.Rectangle{X: area.X + 64, Y: y + 2, Width: 78, Height: 20}
 			list.Rectangle(button, 4, surface.Mix(accent, 0.08), line, 1)
 			list.Text("Button", button.X+22, button.Y+14, 13, draw2d.Medium, ink)
 			list.Icon("settings", button.X+4, button.Y+3, 14, accent)

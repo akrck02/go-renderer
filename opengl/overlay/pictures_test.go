@@ -27,7 +27,7 @@ func stripes(width, height int) *draw2d.Image {
 func TestAnImageCoversItsAreaWithTheMiddleOfAWiderPicture(test *testing.T) {
 	var list draw2d.List
 	picture := stripes(400, 100) // four times as wide as tall
-	list.Image(picture, draw2d.Rect{X: 10, Y: 20, Width: 100, Height: 100}, 0, white)
+	list.Image(picture, draw2d.Rectangle{X: 10, Y: 20, Width: 100, Height: 100}, 0, white)
 	quads := paintList(test, &list, 1)
 	if len(quads) == 0 {
 		test.Fatal("an image drew nothing")
@@ -50,8 +50,8 @@ func TestAnImageCoversItsAreaWithTheMiddleOfAWiderPicture(test *testing.T) {
 
 func TestAClippedImageReadsOnlyWhatShows(test *testing.T) {
 	var list draw2d.List
-	list.PushClip(draw2d.Rect{X: 0, Y: 0, Width: 60, Height: 600})
-	list.Image(stripes(100, 100), draw2d.Rect{X: 10, Y: 10, Width: 100, Height: 100}, 0, white)
+	list.PushClip(draw2d.Rectangle{X: 0, Y: 0, Width: 60, Height: 600})
+	list.Image(stripes(100, 100), draw2d.Rectangle{X: 10, Y: 10, Width: 100, Height: 100}, 0, white)
 	quads := paintList(test, &list, 1)
 	right := float32(-1e9)
 	for _, quad := range quads {
@@ -70,7 +70,7 @@ func TestAChangedPictureIsCopiedAgainInPlace(test *testing.T) {
 	painter := newTestPainter(test)
 	picture := stripes(8, 8)
 	var list draw2d.List
-	list.Image(picture, draw2d.Rect{Width: 80, Height: 80}, 0, white)
+	list.Image(picture, draw2d.Rectangle{Width: 80, Height: 80}, 0, white)
 	paint := func() { painter.Paint(&scene.Overlay{Drawing: &list}, nil, Frame{Width: 800, Height: 600, Scale: 1}) }
 	paint()
 	pictures := painter.Pictures()
@@ -128,8 +128,8 @@ func TestASharpPictureMarksItsQuadsSharp(test *testing.T) {
 	var list draw2d.List
 	pixelArt, photograph := stripes(16, 16), stripes(16, 16)
 	pixelArt.Sharp = true
-	list.Image(pixelArt, draw2d.Rect{X: 0, Y: 0, Width: 64, Height: 64}, 0, white)
-	list.Image(photograph, draw2d.Rect{X: 100, Y: 0, Width: 64, Height: 64}, 0, white)
+	list.Image(pixelArt, draw2d.Rectangle{X: 0, Y: 0, Width: 64, Height: 64}, 0, white)
+	list.Image(photograph, draw2d.Rectangle{X: 100, Y: 0, Width: 64, Height: 64}, 0, white)
 	sharp, blended := 0, 0
 	for _, quad := range paintList(test, &list, 1) {
 		switch {

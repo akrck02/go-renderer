@@ -112,7 +112,7 @@ func (path *Path) RoundedRectangle(x, y, width, height, radius float32) {
 }
 
 // Bounds is the smallest rectangle, in the path's units, that holds every point of it.
-func (path *Path) Bounds() Rect {
+func (path *Path) Bounds() Rectangle {
 	first := true
 	var left, top, right, bottom float32
 	for _, run := range path.runs {
@@ -125,7 +125,7 @@ func (path *Path) Bounds() Rect {
 			right, bottom = max(right, point.X), max(bottom, point.Y)
 		}
 	}
-	return Rect{X: left, Y: top, Width: right - left, Height: bottom - top}
+	return Rectangle{X: left, Y: top, Width: right - left, Height: bottom - top}
 }
 
 // Stroke draws a path's line, width layout pixels wide, in a colour: the path's point (0, 0) goes
@@ -135,7 +135,7 @@ func (list *List) Stroke(path *Path, x, y, scale, width float32, color Color) {
 		return
 	}
 	bounds := path.Bounds()
-	area := Rect{X: x + bounds.X*scale - width, Y: y + bounds.Y*scale - width,
+	area := Rectangle{X: x + bounds.X*scale - width, Y: y + bounds.Y*scale - width,
 		Width: bounds.Width*scale + 2*width, Height: bounds.Height*scale + 2*width}
 	size := strokeSize{scale: scale, width: width}
 	if path.picture == nil || path.drawn != size {
@@ -146,7 +146,7 @@ func (list *List) Stroke(path *Path, x, y, scale, width float32, color Color) {
 
 // strokePicture draws the path's line into a mask: each piece as a capsule of the line's width,
 // so pieces join and end round.
-func (path *Path) strokePicture(bounds Rect, size strokeSize) *Image {
+func (path *Path) strokePicture(bounds Rectangle, size strokeSize) *Image {
 	pixelsPerUnit := size.scale * strokeDensity
 	margin := size.width * strokeDensity
 	width := int(math.Ceil(float64(bounds.Width*pixelsPerUnit + 2*margin)))

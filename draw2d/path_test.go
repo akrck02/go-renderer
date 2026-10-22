@@ -17,7 +17,7 @@ func TestAStrokeCoversItsLineAndNotAroundIt(test *testing.T) {
 		test.Fatalf("a stroke draws %v", list.Commands)
 	}
 	command := list.Commands[0]
-	if command.Area != (Rect{X: 98, Y: 48, Width: 14, Height: 4}) {
+	if command.Area != (Rectangle{X: 98, Y: 48, Width: 14, Height: 4}) {
 		test.Fatalf("the stroke covers %v", command.Area)
 	}
 	picture := command.Picture
@@ -63,7 +63,7 @@ func TestACurveEndsWhereItIsAimed(test *testing.T) {
 func TestARoundedRectangleKeepsToItsSides(test *testing.T) {
 	var path Path
 	path.RoundedRectangle(10, 20, 100, 40, 8)
-	if bounds := path.Bounds(); bounds != (Rect{X: 10, Y: 20, Width: 100, Height: 40}) {
+	if bounds := path.Bounds(); bounds != (Rectangle{X: 10, Y: 20, Width: 100, Height: 40}) {
 		test.Fatalf("the rectangle's line spans %v", bounds)
 	}
 }

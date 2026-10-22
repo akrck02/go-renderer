@@ -8,7 +8,7 @@ import (
 	"github.com/akrck02/go-renderer/scene"
 )
 
-var white = draw2d.Hex("#ffffff")
+var white = draw2d.MustHex("#ffffff")
 
 func paintList(test *testing.T, list *draw2d.List, scale float32) []Quad {
 	test.Helper()
@@ -52,7 +52,7 @@ func TestMeasuredTextIsPaintedText(test *testing.T) {
 
 func TestPlainRectangleFillsItsArea(test *testing.T) {
 	var list draw2d.List
-	list.Rectangle(draw2d.Rect{X: 10, Y: 20, Width: 100, Height: 30}, 0, white, draw2d.Transparent, 0)
+	list.Rectangle(draw2d.Rectangle{X: 10, Y: 20, Width: 100, Height: 30}, 0, white, draw2d.Transparent, 0)
 	quads := paintList(test, &list, 2)
 	if bounds := covered(quads); bounds != [4]float32{20, 40, 220, 100} {
 		test.Fatalf("the rectangle covers its area at twice the density, got %v", bounds)
@@ -61,7 +61,7 @@ func TestPlainRectangleFillsItsArea(test *testing.T) {
 
 func TestRoundedRectangleWithBorder(test *testing.T) {
 	var list draw2d.List
-	list.Rectangle(draw2d.Rect{X: 0, Y: 0, Width: 80, Height: 28}, 6, white, draw2d.Hex("#dde3ea"), 1)
+	list.Rectangle(draw2d.Rectangle{X: 0, Y: 0, Width: 80, Height: 28}, 6, white, draw2d.MustHex("#dde3ea"), 1)
 	quads := paintList(test, &list, 1)
 	if len(quads) != 9+8 {
 		test.Fatalf("a fill is nine patches and a border eight, got %d quads", len(quads))
@@ -73,8 +73,8 @@ func TestRoundedRectangleWithBorder(test *testing.T) {
 
 func TestClipCutsQuadsAndTheirAtlas(test *testing.T) {
 	var list draw2d.List
-	list.PushClip(draw2d.Rect{X: 0, Y: 0, Width: 50, Height: 50})
-	list.Rectangle(draw2d.Rect{X: 25, Y: 25, Width: 100, Height: 100}, 0, white, draw2d.Transparent, 0)
+	list.PushClip(draw2d.Rectangle{X: 0, Y: 0, Width: 50, Height: 50})
+	list.Rectangle(draw2d.Rectangle{X: 25, Y: 25, Width: 100, Height: 100}, 0, white, draw2d.Transparent, 0)
 	list.PopClip()
 	quads := paintList(test, &list, 1)
 	if bounds := covered(quads); bounds != [4]float32{25, 25, 50, 50} {
@@ -93,9 +93,9 @@ func TestClipCutsQuadsAndTheirAtlas(test *testing.T) {
 func TestHigherLayersAreDrawnLater(test *testing.T) {
 	var list draw2d.List
 	list.SetLayer(1)
-	list.Rectangle(draw2d.Rect{X: 0, Y: 0, Width: 10, Height: 10}, 0, draw2d.Hex("#ff0000"), draw2d.Transparent, 0)
+	list.Rectangle(draw2d.Rectangle{X: 0, Y: 0, Width: 10, Height: 10}, 0, draw2d.MustHex("#ff0000"), draw2d.Transparent, 0)
 	list.SetLayer(0)
-	list.Rectangle(draw2d.Rect{X: 0, Y: 0, Width: 10, Height: 10}, 0, draw2d.Hex("#0000ff"), draw2d.Transparent, 0)
+	list.Rectangle(draw2d.Rectangle{X: 0, Y: 0, Width: 10, Height: 10}, 0, draw2d.MustHex("#0000ff"), draw2d.Transparent, 0)
 	quads := paintList(test, &list, 1)
 	if last := quads[len(quads)-1]; last.Color[0] != 1 {
 		test.Fatalf("the red rectangle is on the higher layer, so it is drawn last: %v", last.Color)
