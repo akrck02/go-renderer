@@ -23,9 +23,9 @@ type Planner struct {
 	batches          BatchStore
 	meshMeasures     map[*scene.Mesh]*meshMeasure
 	instancedDetails map[*scene.Instances]*instancedDetail
-	waterPlane       *scene.Mesh
-	waterFloor       *scene.Mesh
-	verticalScale    float32 // of the frame being planned
+	waterPlane       *scene.Node // the water surface's node, made with its mesh on first use
+	waterFloor       *scene.Node // the dark floor under the water, likewise
+	verticalScale    float32     // of the frame being planned
 	counters         [passCount]counter
 	measured         *scene.Scene
 	sceneSize        float32 // horizontal size of the measured scene
