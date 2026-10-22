@@ -1,6 +1,7 @@
 package loaders
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"os"
@@ -26,7 +27,7 @@ func TestBrokenFilesAreInvalidGLTF(test *testing.T) {
 		"a chunk cut off": cutShort,
 	}
 	for name, content := range broken {
-		if _, err := ParseSceneGLB(content); !errors.Is(err, InvalidGLTF) {
+		if _, err := ReadScene(bytes.NewReader(content)); !errors.Is(err, InvalidGLTF) {
 			test.Errorf("%s: %v, not %s", name, err, InvalidGLTF.Name())
 		}
 	}
