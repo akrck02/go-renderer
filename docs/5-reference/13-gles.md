@@ -93,6 +93,10 @@ FlatRenderer draws a 2D draw list on a plain background, with no scene, sky or c
 
 ```go
 type FlatRenderer struct {
+	// Target is the framebuffer Draw draws into: 0, the screen, unless the caller made one to
+	// draw a picture offscreen.
+	Target Framebuffer
+
 	// Has unexported fields.
 }
 ```
@@ -100,7 +104,7 @@ type FlatRenderer struct {
 | Function or method | |
 |---|---|
 | `func NewFlatRenderer(functions Functions) (*FlatRenderer, error)` | NewFlatRenderer compiles the shaders and prepares the atlas. |
-| `func (renderer *FlatRenderer) Draw(list *draw2d.List, background draw2d.Color, width, height int, scale float32)` | Draw clears the framebuffer (width × height pixels) to the background colour and paints the list. |
+| `func (renderer *FlatRenderer) Draw(list *draw2d.List, background draw2d.Color, width, height int, scale float32)` | Draw clears the target framebuffer (width × height pixels) to the background colour and paints the list. |
 
 ### Framebuffer
 
@@ -203,6 +207,9 @@ type SceneRenderer struct {
 	// OverlayScale is framebuffer pixels per layout pixel, so labels and interfaces keep their
 	// size on a high-density screen (0 = 1).
 	OverlayScale float32
+	// Target is the framebuffer Draw draws into: 0, the screen, unless the caller made one to
+	// draw a picture offscreen.
+	Target Framebuffer
 
 	// Has unexported fields.
 }
@@ -211,7 +218,7 @@ type SceneRenderer struct {
 | Function or method | |
 |---|---|
 | `func NewSceneRenderer(functions Functions) (*SceneRenderer, error)` | NewSceneRenderer compiles the shaders and prepares the overlay's atlas. |
-| `func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int)` | Draw draws a frame of the scene seen by the camera, in a framebuffer of width × height pixels. |
+| `func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int)` | Draw draws a frame of the scene seen by the camera, in the target framebuffer of width × height pixels. |
 
 ### Shader
 
