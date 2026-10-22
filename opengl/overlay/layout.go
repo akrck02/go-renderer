@@ -8,6 +8,7 @@ package overlay
 import (
 	"cmp"
 	"image"
+	"log/slog"
 	"math"
 	"slices"
 
@@ -81,8 +82,8 @@ type Painter struct {
 	fonts    *fonts
 	prebuilt map[faceKey]bool
 	warned   map[string]bool
-	// Warn hears of a problem once (an unknown icon name); nil = not reported. The program
-	// chooses where it goes, as slog.Warn.
+	// Warn hears of a problem once (an unknown icon name, lights a GPU cannot draw); nil = the
+	// default slog logger, which the program sets with slog.SetDefault.
 	Warn func(message string)
 
 	quads     []Quad
@@ -428,15 +429,20 @@ func (painter *Painter) iconCharacter(name string) rune {
 	}
 	if !painter.warned[name] {
 		painter.warned[name] = true
-		painter.warn("overlay: no icon named " + quote(name) + " (see https://lucide.dev/icons)")
+		painter.Report("overlay: no icon named " + quote(name) + " (see https://lucide.dev/icons)")
 	}
 	return 0
 }
 
-func (painter *Painter) warn(message string) {
+// Report tells the program of a problem a frame works around: through Warn when the program set
+// it, otherwise as a warning of the default slog logger. Backends that draw with the painter
+// report through it too, so a program hears of every problem in one place.
+func (painter *Painter) Report(message string) {
 	if painter.Warn != nil {
 		painter.Warn(message)
+		return
 	}
+	slog.Warn(message)
 }
 
 func quote(text string) string { return "\"" + text + "\"" }

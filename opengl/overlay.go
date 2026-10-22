@@ -136,7 +136,7 @@ func (renderer *overlayRenderer) prepareLights() bool {
 	if renderer.lights == nil {
 		lights, err := newLightLayer()
 		if err != nil {
-			warn(renderer.painter, "2D lights unavailable", err)
+			renderer.painter.Report("2D lights unavailable: " + err.Error())
 			renderer.lights = &lightLayer{} // a layer with no program: not tried again
 			return false
 		}
@@ -157,7 +157,7 @@ func (renderer *overlayRenderer) takeSnapshot(width, height int, deviation float
 	if renderer.blur == nil {
 		blur, err := newBackdropBlur()
 		if err != nil {
-			warn(renderer.painter, "backdrop blur unavailable", err)
+			renderer.painter.Report("backdrop blur unavailable: " + err.Error())
 			renderer.blur = &backdropBlur{} // a blur with no program: not tried again
 			return false
 		}
@@ -288,12 +288,4 @@ func (renderer *overlayRenderer) drawVertices(first, last, width, height int) {
 	gl.Disable(gl.BLEND)
 	gl.DepthMask(true)
 	gl.Enable(gl.DEPTH_TEST)
-}
-
-// warn tells the painter's Warn, when the program gave one, of a problem the frame works around
-// (it is drawn without lights or blur); a library prints nothing of its own.
-func warn(painter *overlay.Painter, problem string, err error) {
-	if painter.Warn != nil {
-		painter.Warn(problem + ": " + err.Error())
-	}
 }
