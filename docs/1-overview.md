@@ -77,6 +77,7 @@ The menu on the left (or the files in `docs/`) follows this order.
 - [Contributing](8-contributing.md): the code's layout, building, testing, proposing a change
 - [Optimization plan](6-project/1-optimization-plan.md)
 - [Roadmap](6-project/2-roadmap.md)
+- [Towards version 1.0](proposals/1-towards-version-1.md): the proposal for a stable release
 
 ## Words you will meet
 

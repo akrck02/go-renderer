@@ -134,6 +134,7 @@ New here? Start with the [overview](docs/1-overview.md), then [get started](docs
 | [Contributing](docs/8-contributing.md) | The code's layout, the build and test commands, how a change is proposed. |
 | [Optimization plan](docs/6-project/1-optimization-plan.md) | Measurements and the plan that guided the performance work. |
 | [Roadmap](docs/6-project/2-roadmap.md) | Goals for the next versions. |
+| [Towards 1.0](docs/proposals/1-towards-version-1.md) | The proposal for a stable release: tests, backends, releases, review. |
 
 Simulations (moving things, weather, growing towns) live in the sibling project
 [Go Simulator](https://github.com/akrck02/go-simulator), which changes the scene while the viewer shows it.

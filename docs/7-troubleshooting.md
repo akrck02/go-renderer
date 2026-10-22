@@ -63,8 +63,8 @@ xvfb-run go run ./cmd/visor -sample island -capture island.png
 
 ### On Wayland: the window has no title bar, or opens on X11 instead
 
-GLFW 3.4 talks to Wayland directly when `WAYLAND_DISPLAY` is set, and to X11 otherwise. Some
-Wayland desktops (GNOME among them) draw no title bar for such windows. To run under X11 through
+GLFW 3.4 can talk to Wayland directly: it prefers Wayland when `WAYLAND_DISPLAY` is set and its
+Wayland support was built, and X11 otherwise. Some Wayland desktops (GNOME among them) draw no title bar for such windows. To run under X11 through
 XWayland instead, unset the variable for one run:
 
 ```sh
