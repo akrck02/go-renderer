@@ -1,11 +1,12 @@
 package overlay
 
 import (
-	"fmt"
 	"image"
 	"image/draw"
 	"math"
+	"strconv"
 
+	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/opengl/overlay/lucide"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/gofont/gobold"
@@ -87,7 +88,7 @@ func loadFonts() (*fonts, error) {
 	for name, data := range sources {
 		parsed, err := opentype.Parse(data)
 		if err != nil {
-			return nil, fmt.Errorf("overlay font %d: %w", name, err)
+			return nil, failure.Wrap(FontNotRead, "face "+strconv.Itoa(int(name)), err)
 		}
 		loaded.parsed[name] = parsed
 	}
