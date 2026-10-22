@@ -3,7 +3,7 @@ package overlay
 import "github.com/akrck02/go-renderer/failure"
 
 // FontNotRead is returned by NewPainter and NewMeasurer when one of the fonts (the default ones or
-// those given to UseFonts) is not a TrueType or OpenType font.
+// those given in Fonts) is not a TrueType or OpenType font.
 var FontNotRead = failure.Define("overlay.font-not-read", "a font could not be read")
 
 // colourFontInvalid is a system's colour emoji font that cannot be read; the painter then draws

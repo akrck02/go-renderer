@@ -12,7 +12,16 @@ var white = draw2d.MustHex("#ffffff")
 
 func paintList(test *testing.T, list *draw2d.List, scale float32) []Quad {
 	test.Helper()
-	painter := newTestPainter(test)
+	return paintListIn(test, Fonts{}, list, scale)
+}
+
+// paintListIn paints a list in these fonts on an 800 × 600 frame.
+func paintListIn(test *testing.T, fonts Fonts, list *draw2d.List, scale float32) []Quad {
+	test.Helper()
+	painter, err := NewPainter(fonts)
+	if err != nil {
+		test.Fatal(err)
+	}
 	return painter.Paint(&scene.Overlay{Drawing: list}, nil, Frame{Width: 800, Height: 600, Scale: scale})
 }
 
@@ -27,7 +36,7 @@ func covered(quads []Quad) [4]float32 {
 }
 
 func TestMeasuredTextIsPaintedText(test *testing.T) {
-	measurer, err := NewMeasurer()
+	measurer, err := NewMeasurer(Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}

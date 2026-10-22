@@ -248,7 +248,7 @@ func BenchmarkPrebuildingAFace(benchmark *testing.B) {
 			}
 		}
 	}
-	benchmark.ReportMetric(float64(len(PrebuiltCharacters)), "glyphs/op")
+	benchmark.ReportMetric(float64(len(prebuiltCharacters())), "glyphs/op")
 }
 
 // BenchmarkRasterisingAGlyph is one glyph rasterised (no atlas copy).

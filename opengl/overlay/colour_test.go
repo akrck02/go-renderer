@@ -115,8 +115,8 @@ func TestAColourFontsPictureIsFoundWithItsMetrics(test *testing.T) {
 }
 
 func TestAnEmojiIsMeasuredAndDrawnInItsColours(test *testing.T) {
-	withFontFolder(test, map[string][]byte{"NotoColorEmoji.ttf": colourTestFont(test)})
-	measurer, err := NewMeasurer()
+	fonts := withFontFolder(test, map[string][]byte{"NotoColorEmoji.ttf": colourTestFont(test)})
+	measurer, err := NewMeasurer(fonts)
 	if err != nil {
 		test.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestAnEmojiIsMeasuredAndDrawnInItsColours(test *testing.T) {
 	}
 	var list draw2d.List
 	list.Text("🌊", 10, 30, 16, draw2d.Regular, white)
-	quads := paintList(test, &list, 1)
+	quads := paintListIn(test, fonts, &list, 1)
 	var pictured []Quad
 	for _, quad := range quads {
 		if quad.Pictured {
@@ -141,7 +141,8 @@ func TestAnEmojiIsMeasuredAndDrawnInItsColours(test *testing.T) {
 
 func TestEveryColourFontIsLookedIn(test *testing.T) {
 	flags := colourTestFontOf(test, '🇦') // a font that reads, with a flag's letter only
-	withFontFolder(test, map[string][]byte{"NotoColorEmojiFlags.ttf": flags, "NotoColorEmojiLegacy.ttf": colourTestFont(test)})
+	fonts := withFontFolder(test, map[string][]byte{"NotoColorEmojiFlags.ttf": flags, "NotoColorEmojiLegacy.ttf": colourTestFont(test)})
+	_, systemEmoji := systemFontsIn(fonts.Folders)
 	if _, found := systemEmoji.glyph(wave, 16); !found {
 		test.Fatal("the wave is in the second colour font")
 	}
@@ -149,8 +150,8 @@ func TestEveryColourFontIsLookedIn(test *testing.T) {
 
 func TestASelectorAsksForThePictureOverAnOutline(test *testing.T) {
 	// a character the Go fonts draw, with a picture in the colour font too
-	withFontFolder(test, map[string][]byte{"NotoColorEmoji.ttf": colourTestFontOf(test, '©')})
-	measurer, err := NewMeasurer()
+	fonts := withFontFolder(test, map[string][]byte{"NotoColorEmoji.ttf": colourTestFontOf(test, '©')})
+	measurer, err := NewMeasurer(fonts)
 	if err != nil {
 		test.Fatal(err)
 	}

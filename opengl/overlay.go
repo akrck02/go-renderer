@@ -37,8 +37,8 @@ const (
 	blurredTextureUnit  = 10
 )
 
-func newOverlayRenderer() (*overlayRenderer, error) {
-	painter, err := overlay.NewPainter()
+func newOverlayRenderer(fonts overlay.Fonts) (*overlayRenderer, error) {
+	painter, err := overlay.NewPainter(fonts)
 	if err != nil {
 		return nil, err
 	}

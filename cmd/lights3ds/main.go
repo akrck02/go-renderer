@@ -14,6 +14,7 @@ import (
 
 	"github.com/akrck02/go-renderer/ctr"
 	"github.com/akrck02/go-renderer/draw2d"
+	"github.com/akrck02/go-renderer/opengl/overlay"
 )
 
 // checkSide is the checked picture's side, in pixels, and checkCell a check's.
@@ -33,7 +34,7 @@ func main() {
 		println(err.Error())
 		return
 	}
-	renderer, err := ctr.NewFlatRenderer(bottom)
+	renderer, err := ctr.NewFlatRenderer(bottom, overlay.Fonts{})
 	if err != nil {
 		println(err.Error())
 		return

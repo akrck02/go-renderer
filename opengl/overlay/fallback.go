@@ -20,13 +20,10 @@ import (
 // NotoSansCJK); a character no font is named for is looked for in every font, the last resort.
 // Each file is read only when a character needs it, and once.
 
-// FontFolders are where the system's fonts are looked for, for characters the program's fonts
-// lack: Android's own, or the usual folders of the desktop's system. A program may change them
-// before its first frame; empty, characters the fonts lack are drawn as a question mark.
-var FontFolders = defaultFontFolders()
-
-func defaultFontFolders() []string {
-	home, _ := os.UserHomeDir()
+// DefaultFontFolders are where the system's fonts are looked for by default, for characters the
+// program's fonts lack: Android's own, or the usual folders of the desktop's system.
+func DefaultFontFolders() []string {
+	home, _ := os.UserHomeDir() // without a home folder, only the system's folders are searched
 	switch runtime.GOOS {
 	case "android":
 		return []string{"/system/fonts", "/product/fonts"}
@@ -42,14 +39,35 @@ func defaultFontFolders() []string {
 // Japanese and Korean) are found by their names, and reading them all for one symbol would stall.
 const largestFallbackFile = 8 << 20
 
-// systemFonts are the system's fonts, shared by every painter and measurer: a big font is read
-// and parsed once.
-var systemFonts = &fallbackFonts{}
+// systemFontSets keeps, for every list of folders, the system's fonts and colour emoji found in
+// them, shared by every painter and measurer that looks there: a big font is read and parsed once.
+var systemFontSets = struct {
+	mutex sync.Mutex
+	sets  map[string]systemFontSet
+}{sets: map[string]systemFontSet{}}
+
+type systemFontSet struct {
+	fonts *fallbackFonts
+	emoji *emojiFont
+}
+
+// systemFontsIn returns the system's fonts and colour emoji in these folders, read when first used.
+func systemFontsIn(folders []string) (*fallbackFonts, *emojiFont) {
+	key := strings.Join(folders, "\x00")
+	systemFontSets.mutex.Lock()
+	defer systemFontSets.mutex.Unlock()
+	set, found := systemFontSets.sets[key]
+	if !found {
+		set = systemFontSet{fonts: &fallbackFonts{folders: slices.Clone(folders)}, emoji: &emojiFont{folders: slices.Clone(folders)}}
+		systemFontSets.sets[key] = set
+	}
+	return set.fonts, set.emoji
+}
 
 // fallbackFonts finds the system's font for a character.
 type fallbackFonts struct {
 	mutex   sync.Mutex
-	folders []string // the folders the files were listed from
+	folders []string // the folders the files are listed from
 	files   []fontFile
 	read    map[string][]*opentype.Font // the fonts in each file read and kept, a collection's several
 	found   map[rune]*opentype.Font     // the font found for a character; nil when none has it
@@ -78,12 +96,11 @@ func (fallback *fallbackFonts) fontFor(character rune) *opentype.Font {
 	return found
 }
 
-// list lists the font files of the folders, again when the folders changed.
+// list lists the font files of the folders, the first time.
 func (fallback *fallbackFonts) list() {
-	if slices.Equal(fallback.folders, FontFolders) && fallback.files != nil {
+	if fallback.files != nil {
 		return
 	}
-	fallback.folders = slices.Clone(FontFolders)
 	fallback.files = []fontFile{}
 	fallback.read = map[string][]*opentype.Font{}
 	fallback.found = nil

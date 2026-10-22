@@ -9,6 +9,7 @@ import (
 	"github.com/go-gl/glfw/v3.4/glfw"
 
 	"github.com/akrck02/go-renderer/frameloop"
+	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/window"
 	"github.com/akrck02/go-renderer/windowloop"
 )
@@ -17,6 +18,8 @@ import (
 // the same loop as the OpenGL backend: drawing on demand, the fixed-step clock, the resize
 // follower. The application's Draw callback paints with Renderer.
 type FlatWindow struct {
+	// Fonts are what text is drawn with; the zero value is the default fonts.
+	Fonts    overlay.Fonts
 	renderer *FlatRenderer
 	window   metalWindow
 }
@@ -28,7 +31,7 @@ func (flat *FlatWindow) Renderer() *FlatRenderer { return flat.renderer }
 // draws one frame into its CapturePath instead. It must be called on the program's main thread.
 func (flat *FlatWindow) Run(app *window.Application) error {
 	return flat.window.run(app, func(glfwWindow *glfw.Window, vsync bool) (capturer, error) {
-		renderer, err := NewFlatRenderer(glfwWindow, vsync)
+		renderer, err := NewFlatRenderer(glfwWindow, vsync, flat.Fonts)
 		flat.renderer = renderer
 		return renderer, err
 	})
@@ -37,6 +40,8 @@ func (flat *FlatWindow) Run(app *window.Application) error {
 // SceneWindow runs an application that draws a 3D scene through Metal (the viewer, for one),
 // with the same loop as the OpenGL backend. The application's Draw callback draws with Renderer.
 type SceneWindow struct {
+	// Fonts are what the overlay's text is drawn with; the zero value is the default fonts.
+	Fonts    overlay.Fonts
 	renderer *SceneRenderer
 	window   metalWindow
 }
@@ -48,7 +53,7 @@ func (scene *SceneWindow) Renderer() *SceneRenderer { return scene.renderer }
 // draws one frame into its CapturePath instead. It must be called on the program's main thread.
 func (scene *SceneWindow) Run(app *window.Application) error {
 	return scene.window.run(app, func(glfwWindow *glfw.Window, vsync bool) (capturer, error) {
-		renderer, err := NewSceneRenderer(glfwWindow, vsync)
+		renderer, err := NewSceneRenderer(glfwWindow, vsync, scene.Fonts)
 		scene.renderer = renderer
 		return renderer, err
 	})

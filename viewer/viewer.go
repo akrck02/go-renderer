@@ -24,6 +24,7 @@ import (
 	"github.com/akrck02/go-renderer/input"
 	"github.com/akrck02/go-renderer/metal"
 	"github.com/akrck02/go-renderer/opengl"
+	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
 	"github.com/akrck02/go-renderer/window"
 )
@@ -132,7 +133,7 @@ func (session *viewer) run(options Options, title string, loadingTime time.Durat
 // runOpenGL shows the session through OpenGL.
 func runOpenGL(session *viewer, app *window.Application) error {
 	session.makeRenderer = func() (sceneDrawer, error) {
-		renderer, err := opengl.NewSceneRenderer()
+		renderer, err := opengl.NewSceneRenderer(overlay.Fonts{})
 		if err != nil {
 			return nil, err
 		}

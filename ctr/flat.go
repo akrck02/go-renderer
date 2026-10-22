@@ -294,13 +294,14 @@ type linearBuffer struct {
 // firstVertexBuffer is the room a list's corners start with, a few thousand rectangles.
 const firstVertexBuffer = 64 << 10
 
-// NewFlatRenderer loads the overlay shader and the fonts, for painting on the bottom screen.
-func NewFlatRenderer(screen *BottomScreen) (*FlatRenderer, error) {
+// NewFlatRenderer loads the overlay shader and the fonts (overlay.Fonts{} for the default ones),
+// for painting on the bottom screen.
+func NewFlatRenderer(screen *BottomScreen, fonts overlay.Fonts) (*FlatRenderer, error) {
 	shader, err := LoadShader(quadShaderBinary)
 	if err != nil {
 		return nil, err
 	}
-	painter, err := overlay.NewPainter()
+	painter, err := overlay.NewPainter(fonts)
 	if err != nil {
 		shader.Free()
 		return nil, err

@@ -40,9 +40,9 @@ type FlatRenderer struct {
 
 // NewFlatRenderer puts a Metal layer in a window made with no OpenGL context
 // (glfw.ClientAPI = glfw.NoAPI) and prepares the shaders and atlas. vsync paces frames with the
-// display.
-func NewFlatRenderer(window *glfw.Window, vsync bool) (*FlatRenderer, error) {
-	painter, err := overlay.NewPainter()
+// display; text is drawn in fonts (overlay.Fonts{} for the default ones).
+func NewFlatRenderer(window *glfw.Window, vsync bool, fonts overlay.Fonts) (*FlatRenderer, error) {
+	painter, err := overlay.NewPainter(fonts)
 	if err != nil {
 		return nil, err
 	}

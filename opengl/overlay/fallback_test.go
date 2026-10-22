@@ -10,8 +10,9 @@ import (
 	"golang.org/x/image/font/gofont/goregular"
 )
 
-// withFontFolder makes a folder of system fonts for a test, with files of these names and fonts.
-func withFontFolder(test *testing.T, files map[string][]byte) {
+// withFontFolder makes a folder of system fonts for a test, with files of these names and fonts,
+// and returns the default fonts with it as their only folder.
+func withFontFolder(test *testing.T, files map[string][]byte) Fonts {
 	test.Helper()
 	folder := test.TempDir()
 	for name, data := range files {
@@ -19,9 +20,7 @@ func withFontFolder(test *testing.T, files map[string][]byte) {
 			test.Fatal(err)
 		}
 	}
-	before := FontFolders
-	FontFolders = []string{folder}
-	test.Cleanup(func() { FontFolders = before })
+	return Fonts{Folders: []string{folder}}
 }
 
 func TestACharacterIsLookedForInTheFontNamedForItsScript(test *testing.T) {
@@ -61,7 +60,8 @@ func TestThePlainestFontComesFirst(test *testing.T) {
 
 func TestAFontNamedForTheScriptIsFound(test *testing.T) {
 	icons := lucide.Font()
-	withFontFolder(test, map[string][]byte{"NotoSansSymbols-Regular.ttf": goregular.TTF, "NotoSansLucide-Regular.ttf": icons})
+	fonts := withFontFolder(test, map[string][]byte{"NotoSansSymbols-Regular.ttf": goregular.TTF, "NotoSansLucide-Regular.ttf": icons})
+	systemFonts, _ := systemFontsIn(fonts.Folders)
 	star, _ := lucide.Codepoint("star")
 	if systemFonts.fontFor('λ') == nil {
 		test.Fatal("a Greek letter is in the folder's Go font")
@@ -75,8 +75,8 @@ func TestAFontNamedForTheScriptIsFound(test *testing.T) {
 }
 
 func TestTextTheFontsLackIsMeasuredInTheSystemsFont(test *testing.T) {
-	withFontFolder(test, map[string][]byte{"Icons.ttf": lucide.Font()})
-	measurer, err := NewMeasurer()
+	fonts := withFontFolder(test, map[string][]byte{"Icons.ttf": lucide.Font()})
+	measurer, err := NewMeasurer(fonts)
 	if err != nil {
 		test.Fatal(err)
 	}
@@ -86,8 +86,11 @@ func TestTextTheFontsLackIsMeasuredInTheSystemsFont(test *testing.T) {
 	if drawn.Width == question.Width || drawn.Width <= 0 {
 		test.Fatalf("the system's glyph, not a question mark: %v and %v", drawn.Width, question.Width)
 	}
-	FontFolders = nil
-	if measured := measurer.MeasureText(string(rune(0xe001)), 16, draw2d.Regular, 1); measured.Width != question.Width {
+	nowhere, err := NewMeasurer(Fonts{Folders: []string{}})
+	if err != nil {
+		test.Fatal(err)
+	}
+	if measured := nowhere.MeasureText(string(rune(0xe001)), 16, draw2d.Regular, 1); measured.Width != question.Width {
 		test.Fatalf("with no system fonts it is a question mark: %v", measured.Width)
 	}
 }

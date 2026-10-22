@@ -42,7 +42,7 @@ func TestShadersAreOpenGLESTwo(test *testing.T) {
 func TestACompileErrorIsReported(test *testing.T) {
 	fake := newRecorder()
 	fake.failCompile = true
-	_, err := NewFlatRenderer(fake)
+	_, err := NewFlatRenderer(fake, overlay.Fonts{})
 	if !errors.Is(err, ShaderNotCompiled) || !strings.Contains(err.Error(), "broken on purpose") {
 		test.Fatalf("error = %v, want %s with the compiler's log", err, ShaderNotCompiled.Name())
 	}
@@ -51,7 +51,7 @@ func TestACompileErrorIsReported(test *testing.T) {
 func TestALinkErrorIsReported(test *testing.T) {
 	fake := newRecorder()
 	fake.failLink = true
-	_, err := NewFlatRenderer(fake)
+	_, err := NewFlatRenderer(fake, overlay.Fonts{})
 	if !errors.Is(err, ProgramNotLinked) || !strings.Contains(err.Error(), "broken on purpose") {
 		test.Fatalf("error = %v, want %s with the linker's log", err, ProgramNotLinked.Name())
 	}
@@ -67,7 +67,7 @@ func card() *draw2d.List {
 
 func TestTheFlatRendererDrawsAFrameInOneCall(test *testing.T) {
 	fake := newRecorder()
-	renderer, err := NewFlatRenderer(fake)
+	renderer, err := NewFlatRenderer(fake, overlay.Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestTheFlatRendererDrawsAFrameInOneCall(test *testing.T) {
 
 func TestTheAtlasIsUploadedOnlyWhenItChanges(test *testing.T) {
 	fake := newRecorder()
-	renderer, err := NewFlatRenderer(fake)
+	renderer, err := NewFlatRenderer(fake, overlay.Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestTheAtlasIsUploadedOnlyWhenItChanges(test *testing.T) {
 
 func TestAnEmptyListDrawsNothing(test *testing.T) {
 	fake := newRecorder()
-	renderer, err := NewFlatRenderer(fake)
+	renderer, err := NewFlatRenderer(fake, overlay.Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func islandCamera() camera.Camera {
 
 func TestTheSceneRendererDrawsTheSampleIsland(test *testing.T) {
 	fake := newRecorder()
-	renderer, err := NewSceneRenderer(fake)
+	renderer, err := NewSceneRenderer(fake, overlay.Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}
@@ -154,7 +154,7 @@ func TestTheSceneRendererDrawsTheSampleIsland(test *testing.T) {
 
 func TestMeshesAreUploadedOnce(test *testing.T) {
 	fake := newRecorder()
-	renderer, err := NewSceneRenderer(fake)
+	renderer, err := NewSceneRenderer(fake, overlay.Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}
@@ -172,7 +172,7 @@ func TestMeshesAreUploadedOnce(test *testing.T) {
 
 func TestADirtyMeshIsUploadedAgain(test *testing.T) {
 	fake := newRecorder()
-	renderer, err := NewSceneRenderer(fake)
+	renderer, err := NewSceneRenderer(fake, overlay.Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestADirtyMeshIsUploadedAgain(test *testing.T) {
 
 func TestAttributesAreBoundBeforeLinking(test *testing.T) {
 	fake := newRecorder()
-	if _, err := NewSceneRenderer(fake); err != nil {
+	if _, err := NewSceneRenderer(fake, overlay.Fonts{}); err != nil {
 		test.Fatal(err)
 	}
 	want := append(append([]string{}, sceneAttributes...), quadAttributes...)
@@ -199,14 +199,14 @@ func TestAttributesAreBoundBeforeLinking(test *testing.T) {
 
 func TestANewRendererUploadsTheMeshesAgain(test *testing.T) {
 	world := sample.Island()
-	first, err := NewSceneRenderer(newRecorder())
+	first, err := NewSceneRenderer(newRecorder(), overlay.Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}
 	first.Draw(world, islandCamera(), 1280, 800)
 	// a phone came back from the background: a new graphics context, a new renderer
 	fake := newRecorder()
-	second, err := NewSceneRenderer(fake)
+	second, err := NewSceneRenderer(fake, overlay.Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}
@@ -218,7 +218,7 @@ func TestANewRendererUploadsTheMeshesAgain(test *testing.T) {
 
 func TestASecondFrameSendsOnlyWhatChanged(test *testing.T) {
 	fake := newRecorder()
-	renderer, err := NewSceneRenderer(fake)
+	renderer, err := NewSceneRenderer(fake, overlay.Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}
@@ -241,7 +241,7 @@ func TestASecondFrameSendsOnlyWhatChanged(test *testing.T) {
 
 func TestAnImageIsDrawnInTheSameCallAndOnlyItsChangesAreSent(test *testing.T) {
 	fake := newRecorder()
-	renderer, err := NewFlatRenderer(fake)
+	renderer, err := NewFlatRenderer(fake, overlay.Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}
@@ -266,7 +266,7 @@ func TestAnImageIsDrawnInTheSameCallAndOnlyItsChangesAreSent(test *testing.T) {
 
 func TestAFlatListWithoutBackdropsIsOneDrawAndNoSnapshot(test *testing.T) {
 	fake := newRecorder()
-	renderer, err := NewFlatRenderer(fake)
+	renderer, err := NewFlatRenderer(fake, overlay.Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}
@@ -280,7 +280,7 @@ func TestAFlatListWithoutBackdropsIsOneDrawAndNoSnapshot(test *testing.T) {
 
 func TestPanelsOfOneLayerShareOneSnapshot(test *testing.T) {
 	fake := newRecorder()
-	renderer, err := NewFlatRenderer(fake)
+	renderer, err := NewFlatRenderer(fake, overlay.Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}
@@ -304,7 +304,7 @@ func TestPanelsOfOneLayerShareOneSnapshot(test *testing.T) {
 
 func TestALightingAddsItsLightsAndMultipliesTheScreenInTwoDraws(test *testing.T) {
 	fake := newRecorder()
-	renderer, err := NewFlatRenderer(fake)
+	renderer, err := NewFlatRenderer(fake, overlay.Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}
@@ -329,7 +329,7 @@ func TestALightingAddsItsLightsAndMultipliesTheScreenInTwoDraws(test *testing.T)
 
 func TestLightsAndBackdropsDrawBackIntoTheRenderersTarget(test *testing.T) {
 	fake := newRecorder()
-	renderer, err := NewFlatRenderer(fake)
+	renderer, err := NewFlatRenderer(fake, overlay.Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}
@@ -352,7 +352,7 @@ func TestLightsAndBackdropsDrawBackIntoTheRenderersTarget(test *testing.T) {
 
 func TestALightingWithNoLightsOnlyMultipliesTheAmbient(test *testing.T) {
 	fake := newRecorder()
-	renderer, err := NewFlatRenderer(fake)
+	renderer, err := NewFlatRenderer(fake, overlay.Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}
@@ -366,7 +366,7 @@ func TestALightingWithNoLightsOnlyMultipliesTheAmbient(test *testing.T) {
 
 func TestADrawUnderALampGetsTheLampsUniforms(test *testing.T) {
 	fake := newRecorder()
-	renderer, err := NewSceneRenderer(fake)
+	renderer, err := NewSceneRenderer(fake, overlay.Fonts{})
 	if err != nil {
 		test.Fatal(err)
 	}

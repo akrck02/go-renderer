@@ -9,6 +9,7 @@ import (
 	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/internal/sceneplan"
+	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
 )
 
@@ -78,8 +79,9 @@ func firstFloat(values []float32) unsafe.Pointer {
 	return unsafe.Pointer(&values[0])
 }
 
-// NewSceneRenderer compiles the scene shaders. Call it after the OpenGL context exists.
-func NewSceneRenderer() (*SceneRenderer, error) {
+// NewSceneRenderer compiles the scene shaders; the overlay's text is drawn in fonts
+// (overlay.Fonts{} for the default ones). Call it after the OpenGL context exists.
+func NewSceneRenderer(fonts overlay.Fonts) (*SceneRenderer, error) {
 	sceneProgram, err := newShaderProgram(sceneVertexShader, sceneFragmentShader)
 	if err != nil {
 		return nil, err
@@ -97,7 +99,7 @@ func NewSceneRenderer() (*SceneRenderer, error) {
 		return nil, err
 	}
 	renderer.levelVariation = newLevelVariationTexture()
-	if renderer.overlay, err = newOverlayRenderer(); err != nil {
+	if renderer.overlay, err = newOverlayRenderer(fonts); err != nil {
 		return nil, err
 	}
 	return renderer, nil

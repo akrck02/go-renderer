@@ -17,6 +17,7 @@ import (
 	"github.com/akrck02/go-renderer/gles"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/input"
+	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
 	"github.com/akrck02/go-renderer/scene/sample"
 	"github.com/akrck02/go-renderer/window"
@@ -37,7 +38,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	renderer, err := gles.NewSceneRenderer(functions)
+	renderer, err := gles.NewSceneRenderer(functions, overlay.Fonts{})
 	if err != nil {
 		return err
 	}

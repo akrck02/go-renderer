@@ -2,6 +2,7 @@ package opengl
 
 import (
 	"github.com/akrck02/go-renderer/draw2d"
+	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
@@ -15,9 +16,10 @@ type FlatRenderer struct {
 	layer   scene.Overlay
 }
 
-// NewFlatRenderer prepares the atlas and shaders.
-func NewFlatRenderer() (*FlatRenderer, error) {
-	overlay, err := newOverlayRenderer()
+// NewFlatRenderer prepares the atlas and shaders; text is drawn in fonts (overlay.Fonts{} for the
+// default ones). Call it after the OpenGL context exists.
+func NewFlatRenderer(fonts overlay.Fonts) (*FlatRenderer, error) {
+	overlay, err := newOverlayRenderer(fonts)
 	if err != nil {
 		return nil, err
 	}

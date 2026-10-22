@@ -6,6 +6,7 @@ import (
 	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/internal/sceneplan"
+	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
 )
 
@@ -33,13 +34,14 @@ type SceneRenderer struct {
 	frameLights  []sceneplan.FrameLight // the frame's point lights, which each draw takes a few of
 }
 
-// NewSceneRenderer compiles the shaders and prepares the overlay's atlas.
-func NewSceneRenderer(functions Functions) (*SceneRenderer, error) {
+// NewSceneRenderer compiles the shaders and prepares the overlay's atlas; the overlay's text is
+// drawn in fonts (overlay.Fonts{} for the default ones).
+func NewSceneRenderer(functions Functions, fonts overlay.Fonts) (*SceneRenderer, error) {
 	shaders, err := newProgram(functions, sceneVertexShader, sceneFragmentShader, sceneAttributes)
 	if err != nil {
 		return nil, err
 	}
-	quads, err := newQuadPass(functions)
+	quads, err := newQuadPass(functions, fonts)
 	if err != nil {
 		return nil, err
 	}

@@ -6,12 +6,11 @@ import (
 )
 
 func TestAFontThatIsNotAFontIsFontNotRead(test *testing.T) {
-	UseFonts(Fonts{Bold: []byte("not a font")})
-	defer UseFonts(Fonts{})
-	if _, err := NewPainter(); !errors.Is(err, FontNotRead) {
+	broken := Fonts{Bold: []byte("not a font")}
+	if _, err := NewPainter(broken); !errors.Is(err, FontNotRead) {
 		test.Fatalf("NewPainter returned %v, not %s", err, FontNotRead.Name())
 	}
-	if _, err := NewMeasurer(); !errors.Is(err, FontNotRead) {
+	if _, err := NewMeasurer(broken); !errors.Is(err, FontNotRead) {
 		test.Fatalf("NewMeasurer returned %v, not %s", err, FontNotRead.Name())
 	}
 }
