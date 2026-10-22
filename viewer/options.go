@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/akrck02/go-renderer/failure"
 )
 
 // Options configure a viewing session.
@@ -88,13 +90,13 @@ func (value pointFlag) String() string {
 func (value pointFlag) Set(text string) error {
 	parts := strings.Split(text, ",")
 	if len(parts) != 2 {
-		return fmt.Errorf("expected x,z, got %q", text)
+		return failure.Wrap(InvalidPoint, strconv.Quote(text), nil)
 	}
 	var point [2]float32
 	for index, part := range parts {
 		number, err := strconv.ParseFloat(strings.TrimSpace(part), 32)
 		if err != nil {
-			return fmt.Errorf("expected x,z, got %q", text)
+			return failure.Wrap(InvalidPoint, strconv.Quote(text), nil)
 		}
 		point[index] = float32(number)
 	}
@@ -119,7 +121,7 @@ func (backend *Backend) Set(text string) error {
 	case string(Metal), string(OpenGL):
 		*backend = Backend(text)
 	default:
-		return fmt.Errorf("unknown backend %q: use automatic, metal or opengl", text)
+		return failure.Wrap(UnknownBackend, strconv.Quote(text), nil)
 	}
 	return nil
 }

@@ -14,7 +14,6 @@ package viewer
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"os"
 	"runtime"
@@ -124,7 +123,7 @@ func (session *viewer) run(options Options, title string, loadingTime time.Durat
 		if !errors.Is(err, metal.ErrUnavailable) || options.Backend == Metal {
 			return err
 		}
-		log.Printf("viewer: %v; drawing through OpenGL", err)
+		session.world.Overlay.AddNotice(fallbackIcon, "Drawing through OpenGL: "+err.Error(), graphics.Vec4{})
 		app.Input = input.NewState()
 	}
 	return runOpenGL(session, app)
@@ -431,8 +430,15 @@ func (session *viewer) adjustWalkingSpeed(state *input.State) {
 	}
 	minimum, maximum := session.walkLimits[0], session.walkLimits[1]
 	session.walk.Speed = float32(math.Max(float64(minimum), math.Min(float64(maximum), float64(session.walk.Speed*factor))))
-	fmt.Printf("walking speed: %.4g units per second (shift: x%.0f)\n", session.walk.Speed, session.walk.RunFactor)
+	notice := fmt.Sprintf("Walking at %.4g units a second (shift: ×%.0f)", session.walk.Speed, session.walk.RunFactor)
+	session.world.Overlay.AddNotice(walkingIcon, notice, graphics.Vec4{})
 }
+
+// The icons of the viewer's notices (Lucide's names).
+const (
+	walkingIcon  = "footprints"
+	fallbackIcon = "triangle-alert"
+)
 
 func (session *viewer) toggleFog() {
 	environment := &session.world.Environment
