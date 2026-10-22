@@ -1,8 +1,7 @@
 package gles
 
 import (
-	"fmt"
-
+	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/graphics"
 )
 
@@ -38,7 +37,7 @@ func newProgram(functions Functions, vertexSource, fragmentSource string, attrib
 	}
 	functions.LinkProgram(handle)
 	if linked, log := functions.ProgramLinked(handle); !linked {
-		return nil, fmt.Errorf("gles: linking a program: %s", log)
+		return nil, failure.Wrap(ProgramNotLinked, log, nil)
 	}
 	return &program{functions: functions, handle: handle, uniforms: map[string]Uniform{}, values: map[Uniform][16]float32{}}, nil
 }
@@ -49,7 +48,7 @@ func compileShader(functions Functions, stage Enum, source string) (Shader, erro
 	functions.CompileShader(shader)
 	if compiled, log := functions.ShaderCompiled(shader); !compiled {
 		functions.DeleteShader(shader)
-		return 0, fmt.Errorf("gles: compiling a shader: %s", log)
+		return 0, failure.Wrap(ShaderNotCompiled, log, nil)
 	}
 	return shader, nil
 }
