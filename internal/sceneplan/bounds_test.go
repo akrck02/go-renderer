@@ -34,3 +34,11 @@ func TestABoxMeasuresItsDistanceAndFollowsATransform(test *testing.T) {
 		test.Errorf("wrong transformed box %+v", moved)
 	}
 }
+
+func TestAMovedPointIsWhereTheFullMatrixPutsIt(test *testing.T) {
+	matrix := graphics.FromTranslationRotationScale(graphics.Vector{3, -1, 2, 0}, graphics.Vector{0, 0.38268343, 0, 0.9238795}, graphics.Vector{2, 3, 4, 0})
+	point := graphics.Vector{1, 2, 3, 1}
+	if moved, full := movedPoint(matrix, point), matrix.Apply(point); moved != full {
+		test.Fatalf("moved %v, the full matrix gives %v", moved, full)
+	}
+}
