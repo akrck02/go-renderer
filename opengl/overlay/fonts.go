@@ -241,13 +241,25 @@ func (painter *Painter) prebuild(name faceName, size int) {
 	}
 }
 
-// hasGlyph tells whether a face, or the system's fonts for it, can draw a character.
+// hasGlyph tells whether a face, or the system's fonts for it, can draw a character. The face's
+// own glyphs, nearly every character drawn, are looked up once; only a character it lacks goes on
+// to the system's fonts.
 func (loaded *fonts) hasGlyph(name faceName, size int, character rune) bool {
-	face := loaded.faceFor(name, size, character)
+	face := loaded.face(name, size)
 	if face == nil {
 		return false
 	}
-	_, found := face.GlyphAdvance(character)
+	if _, found := face.GlyphAdvance(character); found {
+		return true
+	}
+	if name == iconFace {
+		return false
+	}
+	fallback := loaded.faceFor(name, size, character)
+	if fallback == nil || fallback == face {
+		return false
+	}
+	_, found := fallback.GlyphAdvance(character)
 	return found
 }
 
