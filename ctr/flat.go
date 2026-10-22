@@ -169,11 +169,11 @@ import "C"
 
 import (
 	_ "embed"
-	"errors"
 	"math"
 	"unsafe"
 
 	"github.com/akrck02/go-renderer/draw2d"
+	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
 )
@@ -197,7 +197,7 @@ type BottomScreen struct {
 func OpenBottomScreen() (*BottomScreen, error) {
 	target := C.openBottomScreen()
 	if target == nil {
-		return nil, errors.New("ctr: cannot draw on the bottom screen")
+		return nil, failure.Wrap(ScreenNotOpened, "the bottom screen", nil)
 	}
 	return &BottomScreen{target: target}, nil
 }
