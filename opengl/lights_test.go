@@ -213,3 +213,20 @@ func checkRedAt(test *testing.T, name string, x, y int, wanted uint8) {
 		test.Errorf("%s: red is %d, wanted %d", name, pixel[0], wanted)
 	}
 }
+
+// TestAFrameAfterTheFirstAllocatesNothing draws panels behind glass, under eight lights: every
+// pass of a flat frame, none of which may make garbage once the first frame has made its buffers.
+func TestAFrameAfterTheFirstAllocatesNothing(test *testing.T) {
+	renderer := openLightTestWindow(test, measuredWidth, measuredHeight)
+	list := measuredFrame(true)
+	list.Backdrop(draw2d.Rect{X: 40, Y: 40, Width: 300, Height: 200}, 12, 6)
+	list.Rectangle(draw2d.Rect{X: 40, Y: 40, Width: 300, Height: 200}, 12, draw2d.Color{1, 1, 1, 0.4}, draw2d.Color{}, 0)
+	renderer.Draw(list, grey, measuredWidth, measuredHeight, 1)
+	allocations := testing.AllocsPerRun(10, func() {
+		renderer.Draw(list, grey, measuredWidth, measuredHeight, 1)
+		gl.Finish()
+	})
+	if allocations != 0 {
+		test.Fatalf("a frame allocates %v times", allocations)
+	}
+}

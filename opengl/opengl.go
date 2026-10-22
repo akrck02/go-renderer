@@ -1,7 +1,6 @@
 package opengl
 
 import (
-	"errors"
 	"fmt"
 	"image"
 	"image/png"
@@ -31,7 +30,7 @@ type OpenGL struct {
 // runtime.LockOSThread in an init function of package main.
 func (opengl *OpenGL) StartLoop(app *models.Application) error {
 	if !windowloop.OnMainThread() {
-		return errors.New("opengl: StartLoop must run on the main thread; call runtime.LockOSThread in an init function of package main")
+		return windowloop.NotOnMainThread
 	}
 
 	opengl.window = InitWindow(app)

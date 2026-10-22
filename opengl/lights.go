@@ -68,7 +68,7 @@ func (layer *lightLayer) fillVertices(lights []overlay.LightQuad) {
 	}
 	layer.vertices = vertices
 	gl.BindBuffer(gl.ARRAY_BUFFER, layer.vertexBuffer)
-	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*bytesPerFloat, gl.Ptr(vertices), gl.STREAM_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*bytesPerFloat, firstFloat(vertices), gl.STREAM_DRAW)
 }
 
 // light lights what framebuffer drawn (width × height pixels) shows with one lighting, in its
