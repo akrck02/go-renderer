@@ -166,7 +166,7 @@ func (pass *quadPass) prepareLights() bool {
 	if pass.lights == nil {
 		lights, err := newLightLayer(pass.functions)
 		if err != nil {
-			warn(pass.painter, "2D lights unavailable", err)
+			pass.painter.Report("2D lights unavailable: " + err.Error())
 			lights = &lightLayer{}
 		}
 		pass.lights = lights
@@ -184,7 +184,7 @@ func (pass *quadPass) takeSnapshot(width, height int, deviation float32) bool {
 	if pass.blur == nil {
 		blur, err := newBackdropBlur(pass.functions)
 		if err != nil {
-			warn(pass.painter, "backdrop blur unavailable", err)
+			pass.painter.Report("backdrop blur unavailable: " + err.Error())
 			blur = &backdropBlur{}
 		}
 		pass.blur = blur
@@ -322,12 +322,4 @@ func (pass *quadPass) drawVertices(first, last, width, height int) {
 	functions.DisableVertexAttribArray(backdropAttribute)
 	functions.Disable(Blend)
 	functions.DepthMask(true)
-}
-
-// warn tells the painter's Warn, when the program gave one, of a problem the frame works around
-// (it is drawn without lights or blur); a library prints nothing of its own.
-func warn(painter *overlay.Painter, problem string, err error) {
-	if painter.Warn != nil {
-		painter.Warn(problem + ": " + err.Error())
-	}
 }

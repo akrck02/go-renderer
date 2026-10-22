@@ -140,7 +140,11 @@ static void multiplyByLight(C3D_Tex* light, u16* indices) {
 */
 import "C"
 
-import "unsafe"
+import (
+	"unsafe"
+
+	"github.com/akrck02/go-renderer/opengl/overlay"
+)
 
 // lightPass draws the 2D lights (see overlay.Lighting) on the PICA200: the lights are added into
 // a picture of light, a texture the GPU draws into, which then multiplies the screen. Its
@@ -154,7 +158,7 @@ type lightPass struct {
 }
 
 // prepare makes the pass's textures, the first time; false when they cannot be made.
-func (pass *lightPass) prepare() bool {
+func (pass *lightPass) prepare(painter *overlay.Painter) bool {
 	if pass.target != nil {
 		return true
 	}
@@ -168,7 +172,7 @@ func (pass *lightPass) prepare() bool {
 	tiled := tileForPICA(nil, lightDiscs(), discTextureSide)
 	pass.discs = C.newDiscTexture(discTextureSide, unsafe.Pointer(&tiled[0]))
 	if pass.target == nil || pass.discs == nil {
-		println("ctr: no room for the 2D lights' textures: lists are drawn unlit")
+		painter.Report("ctr: no room for the 2D lights' textures: lists are drawn unlit")
 		pass.release()
 		pass.failed = true
 		return false
@@ -211,7 +215,7 @@ func (renderer *FlatRenderer) light(surface Surface, painted *paintedList, index
 func (renderer *FlatRenderer) writeLights(painted *paintedList) bool {
 	painted.lightings, painted.lightRuns, painted.lightVertices.data = painted.lightings[:0], painted.lightRuns[:0], nil
 	lightings := renderer.painter.Lightings()
-	if len(lightings) == 0 || !renderer.lights.prepare() {
+	if len(lightings) == 0 || !renderer.lights.prepare(renderer.painter) {
 		return true
 	}
 	lightings = lightings[:min(len(lightings), maxQuadsPerList/2)]

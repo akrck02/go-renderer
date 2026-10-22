@@ -170,6 +170,7 @@ import "C"
 import (
 	_ "embed"
 	"math"
+	"strconv"
 	"unsafe"
 
 	"github.com/akrck02/go-renderer/draw2d"
@@ -450,7 +451,7 @@ func (renderer *FlatRenderer) uploadPictures() {
 	}
 	if size > largestTexture {
 		if !renderer.picturesTooLarge {
-			println("ctr: the overlay's pictures outgrew the largest texture:", size)
+			renderer.painter.Report("ctr: the overlay's pictures outgrew the largest texture: " + strconv.Itoa(size))
 			renderer.picturesTooLarge = true
 		}
 		pictures.Uploaded()
@@ -483,7 +484,7 @@ func (renderer *FlatRenderer) uploadAtlas() bool {
 	size := atlas.Size()
 	if size > largestTexture {
 		if !renderer.tooLarge {
-			println("ctr: the overlay's atlas outgrew the largest texture:", size)
+			renderer.painter.Report("ctr: the overlay's atlas outgrew the largest texture: " + strconv.Itoa(size))
 			renderer.tooLarge = true
 		}
 		return renderer.texture != nil // draw with what the texture still has

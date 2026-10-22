@@ -1,6 +1,8 @@
 package overlay
 
 import (
+	"bytes"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -81,6 +83,18 @@ func TestUnknownIconsWarnOnceAndDrawNothing(test *testing.T) {
 	}
 	if len(warnings) != 1 || !strings.Contains(warnings[0], "sea-serpent") {
 		test.Fatalf("expected one warning, got %v", warnings)
+	}
+}
+
+func TestWithoutWarnAProblemGoesToTheDefaultLogger(test *testing.T) {
+	var logged bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logged, nil)))
+	defer slog.SetDefault(previous)
+	painter := newTestPainter(test)
+	painter.Report("the lights are off")
+	if !strings.Contains(logged.String(), "level=WARN") || !strings.Contains(logged.String(), "the lights are off") {
+		test.Fatalf("logged %q", logged.String())
 	}
 }
 
