@@ -9,11 +9,11 @@ package metal
 import "C"
 
 import (
-	"fmt"
 	"image"
 	"unsafe"
 
 	"github.com/akrck02/go-renderer/draw2d"
+	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
 	"github.com/go-gl/glfw/v3.4/glfw"
@@ -45,11 +45,11 @@ func NewFlatRenderer(window *glfw.Window, vsync bool) (*FlatRenderer, error) {
 	if err != nil {
 		return nil, err
 	}
-	var failure *C.char
-	handle := C.flatRendererCreate(window.GetCocoaWindow(), C.int(boolean(vsync)), &failure)
+	var problem *C.char
+	handle := C.flatRendererCreate(window.GetCocoaWindow(), C.int(boolean(vsync)), &problem)
 	if handle == nil {
-		defer C.free(unsafe.Pointer(failure))
-		return nil, fmt.Errorf("%w: %s", ErrUnavailable, C.GoString(failure))
+		defer C.free(unsafe.Pointer(problem))
+		return nil, failure.Wrap(Unavailable, C.GoString(problem), nil)
 	}
 	return &FlatRenderer{handle: handle, painter: painter}, nil
 }
