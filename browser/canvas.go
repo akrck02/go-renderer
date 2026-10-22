@@ -7,10 +7,10 @@
 package browser
 
 import (
-	"errors"
 	"math"
 	"syscall/js"
 
+	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/input"
 )
 
@@ -27,9 +27,6 @@ type Canvas struct {
 	changed func()
 }
 
-// ErrNoCanvas is returned when the page has no canvas with the given id.
-var ErrNoCanvas = errors.New("browser: no canvas with that id in the page")
-
 // OpenCanvas takes the page's canvas with this id (the first canvas when id is empty).
 func OpenCanvas(id string) (*Canvas, error) {
 	document := js.Global().Get("document")
@@ -40,7 +37,7 @@ func OpenCanvas(id string) (*Canvas, error) {
 		element = document.Call("getElementById", id)
 	}
 	if element.IsNull() || element.IsUndefined() {
-		return nil, ErrNoCanvas
+		return nil, failure.Wrap(CanvasNotFound, id, nil)
 	}
 	// the canvas takes keyboard focus, and touches on it are the program's, not the page's scroll
 	element.Set("tabIndex", 0)

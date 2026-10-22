@@ -3,7 +3,6 @@
 package browser
 
 import (
-	"errors"
 	"syscall/js"
 	"unsafe"
 
@@ -35,16 +34,13 @@ type WebGL struct {
 	matrix3Bytes  js.Value
 }
 
-// ErrNoWebGL2 is returned when the browser cannot give the canvas a WebGL2 context.
-var ErrNoWebGL2 = errors.New("browser: this browser has no WebGL2")
-
 // newWebGL asks the canvas for a WebGL2 context. antialias smooths the edges of 3D geometry; flat
 // interfaces do not need it (their shapes are smoothed by the atlas).
 func newWebGL(canvas js.Value, antialias bool) (*WebGL, error) {
 	options := map[string]any{"antialias": antialias, "alpha": false, "depth": true, "premultipliedAlpha": false}
 	context := canvas.Call("getContext", "webgl2", options)
 	if context.IsNull() || context.IsUndefined() {
-		return nil, ErrNoWebGL2
+		return nil, WebGL2Missing
 	}
 	matrix := js.Global().Get("Float32Array").New(16)
 	matrix3 := js.Global().Get("Float32Array").New(9)
