@@ -11,6 +11,7 @@ import (
 // Pass identifies the passes that choose their own visible parts and levels of detail.
 type Pass int
 
+// The passes: the main one, seen from the camera, and the shadow map's.
 const (
 	MainPass Pass = iota
 	ShadowPass

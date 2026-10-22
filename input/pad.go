@@ -6,6 +6,7 @@ package input
 // PadButton is a game pad's button.
 type PadButton int
 
+// The buttons of a game pad, in that one layout.
 const (
 	PadA PadButton = iota
 	PadB

@@ -24,6 +24,7 @@ func PICAViewProjection(openGL graphics.Mat4) graphics.Mat4 {
 // Eye is one of the two pictures of the top screen in 3D.
 type Eye int
 
+// The two eyes of the top screen in 3D.
 const (
 	LeftEye Eye = iota
 	RightEye

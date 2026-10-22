@@ -110,6 +110,7 @@ type CursorShapes struct {
 	cursors map[input.CursorShape]*glfw.Cursor
 }
 
+// Apply shows the pointer shape the state asks for, if it is not already shown.
 func (shapes *CursorShapes) Apply(window *glfw.Window, state *input.State) {
 	wanted := state.CursorShape()
 	if wanted == shapes.current {

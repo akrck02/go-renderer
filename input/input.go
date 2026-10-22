@@ -14,6 +14,8 @@ import "time"
 // Key is a backend-independent key code.
 type Key int
 
+// The keys a State knows, named for what is printed on them on a US keyboard; KeyUnknown is any
+// other key.
 const (
 	KeyUnknown Key = iota
 	KeyA
@@ -94,6 +96,7 @@ const (
 // MouseButton is a backend-independent mouse button.
 type MouseButton int
 
+// The mouse buttons a State knows.
 const (
 	MouseLeft MouseButton = iota
 	MouseRight
