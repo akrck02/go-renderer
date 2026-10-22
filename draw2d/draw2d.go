@@ -12,9 +12,10 @@
 package draw2d
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/akrck02/go-renderer/failure"
 )
 
 // Rect is an area of the screen: its top-left corner and its size, in layout pixels.
@@ -68,18 +69,18 @@ func Hex(text string) Color {
 	return color
 }
 
-// ParseHex reads a colour written as "#rrggbb" or "#rrggbbaa".
+// ParseHex reads a colour written as "#rrggbb" or "#rrggbbaa"; InvalidColour otherwise.
 func ParseHex(text string) (Color, error) {
 	digits := strings.TrimPrefix(text, "#")
 	if len(digits) != 6 && len(digits) != 8 {
-		return Color{}, fmt.Errorf("colour %q: want #rrggbb or #rrggbbaa", text)
+		return Color{}, failure.Wrap(InvalidColour, strconv.Quote(text), nil)
 	}
 	if len(digits) == 6 {
 		digits += "ff"
 	}
 	value, err := strconv.ParseUint(digits, 16, 32)
 	if err != nil {
-		return Color{}, fmt.Errorf("colour %q: %w", text, err)
+		return Color{}, failure.Wrap(InvalidColour, strconv.Quote(text), err)
 	}
 	channel := func(shift uint) float32 { return float32((value>>shift)&0xff) / 255 }
 	return Color{channel(24), channel(16), channel(8), channel(0)}, nil
