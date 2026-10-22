@@ -83,6 +83,10 @@ them.</p>
 
 <p>FlatRenderer draws a 2D draw list on a plain background, with no scene, sky or camera: the window of an application that is only an interface. It does what opengl.FlatRenderer does on the desktop, with the same atlas and one draw call per frame. Create and use it where the graphics context lives.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">FlatRenderer</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Target is the framebuffer Draw draws into: 0, the screen, unless the caller made one to</span>
+	<span class="c1">// draw a picture offscreen.</span>
+	<span class="nx">Target</span> <span class="nx">Framebuffer</span>
+
 	<span class="c1">// Has unexported fields.</span>
 <span class="p">}</span>
 </code></pre>
@@ -103,7 +107,7 @@ them.</p>
 
 <tr>
 <td><code>func (renderer *FlatRenderer) Draw(list *draw2d.List, background draw2d.Color, width, height int, scale float32)</code></td>
-<td>Draw clears the framebuffer (width × height pixels) to the background colour and paints the list.</td>
+<td>Draw clears the target framebuffer (width × height pixels) to the background colour and paints the list.</td>
 </tr>
 </tbody>
 </table>
@@ -201,6 +205,9 @@ them.</p>
 	<span class="c1">// OverlayScale is framebuffer pixels per layout pixel, so labels and interfaces keep their</span>
 	<span class="c1">// size on a high-density screen (0 = 1).</span>
 	<span class="nx">OverlayScale</span> <span class="kt">float32</span>
+	<span class="c1">// Target is the framebuffer Draw draws into: 0, the screen, unless the caller made one to</span>
+	<span class="c1">// draw a picture offscreen.</span>
+	<span class="nx">Target</span> <span class="nx">Framebuffer</span>
 
 	<span class="c1">// Has unexported fields.</span>
 <span class="p">}</span>
@@ -222,7 +229,7 @@ them.</p>
 
 <tr>
 <td><code>func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int)</code></td>
-<td>Draw draws a frame of the scene seen by the camera, in a framebuffer of width × height pixels.</td>
+<td>Draw draws a frame of the scene seen by the camera, in the target framebuffer of width × height pixels.</td>
 </tr>
 </tbody>
 </table>

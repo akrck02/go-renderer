@@ -206,6 +206,11 @@
 </tr>
 
 <tr>
+<td><code>func (renderer *SceneRenderer) DrawOver(world *scene.Scene, camera models.Camera, area Area, seconds float64)</code></td>
+<td>DrawOver renders the scene from the camera into an area over what the framebuffer holds there: it clears only the depth and draws no sky, so the scene floats over the one behind it (a radar in a corner of a game&rsquo;s view).</td>
+</tr>
+
+<tr>
 <td><code>func (renderer *SceneRenderer) DrawOverlay(world *scene.Scene, width, height int)</code></td>
 <td>DrawOverlay draws a scene&rsquo;s overlay (its labels, notices and drawing) over the whole framebuffer, with the camera of the last DrawIn.</td>
 </tr>
