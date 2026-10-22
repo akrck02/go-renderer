@@ -54,7 +54,7 @@ func totalLength(parts ...[]byte) int {
 	return length
 }
 
-func TestLoadSceneGroundInstancesAndExtras(test *testing.T) {
+func TestLoadSceneReadsTheGroundInstancesAndExtras(test *testing.T) {
 	// triangle on the XZ plane rising to y=10 at the far corner
 	positions := littleEndianFloats(0, 0, 0, 10, 0, 0, 0, 10, 10)
 	colors := []byte{255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255}

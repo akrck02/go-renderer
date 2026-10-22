@@ -20,7 +20,7 @@ func TestTheStickUpMovesTheOrbitAwayFromTheCamera(test *testing.T) {
 	state.WindowWidth, state.WindowHeight = 400, 240
 	orbit.Update(state, 0.1, &camera)
 	eye, before := camera.Position, orbit.Target
-	state.StickY = 1
+	state.Feed().SetStick(0, 1)
 	orbit.Update(state, 0.5, &camera)
 	if groundDistance(eye, orbit.Target) <= groundDistance(eye, before) {
 		test.Fatalf("the target went from %v to %v: not away from the camera at %v", before, orbit.Target, eye)
@@ -34,7 +34,7 @@ func TestTheStickRightMovesThePlanRight(test *testing.T) {
 	state.WindowWidth, state.WindowHeight = 400, 240
 	plan.Update(state, 0.1, &camera)
 	before := plan.Target
-	state.StickX = 1
+	state.Feed().SetStick(1, 0)
 	plan.Update(state, 0.5, &camera)
 	if plan.Target == before {
 		test.Fatalf("the stick did not move the plan from %v", before)

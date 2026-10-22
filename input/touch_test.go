@@ -54,14 +54,14 @@ func TestACancelledGestureReleasesEverything(test *testing.T) {
 func TestTwoFingersPinchTwistAndPan(test *testing.T) {
 	state := NewState()
 	var follower TwoFingers
-	state.SetTouch(1, 100, 100)
-	state.SetTouch(2, 200, 100)
+	state.Feed().SetTouch(1, 100, 100)
+	state.Feed().SetTouch(2, 200, 100)
 	if _, ok := follower.Step(state); ok {
 		test.Fatal("a gesture starts at the step after the fingers came down")
 	}
 	// apart to twice the distance, turned a quarter counterclockwise, the middle moved right by 10
-	state.SetTouch(1, 160, 200)
-	state.SetTouch(2, 160, 0)
+	state.Feed().SetTouch(1, 160, 200)
+	state.Feed().SetTouch(2, 160, 0)
 	gesture, ok := follower.Step(state)
 	if !ok {
 		test.Fatal("no gesture with two fingers")
@@ -69,7 +69,7 @@ func TestTwoFingersPinchTwistAndPan(test *testing.T) {
 	if math.Abs(gesture.Spread-2) > 1e-9 || math.Abs(gesture.Turn-math.Pi/2) > 1e-9 || gesture.PanX != 10 || gesture.PanY != 0 {
 		test.Fatalf("gesture = %+v, want spread 2, a quarter turn, pan 10, 0", gesture)
 	}
-	state.LiftTouch(2)
+	state.Feed().LiftTouch(2)
 	if _, ok := follower.Step(state); ok {
 		test.Fatal("one finger is no gesture")
 	}
@@ -77,9 +77,9 @@ func TestTwoFingersPinchTwistAndPan(test *testing.T) {
 
 func TestTheUnclaimedCopyKeepsItsOwnTouches(test *testing.T) {
 	state := NewState()
-	state.SetTouch(1, 10, 10)
+	state.Feed().SetTouch(1, 10, 10)
 	copied := state.Unclaimed()
-	copied.SetTouch(1, 99, 99)
+	copied.Feed().SetTouch(1, 99, 99)
 	if state.Touches()[0].X != 10 {
 		test.Fatal("changing the copy's touches changed the state's")
 	}
@@ -89,12 +89,12 @@ func TestALiftedFingerLeavesNothingUnderIt(test *testing.T) {
 	state := NewState()
 	var pointer TouchPointer
 	pointer.Begin(state, 1, 100, 200, 1)
-	state.EndFrame()
+	state.Feed().EndFrame()
 	pointer.End(state, 1, 100, 200, 1)
 	if state.CursorX != 100 || !state.ButtonReleased(MouseLeft) {
 		test.Fatal("the release does not land where the finger was")
 	}
-	state.EndFrame()
+	state.Feed().EndFrame()
 	if state.CursorX > -1000 {
 		test.Fatalf("cursor still at %v after the frame: a control there would stay lit", state.CursorX)
 	}
@@ -102,7 +102,7 @@ func TestALiftedFingerLeavesNothingUnderIt(test *testing.T) {
 	if state.CursorX != 50 || state.CursorDeltaX != 0 {
 		test.Fatalf("next touch at %v with a movement of %v: want it there, with no jump", state.CursorX, state.CursorDeltaX)
 	}
-	state.EndFrame()
+	state.Feed().EndFrame()
 	if state.CursorX != 50 {
 		test.Fatal("a finger down was taken off the window")
 	}
@@ -110,17 +110,17 @@ func TestALiftedFingerLeavesNothingUnderIt(test *testing.T) {
 
 func TestTheBackIsAnsweredOnceOrLeftUnanswered(test *testing.T) {
 	state := NewState()
-	state.PressBack()
+	state.Feed().PressBack()
 	if !state.TakeBack() || state.TakeBack() {
 		test.Fatal("a back is taken once, by the first part of the program that asks")
 	}
-	state.EndFrame()
-	if state.BackUnanswered() {
+	state.Feed().EndFrame()
+	if state.Feed().BackUnanswered() {
 		test.Fatal("a taken back was left unanswered")
 	}
-	state.PressBack()
-	state.EndFrame()
-	if !state.BackUnanswered() || state.BackUnanswered() {
+	state.Feed().PressBack()
+	state.Feed().EndFrame()
+	if !state.Feed().BackUnanswered() || state.Feed().BackUnanswered() {
 		test.Fatal("a back nobody took is told once")
 	}
 	if state.TakeBack() {

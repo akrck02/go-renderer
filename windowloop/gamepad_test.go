@@ -23,8 +23,10 @@ func TestAPadsLeftStickIsTheMainOneAndItsRightTheSecond(test *testing.T) {
 	axes[glfw.AxisLeftX], axes[glfw.AxisLeftY] = 1, 0
 	axes[glfw.AxisRightX], axes[glfw.AxisRightY] = 0, -1
 	sticksFromPad(state, axes)
-	if state.StickX != 1 || state.StickY != 0 || state.RightStickX != 0 || state.RightStickY != 1 {
-		test.Fatalf("the left stick right and the right one up read %v, %v and %v, %v", state.StickX, state.StickY, state.RightStickX, state.RightStickY)
+	stickX, stickY := state.Stick()
+	rightX, rightY := state.RightStick()
+	if stickX != 1 || stickY != 0 || rightX != 0 || rightY != 1 {
+		test.Fatalf("the left stick right and the right one up read %v, %v and %v, %v", stickX, stickY, rightX, rightY)
 	}
 }
 

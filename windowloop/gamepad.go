@@ -27,7 +27,8 @@ func (pad *gamePad) read(state *input.State) {
 	present := glfw.Joystick1.IsGamepad()
 	if !present {
 		if pad.present {
-			state.StickX, state.StickY, state.RightStickX, state.RightStickY = 0, 0, 0, 0
+			state.Feed().SetStick(0, 0)
+			state.Feed().SetRightStick(0, 0)
 			buttonsFromPad(state, [15]glfw.Action{}) // every button let go
 		}
 		pad.present = false
@@ -35,7 +36,7 @@ func (pad *gamePad) read(state *input.State) {
 	}
 	if !pad.present {
 		// read once on connecting: the GUID's vendor says whose names the buttons carry
-		state.SetPadLayout(input.PadLayoutFromGUID(glfw.Joystick1.GetGUID()))
+		state.Feed().SetPadLayout(input.PadLayoutFromGUID(glfw.Joystick1.GetGUID()))
 	}
 	pad.present = true
 	if reading := glfw.Joystick1.GetGamepadState(); reading != nil { // nil: the pad went between the calls
@@ -46,8 +47,8 @@ func (pad *gamePad) read(state *input.State) {
 
 // sticksFromPad sets both sticks from a pad's axes, in GLFW's layout.
 func sticksFromPad(state *input.State, axes [6]float32) {
-	state.StickX, state.StickY = stickFromAxes(axes[glfw.AxisLeftX], axes[glfw.AxisLeftY])
-	state.RightStickX, state.RightStickY = stickFromAxes(axes[glfw.AxisRightX], axes[glfw.AxisRightY])
+	state.Feed().SetStick(stickFromAxes(axes[glfw.AxisLeftX], axes[glfw.AxisLeftY]))
+	state.Feed().SetRightStick(stickFromAxes(axes[glfw.AxisRightX], axes[glfw.AxisRightY]))
 }
 
 // stickFromAxes is a stick from GLFW's axes, which count down as positive, as -1 to 1 with up
@@ -63,6 +64,6 @@ func stickFromAxes(axisX, axisY float32) (x, y float64) {
 // buttonsFromPad sets a pad's buttons from GLFW's, which are in the same order as input's.
 func buttonsFromPad(state *input.State, buttons [15]glfw.Action) {
 	for index, action := range buttons {
-		state.SetPadButton(input.PadButton(index), action == glfw.Press)
+		state.Feed().SetPadButton(input.PadButton(index), action == glfw.Press)
 	}
 }

@@ -132,7 +132,7 @@ func (follower *resizeFollower) advance() error {
 // control under the pointer) catches up with a layout that just changed. It returns whether the
 // next frame is such a follow-up.
 func waitForWork(state *input.State, followUp bool) bool {
-	delay, wanted := state.TakeFrameRequest()
+	delay, wanted := state.Feed().TakeFrameRequest()
 	switch {
 	case followUp || wanted && delay == 0:
 		glfw.PollEvents()
@@ -141,7 +141,7 @@ func waitForWork(state *input.State, followUp bool) bool {
 	default:
 		glfw.WaitEvents()
 	}
-	return state.HasInput()
+	return state.Feed().HasInput()
 }
 
 // Wake makes a window that draws on demand draw a frame now: for a program whose data changes

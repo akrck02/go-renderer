@@ -42,7 +42,7 @@ func TestAPadIsReadAsAnXboxPadUntilTheBackendSaysOtherwise(test *testing.T) {
 	if state.PadLayout() != XboxLayout {
 		test.Fatal("a new state does not read its pad as an Xbox pad")
 	}
-	state.SetPadLayout(NintendoLayout)
+	state.Feed().SetPadLayout(NintendoLayout)
 	if state.PadLayout() != NintendoLayout {
 		test.Fatal("the layout set is not the layout read")
 	}

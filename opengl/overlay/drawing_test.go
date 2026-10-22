@@ -68,7 +68,7 @@ func TestPlainRectangleFillsItsArea(test *testing.T) {
 	}
 }
 
-func TestRoundedRectangleWithBorder(test *testing.T) {
+func TestARoundedRectangleHasItsBorderInside(test *testing.T) {
 	var list draw2d.List
 	list.Rectangle(draw2d.Rectangle{X: 0, Y: 0, Width: 80, Height: 28}, 6, white, draw2d.MustHex("#dde3ea"), 1)
 	quads := paintList(test, &list, 1)

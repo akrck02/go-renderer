@@ -94,7 +94,7 @@ func RunUpdateStep(app *window.Application, step float64) error {
 		}
 	}
 	if app.Input != nil {
-		app.Input.EndFrame()
+		app.Input.Feed().EndFrame()
 	}
 	return nil
 }

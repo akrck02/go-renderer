@@ -110,7 +110,7 @@ func (loop *frameLoop) frame() {
 	loop.mutex.Lock()
 	loop.scheduled = false
 	loop.mutex.Unlock()
-	hadInput := loop.app.Input.HasInput()
+	hadInput := loop.app.Input.Feed().HasInput()
 	stepped, err := loop.step()
 	if err != nil {
 		loop.finish(err)
@@ -151,7 +151,7 @@ func (loop *frameLoop) scheduleNext(hadInput bool) {
 		loop.request()
 		return
 	}
-	delay, wanted := loop.app.Input.TakeFrameRequest()
+	delay, wanted := loop.app.Input.Feed().TakeFrameRequest()
 	if !wanted {
 		return
 	}

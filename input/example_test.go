@@ -13,14 +13,14 @@ import (
 // ExampleState_Pressed reads the keyboard in an update step: F11 toggles the whole screen.
 func ExampleState_Pressed() {
 	state := input.NewState()
-	state.SetKey(input.KeyF11, true) // the backend: F11 went down
+	state.Feed().SetKey(input.KeyF11, true) // the backend: F11 went down
 
 	if state.Pressed(input.KeyF11) {
 		state.SetFullscreen(!state.Fullscreen())
 	}
 	fmt.Println(state.Down(input.KeyF11), state.Fullscreen())
 
-	state.EndFrame() // the backend, after the step: a press lasts one step
+	state.Feed().EndFrame() // the backend, after the step: a press lasts one step
 	fmt.Println(state.Down(input.KeyF11), state.Pressed(input.KeyF11))
 	// Output:
 	// true true
@@ -30,13 +30,14 @@ func ExampleState_Pressed() {
 // ExampleState_PadPressed moves a boat with a pad's left stick and jumps with its bottom button.
 func ExampleState_PadPressed() {
 	state := input.NewState()
-	state.StickX, state.StickY = 0.5, 1 // the backend: half right, all the way up
-	state.SetPadButton(input.PadA, true)
+	state.Feed().SetStick(0.5, 1) // the backend: half right, all the way up
+	state.Feed().SetPadButton(input.PadA, true)
 
 	const metresPerSecond = 4
 	const seconds = 0.5
-	forward := state.StickY * metresPerSecond * seconds
-	sideways := state.StickX * metresPerSecond * seconds
+	stickX, stickY := state.Stick()
+	forward := stickY * metresPerSecond * seconds
+	sideways := stickX * metresPerSecond * seconds
 	fmt.Println(forward, sideways, state.PadPressed(input.PadA))
 	// Output: 2 1 true
 }
@@ -50,7 +51,7 @@ func ExamplePadLayoutFromName() {
 	}
 	state := input.NewState()
 	// a browser's name for a pad; a window's backend reads the GUID instead (PadLayoutFromGUID)
-	state.SetPadLayout(input.PadLayoutFromName("Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 09cc)"))
+	state.Feed().SetPadLayout(input.PadLayoutFromName("Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 09cc)"))
 	fmt.Println("Press", bottomButton[state.PadLayout()], "to jump")
 	// Output: Press ✕ to jump
 }
@@ -65,7 +66,7 @@ func ExampleState_SetFullscreen() {
 		return nil
 	}
 
-	app.Input.SetKey(input.KeyF11, true) // the backend: F11 went down, then a step runs
+	app.Input.Feed().SetKey(input.KeyF11, true) // the backend: F11 went down, then a step runs
 	if err := app.Update(app, 1.0/60); err != nil {
 		fmt.Println(err)
 	}

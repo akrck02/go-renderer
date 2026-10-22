@@ -10,14 +10,14 @@ func BenchmarkReadingAPadForAFrame(benchmark *testing.B) {
 	benchmark.ReportAllocs()
 	for range benchmark.N {
 		for button := range padButtonCount {
-			state.SetPadButton(button, button%2 == 0)
+			state.Feed().SetPadButton(button, button%2 == 0)
 		}
 		for button := range padButtonCount {
 			if state.PadDown(button) && state.PadPressed(button) {
 				answered++
 			}
 		}
-		state.EndFrame()
+		state.Feed().EndFrame()
 	}
 	if answered == 0 {
 		benchmark.Fatal("no button was read as pressed")
