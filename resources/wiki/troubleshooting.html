@@ -1,0 +1,97 @@
+<h1 id="troubleshooting">🧰 Troubleshooting</h1>
+
+<p>This page is for anyone whose build or window does not work. Find the message you see, and read
+the fix under it.</p>
+
+<h2 id="building">Building</h2>
+
+<h3 id="fatal-error-gl-gl-h-x11-xlib-h-or-wayland-client-h-no-such-file-or-directory"><code>fatal error: GL/gl.h</code>, <code>X11/Xlib.h</code> or <code>wayland-client.h</code>: No such file or directory</h3>
+
+<p>The window goes through GLFW, which cgo compiles from C. C needs the headers of OpenGL, X11 and
+Wayland, and Go needs a C compiler. On Debian or Ubuntu:</p>
+<pre><code class="language-sh">sudo apt install gcc libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev
+</code></pre>
+
+<p>Fedora&rsquo;s packages are in <a href="./get-started">get started</a>. The first build compiles GLFW, so it
+takes a minute; later ones are quick.</p>
+
+<h3 id="cgo-c-compiler-gcc-not-found-or-build-constraints-exclude-all-go-files"><code>cgo: C compiler &quot;gcc&quot; not found</code>, or <code>build constraints exclude all Go files</code></h3>
+
+<p>cgo is off, or there is no C compiler. Install one (<code>gcc</code>, or Xcode&rsquo;s command line tools on macOS
+with <code>xcode-select --install</code>) and check that <code>go env CGO_ENABLED</code> prints <code>1</code>.</p>
+
+<p>Packages that need no window (<code>scene</code>, <code>draw2d</code>, <code>input</code>, <code>internal/sceneplan</code>) build without cgo. Only
+<code>opengl</code>, <code>windowloop</code>, <code>viewer</code>, <code>metal</code> and <code>cmd/visor</code> need it.</p>
+
+<h3 id="warnings-on-macos-glclear-is-deprecated-mtlstoragemodemanaged-is-deprecated">Warnings on macOS: <code>'glClear' is deprecated</code>, <code>MTLStorageModeManaged is deprecated</code></h3>
+
+<p>They are warnings, not errors: the program still builds and runs.</p>
+
+<ul>
+<li><strong>OpenGL</strong> has been deprecated on macOS since 2018. Every OpenGL call warns when GLFW and
+go-gl compile. On a Mac, the viewer draws through Metal by default; see <a href="./guides/metal">Metal</a>.</li>
+<li><strong>Metal</strong>: newer SDKs (macOS 27) mark <code>MTLStorageModeManaged</code> as deprecated. <code>metal/flat_darwin.m</code>
+and <code>metal/scene_darwin.m</code> use it for textures the processor writes. Replacing it is part of the
+<a href="./proposals/towards-version-1">proposal towards 1.0</a>.</li>
+</ul>
+
+<h2 id="opening-a-window">Opening a window</h2>
+
+<h3 id="versionunavailable-or-glx-failed-to-create-context"><code>VersionUnavailable</code> or <code>GLX: Failed to create context</code></h3>
+
+<p>The renderer asks for <strong>OpenGL 4.1, core profile</strong>. The graphics driver offers less. Check what it
+offers:</p>
+<pre><code class="language-sh">glxinfo -B <span class="p">|</span> grep <span class="s2">&#34;core profile version&#34;</span>
+</code></pre>
+
+<p>Update the driver, or use Mesa&rsquo;s software one (<code>LIBGL_ALWAYS_SOFTWARE=1</code>), which gives 4.5 on
+any computer, slowly. In a virtual machine, turn on 3D acceleration.</p>
+
+<h3 id="a-blank-or-black-window-or-glx-extension-not-found-under-xvfb">A blank or black window, or <code>GLX extension not found</code>, under Xvfb</h3>
+
+<p>Xvfb is a display with no screen, for servers and CI. It draws OpenGL only through Mesa&rsquo;s GLX.
+Install Mesa&rsquo;s drivers, then try again:</p>
+<pre><code class="language-sh">sudo apt install xvfb libgl1-mesa-dri
+xvfb-run go run ./cmd/visor -sample island -capture island.png
+</code></pre>
+
+<p><code>-capture</code> draws one frame into a picture and exits: no need to look at the window.</p>
+
+<h3 id="on-wayland-the-window-has-no-title-bar-or-opens-on-x11-instead">On Wayland: the window has no title bar, or opens on X11 instead</h3>
+
+<p>GLFW 3.4 can talk to Wayland directly: it prefers Wayland when <code>WAYLAND_DISPLAY</code> is set and its
+Wayland support was built, and X11 otherwise. Some Wayland desktops (GNOME among them) draw no title bar for such windows. To run under X11 through
+XWayland instead, unset the variable for one run:</p>
+<pre><code class="language-sh">env -u WAYLAND_DISPLAY go run ./cmd/visor -sample island
+</code></pre>
+
+<h3 id="windowloop-not-on-main-thread-the-window-loop-must-run-on-the-main-thread"><code>windowloop.not-on-main-thread: the window loop must run on the main thread</code></h3>
+
+<p>Windows only receive their events on the program&rsquo;s first thread (macOS insists). Lock it in
+package <code>main</code>:</p>
+<pre><code class="language-go"><span class="kd">func</span> <span class="nf">init</span><span class="p">()</span> <span class="p">{</span> <span class="nx">runtime</span><span class="p">.</span><span class="nf">LockOSThread</span><span class="p">()</span> <span class="p">}</span>
+</code></pre>
+
+<h2 id="other-platforms">Other platforms</h2>
+
+<h3 id="in-a-browser-build-constraints-exclude-all-go-files-in-opengl">In a browser: <code>build constraints exclude all Go files in …/opengl</code></h3>
+
+<p><code>opengl</code>, <code>windowloop</code> and <code>viewer</code> need GLFW, which does not exist in a browser. A web page uses
+<code>browser</code> and <code>gles</code> instead; see <a href="./guides/web">in a web browser</a>. The CI vets every package a
+page can use with <code>GOOS=js GOARCH=wasm</code>.</p>
+
+<h3 id="android-ld-cannot-find-llog-or-the-app-closes-at-once">Android: <code>ld: cannot find -llog</code>, or the app closes at once</h3>
+
+<p>An Android program is a shared library built with the NDK&rsquo;s compiler for each architecture, with
+<code>CGO_ENABLED=1 GOOS=android</code> and <code>-buildmode=c-shared</code>. The whole command, and the 16 KB alignment
+recent phones need, are in <a href="./guides/android">on Android</a>.</p>
+
+<h3 id="the-nintendo-3ds-unknown-target-nintendo3ds">The Nintendo 3DS: <code>unknown target nintendo3ds</code></h3>
+
+<p>The 3DS build needs a TinyGo with the <code>nintendo3ds</code> target (a separate fork, not upstream TinyGo)
+and devkitPro&rsquo;s libctru and citro3d. See <a href="./guides/3ds">on the Nintendo 3DS</a>.</p>
+
+<h2 id="still-stuck">Still stuck?</h2>
+
+<p>Open an issue with the command you ran, the whole message, your system, and what
+<code>go version</code> and <code>glxinfo -B</code> print.</p>

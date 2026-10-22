@@ -360,6 +360,18 @@ lifted while a map is shown.</p>
 <p>Other programs reuse these options: <code>viewer.Options.RegisterFlags</code> adds them to any flag set, as
 Go Simulator&rsquo;s live simulator does.</p>
 
+<p>In Go, <code>viewer.Options</code> keeps the window&rsquo;s size and the backend at the top and the rest in three
+groups, so a program finds a setting by what it is for:</p>
+<pre><code class="language-go"><span class="nx">options</span> <span class="o">:=</span> <span class="nx">viewer</span><span class="p">.</span><span class="nf">DefaultOptions</span><span class="p">()</span>
+<span class="nx">options</span><span class="p">.</span><span class="nx">Start</span><span class="p">.</span><span class="nx">Walking</span> <span class="p">=</span> <span class="kc">true</span>                 <span class="c1">// Start: where the view begins (-walk, -map, -look-at, the sun)</span>
+<span class="nx">options</span><span class="p">.</span><span class="nx">Rendering</span><span class="p">.</span><span class="nx">NoShadows</span> <span class="p">=</span> <span class="kc">true</span>           <span class="c1">// Rendering: how frames are drawn (-no-shadows, -continuous, -time)</span>
+<span class="nx">options</span><span class="p">.</span><span class="nx">Measure</span><span class="p">.</span><span class="nx">CapturePath</span> <span class="p">=</span> <span class="s">&#34;frame.png&#34;</span>    <span class="c1">// Measure: a capture or a benchmark instead of exploring</span>
+<span class="nx">err</span> <span class="o">:=</span> <span class="nx">viewer</span><span class="p">.</span><span class="nf">Run</span><span class="p">(</span><span class="nx">world</span><span class="p">,</span> <span class="nx">options</span><span class="p">,</span> <span class="s">&#34;Island&#34;</span><span class="p">,</span> <span class="kc">nil</span><span class="p">)</span>
+</code></pre>
+
+<p>A benchmark writes its report to <code>options.Measure.Output</code> (the standard output by default), with
+the scene&rsquo;s loading time when the program sets <code>Measure.LoadingTime</code>.</p>
+
 <table>
 <tr><th width="50%">With shadows (the default)</th><th width="50%">Without (<code>-no-shadows</code>, or <code>O</code>)</th></tr>
 <tr>

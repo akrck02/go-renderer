@@ -19,6 +19,17 @@ texture.</p>
 <p>Desktop programs keep using the opengl and metal packages; nothing here replaces
 them.</p>
 
+<h3 id="constants-and-variables">Constants and variables</h3>
+<pre><code class="language-go"><span class="kd">var</span> <span class="p">(</span>
+	<span class="c1">// ShaderNotCompiled is a shader the driver would not compile.</span>
+	<span class="nx">ShaderNotCompiled</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;gles.shader-not-compiled&#34;</span><span class="p">,</span> <span class="s">&#34;the driver could not compile a shader&#34;</span><span class="p">)</span>
+	<span class="c1">// ProgramNotLinked is a pair of shaders the driver would not link into a program.</span>
+	<span class="nx">ProgramNotLinked</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;gles.program-not-linked&#34;</span><span class="p">,</span> <span class="s">&#34;the driver could not link a program&#34;</span><span class="p">)</span>
+<span class="p">)</span>
+</code></pre>
+
+<p>Codes of the errors the renderers return when they are made.</p>
+
 <h3 id="buffer">Buffer</h3>
 
 <p>Handles name objects the graphics driver keeps. 0 is never a valid one.</p>
@@ -39,13 +50,13 @@ them.</p>
 	<span class="nx">Blend</span>     <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0BE2</span>
 	<span class="nx">DepthTest</span> <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0B71</span>
 
-	<span class="nx">Zero</span>             <span class="nx">Enum</span> <span class="p">=</span> <span class="mi">0</span>
-	<span class="nx">One</span>              <span class="nx">Enum</span> <span class="p">=</span> <span class="mi">1</span>
-	<span class="nx">SourceColor</span>      <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0300</span>
-	<span class="nx">DestinationColor</span> <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0306</span>
-	<span class="nx">SourceAlpha</span>      <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0302</span>
-	<span class="nx">OneMinusSrcAlpha</span> <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0303</span>
-	<span class="nx">LessOrEqual</span>      <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0203</span>
+	<span class="nx">Zero</span>                <span class="nx">Enum</span> <span class="p">=</span> <span class="mi">0</span>
+	<span class="nx">One</span>                 <span class="nx">Enum</span> <span class="p">=</span> <span class="mi">1</span>
+	<span class="nx">SourceColor</span>         <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0300</span>
+	<span class="nx">DestinationColor</span>    <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0306</span>
+	<span class="nx">SourceAlpha</span>         <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0302</span>
+	<span class="nx">OneMinusSourceAlpha</span> <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0303</span>
+	<span class="nx">LessOrEqual</span>         <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0203</span>
 
 	<span class="nx">ArrayBuffer</span>        <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x8892</span>
 	<span class="nx">ElementArrayBuffer</span> <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x8893</span>
@@ -59,7 +70,7 @@ them.</p>
 	<span class="nx">FragmentShader</span> <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x8B30</span>
 
 	<span class="nx">Texture2D</span>        <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x0DE1</span>
-	<span class="nx">Texture0</span>         <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x84C0</span>
+	<span class="nx">TextureUnit0</span>     <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x84C0</span>
 	<span class="nx">TextureMinFilter</span> <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x2801</span>
 	<span class="nx">TextureMagFilter</span> <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x2800</span>
 	<span class="nx">TextureWrapS</span>     <span class="nx">Enum</span> <span class="p">=</span> <span class="mh">0x2802</span>
@@ -101,8 +112,8 @@ them.</p>
 
 <tbody>
 <tr>
-<td><code>func NewFlatRenderer(functions Functions) (*FlatRenderer, error)</code></td>
-<td>NewFlatRenderer compiles the shaders and prepares the atlas.</td>
+<td><code>func NewFlatRenderer(functions Functions, fonts overlay.Fonts) (*FlatRenderer, error)</code></td>
+<td>NewFlatRenderer compiles the shaders and prepares the atlas; text is drawn in fonts (overlay.Fonts{} for the default ones).</td>
 </tr>
 
 <tr>
@@ -120,74 +131,122 @@ them.</p>
 
 <h3 id="functions">Functions</h3>
 
-<p>Functions is the part of OpenGL ES 2.0 the renderers need. An implementation must be used from the goroutine (and thread) that owns the graphics context.</p>
+<p>Functions is the part of OpenGL ES 2.0 the renderers need. An implementation must be used from the goroutine (and thread) that owns the graphics context. Its methods are named in words (SetUniformInteger, SetTextureImage), so a reader new to OpenGL can follow the renderers; each comment gives the OpenGL ES function it stands for (glUniform1i, glTexImage2D), for a reader who knows OpenGL or looks it up.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Functions</span> <span class="kd">interface</span> <span class="p">{</span>
+	<span class="c1">// CreateShader is glCreateShader.</span>
 	<span class="nf">CreateShader</span><span class="p">(</span><span class="nx">stage</span> <span class="nx">Enum</span><span class="p">)</span> <span class="nx">Shader</span>
-	<span class="nf">ShaderSource</span><span class="p">(</span><span class="nx">shader</span> <span class="nx">Shader</span><span class="p">,</span> <span class="nx">source</span> <span class="kt">string</span><span class="p">)</span>
+	<span class="c1">// SetShaderSource is glShaderSource.</span>
+	<span class="nf">SetShaderSource</span><span class="p">(</span><span class="nx">shader</span> <span class="nx">Shader</span><span class="p">,</span> <span class="nx">source</span> <span class="kt">string</span><span class="p">)</span>
+	<span class="c1">// CompileShader is glCompileShader.</span>
 	<span class="nf">CompileShader</span><span class="p">(</span><span class="nx">shader</span> <span class="nx">Shader</span><span class="p">)</span>
 	<span class="c1">// ShaderCompiled reports whether the last compilation worked, and the compiler&#39;s log.</span>
+	<span class="c1">// (OpenGL ES: glGetShaderiv(GL_COMPILE_STATUS) and glGetShaderInfoLog.)</span>
 	<span class="nf">ShaderCompiled</span><span class="p">(</span><span class="nx">shader</span> <span class="nx">Shader</span><span class="p">)</span> <span class="p">(</span><span class="kt">bool</span><span class="p">,</span> <span class="kt">string</span><span class="p">)</span>
+	<span class="c1">// DeleteShader is glDeleteShader.</span>
 	<span class="nf">DeleteShader</span><span class="p">(</span><span class="nx">shader</span> <span class="nx">Shader</span><span class="p">)</span>
 
+	<span class="c1">// CreateProgram is glCreateProgram.</span>
 	<span class="nf">CreateProgram</span><span class="p">()</span> <span class="nx">Program</span>
+	<span class="c1">// AttachShader is glAttachShader.</span>
 	<span class="nf">AttachShader</span><span class="p">(</span><span class="nx">program</span> <span class="nx">Program</span><span class="p">,</span> <span class="nx">shader</span> <span class="nx">Shader</span><span class="p">)</span>
+	<span class="c1">// LinkProgram is glLinkProgram.</span>
 	<span class="nf">LinkProgram</span><span class="p">(</span><span class="nx">program</span> <span class="nx">Program</span><span class="p">)</span>
 	<span class="c1">// ProgramLinked reports whether the last link worked, and the linker&#39;s log.</span>
+	<span class="c1">// (OpenGL ES: glGetProgramiv(GL_LINK_STATUS) and glGetProgramInfoLog.)</span>
 	<span class="nf">ProgramLinked</span><span class="p">(</span><span class="nx">program</span> <span class="nx">Program</span><span class="p">)</span> <span class="p">(</span><span class="kt">bool</span><span class="p">,</span> <span class="kt">string</span><span class="p">)</span>
-	<span class="c1">// BindAttribLocation gives an attribute its index; it takes effect at the next link.</span>
-	<span class="nf">BindAttribLocation</span><span class="p">(</span><span class="nx">program</span> <span class="nx">Program</span><span class="p">,</span> <span class="nx">index</span> <span class="kt">uint32</span><span class="p">,</span> <span class="nx">name</span> <span class="kt">string</span><span class="p">)</span>
+	<span class="c1">// BindAttributeLocation gives an attribute its index; it takes effect at the next link.</span>
+	<span class="c1">// (OpenGL ES: glBindAttribLocation.)</span>
+	<span class="nf">BindAttributeLocation</span><span class="p">(</span><span class="nx">program</span> <span class="nx">Program</span><span class="p">,</span> <span class="nx">index</span> <span class="kt">uint32</span><span class="p">,</span> <span class="nx">name</span> <span class="kt">string</span><span class="p">)</span>
+	<span class="c1">// UseProgram is glUseProgram.</span>
 	<span class="nf">UseProgram</span><span class="p">(</span><span class="nx">program</span> <span class="nx">Program</span><span class="p">)</span>
+	<span class="c1">// UniformLocation is glGetUniformLocation.</span>
 	<span class="nf">UniformLocation</span><span class="p">(</span><span class="nx">program</span> <span class="nx">Program</span><span class="p">,</span> <span class="nx">name</span> <span class="kt">string</span><span class="p">)</span> <span class="nx">Uniform</span>
 
-	<span class="nf">Uniform1i</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">value</span> <span class="kt">int32</span><span class="p">)</span>
-	<span class="nf">Uniform1f</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">value</span> <span class="kt">float32</span><span class="p">)</span>
-	<span class="nf">Uniform2f</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">first</span><span class="p">,</span> <span class="nx">second</span> <span class="kt">float32</span><span class="p">)</span>
-	<span class="nf">Uniform3f</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">first</span><span class="p">,</span> <span class="nx">second</span><span class="p">,</span> <span class="nx">third</span> <span class="kt">float32</span><span class="p">)</span>
-	<span class="nf">Uniform4f</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">first</span><span class="p">,</span> <span class="nx">second</span><span class="p">,</span> <span class="nx">third</span><span class="p">,</span> <span class="nx">fourth</span> <span class="kt">float32</span><span class="p">)</span>
-	<span class="nf">UniformMatrix3</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">matrix</span> <span class="p">[</span><span class="mi">9</span><span class="p">]</span><span class="kt">float32</span><span class="p">)</span>
-	<span class="nf">UniformMatrix4</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">matrix</span> <span class="p">[</span><span class="mi">16</span><span class="p">]</span><span class="kt">float32</span><span class="p">)</span>
+	<span class="c1">// SetUniformInteger is glUniform1i.</span>
+	<span class="nf">SetUniformInteger</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">value</span> <span class="kt">int32</span><span class="p">)</span>
+	<span class="c1">// SetUniformFloat is glUniform1f.</span>
+	<span class="nf">SetUniformFloat</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">value</span> <span class="kt">float32</span><span class="p">)</span>
+	<span class="c1">// SetUniformTwoFloats is glUniform2f.</span>
+	<span class="nf">SetUniformTwoFloats</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">first</span><span class="p">,</span> <span class="nx">second</span> <span class="kt">float32</span><span class="p">)</span>
+	<span class="c1">// SetUniformThreeFloats is glUniform3f.</span>
+	<span class="nf">SetUniformThreeFloats</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">first</span><span class="p">,</span> <span class="nx">second</span><span class="p">,</span> <span class="nx">third</span> <span class="kt">float32</span><span class="p">)</span>
+	<span class="c1">// SetUniformFourFloats is glUniform4f.</span>
+	<span class="nf">SetUniformFourFloats</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">first</span><span class="p">,</span> <span class="nx">second</span><span class="p">,</span> <span class="nx">third</span><span class="p">,</span> <span class="nx">fourth</span> <span class="kt">float32</span><span class="p">)</span>
+	<span class="c1">// SetUniformMatrix3By3 is glUniformMatrix3fv.</span>
+	<span class="nf">SetUniformMatrix3By3</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">matrix</span> <span class="p">[</span><span class="mi">9</span><span class="p">]</span><span class="kt">float32</span><span class="p">)</span>
+	<span class="c1">// SetUniformMatrix4By4 is glUniformMatrix4fv.</span>
+	<span class="nf">SetUniformMatrix4By4</span><span class="p">(</span><span class="nx">location</span> <span class="nx">Uniform</span><span class="p">,</span> <span class="nx">matrix</span> <span class="p">[</span><span class="mi">16</span><span class="p">]</span><span class="kt">float32</span><span class="p">)</span>
 
+	<span class="c1">// CreateBuffer is glGenBuffers.</span>
 	<span class="nf">CreateBuffer</span><span class="p">()</span> <span class="nx">Buffer</span>
+	<span class="c1">// BindBuffer is glBindBuffer.</span>
 	<span class="nf">BindBuffer</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">buffer</span> <span class="nx">Buffer</span><span class="p">)</span>
-	<span class="c1">// BufferData replaces a buffer&#39;s contents with these bytes.</span>
-	<span class="nf">BufferData</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">data</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">,</span> <span class="nx">usage</span> <span class="nx">Enum</span><span class="p">)</span>
+	<span class="c1">// SetBufferData replaces a buffer&#39;s contents with these bytes.</span>
+	<span class="c1">// (OpenGL ES: glBufferData.)</span>
+	<span class="nf">SetBufferData</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">data</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">,</span> <span class="nx">usage</span> <span class="nx">Enum</span><span class="p">)</span>
 
-	<span class="nf">EnableVertexAttribArray</span><span class="p">(</span><span class="nx">index</span> <span class="kt">uint32</span><span class="p">)</span>
-	<span class="nf">DisableVertexAttribArray</span><span class="p">(</span><span class="nx">index</span> <span class="kt">uint32</span><span class="p">)</span>
-	<span class="c1">// VertexAttribPointer describes attribute index in the bound array buffer: size values of</span>
+	<span class="c1">// EnableVertexAttribute is glEnableVertexAttribArray.</span>
+	<span class="nf">EnableVertexAttribute</span><span class="p">(</span><span class="nx">index</span> <span class="kt">uint32</span><span class="p">)</span>
+	<span class="c1">// DisableVertexAttribute is glDisableVertexAttribArray.</span>
+	<span class="nf">DisableVertexAttribute</span><span class="p">(</span><span class="nx">index</span> <span class="kt">uint32</span><span class="p">)</span>
+	<span class="c1">// DescribeVertexAttribute describes attribute index in the bound array buffer: size values of</span>
 	<span class="c1">// type kind each, stride bytes apart, the first offset bytes in.</span>
-	<span class="nf">VertexAttribPointer</span><span class="p">(</span><span class="nx">index</span> <span class="kt">uint32</span><span class="p">,</span> <span class="nx">size</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">kind</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">normalized</span> <span class="kt">bool</span><span class="p">,</span> <span class="nx">stride</span><span class="p">,</span> <span class="nx">offset</span> <span class="kt">int</span><span class="p">)</span>
+	<span class="c1">// (OpenGL ES: glVertexAttribPointer.)</span>
+	<span class="nf">DescribeVertexAttribute</span><span class="p">(</span><span class="nx">index</span> <span class="kt">uint32</span><span class="p">,</span> <span class="nx">size</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">kind</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">normalized</span> <span class="kt">bool</span><span class="p">,</span> <span class="nx">stride</span><span class="p">,</span> <span class="nx">offset</span> <span class="kt">int</span><span class="p">)</span>
 
+	<span class="c1">// CreateTexture is glGenTextures.</span>
 	<span class="nf">CreateTexture</span><span class="p">()</span> <span class="nx">Texture</span>
-	<span class="nf">ActiveTexture</span><span class="p">(</span><span class="nx">unit</span> <span class="nx">Enum</span><span class="p">)</span>
+	<span class="c1">// SelectTextureUnit is glActiveTexture.</span>
+	<span class="nf">SelectTextureUnit</span><span class="p">(</span><span class="nx">unit</span> <span class="nx">Enum</span><span class="p">)</span>
+	<span class="c1">// BindTexture is glBindTexture.</span>
 	<span class="nf">BindTexture</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">texture</span> <span class="nx">Texture</span><span class="p">)</span>
-	<span class="nf">TexParameteri</span><span class="p">(</span><span class="nx">target</span><span class="p">,</span> <span class="nx">name</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">value</span> <span class="kt">int32</span><span class="p">)</span>
-	<span class="nf">PixelStorei</span><span class="p">(</span><span class="nx">name</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">value</span> <span class="kt">int32</span><span class="p">)</span>
-	<span class="nf">TexImage2D</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">level</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">internalFormat</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">format</span><span class="p">,</span> <span class="nx">kind</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">pixels</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span>
-	<span class="c1">// TexSubImage2D replaces a rectangle of the bound texture&#39;s pixels, given row after row.</span>
-	<span class="nf">TexSubImage2D</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">level</span><span class="p">,</span> <span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">format</span><span class="p">,</span> <span class="nx">kind</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">pixels</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span>
-	<span class="c1">// CopyTexSubImage2D copies a rectangle of the bound framebuffer (x, y from its bottom left)</span>
+	<span class="c1">// SetTextureParameter is glTexParameteri.</span>
+	<span class="nf">SetTextureParameter</span><span class="p">(</span><span class="nx">target</span><span class="p">,</span> <span class="nx">name</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">value</span> <span class="kt">int32</span><span class="p">)</span>
+	<span class="c1">// SetPixelStorage is glPixelStorei.</span>
+	<span class="nf">SetPixelStorage</span><span class="p">(</span><span class="nx">name</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">value</span> <span class="kt">int32</span><span class="p">)</span>
+	<span class="c1">// SetTextureImage is glTexImage2D.</span>
+	<span class="nf">SetTextureImage</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">level</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">internalFormat</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">format</span><span class="p">,</span> <span class="nx">kind</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">pixels</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span>
+	<span class="c1">// ReplaceTexturePart replaces a rectangle of the bound texture&#39;s pixels, given row after row.</span>
+	<span class="c1">// (OpenGL ES: glTexSubImage2D.)</span>
+	<span class="nf">ReplaceTexturePart</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">level</span><span class="p">,</span> <span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">format</span><span class="p">,</span> <span class="nx">kind</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">pixels</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">)</span>
+	<span class="c1">// CopyFramebufferToTexture copies a rectangle of the bound framebuffer (x, y from its bottom left)</span>
 	<span class="c1">// into the bound texture at xOffset, yOffset.</span>
-	<span class="nf">CopyTexSubImage2D</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">level</span><span class="p">,</span> <span class="nx">xOffset</span><span class="p">,</span> <span class="nx">yOffset</span><span class="p">,</span> <span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">int</span><span class="p">)</span>
+	<span class="c1">// (OpenGL ES: glCopyTexSubImage2D.)</span>
+	<span class="nf">CopyFramebufferToTexture</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">level</span><span class="p">,</span> <span class="nx">xOffset</span><span class="p">,</span> <span class="nx">yOffset</span><span class="p">,</span> <span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">int</span><span class="p">)</span>
+	<span class="c1">// DeleteTexture is glDeleteTextures.</span>
 	<span class="nf">DeleteTexture</span><span class="p">(</span><span class="nx">texture</span> <span class="nx">Texture</span><span class="p">)</span>
 
-	<span class="c1">// Framebuffers let a pass draw into a texture: the backdrop&#39;s blur. TexImage2D with no pixels</span>
+	<span class="c1">// Framebuffers let a pass draw into a texture: the backdrop&#39;s blur. SetTextureImage with no pixels</span>
 	<span class="c1">// makes the texture they draw into.</span>
+	<span class="c1">// (OpenGL ES: glGenFramebuffers.)</span>
 	<span class="nf">CreateFramebuffer</span><span class="p">()</span> <span class="nx">Framebuffer</span>
+	<span class="c1">// BindFramebuffer is glBindFramebuffer.</span>
 	<span class="nf">BindFramebuffer</span><span class="p">(</span><span class="nx">target</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">framebuffer</span> <span class="nx">Framebuffer</span><span class="p">)</span>
-	<span class="nf">FramebufferTexture2D</span><span class="p">(</span><span class="nx">target</span><span class="p">,</span> <span class="nx">attachment</span><span class="p">,</span> <span class="nx">textureTarget</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">texture</span> <span class="nx">Texture</span><span class="p">,</span> <span class="nx">level</span> <span class="kt">int</span><span class="p">)</span>
+	<span class="c1">// AttachTextureToFramebuffer is glFramebufferTexture2D.</span>
+	<span class="nf">AttachTextureToFramebuffer</span><span class="p">(</span><span class="nx">target</span><span class="p">,</span> <span class="nx">attachment</span><span class="p">,</span> <span class="nx">textureTarget</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">texture</span> <span class="nx">Texture</span><span class="p">,</span> <span class="nx">level</span> <span class="kt">int</span><span class="p">)</span>
+	<span class="c1">// DeleteFramebuffer is glDeleteFramebuffers.</span>
 	<span class="nf">DeleteFramebuffer</span><span class="p">(</span><span class="nx">framebuffer</span> <span class="nx">Framebuffer</span><span class="p">)</span>
 
-	<span class="nf">Viewport</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">int</span><span class="p">)</span>
-	<span class="nf">ClearColor</span><span class="p">(</span><span class="nx">red</span><span class="p">,</span> <span class="nx">green</span><span class="p">,</span> <span class="nx">blue</span><span class="p">,</span> <span class="nx">alpha</span> <span class="kt">float32</span><span class="p">)</span>
+	<span class="c1">// SetViewport is glViewport.</span>
+	<span class="nf">SetViewport</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">int</span><span class="p">)</span>
+	<span class="c1">// SetClearColor is glClearColor.</span>
+	<span class="nf">SetClearColor</span><span class="p">(</span><span class="nx">red</span><span class="p">,</span> <span class="nx">green</span><span class="p">,</span> <span class="nx">blue</span><span class="p">,</span> <span class="nx">alpha</span> <span class="kt">float32</span><span class="p">)</span>
+	<span class="c1">// Clear is glClear.</span>
 	<span class="nf">Clear</span><span class="p">(</span><span class="nx">mask</span> <span class="nx">Enum</span><span class="p">)</span>
+	<span class="c1">// Enable is glEnable.</span>
 	<span class="nf">Enable</span><span class="p">(</span><span class="nx">capability</span> <span class="nx">Enum</span><span class="p">)</span>
+	<span class="c1">// Disable is glDisable.</span>
 	<span class="nf">Disable</span><span class="p">(</span><span class="nx">capability</span> <span class="nx">Enum</span><span class="p">)</span>
-	<span class="nf">BlendFuncSeparate</span><span class="p">(</span><span class="nx">sourceColor</span><span class="p">,</span> <span class="nx">destinationColor</span><span class="p">,</span> <span class="nx">sourceAlpha</span><span class="p">,</span> <span class="nx">destinationAlpha</span> <span class="nx">Enum</span><span class="p">)</span>
-	<span class="nf">DepthMask</span><span class="p">(</span><span class="nx">write</span> <span class="kt">bool</span><span class="p">)</span>
-	<span class="nf">DepthFunc</span><span class="p">(</span><span class="nx">function</span> <span class="nx">Enum</span><span class="p">)</span>
+	<span class="c1">// SetBlendFactors is glBlendFuncSeparate.</span>
+	<span class="nf">SetBlendFactors</span><span class="p">(</span><span class="nx">sourceColor</span><span class="p">,</span> <span class="nx">destinationColor</span><span class="p">,</span> <span class="nx">sourceAlpha</span><span class="p">,</span> <span class="nx">destinationAlpha</span> <span class="nx">Enum</span><span class="p">)</span>
+	<span class="c1">// SetDepthWrite is glDepthMask.</span>
+	<span class="nf">SetDepthWrite</span><span class="p">(</span><span class="nx">write</span> <span class="kt">bool</span><span class="p">)</span>
+	<span class="c1">// SetDepthFunction is glDepthFunc.</span>
+	<span class="nf">SetDepthFunction</span><span class="p">(</span><span class="nx">function</span> <span class="nx">Enum</span><span class="p">)</span>
 
+	<span class="c1">// DrawArrays is glDrawArrays.</span>
 	<span class="nf">DrawArrays</span><span class="p">(</span><span class="nx">mode</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">first</span><span class="p">,</span> <span class="nx">count</span> <span class="kt">int</span><span class="p">)</span>
+	<span class="c1">// DrawElements is glDrawElements.</span>
 	<span class="nf">DrawElements</span><span class="p">(</span><span class="nx">mode</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">count</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">kind</span> <span class="nx">Enum</span><span class="p">,</span> <span class="nx">offset</span> <span class="kt">int</span><span class="p">)</span>
 <span class="p">}</span>
 </code></pre>
@@ -223,12 +282,12 @@ them.</p>
 
 <tbody>
 <tr>
-<td><code>func NewSceneRenderer(functions Functions) (*SceneRenderer, error)</code></td>
-<td>NewSceneRenderer compiles the shaders and prepares the overlay&rsquo;s atlas.</td>
+<td><code>func NewSceneRenderer(functions Functions, fonts overlay.Fonts) (*SceneRenderer, error)</code></td>
+<td>NewSceneRenderer compiles the shaders and prepares the overlay&rsquo;s atlas; the overlay&rsquo;s text is drawn in fonts (overlay.Fonts{} for the default ones).</td>
 </tr>
 
 <tr>
-<td><code>func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int)</code></td>
+<td><code>func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Lens, width, height int)</code></td>
 <td>Draw draws a frame of the scene seen by the camera, in the target framebuffer of width × height pixels.</td>
 </tr>
 </tbody>

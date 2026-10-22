@@ -2,18 +2,28 @@
 <pre><code class="language-go"><span class="kn">import</span> <span class="s">&#34;github.com/akrck02/go-renderer/camera&#34;</span>
 </code></pre>
 
-<p>Package camera provides camera controllers that turn input into camera
-placement.</p>
+<p>Package camera is where a scene is seen from (a Lens) and the controllers that
+move it.</p>
 
 <p>Controllers are independent of the graphics backend: they read an input.State
-and write a models.Camera. A GroundFunc lets them follow a terrain without
-knowing about it.</p>
+and write a Lens. A GroundFunc lets them follow a terrain without knowing about
+it.</p>
+
+<h3 id="constants-and-variables">Constants and variables</h3>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="nx">DefaultFieldOfViewRadians</span> <span class="p">=</span> <span class="nx">math</span><span class="p">.</span><span class="nx">Pi</span> <span class="o">/</span> <span class="mi">4</span>
+	<span class="nx">DefaultNear</span>               <span class="p">=</span> <span class="mf">0.1</span>
+	<span class="nx">DefaultFar</span>                <span class="p">=</span> <span class="mi">1000</span>
+<span class="p">)</span>
+</code></pre>
+
+<p>Default projection values, used where a Lens&rsquo;s fields are zero.</p>
 
 <h3 id="controller">Controller</h3>
 
 <p>Controller moves a camera from input.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Controller</span> <span class="kd">interface</span> <span class="p">{</span>
-	<span class="nf">Update</span><span class="p">(</span><span class="nx">state</span> <span class="o">*</span><span class="nx">input</span><span class="p">.</span><span class="nx">State</span><span class="p">,</span> <span class="nx">seconds</span> <span class="kt">float64</span><span class="p">,</span> <span class="nx">camera</span> <span class="o">*</span><span class="nx">models</span><span class="p">.</span><span class="nx">Camera</span><span class="p">)</span>
+	<span class="nf">Update</span><span class="p">(</span><span class="nx">state</span> <span class="o">*</span><span class="nx">input</span><span class="p">.</span><span class="nx">State</span><span class="p">,</span> <span class="nx">seconds</span> <span class="kt">float64</span><span class="p">,</span> <span class="nx">camera</span> <span class="o">*</span><span class="nx">Lens</span><span class="p">)</span>
 <span class="p">}</span>
 </code></pre>
 
@@ -23,11 +33,95 @@ knowing about it.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">GroundFunc</span> <span class="kd">func</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="nx">z</span> <span class="kt">float32</span><span class="p">)</span> <span class="p">(</span><span class="kt">float32</span><span class="p">,</span> <span class="kt">bool</span><span class="p">)</span>
 </code></pre>
 
+<h3 id="lens">Lens</h3>
+
+<p>Lens is where a scene is seen from: a position looking at a target, with up saying which way is up, and how the view is projected onto the screen.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Lens</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Position</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
+	<span class="nx">Target</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
+	<span class="nx">Up</span>       <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
+	<span class="c1">// FieldOfViewRadians is the vertical field of view; 0 is DefaultFieldOfViewRadians.</span>
+	<span class="nx">FieldOfViewRadians</span> <span class="kt">float32</span>
+	<span class="c1">// Near and Far are the distances of the clipping planes; 0 is DefaultNear and DefaultFar.</span>
+	<span class="nx">Near</span> <span class="kt">float32</span>
+	<span class="nx">Far</span>  <span class="kt">float32</span>
+	<span class="c1">// OrthographicHeight, when above 0, makes the camera orthographic: no perspective, and this</span>
+	<span class="c1">// many world units fit between the bottom and the top of the screen. Maps and isometric views</span>
+	<span class="c1">// use it; 0 keeps the perspective of FieldOfViewRadians.</span>
+	<span class="nx">OrthographicHeight</span> <span class="kt">float32</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (camera Lens) IsOrthographic() bool</code></td>
+<td>IsOrthographic tells whether the camera has no perspective.</td>
+</tr>
+
+<tr>
+<td><code>func (camera Lens) Projection() (fieldOfViewRadians, near, far float32)</code></td>
+<td>Projection returns the camera&rsquo;s field of view (radians) and clipping planes, with the defaults where its fields are zero.</td>
+</tr>
+
+<tr>
+<td><code>func (camera Lens) ProjectionMatrix(aspect float64) graphics.Matrix</code></td>
+<td>ProjectionMatrix returns the camera&rsquo;s projection for OpenGL, perspective or orthographic, for a screen of this width over height.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="map">Map</h3>
+
+<p>Map looks at the ground like a map, without perspective: from straight above, with north up, or isometric, from 35.26° up and at 45° to the axes, like the drawings of a town in an atlas. Any drag moves the map with the cursor, scroll and +/- zoom, arrows move it too, and Q and E turn it a quarter.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Map</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Target</span>        <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
+	<span class="nx">Span</span>          <span class="kt">float64</span> <span class="c1">// world units from the bottom to the top of the screen</span>
+	<span class="nx">Isometric</span>     <span class="kt">bool</span>
+	<span class="nx">Turns</span>         <span class="kt">int</span>     <span class="c1">// quarter turns: 0 has north up in the top view</span>
+	<span class="nx">Distance</span>      <span class="kt">float64</span> <span class="c1">// how far the camera stands from the target, so the whole scene is in front of it</span>
+	<span class="nx">MinimumSpan</span>   <span class="kt">float64</span>
+	<span class="nx">MaximumSpan</span>   <span class="kt">float64</span>
+	<span class="nx">ZoomSpeed</span>     <span class="kt">float64</span>    <span class="c1">// fraction of the span per scroll step</span>
+	<span class="nx">TargetLimits</span>  <span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="kt">float32</span> <span class="c1">// optional: minimum x, maximum x, minimum z, maximum z (all zero = none)</span>
+	<span class="nx">Ground</span>        <span class="nx">GroundFunc</span>
+	<span class="nx">VerticalScale</span> <span class="kt">float32</span> <span class="c1">// scale applied to ground heights (vertical exaggeration); 0 = 1</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func NewMap(target graphics.Vector, sceneSize float32) *Map</code></td>
+<td>NewMap returns a map of a scene of the given size (in world units), showing all of it.</td>
+</tr>
+
+<tr>
+<td><code>func (view *Map) Update(state *input.State, seconds float64, camera *Lens)</code></td>
+<td>Update applies this frame&rsquo;s input and places the camera.</td>
+</tr>
+</tbody>
+</table>
+
 <h3 id="orbit">Orbit</h3>
 
 <p>Orbit rotates around a target: left drag rotates, right drag (or shift + left drag) pans, scroll zooms. Arrow keys rotate and +/- zoom from the keyboard.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Orbit</span> <span class="kd">struct</span> <span class="p">{</span>
-	<span class="nx">Target</span>          <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">Target</span>          <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
 	<span class="nx">Distance</span>        <span class="kt">float64</span>
 	<span class="nx">Yaw</span>             <span class="kt">float64</span> <span class="c1">// radians around the vertical axis</span>
 	<span class="nx">Pitch</span>           <span class="kt">float64</span> <span class="c1">// radians; 0 looks from the horizon, pi/2 from straight above</span>
@@ -52,8 +146,8 @@ knowing about it.</p>
 
 <tbody>
 <tr>
-<td><code>func NewOrbit(target graphics.Vec4, sceneSize float64) *Orbit</code></td>
-<td>NewOrbit returns an orbit controller with sensible defaults for a scene of the given size.</td>
+<td><code>func NewOrbit(target graphics.Vector, sceneSize float32) *Orbit</code></td>
+<td>NewOrbit returns an orbit controller with sensible defaults for a scene of the given size (in world units).</td>
 </tr>
 
 <tr>
@@ -62,46 +156,7 @@ knowing about it.</p>
 </tr>
 
 <tr>
-<td><code>func (orbit *Orbit) Update(state *input.State, seconds float64, camera *models.Camera)</code></td>
-<td>Update applies this frame&rsquo;s input and places the camera.</td>
-</tr>
-</tbody>
-</table>
-
-<h3 id="plan">Plan</h3>
-
-<p>Plan looks at the ground like a map, without perspective: from straight above, with north up, or isometric, from 35.26° up and at 45° to the axes, like the drawings of a town in an atlas. Any drag moves the map with the cursor, scroll and +/- zoom, arrows move it too, and Q and E turn it a quarter.</p>
-<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Plan</span> <span class="kd">struct</span> <span class="p">{</span>
-	<span class="nx">Target</span>        <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
-	<span class="nx">Span</span>          <span class="kt">float64</span> <span class="c1">// world units from the bottom to the top of the screen</span>
-	<span class="nx">Isometric</span>     <span class="kt">bool</span>
-	<span class="nx">Turns</span>         <span class="kt">int</span>     <span class="c1">// quarter turns: 0 has north up in the top view</span>
-	<span class="nx">Distance</span>      <span class="kt">float64</span> <span class="c1">// how far the camera stands from the target, so the whole scene is in front of it</span>
-	<span class="nx">MinimumSpan</span>   <span class="kt">float64</span>
-	<span class="nx">MaximumSpan</span>   <span class="kt">float64</span>
-	<span class="nx">ZoomSpeed</span>     <span class="kt">float64</span>    <span class="c1">// fraction of the span per scroll step</span>
-	<span class="nx">TargetLimits</span>  <span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="kt">float32</span> <span class="c1">// optional: minimum x, maximum x, minimum z, maximum z (all zero = none)</span>
-	<span class="nx">Ground</span>        <span class="nx">GroundFunc</span>
-	<span class="nx">VerticalScale</span> <span class="kt">float32</span> <span class="c1">// scale applied to ground heights (vertical exaggeration); 0 = 1</span>
-<span class="p">}</span>
-</code></pre>
-
-<table>
-<thead>
-<tr>
-<th>Function or method</th>
-<th></th>
-</tr>
-</thead>
-
-<tbody>
-<tr>
-<td><code>func NewPlan(target graphics.Vec4, sceneSize float64) *Plan</code></td>
-<td>NewPlan returns a plan view of a scene of the given size, showing all of it.</td>
-</tr>
-
-<tr>
-<td><code>func (plan *Plan) Update(state *input.State, seconds float64, camera *models.Camera)</code></td>
+<td><code>func (orbit *Orbit) Update(state *input.State, seconds float64, camera *Lens)</code></td>
 <td>Update applies this frame&rsquo;s input and places the camera.</td>
 </tr>
 </tbody>
@@ -111,7 +166,7 @@ knowing about it.</p>
 
 <p>Ray is a half-line in the scene as it is drawn: from Origin along Direction (of length 1). Heights are drawn heights, already multiplied by the scene&rsquo;s vertical exaggeration.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Ray</span> <span class="kd">struct</span> <span class="p">{</span>
-	<span class="nx">Origin</span><span class="p">,</span> <span class="nx">Direction</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">Origin</span><span class="p">,</span> <span class="nx">Direction</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
 <span class="p">}</span>
 </code></pre>
 
@@ -125,22 +180,22 @@ knowing about it.</p>
 
 <tbody>
 <tr>
-<td><code>func RayThrough(view models.Camera, width, height int, x, y float64) (Ray, bool)</code></td>
+<td><code>func RayThrough(view Lens, width, height int, x, y float64) (Ray, bool)</code></td>
 <td>RayThrough returns the ray from the camera through a point of the window: x and y in window pixels from the top-left corner of a window width × height pixels (where the pointer is).</td>
 </tr>
 
 <tr>
-<td><code>func (ray Ray) At(distance float32) graphics.Vec4</code></td>
+<td><code>func (ray Ray) At(distance float32) graphics.Vector</code></td>
 <td>At returns the point at a distance along the ray.</td>
 </tr>
 
 <tr>
-<td><code>func (ray Ray) PointAtHeight(height float32) (graphics.Vec4, bool)</code></td>
+<td><code>func (ray Ray) PointAtHeight(height float32) (graphics.Vector, bool)</code></td>
 <td>PointAtHeight returns where the ray meets the horizontal plane at a drawn height: a flat floor, a table top.</td>
 </tr>
 
 <tr>
-<td><code>func (ray Ray) PointOnGround(ground func(x, z float32) (float32, bool), verticalScale, lowest, highest float32) (graphics.Vec4, bool)</code></td>
+<td><code>func (ray Ray) PointOnGround(ground func(x, z float32) (float32, bool), verticalScale, lowest, highest float32) (graphics.Vector, bool)</code></td>
 <td>PointOnGround returns the first point where the ray meets a relief: ground gives the height of the ground at a point (in true heights, as scene.Scene.GroundHeight does, false where there is none), verticalScale is the exaggeration it is drawn with, and lowest and highest bound the ground&rsquo;s true heights (the scene&rsquo;s bounds), so the search only covers where it can be.</td>
 </tr>
 </tbody>
@@ -188,7 +243,7 @@ knowing about it.</p>
 </tr>
 
 <tr>
-<td><code>func (walk *Walk) Update(state *input.State, seconds float64, camera *models.Camera)</code></td>
+<td><code>func (walk *Walk) Update(state *input.State, seconds float64, camera *Lens)</code></td>
 <td>Update applies this frame&rsquo;s input and places the camera at eye height.</td>
 </tr>
 </tbody>

@@ -1,0 +1,214 @@
+<h1 id="contributing">🤝 Contributing</h1>
+
+<p>This page is for someone who wants to change Go Renderer. At the end you will know where each
+part lives, how to build and test it, and how a change is proposed.</p>
+
+<h2 id="the-layout-of-the-code">The layout of the code</h2>
+
+<p>Each folder is one idea, and dependencies point one way: the scene knows nothing of OpenGL.</p>
+
+<table>
+<thead>
+<tr>
+<th>Folder</th>
+<th>What lives there</th>
+<th>Needs</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>graphics</code>, <code>immediate</code>, <code>window</code></td>
+<td>Vectors and matrices, the immediate-mode <code>Renderer</code> contract, a program&rsquo;s window and loop</td>
+<td>plain Go</td>
+</tr>
+
+<tr>
+<td><code>scene</code>, <code>scene/sample</code>, <code>loaders</code></td>
+<td>The retained scene, glTF files, the sample island</td>
+<td>plain Go</td>
+</tr>
+
+<tr>
+<td><code>internal/shading</code></td>
+<td>What every backend&rsquo;s shaders agree on; the sources live in each backend</td>
+<td>plain Go</td>
+</tr>
+
+<tr>
+<td><code>internal/sceneplan</code></td>
+<td>What a frame draws, decided once for every backend; internal, as only the module&rsquo;s backends use it</td>
+<td>plain Go</td>
+</tr>
+
+<tr>
+<td><code>input</code>, <code>camera</code>, <code>draw2d</code>, <code>frameloop</code></td>
+<td>Input (what programs read, and the <code>Feed</code> backends write), the camera and its controllers, 2D draw lists, the clock</td>
+<td>plain Go</td>
+</tr>
+
+<tr>
+<td><code>opengl</code>, <code>opengl/overlay</code>, <code>windowloop</code></td>
+<td>The desktop backend: GLFW, OpenGL 4.1, the overlay</td>
+<td>cgo</td>
+</tr>
+
+<tr>
+<td><code>metal</code></td>
+<td>The Metal backend on macOS (Objective-C)</td>
+<td>cgo, macOS</td>
+</tr>
+
+<tr>
+<td><code>gles</code>, <code>browser</code>, <code>android</code></td>
+<td>OpenGL ES renderers, the web page, the Android activity</td>
+<td>WebAssembly or the NDK</td>
+</tr>
+
+<tr>
+<td><code>nintendo3ds</code></td>
+<td>The Nintendo 3DS, through citro3d</td>
+<td>TinyGo</td>
+</tr>
+
+<tr>
+<td><code>software</code>, <code>vulkan</code>, <code>webgpu</code></td>
+<td>Backends of the immediate-mode contract, to be built later: every function returns <code>&lt;backend&gt;.not-implemented</code></td>
+<td>—</td>
+</tr>
+
+<tr>
+<td><code>failure</code></td>
+<td>Error codes shared by every package</td>
+<td>—</td>
+</tr>
+
+<tr>
+<td><code>viewer</code>, <code>cmd/…</code></td>
+<td>The viewer and the programs</td>
+<td>cgo</td>
+</tr>
+
+<tr>
+<td><code>docs/</code></td>
+<td>These pages; <code>docs/5-reference</code> is generated</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>The bigger picture is in <a href="./guides/architecture">the architecture</a>.</p>
+
+<h2 id="building-and-testing">Building and testing</h2>
+
+<p>You need Go (the version in <code>go.mod</code>) and the headers of <a href="./troubleshooting">troubleshooting</a>.</p>
+<pre><code class="language-sh">gofmt -l .        <span class="c1"># prints nothing when everything is formatted</span>
+go vet ./...
+go <span class="nb">test</span> ./...
+</code></pre>
+
+<p>Tests that need OpenGL open a hidden window, and skip themselves without a display. To run them
+on a computer with no screen, use Xvfb (<code>xvfb-run go test ./opengl</code>); the CI has no display, so
+it skips them. The examples in <code>*_test.go</code> (<code>ExampleFlatRenderer</code>,
+<code>ExampleState_Pressed</code>…) are the guides&rsquo; code: if a guide&rsquo;s code changes, change its example.</p>
+
+<p>After changing a public name or its comment, regenerate the reference:</p>
+<pre><code class="language-sh">python3 docs/5-reference/generate.py
+</code></pre>
+
+<h3 id="what-the-ci-checks">What the CI checks</h3>
+
+<p><code>.github/workflows/test.yaml</code> runs on every push and pull request:</p>
+
+<table>
+<thead>
+<tr>
+<th>Job</th>
+<th>Checks</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>test</code></td>
+<td><code>gofmt</code>, <code>go vet ./...</code> and <code>go test ./...</code> on Ubuntu, with the OpenGL, X11 and Wayland headers</td>
+</tr>
+
+<tr>
+<td><code>browser</code></td>
+<td><code>go vet</code> with <code>GOOS=js GOARCH=wasm</code> of every package a web page uses</td>
+</tr>
+</tbody>
+</table>
+<p>It does not build Metal (macOS), Android or the 3DS yet, and it does not draw frames. A change to
+those parts is tried by hand: say what you tried.</p>
+
+<p><code>.github/workflows/publish-docs.yaml</code> publishes <code>docs/</code> as a website on every push to <code>main</code>.</p>
+
+<h2 id="hand-written-and-ai-written-code">Hand-written and AI-written code</h2>
+
+<p>Part of this project is written by hand by its author, and part by an AI assistant under his
+direction. The README&rsquo;s <em>AI disclosure</em> lists which.</p>
+
+<ul>
+<li><strong>Hand-written by the author:</strong> the immediate-mode <code>Renderer</code> contract (now <code>immediate</code>, with
+<code>window</code>), the <code>graphics</code> maths, the first OpenGL work, and the <code>software</code>, <code>vulkan</code>, <code>metal</code>
+(its stubs) and <code>webgpu</code> backends. On 2026-10-22 the author asked the AI to refactor them to the
+guidelines (whole-word names, coded errors, no panics or prints); that refactoring is pending his
+review. Do not change them further without asking him.</li>
+<li><strong>AI-written work</strong> goes on a <code>feature/…</code> branch, never on <code>main</code>. Its commits end with a
+<code>Co-Authored-By:</code> line, and the author merges it after review. Until then it is pending review.</li>
+</ul>
+
+<h2 id="proposing-a-change">Proposing a change</h2>
+
+<p>A small fix goes straight to a pull request. A change that spans several files or sessions starts
+as a <strong>proposal</strong> in <code>docs/proposals/</code>, numbered in order:</p>
+
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>What it says</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Status</td>
+<td>Proposed, approved or built, with the author&rsquo;s approval of the proposal and of the plan</td>
+</tr>
+
+<tr>
+<td>Why</td>
+<td>The problem, with facts</td>
+</tr>
+
+<tr>
+<td>What</td>
+<td>A table of requirements, each with an id (R1, R2…) and how it is checked</td>
+</tr>
+
+<tr>
+<td>Out of scope</td>
+<td>What it will not do</td>
+</tr>
+
+<tr>
+<td>Open questions for the author</td>
+<td>The decisions only he can take</td>
+</tr>
+
+<tr>
+<td>Result</td>
+<td>What was built, filled in at the end</td>
+</tr>
+</tbody>
+</table>
+<p>The author approves the proposal before a plan is written, and the plan before code. The first
+one is <a href="./proposals/towards-version-1">towards version 1.0</a>.</p>
+
+<h2 id="writing-docs">Writing docs</h2>
+
+<p>Pages are for people: one task per guide, the shortest working code first, short sentences, and a
+picture where something is spatial. Every code block runs as shown. Update the docs in the same
+commit as the behaviour they describe.</p>

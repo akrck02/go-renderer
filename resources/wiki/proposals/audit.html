@@ -1,0 +1,1737 @@
+<h1 id="1-the-audit-before-1-0">1. The audit before 1.0</h1>
+
+<blockquote>
+<p>Part of <a href="./proposals/towards-version-1">proposal 1</a>, task T3 · Written 2026-10-22 · <strong>Author&rsquo;s
+approval:</strong> phases A and B of the <a href="#order-proposed">order proposed</a> ☑ (2026-10-22, &ldquo;Si&rdquo;), for
+every package below; phases C and D ☑ (2026-10-22, &ldquo;arreglalas todas&rdquo;), with the decisions in
+<a href="#phases-c-and-d-what-was-done-2026-10-22">phases C and D</a>.</p>
+</blockquote>
+
+<h2 id="how-it-was-done">How it was done</h2>
+
+<p>Every package was read against <a href="https://github.com/akrck02/llm-guidelines" target="_blank">llm-guidelines</a> (and
+its Go and docs chapters) and against the proposal&rsquo;s two imperatives: <strong>a simple, efficient API</strong>
+(is the public API the smallest that does the job? what would a newcomer stumble on?) and
+<strong>performance</strong> (what does a frame cost, where does it allocate?). Three tools helped the reading:</p>
+
+<ul>
+<li>a small syntax-tree scan of every <code>.go</code> file, whatever its build tags: functions over 40 lines,
+names of one or two letters, abbreviations, <code>errors.New</code>/<code>fmt.Errorf</code>, <code>panic</code>, printing,
+exported names without a comment;</li>
+<li>the <a href="./project/optimization-plan">baseline benchmarks</a> and memory
+profiles of the frames that still allocate;</li>
+<li><code>go doc</code> of each package, and the imports of go-ui and go-engine, to know who uses what.</li>
+</ul>
+
+<p>Nothing was changed while auditing. Line numbers are those of commit <code>2adf4ce</code>.</p>
+
+<p><strong>Hand-written code.</strong> The <code>Renderer</code> contract and <code>models</code>, the <code>graphics</code> maths, the first
+OpenGL work (<code>opengl/opengl.go</code>, <code>opengl/renderer.go</code>, <code>opengl/window.go</code>, <code>loaders/glb.go</code>), the
+root <code>main.go</code> and the <code>software</code>, <code>vulkan</code>, <code>webgpu</code> and <code>metal</code> stubs are the author&rsquo;s. Their
+findings are listed like the others but marked <strong>✋ author&rsquo;s decision</strong>: this audit proposes, it
+does not plan to rewrite them.</p>
+
+<p>Severity: <strong>high</strong> breaks a rule that costs users or frames today, or blocks 1.0&rsquo;s promise;
+<strong>medium</strong> is a rule broken where a newcomer would stumble; <strong>low</strong> is polish. Effort: <strong>S</strong> under
+a day, <strong>M</strong> a few days, <strong>L</strong> a week or more.</p>
+
+<h2 id="summary">Summary</h2>
+
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>State</th>
+<th>Main problems</th>
+<th>Effort</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>graphics</code> ✋</td>
+<td>needs work</td>
+<td><code>Vec4</code>/<code>Mat4</code> shorthand everywhere (529 one- or two-letter names); shaders of every backend live beside the maths; <code>Move</code> allocates</td>
+<td>L (rename touches every package)</td>
+</tr>
+
+<tr>
+<td><code>models</code> ✋</td>
+<td>needs work</td>
+<td>a package named for a kind of file; <code>Application</code> holds 25 fields of three concerns; <code>Camera</code> lives here, not in <code>camera</code>; no comments on public names</td>
+<td>M</td>
+</tr>
+
+<tr>
+<td>root <code>main.go</code> ✋</td>
+<td>needs work</td>
+<td>an example that panics, a package-level <code>first</code>, a fixed backend constant</td>
+<td>S</td>
+</tr>
+
+<tr>
+<td><code>software</code>, <code>vulkan</code>, <code>webgpu</code> ✋</td>
+<td>listed only</td>
+<td>stubs; return their codes since T1</td>
+<td>—</td>
+</tr>
+
+<tr>
+<td><code>metal</code> (AI parts)</td>
+<td>good, one risk</td>
+<td><code>ErrUnavailable</code> is text, not a code; <code>MTLStorageModeManaged</code> (T6); the hand-written <code>Metal</code> stub still returns a plain text error ✋</td>
+<td>S</td>
+</tr>
+
+<tr>
+<td><code>opengl</code></td>
+<td>needs work</td>
+<td><code>panic</code>, <code>log</code> and <code>fmt.Print</code> in a library (hand-written parts ✋); <code>OpenGLRenderer</code> stutters; a frame allocates 3–4 times; package-level <code>firstFrame</code></td>
+<td>M</td>
+</tr>
+
+<tr>
+<td><code>opengl/overlay</code></td>
+<td>good, two fixes</td>
+<td>one allocation per frame (<code>sort.SliceStable</code>); global <code>UseFonts</code> and <code>FontFolders</code> read at import; <code>Audit…</code> benchmark and test names</td>
+<td>S</td>
+</tr>
+
+<tr>
+<td><code>sceneplan</code></td>
+<td>good, one fix</td>
+<td>two allocations per frame (water nodes); 32 exported functions only backends use: belongs in <code>internal/</code></td>
+<td>M</td>
+</tr>
+
+<tr>
+<td><code>scene</code></td>
+<td>good</td>
+<td><code>ColorFromHex</code> duplicates <code>draw2d.ParseHex</code>; <code>DefaultNoticeDuration</code> has no unit; <code>Kind…</code> prefix vs <code>…Kind</code> suffix elsewhere</td>
+<td>S</td>
+</tr>
+
+<tr>
+<td><code>scene/sample</code></td>
+<td>good</td>
+<td>none worth a rewrite; magic numbers are its point (a made-up island)</td>
+<td>—</td>
+</tr>
+
+<tr>
+<td><code>draw2d</code></td>
+<td>good</td>
+<td><code>Hex</code> panics; text errors; <code>Rect</code> abbreviation; <code>Command.Text</code> doubles as an icon&rsquo;s name</td>
+<td>S</td>
+</tr>
+
+<tr>
+<td><code>input</code></td>
+<td>good, large</td>
+<td><code>State</code> mixes what programs read and what backends write (56 methods); <code>MultiClickDistance</code> without unit</td>
+<td>M</td>
+</tr>
+
+<tr>
+<td><code>camera</code></td>
+<td>good</td>
+<td><code>Plan</code> collides with <code>sceneplan</code> in a reader&rsquo;s head; <code>float64</code>/<code>float32</code> mixed in constructors</td>
+<td>S</td>
+</tr>
+
+<tr>
+<td><code>loaders</code></td>
+<td>needs work</td>
+<td><code>LoadGLB</code> ✋ is 123 lines and prints to stdout; 14 text errors; three names for two things</td>
+<td>M</td>
+</tr>
+
+<tr>
+<td><code>viewer</code></td>
+<td>needs work</td>
+<td><code>Run</code> takes a benchmark-only argument; <code>Options</code> has 20 fields of three kinds; a 300-character <code>Usage</code> constant; prints</td>
+<td>M</td>
+</tr>
+
+<tr>
+<td><code>windowloop</code></td>
+<td>fair</td>
+<td>re-exports <code>frameloop</code> (<code>Clock</code> alias, <code>RunUpdateStep</code>); <code>Run</code> 51 lines; 5.5 % tested</td>
+<td>S</td>
+</tr>
+
+<tr>
+<td><code>frameloop</code></td>
+<td>good</td>
+<td>none</td>
+<td>—</td>
+</tr>
+
+<tr>
+<td><code>gles</code></td>
+<td>good</td>
+<td><code>Functions</code> mirrors GL&rsquo;s names (<code>Uniform1i</code>, <code>TexImage2D</code>): a choice to confirm</td>
+<td>S</td>
+</tr>
+
+<tr>
+<td><code>android</code></td>
+<td>fair</td>
+<td>50 exported GL functions without comments; platform services (notifications, palettes, haptics, video) in a renderer; <code>Channel</code>/<code>Tones</code> mutable globals</td>
+<td>M</td>
+</tr>
+
+<tr>
+<td><code>browser</code></td>
+<td>fair</td>
+<td>50 exported WebGL functions without comments; text errors</td>
+<td>S</td>
+</tr>
+
+<tr>
+<td><code>ctr</code></td>
+<td>fair</td>
+<td>device names in a generic API (<code>OpenBottomScreen</code>, <code>Slider3D</code>, <code>PICAMatrix</code>, <code>CStick</code>); two ways to read buttons and begin a frame</td>
+<td>M</td>
+</tr>
+
+<tr>
+<td><code>cmd/*</code></td>
+<td>fair</td>
+<td><code>visor</code> uses <code>os.Exit</code> (fine in <code>main</code>); 3DS examples with <code>main</code> of 52–59 lines</td>
+<td>S</td>
+</tr>
+
+<tr>
+<td><code>failure</code></td>
+<td>new</td>
+<td>—</td>
+<td>—</td>
+</tr>
+
+<tr>
+<td>repository</td>
+<td>fair</td>
+<td><code>.gitignore</code> lacks <code>.env</code> and <code>out/</code>; compiled <code>.shbin</code> shaders in git</td>
+<td>S</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="the-ten-findings-that-matter-most">The ten findings that matter most</h3>
+
+<ol>
+<li><strong><code>graphics.Vec4</code> and <code>graphics.Mat4</code></strong> are the shorthand the guidelines name by example
+(<code>Vector</code>, not <code>Vec3</code>). They are the most used names of the module (go-ui 35 uses, go-engine
+42). ✋ Hand-written: renaming is the author&rsquo;s call, and the largest breaking change of 1.0.</li>
+<li><strong>A frame still allocates.</strong> Planning the sample island: 2 allocations (288 B), both a
+<code>scene.Node</code> made for the water every frame (<code>sceneplan/commands.go:161</code>, <code>:176</code>). The overlay:
+1 (<code>sort.SliceStable</code> in <code>opengl/overlay/layout.go:243</code>). An OpenGL 2D frame: 3–4 (<code>gl.Ptr</code> and
+<code>GetIntegerv</code> taking addresses in <code>opengl/overlay.go:263</code>, <code>:110</code>). All four can reach zero.</li>
+<li><strong>No error has a code</strong> outside the stubs: 64 <code>errors.New</code>/<code>fmt.Errorf</code> in 27 files, plus
+<code>metal.ErrUnavailable</code> and <code>browser.ErrNoCanvas</code>/<code>ErrNoWebGL2</code> that are plain sentinels.</li>
+<li><strong>Library code panics, logs and prints.</strong> <code>opengl/opengl.go:129–149</code> and
+<code>opengl/window.go:14,43</code> panic (✋); <code>opengl/renderer.go:282</code> calls <code>log.Fatalf</code> (✋);
+<code>loaders/glb.go:103–180</code> prints every mesh (✋); <code>opengl/opengl.go:162</code> and
+<code>viewer/viewer.go:434</code> print. A program cannot silence or handle them.</li>
+<li><strong><code>models</code> is a package named for a kind of file</strong>, and <code>models.Application</code> carries
+window settings, frame callbacks, input and the immediate-mode matrices in one struct
+(<code>models/application.go:59</code>). <code>models.Camera</code> belongs in <code>camera</code>. ✋ Hand-written core.</li>
+<li><strong><code>sceneplan</code> exports 32 functions and 21 types that only the module&rsquo;s backends use</strong>
+(<code>InterleaveVertices</code>, <code>ScaleOrOne</code>, <code>ColorOrWhite</code>…). As <code>internal/sceneplan</code>, the public API
+shrinks by a third and nothing outside breaks (go-ui and go-engine import none of it).</li>
+<li><strong><code>viewer.Run(world, options, title, update, loadingTime)</code></strong>: <code>loadingTime</code> only feeds the
+benchmark printout, yet every caller must pass it. <code>Options</code> mixes start-up view, rendering
+switches and benchmark settings in 20 flat fields.</li>
+<li><strong><code>input.State</code> is one struct for two audiences</strong>: programs read it (<code>Pressed</code>, <code>Clicks</code>), and
+backends write it (<code>SetKey</code>, <code>MoveCursor</code>, <code>AddCharacter</code>, <code>PressBack</code>…). A newcomer reading
+<code>go doc input.State</code> sees 56 methods, half of which they must not call.</li>
+<li><strong>Global mutable state in libraries</strong>: <code>overlay.UseFonts</code> sets a package variable
+(<code>opengl/overlay/fonts.go:41</code>), <code>overlay.FontFolders</code> reads the home folder at import
+(<code>fallback.go:26</code>), <code>android.Channel</code> and <code>android.Tones</code> are exported variables, and
+<code>opengl.firstFrame</code> (<code>opengl.go:156</code>) is shared by every window.</li>
+<li><strong>Generic names</strong>: <code>ctr</code> speaks the device (<code>OpenBottomScreen</code>, <code>BottomWidth</code>, <code>Slider3D</code>,
+<code>CStick</code>, <code>PICAMatrix</code>), where the guidelines ask for <code>OpenSecondScreen</code>, <code>RightStick</code>. The
+package name <code>ctr</code> itself is the console&rsquo;s code name, an abbreviation to a newcomer.</li>
+</ol>
+
+<h3 id="breaking-changes-for-go-ui-and-go-engine">Breaking changes for go-ui and go-engine</h3>
+
+<p>If every plan below is approved as written, these are what the two projects would have to change.
+Each comes with a release note and, where cheap, a deprecated alias for one minor version.</p>
+
+<table>
+<thead>
+<tr>
+<th>Change</th>
+<th>go-ui</th>
+<th>go-engine</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>graphics.Vec4</code> → <code>graphics.Vector</code>, <code>Mat4</code> → <code>Matrix</code> ✋</td>
+<td>35 uses, + 2 <code>Identity</code>/<code>Translate</code></td>
+<td>42 uses, + <code>Mat4</code> 3, <code>Identity</code> 6, <code>Scale</code>, <code>RotateY</code>, <code>FromTranslationRotationScale</code></td>
+</tr>
+
+<tr>
+<td><code>models.Camera</code> → <code>camera.Camera</code>; <code>models.Application</code> → split (see <code>models</code>) ✋</td>
+<td><code>Camera</code> 8, <code>Application</code> 13, <code>WindowApplication</code>/<code>HeadlessApplication</code></td>
+<td><code>Camera</code> 10</td>
+</tr>
+
+<tr>
+<td><code>opengl.OpenGLRenderer</code> → <code>opengl.Renderer</code>, <code>opengl.OpenGL</code> → <code>opengl.Window</code> ✋</td>
+<td>1 + 1</td>
+<td>—</td>
+</tr>
+
+<tr>
+<td><code>ctr</code> renamed and its device names made generic</td>
+<td><code>ScreenWidth</code>, <code>BottomWidth</code>/<code>Height</code>, <code>OpenBottomScreen</code>, <code>Slider3D</code>, <code>Buttons</code>… (≈20 lines)</td>
+<td><code>Reading</code> 33, <code>Button…</code> ≈40, <code>ReadControls</code>, <code>StartMotionControls</code>, <code>Gyroscope</code></td>
+</tr>
+
+<tr>
+<td><code>input.State</code>&rsquo;s writing methods move to a backend side (<code>input.Feed</code> or similar)</td>
+<td>its own backends that call <code>SetKey</code>, <code>MoveCursor</code>… (the window adapters)</td>
+<td>none (it only reads)</td>
+</tr>
+
+<tr>
+<td><code>viewer.Run</code> loses <code>loadingTime</code>; <code>Options</code> grouped</td>
+<td>3 calls of <code>Run</code>, 4 of <code>DefaultOptions</code></td>
+<td>—</td>
+</tr>
+
+<tr>
+<td><code>overlay.UseFonts</code> → an option of <code>NewPainter</code>/<code>NewMeasurer</code></td>
+<td>1</td>
+<td>—</td>
+</tr>
+
+<tr>
+<td><code>scene.ColorFromHex</code> removed (use <code>draw2d.ParseHex</code>)</td>
+<td>check</td>
+<td>check</td>
+</tr>
+
+<tr>
+<td>errors checked with <code>errors.Is(err, &lt;package&gt;.&lt;Code&gt;)</code> instead of text</td>
+<td><code>metal.ErrUnavailable</code> 1</td>
+<td>—</td>
+</tr>
+
+<tr>
+<td><code>loaders.LoadGLB</code> → <code>loaders.LoadModel</code> ✋, <code>ParseSceneGLB</code> → <code>ReadScene</code></td>
+<td>—</td>
+<td><code>ParseSceneGLB</code> 1</td>
+</tr>
+</tbody>
+</table>
+<p><code>sceneplan</code> going internal, the allocations, the shaders&rsquo; move and the comments break nothing
+outside.</p>
+
+<hr>
+
+<h2 id="graphics">graphics ✋</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22). The hand-written code here waits for phase D: A and B touch only its AI-written parts.</p>
+</blockquote>
+
+<p>Hand-written maths (<code>transformations.go</code>, <code>space.go</code>, <code>shaders.go</code>), extended by AI with shader
+sources for every backend (<code>scene_shaders.go</code>, <code>overlay_shaders.go</code>, <code>light_shaders.go</code>,
+<code>backdrop_shaders.go</code>). 46 % tested.</p>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>high ✋</td>
+<td><code>transformations.go:9,13</code></td>
+<td><code>Vec4</code>, <code>Mat4</code>: mathematical shorthand the guidelines forbid by name</td>
+<td><code>Vector</code>, <code>Matrix</code> (a <code>Vec4</code> alias kept one version, deprecated)</td>
+</tr>
+
+<tr>
+<td>medium ✋</td>
+<td><code>transformations.go</code> (529 names)</td>
+<td><code>a</code>, <code>b</code>, <code>m</code>, <code>v</code>, <code>res</code>, <code>col</code>, <code>bColIdx</code>, <code>fovyRad</code></td>
+<td>whole words: <code>left</code>, <code>right</code>, <code>matrix</code>, <code>vector</code>, <code>result</code>, <code>column</code>, <code>fieldOfViewRadians</code></td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>scene_shaders.go</code> and the other <code>*_shaders.go</code></td>
+<td>shader sources of OpenGL&rsquo;s scene, overlay, lights and backdrop sit in the maths package: it grows with every backend, and <code>gles</code>/<code>metal</code> carry their own copies anyway</td>
+<td>move each source beside the backend that compiles it (<code>opengl/shaders/…</code> or <code>opengl/scene_shaders.go</code>); <code>graphics</code> keeps maths only</td>
+</tr>
+
+<tr>
+<td>medium ✋</td>
+<td><code>transformations.go:149</code></td>
+<td><code>Move</code> returns a new slice: allocates per call</td>
+<td>move in place, or document it as load-time only</td>
+</tr>
+
+<tr>
+<td>medium ✋</td>
+<td><code>transformations.go:188–224</code></td>
+<td><code>PerspectiveOpenGL</code>, <code>PerspectiveVulkan</code>, <code>PerspectiveMetal</code>: one function per backend in a generic package</td>
+<td>one <code>Perspective(fieldOfView, aspect, near, far, depthRange)</code> with a <code>DepthRange</code> (<code>MinusOneToOne</code>, <code>ZeroToOne</code>), or keep and document</td>
+</tr>
+
+<tr>
+<td>low ✋</td>
+<td><code>transformations.go:240</code></td>
+<td><code>Inverse</code> returns <code>(Mat4, bool)</code>: fine; the comment does not say when it fails</td>
+<td>say &ldquo;false for a matrix that cannot be inverted (its determinant is zero)&rdquo;</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td><code>light_shaders.go:97</code></td>
+<td><code>AmbientLight</code> is not maths: it is the lights&rsquo; shader input</td>
+<td>goes with the shaders</td>
+</tr>
+
+<tr>
+<td>low ✋</td>
+<td>tests</td>
+<td>2 test files, <code>t *testing.T</code>, <code>TestInverseRoundTrip</code></td>
+<td>sentence names; a test per transform (the proposal&rsquo;s R7)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Plan.</strong> (1) Move the shader sources to their backends: no API outside the module uses them
+(neither go-ui nor go-engine). (2) The author decides on <code>Vector</code>/<code>Matrix</code> and the names inside;
+if yes, it is one mechanical rename with <code>gofmt -r</code>, a deprecated alias for one version, and both
+dependants updated in the same week. (3) Tests of each transform.</p>
+<pre><code class="language-go"><span class="c1">// before                                   // after (if approved)</span>
+<span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">}</span>                   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">{</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">}</span>
+<span class="nx">graphics</span><span class="p">.</span><span class="nx">Mat4</span>                               <span class="nx">graphics</span><span class="p">.</span><span class="nx">Matrix</span>
+<span class="nx">graphics</span><span class="p">.</span><span class="nf">PerspectiveOpenGL</span><span class="p">(</span><span class="nx">fov</span><span class="p">,</span> <span class="nx">a</span><span class="p">,</span> <span class="nx">n</span><span class="p">,</span> <span class="nx">f</span><span class="p">)</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nf">Perspective</span><span class="p">(</span><span class="nx">fieldOfView</span><span class="p">,</span> <span class="nx">aspect</span><span class="p">,</span> <span class="nx">near</span><span class="p">,</span> <span class="nx">far</span><span class="p">,</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">MinusOneToOne</span><span class="p">)</span>
+<span class="nx">graphics</span><span class="p">.</span><span class="nf">SceneVertexShader</span>                  <span class="p">(</span><span class="nx">inside</span> <span class="nx">opengl</span><span class="p">)</span>
+</code></pre>
+
+<h2 id="models">models ✋</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22). The hand-written code here waits for phase D: A and B touch only its AI-written parts.</p>
+</blockquote>
+
+<p>The immediate-mode contract (<code>Renderer</code>, <code>GraphicsApi</code>, <code>Mesh</code>, <code>Model</code>) and <code>Application</code> and
+<code>Camera</code>. Hand-written, extended by AI (<code>DrawOnDemand</code>, <code>Unchanged</code>, <code>FlatOnly</code>, <code>Input</code>…). 0 tests.</p>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>high ✋</td>
+<td>package name</td>
+<td><code>models</code> names a kind of file, which the guidelines ask to avoid (&ldquo;folders say what the program is about&rdquo;)</td>
+<td>split by concept: the contract to <code>immediate</code> (or the root package), <code>Camera</code> to <code>camera</code>, <code>Application</code> to <code>window</code>/<code>app</code></td>
+</tr>
+
+<tr>
+<td>high ✋</td>
+<td><code>application.go:59</code></td>
+<td><code>Application</code> mixes the window (size, title, vsync, flat-only), the loop (<code>Update</code>, <code>Draw</code>, <code>FixedStep</code>, <code>DrawOnDemand</code>, <code>Unchanged</code>, <code>Stop</code>), input and the immediate-mode matrices: 25 fields. A newcomer cannot tell which matter</td>
+<td>group: <code>Window</code> settings, <code>Loop</code> callbacks, the matrices stay with the immediate-mode contract</td>
+</tr>
+
+<tr>
+<td>medium ✋</td>
+<td><code>application.go:15</code></td>
+<td><code>Camera</code> is in <code>models</code>, its controllers in <code>camera</code>: a reader looks in the wrong place</td>
+<td><code>camera.Camera</code></td>
+</tr>
+
+<tr>
+<td>medium ✋</td>
+<td><code>application.go:19–21</code></td>
+<td><code>FieldOfView float64</code> beside <code>Near, Far float32</code></td>
+<td>one type (float32, as the GPU takes)</td>
+</tr>
+
+<tr>
+<td>medium ✋</td>
+<td><code>application.go:48</code></td>
+<td><code>0.7853981633974483</code>: a magic number</td>
+<td><code>math.Pi / 4</code>, named <code>defaultFieldOfView</code></td>
+</tr>
+
+<tr>
+<td>medium ✋</td>
+<td><code>graphics_api.go</code></td>
+<td><code>GraphicsApi</code>, <code>GraphicsApiBackend</code>: <code>Api</code> stutter and an acronym</td>
+<td><code>Backend</code></td>
+</tr>
+
+<tr>
+<td>medium ✋</td>
+<td><code>renderer.go</code></td>
+<td>the contract takes <code>shader *string</code> and returns <code>error</code> for every shape: a newcomer cannot tell what the string is; errors per triangle cost a check per call</td>
+<td>the author&rsquo;s contract: noted, not planned</td>
+</tr>
+
+<tr>
+<td>low ✋</td>
+<td>all</td>
+<td>8 exported names without a comment (<code>Application</code>, <code>Camera</code>, <code>Renderer</code>, <code>Mesh</code>…)</td>
+<td>comments that start with the name</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Plan.</strong> None until the author decides. The smallest step that breaks nothing: comments, named
+constants, tests of <code>Camera.Projection</code>. The larger (split <code>Application</code>, move <code>Camera</code>) is the
+second-largest breaking change and pays most for a newcomer.</p>
+<pre><code class="language-go"><span class="c1">// before                              // after (one possible shape)</span>
+<span class="nx">app</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">models</span><span class="p">.</span><span class="nx">Application</span><span class="p">{</span>            <span class="nx">app</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">window</span><span class="p">.</span><span class="nx">Application</span><span class="p">{</span>
+    <span class="nx">Type</span><span class="p">:</span> <span class="nx">models</span><span class="p">.</span><span class="nx">WindowApplication</span><span class="p">,</span>        <span class="nx">Window</span><span class="p">:</span> <span class="nx">window</span><span class="p">.</span><span class="nx">Settings</span><span class="p">{</span><span class="nx">Title</span><span class="p">:</span> <span class="s">&#34;…&#34;</span><span class="p">,</span> <span class="nx">Width</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span> <span class="nx">Height</span><span class="p">:</span> <span class="mi">800</span><span class="p">},</span>
+    <span class="nx">Title</span><span class="p">:</span> <span class="s">&#34;…&#34;</span><span class="p">,</span> <span class="nx">Width</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span> <span class="err">…</span>             <span class="nx">Update</span><span class="p">:</span> <span class="nx">update</span><span class="p">,</span> <span class="nx">Draw</span><span class="p">:</span> <span class="nx">draw</span><span class="p">,</span>
+    <span class="nx">Camera</span><span class="p">:</span> <span class="nx">models</span><span class="p">.</span><span class="nx">Camera</span><span class="p">{</span><span class="err">…</span><span class="p">},</span>          <span class="p">}</span>
+<span class="p">}</span>                                       <span class="nx">view</span> <span class="o">:=</span> <span class="nx">camera</span><span class="p">.</span><span class="nx">Camera</span><span class="p">{</span><span class="err">…</span><span class="p">}</span>
+</code></pre>
+
+<h2 id="root-main-go">Root <code>main.go</code> ✋</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22). The hand-written code here waits for phase D: A and B touch only its AI-written parts.</p>
+</blockquote>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>medium ✋</td>
+<td><code>main.go:47,71</code></td>
+<td><code>panic</code> where a <code>main</code> should print and exit</td>
+<td><code>log.Fatal</code> (allowed in <code>main</code>)</td>
+</tr>
+
+<tr>
+<td>medium ✋</td>
+<td><code>main.go:15</code></td>
+<td><code>graphicsApi = models.OpenGL</code>: the example cannot try another backend without editing</td>
+<td>a <code>-backend</code> flag</td>
+</tr>
+
+<tr>
+<td>low ✋</td>
+<td><code>main.go:77</code></td>
+<td><code>var first = true</code> is unused</td>
+<td>delete</td>
+</tr>
+
+<tr>
+<td>low ✋</td>
+<td><code>main.go:79</code></td>
+<td><code>Draw</code> ignores the errors of <code>RenderTriangle</code>/<code>RenderRectangle</code></td>
+<td>return them</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td>layout</td>
+<td>a library&rsquo;s root holding <code>package main</code> means <code>import &quot;github.com/akrck02/go-renderer&quot;</code> imports nothing useful</td>
+<td>move to <code>cmd/immediate</code> (or <code>examples/triangle</code>)</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="software-vulkan-webgpu-listed-only">software, vulkan, webgpu ✋ (listed only)</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22). The hand-written code here waits for phase D: A and B touch only its AI-written parts.</p>
+</blockquote>
+
+<p>Since T1 each function returns <code>&lt;backend&gt;.not-implemented</code>, tested. Not judged for rewrite. Note
+for the author: <code>SetMatrices</code> returns nothing, so it cannot say it is not implemented; and the
+empty <code>window.go</code> files could go.</p>
+
+<h2 id="metal">metal</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<p>AI-written renderers (<code>FlatWindow</code>, <code>FlatRenderer</code>, <code>SceneWindow</code>, <code>SceneRenderer</code>, the Objective-C
+and the shaders) beside the hand-written stubs <code>metal.go</code>, <code>renderer.go</code>, <code>window.go</code> ✋. 35 %
+tested on Linux (the darwin files cannot run here).</p>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>high</td>
+<td><code>flat.go:7</code></td>
+<td><code>ErrUnavailable = errors.New(&quot;metal unavailable&quot;)</code>: a sentinel without a code; <code>flat_darwin.go:52</code>, <code>flat_other.go:17,25</code> wrap it with <code>fmt.Errorf</code></td>
+<td><code>Unavailable = failure.Define(&quot;metal.unavailable&quot;, …)</code> and <code>failure.Wrap(Unavailable, reason, nil)</code>; keep <code>ErrUnavailable</code> as a deprecated alias one version (go-ui uses it once)</td>
+</tr>
+
+<tr>
+<td>high</td>
+<td><code>scene_darwin.m:273</code>, <code>flat_darwin.m:651</code></td>
+<td><code>MTLStorageModeManaged</code>, deprecated on newer SDKs</td>
+<td>T6: <code>MTLStorageModeShared</code></td>
+</tr>
+
+<tr>
+<td>medium ✋</td>
+<td><code>metal.go</code>, <code>renderer.go</code></td>
+<td>the stubs return <code>&quot;Graphics API not implemented yet!&quot;</code> as text</td>
+<td>as the other stubs: <code>metal.NotImplemented</code> (the author asked it for the three others; Metal&rsquo;s stub is his call)</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>MetalRenderer</code> ✋, <code>FlatRenderer</code>…</td>
+<td><code>metal.MetalRenderer</code> stutters</td>
+<td>the stub&rsquo;s name is the author&rsquo;s</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td><code>shader_check_darwin.go</code></td>
+<td>two text errors</td>
+<td>codes</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Plan.</strong> Codes (S), T6 (S, on the author&rsquo;s Mac). The stubs: the author&rsquo;s decision.</p>
+
+<h2 id="opengl">opengl</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<p>The OpenGL 4.1 backend: the immediate-mode window (✋ <code>opengl.go</code>, <code>renderer.go</code>, <code>window.go</code>),
+the scene renderer, the flat renderer and the overlay&rsquo;s GPU side. 53 % tested (with a display).</p>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>high ✋</td>
+<td><code>opengl.go:129,140,144,149</code>; <code>window.go:14,43</code></td>
+<td><code>panic</code> when GL or a shader fails: a program cannot fall back (to Metal, to a message)</td>
+<td>return coded errors (<code>opengl.ShaderNotCompiled</code>, <code>opengl.WindowNotOpened</code>)</td>
+</tr>
+
+<tr>
+<td>high ✋</td>
+<td><code>renderer.go:282–291</code></td>
+<td><code>log.Fatalf</code> and <code>panic</code> when a texture fails</td>
+<td>return the error</td>
+</tr>
+
+<tr>
+<td>high</td>
+<td><code>overlay.go:263</code>, <code>overlay.go:110</code></td>
+<td>an OpenGL 2D frame allocates 3–4 times (182–466 B): <code>gl.Ptr(vertices)</code> escapes the slice header, <code>gl.GetIntegerv(…, &amp;framebuffer)</code> the integer</td>
+<td>keep <code>framebuffer</code> in the renderer; pass <code>unsafe.Pointer(&amp;vertices[0])</code> as <code>gl.Ptr</code> does internally, or keep a pointer made once per buffer growth; a <code>testing.AllocsPerRun</code> test</td>
+</tr>
+
+<tr>
+<td>medium ✋</td>
+<td><code>opengl.go:156</code></td>
+<td><code>var firstFrame = true</code>: shared by every window, and only prints</td>
+<td>delete with the print</td>
+</tr>
+
+<tr>
+<td>medium ✋</td>
+<td><code>opengl.go:58,76,133,162</code></td>
+<td><code>println</code>, <code>fmt.Printf</code>, <code>log.Println</code></td>
+<td>none in a library; the version can be a field (<code>OpenGL.Version()</code>)</td>
+</tr>
+
+<tr>
+<td>medium ✋</td>
+<td><code>opengl.go:82</code></td>
+<td><code>setInputs</code> (42 lines) hard-codes arrow keys and WASD into the window when no <code>Input</code> is given: hidden behaviour</td>
+<td>delete, or move to the example</td>
+</tr>
+
+<tr>
+<td>medium ✋</td>
+<td><code>opengl.go:221</code></td>
+<td><code>DrawOnDisk</code> 61 lines; its comment starts <code>SaveFrameToDisk</code></td>
+<td>split into read pixels / flip / encode; <code>SaveFrame</code></td>
+</tr>
+
+<tr>
+<td>medium ✋</td>
+<td>names</td>
+<td><code>opengl.OpenGL</code>, <code>opengl.OpenGLRenderer</code> stutter; <code>InitWindow</code> is an abbreviation</td>
+<td><code>opengl.Window</code>, <code>opengl.Renderer</code>, <code>OpenWindow</code></td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>scene.go:33–45</code></td>
+<td><code>ShadowSettings</code>, <code>FrameStatistics</code>, <code>PassTimes</code> are aliases of <code>sceneplan</code>&rsquo;s: fine, but <code>DefaultShadowSettings</code> is duplicated</td>
+<td>keep the aliases when <code>sceneplan</code> goes internal; they are the public face</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>opengl/opengl.go:32</code></td>
+<td><code>StartLoop</code> 48 lines; <code>Draw</code> 47</td>
+<td>split once the hand-written parts are decided</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td><code>renderer.go</code></td>
+<td><code>vao</code>, <code>vbo</code>, <code>ebo</code>, <code>img</code>, <code>rgba</code>, <code>r</code> (22×)</td>
+<td>whole words (<code>vertexArray</code>, <code>vertexBuffer</code>, <code>elementBuffer</code>) ✋</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td><code>shadows.go</code>, <code>opengl.go:34</code></td>
+<td>text errors</td>
+<td>codes</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td>tests</td>
+<td><code>t *testing.T</code> in 2 files</td>
+<td><code>test</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Plan.</strong> AI parts first (S): the allocations to zero with a test, codes for its errors, <code>test</code>
+names. Hand-written parts (M) wait for the author: they are where every panic and print is.</p>
+
+<h2 id="opengl-overlay">opengl/overlay</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<p>Lays out labels, notices and draw lists into quads of one atlas; fonts, emoji, icons, the measurer.
+84 % tested; the best-measured package (14 benchmarks).</p>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>high</td>
+<td><code>layout.go:243</code></td>
+<td><code>sort.SliceStable</code> with a closure: the one allocation of a frame (24 B)</td>
+<td><code>slices.SortStableFunc(placed, byDepth)</code> with a function declared once; <code>AllocsPerRun</code> test</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>fonts.go:41</code></td>
+<td><code>UseFonts</code> sets a package variable read by every painter: two windows cannot use two fonts, and tests interfere</td>
+<td>an option: <code>NewPainter(Fonts)</code>, <code>NewMeasurer(Fonts)</code>; zero value = the default fonts</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>fallback.go:26</code>, <code>fonts.go:52</code></td>
+<td><code>FontFolders</code> reads the home folder and <code>PrebuiltCharacters</code> builds a list at import: &ldquo;no package reads anything when imported&rdquo;</td>
+<td>functions (<code>DefaultFontFolders()</code>), or computed on first use</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>audit_*_test.go</code></td>
+<td><code>TestAuditFrameShape</code>, <code>BenchmarkAudit…</code>: named for the review that wrote them, not what they check; <code>t *testing.T</code>, <code>b *testing.B</code></td>
+<td>rename (<code>BenchmarkPaintingTwoThousandCommands</code>…)</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>colour.go</code></td>
+<td>7 text errors; <code>pictureIn</code> 44 lines</td>
+<td>codes; split</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td>API</td>
+<td>12 exported types (<code>Entry</code>, <code>Snapshot</code>, <code>LightQuad</code>, <code>Lighting</code>, <code>Pictures</code>, <code>Projection</code>…) of which go-ui uses <code>Frame</code>, <code>Painter</code>, <code>Measurer</code>, <code>Fonts</code>, <code>Quad</code></td>
+<td>the rest could be unexported or internal; measure with go-ui&rsquo;s backends first</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td><code>style.go:33–44</code></td>
+<td>pill styles as literals of many numbers</td>
+<td>named fields already; fine</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Plan (S).</strong> The allocation, fonts as an option, nothing read at import, test names, codes.</p>
+
+<h2 id="sceneplan">sceneplan</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<p>What a frame of a scene draws, for every backend. 63 % tested.</p>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>high</td>
+<td><code>commands.go:161</code>, <code>:176</code></td>
+<td><code>&amp;scene.Node{…}</code> for the water and its floor, every frame: the 2 allocations of <code>Plan</code> (288 B)</td>
+<td>keep both nodes in the <code>Planner</code> with the meshes, update their transform</td>
+</tr>
+
+<tr>
+<td>high</td>
+<td>API</td>
+<td>32 exported functions and 21 types used only by <code>opengl</code>, <code>metal</code>, <code>gles</code>, <code>ctr</code> (<code>InterleaveVertices</code>, <code>ScaleOrOne</code>, <code>ColorOrWhite</code>, <code>ElementCount</code>, <code>LineColor</code>, <code>MergeInstances</code>…). They read as public API to a newcomer and would be frozen by 1.0</td>
+<td><code>internal/sceneplan</code>; <code>opengl</code> keeps the aliases it exports</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>commands.go:157</code>, <code>:173</code></td>
+<td><code>{0.05, 0.22, 0.28, 0.85}</code>, <code>0.6</code>: magic colour and darkening</td>
+<td>named constants (<code>defaultDeepWater</code>, <code>waterFloorDarkening</code>)</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td>names</td>
+<td><code>ComputeCameraMatrices</code>, <code>BaseColorOf</code>, <code>ShallowColorOf</code>, <code>WaveLengthFor</code>: three styles of naming the same kind of function</td>
+<td>one style: what they give back (<code>CameraMatrices</code>, <code>BaseColor</code>, <code>ShallowColor</code>, <code>WaveLength</code>)</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td>tests</td>
+<td><code>t *testing.T</code> in 5 files; <code>TestBoxDistanceAndTransform</code></td>
+<td>sentence names</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Plan (M).</strong> Water nodes kept (S, with an <code>AllocsPerRun</code> test on <code>Plan</code>); move to <code>internal/</code>
+(S, mechanical); names (S).</p>
+
+<h2 id="scene">scene</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<p>The retained scene. 51 % tested.</p>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>medium</td>
+<td><code>overlay.go:191</code></td>
+<td><code>ColorFromHex</code> (returns <code>bool</code>) duplicates <code>draw2d.ParseHex</code> (returns an error)</td>
+<td>one: <code>draw2d.ParseHex</code> returns a colour both use, or <code>scene</code> takes <code>graphics.Vector</code> from it</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>overlay.go:36</code></td>
+<td><code>DefaultNoticeDuration = 6.0</code>: no unit in the name</td>
+<td><code>DefaultNoticeSeconds</code></td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>scene.go:78</code>, <code>:105</code></td>
+<td>changes are told two ways: <code>Dirty bool</code> on meshes and instances, and <code>Instances.MarkChanged</code></td>
+<td>keep both (they do different jobs) but say so in <code>Mesh</code>&rsquo;s comment</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td><code>MaterialKind</code></td>
+<td><code>KindLit</code>, <code>KindUnlit</code> (prefix) where <code>draw2d</code> writes <code>RectangleKind</code> (suffix)</td>
+<td>pick one convention for the module</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td>tests</td>
+<td><code>TestMeshTop</code>, <code>TestColorFromHex</code>, <code>t *testing.T</code></td>
+<td>sentences; R7&rsquo;s bounds and instances tests</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Plan (S).</strong> Names with units, one hex parser, tests of bounds and instances (R7).</p>
+
+<h2 id="scene-sample">scene/sample</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<p>The made-up island. Its numbers are its content. No plan.</p>
+
+<h2 id="draw2d">draw2d</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<p>Flat draw lists. 90 % tested; building 300 controls costs 31 µs and allocates nothing.</p>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>medium</td>
+<td><code>draw2d.go:66</code></td>
+<td><code>Hex</code> panics in a library</td>
+<td>rename <code>MustHex</code> (Go&rsquo;s convention for &ldquo;panics on bad constants&rdquo;, as <code>regexp.MustCompile</code>) so the name warns</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>draw2d.go:76,83</code>, <code>image.go</code></td>
+<td><code>fmt.Errorf</code></td>
+<td><code>draw2d.InvalidColour</code> code, wrapped</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td><code>draw2d.go:21</code></td>
+<td><code>Rect</code> is an abbreviation</td>
+<td><code>Rectangle</code> (the <code>List.Rectangle</code> method is in another namespace) — breaking: go-ui and go-engine use <code>Rect</code> widely, so weigh it</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td><code>list.go:39</code></td>
+<td><code>Command.Text</code> is the icon&rsquo;s name for icons</td>
+<td>document, or an <code>Icon string</code> field (costs 16 B per command)</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td><code>image.go:62</code></td>
+<td><code>ID()</code></td>
+<td><code>Identity()</code> reads odd; <code>ID</code> is universal: keep</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td>tests</td>
+<td><code>TestRectIntersect</code>, <code>t</code> in 2 files</td>
+<td>sentences</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Plan (S).</strong> <code>MustHex</code>, codes, test names. <code>Rect</code> → <code>Rectangle</code> only if the author wants the
+churn.</p>
+
+<h2 id="input">input</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<p>Keyboard, mouse, touch, pads, clipboard, cursor shape, back button. 96 % tested; reading a pad
+costs 19 ns and nothing.</p>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>medium</td>
+<td><code>input.go:130</code></td>
+<td><code>State</code> has 56 methods for two audiences: programs read, backends write (<code>SetKey</code>, <code>RepeatKey</code>, <code>AddCharacter</code>, <code>SetButton</code>, <code>MoveCursor</code>, <code>PressBack</code>, <code>PointerLeaves</code>, <code>AddScroll</code>, <code>SetPadButton</code>, touches…)</td>
+<td>keep one <code>State</code>, but move the writers onto a <code>Feed</code> view (<code>state.Feed().SetKey(…)</code>) or a separate <code>input/backend</code>-style type; <code>go doc input.State</code> then shows only what programs use</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>input.go:126</code></td>
+<td><code>MultiClickDistance = 4.0</code> has no unit</td>
+<td><code>MultiClickDistancePixels</code></td>
+</tr>
+
+<tr>
+<td>low</td>
+<td><code>input.go:152</code></td>
+<td><code>StickX, StickY</code>, <code>RightStickX</code> exported fields beside methods for everything else</td>
+<td>methods <code>Stick()</code>, <code>RightStick()</code> returning <code>(x, y)</code>, as <code>ctr.Reading</code> does</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td>tests</td>
+<td><code>TestPointerButtons</code>, <code>TestHasInput</code>, <code>t</code> in 4 files</td>
+<td>sentences</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Plan (M).</strong> The backend side (breaking for go-ui&rsquo;s adapters only), units, test names.</p>
+
+<h2 id="camera">camera</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<p>Orbit, walk and map controllers; rays through pixels. 66 % tested.</p>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>medium</td>
+<td><code>plan.go:19</code></td>
+<td><code>camera.Plan</code> (a map view) beside <code>sceneplan.Plan</code> (a frame): the same word for two things</td>
+<td><code>camera.Map</code></td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>orbit.go:29</code>, <code>plan.go:34</code>, <code>walk.go:27</code></td>
+<td><code>NewOrbit(…, sceneSize float64)</code>, <code>NewWalk(x, z, eyeHeight, speed float32)</code>: mixed float types</td>
+<td>one (float32, as <code>graphics</code>)</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>plan.go:36</code></td>
+<td><code>0.0005</code>, <code>3</code>, <code>0.12</code>, <code>4</code></td>
+<td>named constants</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td>—</td>
+<td><code>Camera</code> itself lives in <code>models</code> (see there)</td>
+<td><code>camera.Camera</code> if the author agrees</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Plan (S).</strong> Rename <code>Plan</code>, one float type, constants.</p>
+
+<h2 id="loaders">loaders</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<p>glTF 2.0 with the renderer&rsquo;s extras (AI), and the first <code>LoadGLB</code> ✋. 64 % tested.</p>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>high ✋</td>
+<td><code>glb.go:60</code></td>
+<td><code>LoadGLB</code> is 123 lines and prints every mesh and the bounds to stdout (<code>:103,119,159,180</code>); only reads float positions (<code>// Assuming float32 VEC3</code>)</td>
+<td>the author&rsquo;s: split, no prints; or rebuild it on the AI glTF reader that already handles every type</td>
+</tr>
+
+<tr>
+<td>medium ✋</td>
+<td><code>glb.go</code></td>
+<td><code>mIdx</code>, <code>pIdx</code>, <code>posIdx</code>, <code>idx</code>, <code>i</code></td>
+<td>whole words</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>gltf.go</code> (7), <code>sky.go</code> (3), <code>level_variation.go</code> (3)</td>
+<td>text errors: a program cannot tell &ldquo;file missing&rdquo; from &ldquo;bad glTF&rdquo;</td>
+<td><code>loaders.FileNotRead</code>, <code>loaders.InvalidGLTF</code>, <code>loaders.UnsupportedAccessor</code></td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td>API</td>
+<td><code>LoadGLB</code> (→ <code>models.Model</code>), <code>LoadScene</code> (→ <code>scene.Scene</code>), <code>ParseSceneGLB</code> (bytes → scene): a newcomer asks which</td>
+<td><code>LoadModel</code>, <code>LoadScene</code>, <code>ReadScene(io.Reader)</code></td>
+</tr>
+
+<tr>
+<td>low</td>
+<td>tests</td>
+<td><code>t</code> in 6 files</td>
+<td><code>test</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Plan (M).</strong> Codes, names, and the author&rsquo;s decision on <code>LoadGLB</code>.</p>
+
+<h2 id="viewer">viewer</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<p>The explorer. 40 % tested.</p>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>high</td>
+<td><code>viewer.go:74</code></td>
+<td><code>Run(world, options, title, update, loadingTime)</code>: <code>loadingTime</code> is only printed by benchmarks; go-ui&rsquo;s three callers pass <code>0</code></td>
+<td>put it in <code>Options.Benchmark</code> (or measure it inside)</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>options.go</code></td>
+<td>20 flat fields of three kinds (where to start looking, rendering switches, benchmark/capture)</td>
+<td>group: <code>Start</code> (<code>LookAt</code>, <code>Heading</code>, <code>Pitch</code>, <code>Walking</code>, <code>Map</code>), <code>Rendering</code>, <code>Measure</code></td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>options.go:74</code></td>
+<td><code>Usage</code>, a 300-character constant that repeats <code>RegisterFlags</code></td>
+<td>built from the flag set (<code>flags.PrintDefaults</code>)</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>viewer.go:127</code>, <code>:434</code></td>
+<td><code>log.Printf</code>, <code>fmt.Printf</code></td>
+<td>return the numbers (<code>viewer.Measurements</code>), print in <code>cmd/visor</code></td>
+</tr>
+
+<tr>
+<td>low</td>
+<td><code>options.go</code></td>
+<td>3 text errors</td>
+<td>codes</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Plan (M).</strong> <code>Run</code> without <code>loadingTime</code>, grouped options, no prints. Breaking for go-ui (3 calls).</p>
+
+<h2 id="windowloop">windowloop</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<p>The GLFW loop OpenGL and Metal share. 5.5 % tested.</p>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>medium</td>
+<td><code>loop.go:75</code>, <code>:81</code></td>
+<td><code>Clock = frameloop.Clock</code> and <code>RunUpdateStep</code> re-export <code>frameloop</code>: two names for one thing</td>
+<td>callers use <code>frameloop</code></td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>loop.go:20</code></td>
+<td><code>Run</code> 51 lines: events, pads, steps, drawing, cursor, fullscreen, title</td>
+<td>split (<code>pollOrWait</code>, <code>applyRequests</code>, <code>updateTitle</code>)</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>loop.go:66</code></td>
+<td><code>fmt.Sprintf</code> once a second for the title: fine, but the FPS title is a choice a program cannot turn off</td>
+<td>an option</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td>tests</td>
+<td>5.5 %: fullscreen and pads untested (R7)</td>
+<td>tests with a fake window interface</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Plan (S).</strong> Drop the re-exports, split <code>Run</code>, tests.</p>
+
+<h2 id="frameloop">frameloop</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<p>The fixed-step clock. Small, clear, tested. No plan.</p>
+
+<h2 id="gles">gles</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<p>Renderers written once for OpenGL ES (WebGL2, Android). 94 % tested.</p>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>medium</td>
+<td><code>functions.go</code></td>
+<td><code>Functions</code> mirrors GL (<code>Uniform1i</code>, <code>TexImage2D</code>, <code>RGBA</code>, <code>Enum</code>): against whole words, but a reader who knows GL finds them at once</td>
+<td><strong>author&rsquo;s call</strong>: keep GL&rsquo;s vocabulary at this boundary (recommended) and say why in the package comment</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td><code>program.go</code></td>
+<td>2 text errors</td>
+<td>codes</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="android">android</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<p>The NativeActivity: window, touches, keyboard, screen reader, and platform services.</p>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>medium</td>
+<td><code>gl.go:46–244</code></td>
+<td>49 exported GL functions without comments (<code>CreateShader</code>, <code>Uniform4f</code>…)</td>
+<td>they implement <code>gles.Functions</code>: unexport them behind a <code>GL</code> value, or one comment for the block</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>notify.go</code>, <code>palettes.go</code>, <code>feeling.go</code>, <code>services.go</code>, <code>video.go</code>, <code>yuv.go</code></td>
+<td>notifications, wallpaper palettes, haptics, sharing, links and video in a renderer package</td>
+<td>a second package, <code>android/system</code> (or into go-ui&rsquo;s platform layer): <code>android</code> keeps the window, input and accessibility</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>notify.go:16</code>, <code>palettes.go:20</code></td>
+<td><code>Channel</code> and <code>Tones</code> exported variables: anyone can change them</td>
+<td>constants or functions</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td><code>video.go</code></td>
+<td>text error</td>
+<td>code</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Plan (M).</strong> Split services out; comments; no mutable globals.</p>
+
+<h2 id="browser">browser</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<p>The canvas and loop for WebAssembly.</p>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>medium</td>
+<td><code>webgl.go:87–…</code></td>
+<td>~45 exported WebGL functions without comments</td>
+<td>as in <code>android</code></td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>canvas.go:31</code></td>
+<td><code>ErrNoCanvas</code>, <code>ErrNoWebGL2</code> are text sentinels</td>
+<td><code>browser.CanvasNotFound</code>, <code>browser.WebGL2Missing</code></td>
+</tr>
+
+<tr>
+<td>low</td>
+<td><code>canvas.go:307</code></td>
+<td><code>ClipboardText</code> without comment</td>
+<td>comment</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="ctr">ctr</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<p>The 3DS: screens, controls, flat and scene renderers. 93 % tested on the host.</p>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>high</td>
+<td>package name</td>
+<td><code>ctr</code> is the console&rsquo;s code name: a newcomer cannot guess it</td>
+<td><code>nintendo3ds</code> (matches the build tag)</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td>API</td>
+<td><code>OpenBottomScreen</code>, <code>BottomWidth</code>, <code>Slider3D</code>, <code>CStick</code>, <code>Circle</code>, <code>PICAMatrix</code>, <code>OrthographicTiltFromCitro3D</code>: device words in names; the guidelines ask for <code>OpenSecondScreen</code>, <code>RightStick</code>, <code>Stick</code>, <code>DepthSlider</code></td>
+<td>generic names; device words stay in comments</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>ctr.go:176</code>, <code>:214</code>; <code>controls_read.go:90</code></td>
+<td><code>ButtonsPressed()</code> and <code>Controls.Pressed</code>, <code>BeginFrame()</code> and <code>Screen.BeginFrame</code>: two ways to do one thing</td>
+<td>one each</td>
+</tr>
+
+<tr>
+<td>medium</td>
+<td><code>ctr.go</code> (5), <code>flat.go</code></td>
+<td>text errors</td>
+<td>codes</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td><code>ctr/shaders/*.shbin</code></td>
+<td>compiled shaders in git</td>
+<td>a script that builds them (picasso), or document why they are kept</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Plan (M).</strong> Rename the package and the device words (breaking for go-engine: ≈80 lines, mostly
+<code>Reading</code> and <code>Button…</code>; and go-ui: ≈20).</p>
+
+<h2 id="cmd">cmd/*</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>low</td>
+<td><code>cmd/triangle3ds/main.go:36</code>, <code>island3ds/main.go:37</code></td>
+<td><code>main</code> of 59 and 52 lines</td>
+<td>split into <code>openScreens</code>, <code>loop</code></td>
+</tr>
+
+<tr>
+<td>low</td>
+<td><code>cmd/visor</code></td>
+<td>0 % of statements tested (one test of its backends)</td>
+<td>fine for a <code>main</code></td>
+</tr>
+
+<tr>
+<td>low</td>
+<td><code>cmd/web-island/main.go:27</code></td>
+<td><code>log.Fatal</code></td>
+<td>fine in <code>main</code></td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="failure">failure</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<p>New in T1; copied from go-engine. Nothing to audit.</p>
+
+<h2 id="the-repository">The repository</h2>
+
+<blockquote>
+<p><strong>Phases A and B approved</strong> (2026-10-22).</p>
+</blockquote>
+
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Where</th>
+<th>What and why</th>
+<th>What to do</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>medium</td>
+<td><code>.gitignore</code></td>
+<td>lacks <code>.env</code> and <code>out/</code>, which every repository ignores</td>
+<td>add them</td>
+</tr>
+
+<tr>
+<td>low</td>
+<td><code>README.md</code></td>
+<td>the warning says APIs will break: true until 1.0</td>
+<td>T7</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="order-proposed">Order proposed</h2>
+
+<ol>
+<li><strong>A — No breaking change, frame cost first</strong> ☑ approved (S each): the four allocations to zero
+(<code>sceneplan</code>, <code>opengl/overlay</code>, <code>opengl</code>), each with an <code>AllocsPerRun</code> test; error codes in
+every AI package; no prints in AI code; test names.</li>
+<li><strong>B — Shrink the API without breaking outside</strong> ☑ approved (S–M): <code>internal/sceneplan</code>, shaders to their
+backends, <code>windowloop</code>&rsquo;s re-exports, <code>overlay</code> fonts as an option.</li>
+<li><strong>C — Breaking, AI-written</strong> (awaits the author) (M each): <code>viewer.Run</code>, <code>input</code>&rsquo;s backend side, <code>ctr</code> → <code>nintendo3ds</code>,
+<code>camera.Plan</code> → <code>Map</code>, <code>loaders</code> names, <code>android</code> services.</li>
+<li><strong>D — The author&rsquo;s code</strong> (✋, awaits the author): <code>Vec4</code>/<code>Mat4</code>, <code>models</code>, the panics and prints of the first OpenGL
+work, <code>LoadGLB</code>, the Metal stub. Decided by the author, ideally together, because they are
+1.0&rsquo;s largest break and go-ui and go-engine should move once.</li>
+</ol>
+
+<h2 id="phases-a-and-b-what-was-done-2026-10-22">Phases A and B: what was done (2026-10-22)</h2>
+
+<p><strong>A — nothing breaks, frame cost first.</strong></p>
+
+<ul>
+<li><strong>No frame allocates.</strong> Planning the sample island (the water&rsquo;s nodes are kept), laying out the
+overlay (labels sorted with <code>slices.SortStableFunc</code> into a reused buffer) and an OpenGL 2D frame
+with lights and a blurred backdrop (what GL fills through a pointer lives in the renderer;
+vertices go to GL as a pointer to their first value) all make no garbage. Each has a
+<code>testing.AllocsPerRun</code> test; the numbers are in the
+<a href="./project/optimization-plan">optimization plan</a>.</li>
+<li><strong>Error codes</strong> in every AI-written package, each in its <code>errors.go</code> with a test:
+<code>overlay.font-not-read</code>, <code>opengl.framebuffer-incomplete</code>, <code>windowloop.not-on-main-thread</code>,
+<code>gles.shader-not-compiled</code>/<code>program-not-linked</code>, <code>draw2d.invalid-colour</code>/<code>image-not-decoded</code>,
+<code>loaders.file-not-read</code>/<code>invalid-gltf</code>/<code>unsupported-accessor</code>/<code>image-not-decoded</code>,
+<code>viewer.invalid-point</code>/<code>unknown-backend</code>, <code>metal.unavailable</code>/<code>shader-not-compiled</code>/
+<code>nothing-captured</code>, <code>browser.canvas-not-found</code>/<code>webgl2-missing</code>, <code>android.video-not-opened</code>,
+<code>ctr.screen-not-opened</code>/<code>invalid-shader</code>/<code>invalid-vertices</code>/<code>out-of-linear-memory</code>.
+<code>metal.ErrUnavailable</code> stays as a deprecated alias of <code>metal.Unavailable</code> (Go UI checks it);
+<code>browser.ErrNoCanvas</code> and <code>ErrNoWebGL2</code> were used by nobody and were replaced.</li>
+<li><strong>No printing in AI-written library code.</strong> Problems a frame works around go to
+<code>overlay.Painter.Report</code>: the program&rsquo;s <code>Warn</code> when it sets one, otherwise the default <code>slog</code>
+logger, which the program chooses. The viewer shows the walking speed and the fall back from
+Metal as notices. (On the 3DS, <code>log/slog</code> adds about 42 KB to a <code>.3dsx</code>.)</li>
+<li><strong>Comments</strong> on every public name of the AI-written packages; tests call their <code>*testing.T</code>
+<code>test</code>; the overlay&rsquo;s <code>Audit…</code> benchmarks are named for what they measure.</li>
+<li><strong>Repository.</strong> <code>.gitignore</code> covers <code>.env</code>, <code>out/</code> and <code>.3dsx</code> builds. The compiled <code>.shbin</code>
+shaders stay in git: <code>go:embed</code> needs them, and a program importing <code>ctr</code> should not need
+devkitPro. <code>go generate ./ctr</code> assembles them again with picasso, byte for byte the same.</li>
+</ul>
+
+<p><strong>B — a smaller API, nothing broken outside.</strong></p>
+
+<ul>
+<li><code>sceneplan</code> is <code>internal/sceneplan</code>.</li>
+<li>The OpenGL shader sources live in <code>opengl</code>, unexported; what every backend&rsquo;s shaders agree on
+(<code>SharpPictureOffset</code>, <code>AmbientLight</code>, the backdrop blur&rsquo;s weights) is <code>internal/shading</code>.
+<code>graphics</code> keeps the maths (and the author&rsquo;s <code>shaders.go</code>).</li>
+<li><code>windowloop</code> no longer re-exports <code>frameloop</code>&rsquo;s clock.</li>
+</ul>
+
+<p>Go UI and go-engine build and pass their tests against this branch (desktop, WebAssembly and
+Android vetted; a go-engine game built for the 3DS).</p>
+
+<p><strong>Not done in A and B, and why.</strong></p>
+
+<ul>
+<li><em>Phase C (breaking):</em> fonts as an option of <code>NewPainter</code> (the global <code>UseFonts</code>, and
+<code>FontFolders</code>/<code>PrebuiltCharacters</code> read at import, would have to go, and Go UI calls
+<code>UseFonts</code>); <code>draw2d.Hex</code> → <code>MustHex</code>; <code>scene.ColorFromHex</code>, <code>DefaultNoticeSeconds</code>; the rest of
+the order&rsquo;s third step. Test names as sentences (<code>TestRectIntersect</code>…) wait for each package&rsquo;s
+rewrite.</li>
+<li><em>Not breaking, but not API:</em> splitting <code>windowloop.Run</code> and its tests (R7), <code>camera.Plan</code>&rsquo;s
+magic numbers.</li>
+<li><em>Phase D (the author&rsquo;s code), left as it was:</em> the panics and prints of <code>opengl/opengl.go</code>,
+<code>opengl/window.go</code> and <code>opengl/renderer.go</code> (<code>CompileShader</code>, <code>LinkProgram</code> and the texture
+loader return text errors, call <code>log.Fatalf</code> or panic); <code>loaders.LoadGLB</code>&rsquo;s prints and text
+error; the <code>metal</code> stub&rsquo;s &ldquo;Graphics API not implemented yet!&rdquo;; comments on the public names of
+<code>models</code>, <code>graphics</code> (<code>space.go</code>, <code>shaders.go</code>), <code>opengl/renderer.go</code> and the stubs; the root
+<code>main.go</code>. Two AI-written lines inside <code>opengl/opengl.go</code> were changed: <code>StartLoop</code>&rsquo;s
+main-thread error (marked for codes above) and its calls of <code>windowloop</code>&rsquo;s clock, now
+<code>frameloop</code>&rsquo;s.</li>
+</ul>
+
+<h2 id="phases-c-and-d-what-was-done-2026-10-22">Phases C and D: what was done (2026-10-22)</h2>
+
+<p><strong>The author&rsquo;s decisions</strong> (2026-10-22, &ldquo;arreglalas todas&rdquo;): phase C in full; phase D on his own
+code, which he explicitly authorised: <code>Vec4</code>/<code>Mat4</code> (and any shorthand like them) become <code>Vector</code>
+and <code>Matrix</code> with x, y, z, w kept; one- and two-letter names become words; <code>models</code> is dissolved
+by meaning (<code>camera.Camera</code>; <code>Application</code> split into the window&rsquo;s options, the callbacks and the
+state, with the smallest API); the <code>Renderer</code> contract stays, cleaned (names, comments, coded
+errors), its four stubs returning their not-implemented codes; the panics, <code>log.Fatalf</code> and prints
+of <code>opengl.go</code>, <code>window.go</code>, <code>renderer.go</code> and <code>LoadGLB</code> become coded errors; <code>LoadGLB</code> is split;
+the root <code>main.go</code> loses its panic and gains a <code>-backend</code> flag; the Metal stub returns a code;
+every public name has a comment; <code>gles</code>&rsquo;s GL vocabulary gets readable names, the GL name in each
+comment. On the 3DS the warning channel must not link <code>log/slog</code> (about 42 KB a <code>.3dsx</code>). And,
+over everything: never slower nor allocating more than the <em>After A/B</em> column, and no frame
+allocates.</p>
+
+<p><strong>C — breaking, AI-written.</strong></p>
+
+<ul>
+<li><code>overlay.UseFonts</code> and <code>FontFolders</code> are gone: <code>NewPainter(Fonts)</code>, <code>NewMeasurer(Fonts)</code> and every
+renderer that paints text take an <code>overlay.Fonts</code>, whose zero value is the default and whose
+<code>Folders</code> say where the system&rsquo;s fonts are (<code>DefaultFontFolders()</code>). Nothing is read or built at
+import; two windows can draw in two fonts.</li>
+<li><code>draw2d.Hex</code> is <code>MustHex</code> (Go&rsquo;s name for &ldquo;panics on a bad constant&rdquo;); <code>draw2d.Rect</code> is <code>Rectangle</code>.
+<code>scene.ColorFromHex</code> is gone (<code>draw2d.ParseHex</code> reads the short <code>#rgb</code> too).
+<code>DefaultNoticeDuration</code> is <code>DefaultNoticeSeconds</code>; the material kinds end in <code>Kind</code>
+(<code>LitKind</code>…), as <code>draw2d</code>&rsquo;s do.</li>
+<li><code>input.State</code> keeps what programs read; what backends write is on <code>state.Feed()</code>, a value that
+costs nothing (tested). The sticks are <code>Stick()</code> and <code>RightStick()</code>;
+<code>MultiClickDistancePixels</code> says its unit.</li>
+<li><code>viewer.Run(world, options, title, update)</code>: no <code>loadingTime</code> (it is <code>Measure.LoadingTime</code>).
+<code>Options</code> has <code>Start</code>, <code>Rendering</code> and <code>Measure</code>; a benchmark writes to <code>Measure.Output</code>; the
+<code>Usage</code> constant is gone (the flag set lists the flags).</li>
+<li><code>ctr</code> is <code>nintendo3ds</code>, with generic names: <code>OpenScreen</code>, <code>OpenSecondScreen</code>,
+<code>SecondScreenWidth</code>, <code>DepthSlider</code>, a reading&rsquo;s <code>Stick</code>/<code>RightStick</code>, <code>GPUMatrix</code>. One way each:
+<code>Reading.Pressed</code> (no <code>ButtonsPressed</code> nor <code>Controls.Pressed</code>), <code>BeginFrame</code>/<code>EndFrame</code> (no
+screen copies, no <code>BeginStereoFrame</code>). The 3DS examples&rsquo; <code>main</code>s are split.</li>
+<li><code>windowloop.Run</code> is a loop of small steps, tested (the resize follower, drawing on demand, when a
+frame is due, the title&rsquo;s count); the frames per second appear in the title only when the
+application sets <code>ShowFramesPerSecond</code>.</li>
+<li><code>camera.Plan</code> is <code>camera.Map</code>; its numbers and the orbit&rsquo;s are named; the constructors take
+<code>float32</code>.</li>
+<li><code>loaders.ParseSceneGLB</code> is <code>ReadScene(io.Reader)</code>.</li>
+<li><code>android.Notify</code> takes its <code>Channel</code> (<code>MessagesChannel()</code>); the palettes&rsquo; tones are private.</li>
+<li>Test names read as sentences where they did not.</li>
+<li>On the 3DS the overlay warns with a line on the console instead of <code>log/slog</code>.</li>
+</ul>
+
+<p><strong>D — the author&rsquo;s code, refactored at his request.</strong></p>
+
+<ul>
+<li><code>graphics.Vector</code> and <code>graphics.Matrix</code>, whole words inside (<code>radians</code>, <code>column</code>, <code>result</code>,
+<code>fieldOfViewRadians</code>); <code>Move</code> works in place; <code>Inverse</code> says when it fails; a test per
+transform. The author&rsquo;s shader sources moved into <code>opengl</code>, unexported.</li>
+<li><code>models</code> is gone: <code>window.Application</code> (<code>Options</code>, <code>Callbacks</code>, and the state: <code>Input</code>,
+<code>Renderer</code>, <code>Camera</code>, <code>Stop</code>, the matrices), <code>window.Backend</code> (<code>Run</code>, <code>Draw</code>; was <code>GraphicsApi</code>
+with <code>StartLoop</code>), <code>immediate.Renderer</code>/<code>Mesh</code>/<code>Model</code>, <code>camera.Camera</code>
+(<code>FieldOfViewRadians float32</code>, named defaults). The backend enumeration is gone: its only user
+was <code>main.go</code>, which now maps the <code>-backend</code> flag to a backend.</li>
+<li>The contract: <code>RenderObject</code> and <code>RenderModel</code> (were <code>Render3dObject</code>, <code>Render3dModel</code>),
+<code>centre</code> for a rectangle&rsquo;s or picture&rsquo;s position, a comment on every method. Every backend is
+<code>&lt;backend&gt;.Window</code> and <code>&lt;backend&gt;.Renderer</code>; the stubs, Metal&rsquo;s included
+(<code>metal.not-implemented</code>), return their codes, tested.</li>
+<li>OpenGL: <code>opengl.Window</code> returns <code>opengl.window-not-opened</code>, <code>context-not-started</code>,
+<code>shader-not-compiled</code>, <code>program-not-linked</code>, <code>frame-not-saved</code>; no panic, <code>log</code> or print; the
+hidden arrow-key and WASD camera is gone; the window fills the renderer and defaults itself;
+<code>SaveFrame</code> reads, flips and encodes in three functions; the immediate renderer keeps its
+buffers (a shape allocates nothing on the Go side) and says <code>opengl.not-implemented</code> for the
+shapes it cannot draw yet, instead of drawing nothing silently. The unused <code>newTexture</code> (the
+<code>log.Fatalf</code>) is gone.</li>
+<li><code>loaders.LoadModel</code> (was <code>LoadGLB</code>) is built on the glTF reader: small functions, every component
+type, no prints, coded errors.</li>
+<li><code>main.go</code>: <code>-backend opengl|software|vulkan|metal|webgpu</code>, errors returned and shown; the camera
+steps back so the triangle shows.</li>
+<li><code>gles.Functions</code> reads in words (<code>SetUniformInteger</code>, <code>SetTextureImage</code>,
+<code>DescribeVertexAttribute</code>), each comment naming the OpenGL ES function.</li>
+</ul>
+
+<p><strong>Performance.</strong> Every benchmark was run again (<a href="./project/optimization-plan"><em>After C/D</em></a>).
+Two had grown by 1–23 % from changes elsewhere in the binary, and were won back with real work:
+ordering a list&rsquo;s commands and moving a box&rsquo;s corners. Clipping quads now keeps those wholly
+inside the clip without copying them, and a character is looked up once in its own face instead
+of twice: a busy application frame paints in 124 µs (149 at A/B). No frame allocates, and the
+tests that say so pass.</p>
+
+<p><strong>3DS size.</strong> The <code>.3dsx</code> files, before → after: <code>triangle3ds</code> 458 444 → 412 712 bytes, <code>island3ds</code>
+518 028 → 472 092, <code>lamps3ds</code> 506 904 → 460 868, <code>lights3ds</code> 2 272 004 → 2 137 272
+(43–135 KB less each, most of it <code>log/slog</code>).</p>
+
+<p><strong>Not done, and why.</strong></p>
+
+<ul>
+<li><em><code>android</code>&rsquo;s platform services in a package of their own</em> (notifications, sharing, links,
+haptics, video, palettes). Their C talks to the activity&rsquo;s JNI side; moving it across two cgo
+packages means sharing C symbols and the Java VM between them, which builds but can only be
+proved on a phone, and no device was at hand. The mutable globals the audit named are gone.</li>
+<li><em>Metal</em>: the darwin files were changed by hand and read twice, but they cannot be compiled here
+(no macOS SDK): they need a build on the author&rsquo;s Mac.</li>
+<li><em><code>draw2d.Command.Text</code> doubling as an icon&rsquo;s name</em> is documented, not split: a second field would
+add 16 bytes to every command.</li>
+</ul>
+
+<hr>
+
+<p><a href="./proposals/towards-version-1">← Proposal 1</a></p>
+
+<p><strong>Since (2026-10-22, the author&rsquo;s decision):</strong> <code>camera.Camera</code> is <code>camera.Lens</code>: the package keeps its name, nothing repeats it, and a game&rsquo;s variables called <code>camera</code> no longer hide the package.</p>

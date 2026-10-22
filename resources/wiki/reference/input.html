@@ -15,12 +15,12 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 
 <h3 id="constants-and-variables">Constants and variables</h3>
 <pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
-	<span class="nx">MultiClickInterval</span> <span class="p">=</span> <span class="mi">400</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Millisecond</span>
-	<span class="nx">MultiClickDistance</span> <span class="p">=</span> <span class="mf">4.0</span>
+	<span class="nx">MultiClickInterval</span>       <span class="p">=</span> <span class="mi">400</span> <span class="o">*</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Millisecond</span>
+	<span class="nx">MultiClickDistancePixels</span> <span class="p">=</span> <span class="mf">4.0</span>
 <span class="p">)</span>
 </code></pre>
 
-<p>MultiClickInterval is the longest pause between the presses of a double click, and MultiClickDistance how far, in window coordinates, the pointer may move between them.</p>
+<p>MultiClickInterval is the longest pause between the presses of a double click, and MultiClickDistancePixels how far, in window coordinates, the pointer may move between them.</p>
 
 <h3 id="clipboard">Clipboard</h3>
 
@@ -45,6 +45,125 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 	<span class="nx">CursorMove</span>                                <span class="c1">// four arrows, over something to drag around</span>
 <span class="p">)</span>
 </code></pre>
+
+<h3 id="feed">Feed</h3>
+
+<p>Feed is the side of a State that backends write: the keys, buttons, pointer, touches and pads they hear of, and the end of each frame. Programs read the State itself and only need Feed to play input to their own code in tests. It is a small value that holds the state, so calling state.Feed() for each event costs nothing.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Feed</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (feed Feed) AddCharacter(character rune)</code></td>
+<td>AddCharacter records a character typed, after the keyboard layout and dead keys (called by the backend): &ldquo;ñ&rdquo; is one character, whatever keys made it.</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) AddHorizontalScroll(delta float64)</code></td>
+<td>AddHorizontalScroll records sideways scroll movement (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) AddScroll(delta float64)</code></td>
+<td>AddScroll records scroll movement (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) BackUnanswered() bool</code></td>
+<td>BackUnanswered tells whether the last step had a back that nobody took, once, for the backend to leave the program.</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) ClearTouches()</code></td>
+<td>ClearTouches takes every finger off, when the system takes a gesture over (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) EndFrame()</code></td>
+<td>EndFrame clears per-frame movement, presses, typed characters and claims; the backend calls it after each update step.</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) HasInput() bool</code></td>
+<td>HasInput tells whether anything arrived during this step: keys, characters, buttons, pointer movement or scrolling.</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) LiftTouch(finger int64)</code></td>
+<td>LiftTouch takes a finger off the screen (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) MoveCursor(x, y float64)</code></td>
+<td>MoveCursor records a new cursor position (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) PointerLeaves()</code></td>
+<td>PointerLeaves takes the pointer off the window once this frame ends: a finger lifted from a touch screen leaves nothing under it, so no control stays lit as if a mouse rested on it.</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) PressBack()</code></td>
+<td>PressBack records the system&rsquo;s back: a phone&rsquo;s back gesture or button (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) RepeatKey(key Key)</code></td>
+<td>RepeatKey records that the system repeated a held key (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) SetButton(button MouseButton, isDown bool)</code></td>
+<td>SetButton records a mouse button transition (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) SetKey(key Key, isDown bool)</code></td>
+<td>SetKey records a key transition (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) SetPadButton(button PadButton, isDown bool)</code></td>
+<td>SetPadButton records a game pad&rsquo;s button as held or let go; going down presses it this frame.</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) SetPadLayout(layout PadLayout)</code></td>
+<td>SetPadLayout records the layout of the pad being read; the backend sets it when a pad connects.</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) SetRightStick(x, y float64)</code></td>
+<td>SetRightStick sets a game pad&rsquo;s second stick (a New 3DS&rsquo;s C-stick, a pad&rsquo;s right one).</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) SetStick(x, y float64)</code></td>
+<td>SetStick sets a game pad&rsquo;s main stick (a console&rsquo;s circle pad, a pad&rsquo;s left stick), from -1 to 1 each way, right and up positive.</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) SetTouch(finger int64, x, y float64)</code></td>
+<td>SetTouch puts a finger down, or moves it (called by the backend).</td>
+</tr>
+
+<tr>
+<td><code>func (feed Feed) TakeFrameRequest() (time.Duration, bool)</code></td>
+<td>TakeFrameRequest returns how long until the frame asked for with RequestFrame (0 when it is due) and forgets the request; false when none was made (called by the backend).</td>
+</tr>
+</tbody>
+</table>
 
 <h3 id="gesture">Gesture</h3>
 
@@ -142,6 +261,8 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 <span class="p">)</span>
 </code></pre>
 
+<p>The keys a State knows, named for what is printed on them on a US keyboard; KeyUnknown is any other key.</p>
+
 <h3 id="mousebutton">MouseButton</h3>
 
 <p>MouseButton is a backend-independent mouse button.</p>
@@ -153,6 +274,8 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 	<span class="nx">MouseMiddle</span>
 <span class="p">)</span>
 </code></pre>
+
+<p>The mouse buttons a State knows.</p>
 
 <h3 id="padbutton">PadButton</h3>
 
@@ -177,6 +300,8 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 	<span class="nx">PadLeft</span>
 <span class="p">)</span>
 </code></pre>
+
+<p>The buttons of a game pad, in that one layout.</p>
 
 <h3 id="padlayout">PadLayout</h3>
 
@@ -228,12 +353,6 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 	<span class="nx">CursorDeltaY</span>     <span class="kt">float64</span>
 	<span class="nx">ScrollDelta</span>      <span class="kt">float64</span> <span class="c1">// vertical scroll since the previous frame</span>
 	<span class="nx">ScrollDeltaX</span>     <span class="kt">float64</span> <span class="c1">// horizontal scroll since the previous frame (trackpads, tilting wheels)</span>
-	<span class="c1">// StickX and StickY are a game pad&#39;s main stick where there is one (a console&#39;s circle pad, a</span>
-	<span class="c1">// pad&#39;s left stick), from -1 to 1 each way, right and up positive; 0 at rest or without one.</span>
-	<span class="c1">// RightStickX and RightStickY are its second stick (a New 3DS&#39;s C-stick, a pad&#39;s right one).</span>
-	<span class="c1">// The backend sets them every frame.</span>
-	<span class="nx">StickX</span><span class="p">,</span> <span class="nx">StickY</span>           <span class="kt">float64</span>
-	<span class="nx">RightStickX</span><span class="p">,</span> <span class="nx">RightStickY</span> <span class="kt">float64</span>
 
 	<span class="nx">FramebufferWidth</span>  <span class="kt">int</span> <span class="c1">// updated by the backend</span>
 	<span class="nx">FramebufferHeight</span> <span class="kt">int</span>
@@ -263,28 +382,8 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 </tr>
 
 <tr>
-<td><code>func (state *State) AddCharacter(character rune)</code></td>
-<td>AddCharacter records a character typed, after the keyboard layout and dead keys (called by the backend): &ldquo;ñ&rdquo; is one character, whatever keys made it.</td>
-</tr>
-
-<tr>
-<td><code>func (state *State) AddHorizontalScroll(delta float64)</code></td>
-<td>AddHorizontalScroll records sideways scroll movement (called by the backend).</td>
-</tr>
-
-<tr>
-<td><code>func (state *State) AddScroll(delta float64)</code></td>
-<td>AddScroll records scroll movement (called by the backend).</td>
-</tr>
-
-<tr>
 <td><code>func (state *State) AnyHeld() bool</code></td>
 <td>AnyHeld tells whether a key or a mouse button is being held down: a program that draws on demand keeps drawing while one is, since holding a key (walking forward) sends no events.</td>
-</tr>
-
-<tr>
-<td><code>func (state *State) BackUnanswered() bool</code></td>
-<td>BackUnanswered tells whether the last step had a back that nobody took, once, for the backend to leave the program.</td>
 </tr>
 
 <tr>
@@ -313,11 +412,6 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 </tr>
 
 <tr>
-<td><code>func (state *State) ClearTouches()</code></td>
-<td>ClearTouches takes every finger off, when the system takes a gesture over (called by the backend).</td>
-</tr>
-
-<tr>
 <td><code>func (state *State) Clicks(button MouseButton) int</code></td>
 <td>Clicks says which click a press during this step was: 1 for a single click, 2 for the second press of a double click, 3 for a triple click; 0 when the button was not pressed.</td>
 </tr>
@@ -343,8 +437,8 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 </tr>
 
 <tr>
-<td><code>func (state *State) EndFrame()</code></td>
-<td>EndFrame clears per-frame movement, presses, typed characters and claims; the backend calls it after each update step.</td>
+<td><code>func (state *State) Feed() Feed</code></td>
+<td>Feed returns the side of the state that backends write.</td>
 </tr>
 
 <tr>
@@ -353,18 +447,8 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 </tr>
 
 <tr>
-<td><code>func (state *State) HasInput() bool</code></td>
-<td>HasInput tells whether anything arrived during this step: keys, characters, buttons, pointer movement or scrolling.</td>
-</tr>
-
-<tr>
 <td><code>func (state *State) KeyboardClaimed() bool</code></td>
 <td>KeyboardClaimed tells whether an interface claimed the keyboard during this step.</td>
-</tr>
-
-<tr>
-<td><code>func (state *State) LiftTouch(finger int64)</code></td>
-<td>LiftTouch takes a finger off the screen (called by the backend).</td>
 </tr>
 
 <tr>
@@ -375,11 +459,6 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 <tr>
 <td><code>func (state *State) MouseClaimed() bool</code></td>
 <td>MouseClaimed tells whether an interface claimed the mouse during this step.</td>
-</tr>
-
-<tr>
-<td><code>func (state *State) MoveCursor(x, y float64)</code></td>
-<td>MoveCursor records a new cursor position (called by the backend).</td>
 </tr>
 
 <tr>
@@ -398,23 +477,8 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 </tr>
 
 <tr>
-<td><code>func (state *State) PointerLeaves()</code></td>
-<td>PointerLeaves takes the pointer off the window once this frame ends: a finger lifted from a touch screen leaves nothing under it, so no control stays lit as if a mouse rested on it.</td>
-</tr>
-
-<tr>
-<td><code>func (state *State) PressBack()</code></td>
-<td>PressBack records the system&rsquo;s back: a phone&rsquo;s back gesture or button (called by the backend).</td>
-</tr>
-
-<tr>
 <td><code>func (state *State) Pressed(key Key) bool</code></td>
 <td>Pressed reports whether a key went down during this frame.</td>
-</tr>
-
-<tr>
-<td><code>func (state *State) RepeatKey(key Key)</code></td>
-<td>RepeatKey records that the system repeated a held key (called by the backend).</td>
 </tr>
 
 <tr>
@@ -423,8 +487,8 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 </tr>
 
 <tr>
-<td><code>func (state *State) SetButton(button MouseButton, isDown bool)</code></td>
-<td>SetButton records a mouse button transition (called by the backend).</td>
+<td><code>func (state *State) RightStick() (x, y float64)</code></td>
+<td>RightStick is a game pad&rsquo;s second stick (a New 3DS&rsquo;s C-stick, a pad&rsquo;s right one), as Stick.</td>
 </tr>
 
 <tr>
@@ -443,33 +507,13 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 </tr>
 
 <tr>
-<td><code>func (state *State) SetKey(key Key, isDown bool)</code></td>
-<td>SetKey records a key transition (called by the backend).</td>
-</tr>
-
-<tr>
-<td><code>func (state *State) SetPadButton(button PadButton, isDown bool)</code></td>
-<td>SetPadButton records a game pad&rsquo;s button as held or let go; going down presses it this frame.</td>
-</tr>
-
-<tr>
-<td><code>func (state *State) SetPadLayout(layout PadLayout)</code></td>
-<td>SetPadLayout records the layout of the pad being read; the backend sets it when a pad connects.</td>
-</tr>
-
-<tr>
-<td><code>func (state *State) SetTouch(finger int64, x, y float64)</code></td>
-<td>SetTouch puts a finger down, or moves it (called by the backend).</td>
+<td><code>func (state *State) Stick() (x, y float64)</code></td>
+<td>Stick is a game pad&rsquo;s main stick where there is one (a console&rsquo;s circle pad, a pad&rsquo;s left stick), from -1 to 1 each way, right and up positive; 0 at rest or without one.</td>
 </tr>
 
 <tr>
 <td><code>func (state *State) TakeBack() bool</code></td>
 <td>TakeBack answers the system&rsquo;s back in this step, and tells whether there was one to answer: the part of the program the person is in goes back (a dialog closes, a screen returns to the one before) and returns true; any other part asking after it gets false.</td>
-</tr>
-
-<tr>
-<td><code>func (state *State) TakeFrameRequest() (time.Duration, bool)</code></td>
-<td>TakeFrameRequest returns how long until the frame asked for with RequestFrame (0 when it is due) and forgets the request; false when none was made (called by the backend).</td>
 </tr>
 
 <tr>

@@ -19,7 +19,7 @@ canvas) share them, so an application advances the same way everywhere.</p>
 
 <tbody>
 <tr>
-<td><code>func RunUpdateStep(app *models.Application, step float64) error</code></td>
+<td><code>func RunUpdateStep(app *window.Application, step float64) error</code></td>
 <td>RunUpdateStep calls the application update once and clears the per-step input deltas.</td>
 </tr>
 </tbody>
@@ -48,12 +48,12 @@ canvas) share them, so an application advances the same way everywhere.</p>
 </tr>
 
 <tr>
-<td><code>func (clock *Clock) Advance(app *models.Application) error</code></td>
+<td><code>func (clock *Clock) Advance(app *window.Application) error</code></td>
 <td>Advance runs as many update steps as the elapsed time requires (at most a quarter of a second worth, so a stall does not trigger a long catch-up).</td>
 </tr>
 
 <tr>
-<td><code>func (clock *Clock) BorrowStep(app *models.Application) error</code></td>
+<td><code>func (clock *Clock) BorrowStep(app *window.Application) error</code></td>
 <td>BorrowStep runs one update step now, taken from the time of the next one: for a frame that has to be laid out again (the window changed size) before a step is due.</td>
 </tr>
 
@@ -68,7 +68,7 @@ canvas) share them, so an application advances the same way everywhere.</p>
 </tr>
 
 <tr>
-<td><code>func (clock *Clock) StepOnce(app *models.Application) error</code></td>
+<td><code>func (clock *Clock) StepOnce(app *window.Application) error</code></td>
 <td>StepOnce runs exactly one update step and restarts the clock from now: a loop that draws on demand runs one step per frame, and after a long sleep the clock would otherwise catch up in a burst.</td>
 </tr>
 

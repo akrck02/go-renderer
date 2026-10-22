@@ -1,0 +1,96 @@
+<h1 id="webgpu">webgpu</h1>
+<pre><code class="language-go"><span class="kn">import</span> <span class="s">&#34;github.com/akrck02/go-renderer/webgpu&#34;</span>
+</code></pre>
+
+<p>Package webgpu is the beginning of a WebGPU backend for the immediate-mode
+Renderer contract. It will be built later: until then every function returns
+NotImplemented.</p>
+
+<h3 id="constants-and-variables">Constants and variables</h3>
+<pre><code class="language-go"><span class="kd">var</span> <span class="nx">NotImplemented</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;webgpu.not-implemented&#34;</span><span class="p">,</span> <span class="s">&#34;the WebGPU backend is not implemented yet&#34;</span><span class="p">)</span>
+</code></pre>
+
+<p>NotImplemented is what every function of the WebGPU backend returns until it is built.</p>
+
+<h3 id="renderer">Renderer</h3>
+
+<p>Renderer will draw the immediate-mode shapes (immediate.Renderer) with WebGPU. Until it is built, every method returns NotImplemented.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Renderer</span> <span class="kd">struct</span><span class="p">{}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (Renderer) RenderImage(space graphics.CoordinateSpace, bytes []byte, centre graphics.Vector, width float32, height float32, shader *string) error</code></td>
+<td>RenderImage returns NotImplemented.</td>
+</tr>
+
+<tr>
+<td><code>func (Renderer) RenderModel(space graphics.CoordinateSpace, model *immediate.Model, shader *string) error</code></td>
+<td>RenderModel returns NotImplemented.</td>
+</tr>
+
+<tr>
+<td><code>func (Renderer) RenderObject(space graphics.CoordinateSpace, vertices []graphics.Vector, shader *string) error</code></td>
+<td>RenderObject returns NotImplemented.</td>
+</tr>
+
+<tr>
+<td><code>func (Renderer) RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error</code></td>
+<td>RenderPolygon returns NotImplemented.</td>
+</tr>
+
+<tr>
+<td><code>func (Renderer) RenderRectangle(space graphics.CoordinateSpace, centre graphics.Vector, width float32, height float32, shader *string, fill bool) error</code></td>
+<td>RenderRectangle returns NotImplemented.</td>
+</tr>
+
+<tr>
+<td><code>func (Renderer) RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error</code></td>
+<td>RenderTriangle returns NotImplemented.</td>
+</tr>
+
+<tr>
+<td><code>func (Renderer) SetMatrices(projection, view, model graphics.Matrix)</code></td>
+<td>SetMatrices does nothing yet: it has no error to return.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="window">Window</h3>
+
+<p>Window will open a window drawn with the WebGPU immediate-mode renderer. Until it is built, every method returns NotImplemented.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Window</span> <span class="kd">struct</span><span class="p">{}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (*Window) Draw(app *window.Application) error</code></td>
+<td>Draw returns NotImplemented.</td>
+</tr>
+
+<tr>
+<td><code>func (*Window) Run(app *window.Application) error</code></td>
+<td>Run returns NotImplemented.</td>
+</tr>
+</tbody>
+</table>
+
+<hr>
+
+<p><a href="./reference/packages">← Reference</a> · generated from the doc comments by <code>generate.py</code></p>

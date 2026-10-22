@@ -10,43 +10,25 @@ GPU instancing and the environment (sun, sky, fog, water).</p>
 geometry or instances later and mark them Dirty so the backend uploads them
 again.</p>
 
-<h3 id="functions">Functions</h3>
-
-<table>
-<thead>
-<tr>
-<th>Function</th>
-<th></th>
-</tr>
-</thead>
-
-<tbody>
-<tr>
-<td><code>func ColorFromHex(text string) (graphics.Vec4, bool)</code></td>
-<td>ColorFromHex reads a colour written as on a web page, &ldquo;#rrggbb&rdquo; (or &ldquo;#rgb&rdquo;), into the 0–1 range with alpha 1.</td>
-</tr>
-</tbody>
-</table>
-
 <h3 id="constants-and-variables">Constants and variables</h3>
 <pre><code class="language-go"><span class="kd">const</span> <span class="nx">DefaultMaximumNotices</span> <span class="p">=</span> <span class="mi">5</span>
 </code></pre>
 
 <p>DefaultMaximumNotices is how many notices are shown at once when the overlay does not say.</p>
-<pre><code class="language-go"><span class="kd">const</span> <span class="nx">DefaultNoticeDuration</span> <span class="p">=</span> <span class="mf">6.0</span>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">DefaultNoticeSeconds</span> <span class="p">=</span> <span class="mf">6.0</span>
 </code></pre>
 
-<p>DefaultNoticeDuration is how long a notice stays when the overlay does not say.</p>
+<p>DefaultNoticeSeconds is how long a notice stays, in seconds, when the overlay does not say.</p>
 
 <h3 id="clouds">Clouds</h3>
 
 <p>Clouds is a procedural cloud layer.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Clouds</span> <span class="kd">struct</span> <span class="p">{</span>
 	<span class="nx">Coverage</span> <span class="kt">float32</span> <span class="c1">// share of the sky covered (0 = clear)</span>
-	<span class="nx">Color</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
-	<span class="nx">Speed</span>    <span class="kt">float32</span>       <span class="c1">// drift in cloud-texture units per second</span>
-	<span class="nx">Scale</span>    <span class="kt">float32</span>       <span class="c1">// size of the cloud pattern (larger = bigger clouds)</span>
-	<span class="nx">Offset</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// how far the clouds have drifted (x, z), moved by a simulation</span>
+	<span class="nx">Color</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
+	<span class="nx">Speed</span>    <span class="kt">float32</span>         <span class="c1">// drift in cloud-texture units per second</span>
+	<span class="nx">Scale</span>    <span class="kt">float32</span>         <span class="c1">// size of the cloud pattern (larger = bigger clouds)</span>
+	<span class="nx">Offset</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// how far the clouds have drifted (x, z), moved by a simulation</span>
 <span class="p">}</span>
 </code></pre>
 
@@ -55,9 +37,9 @@ again.</p>
 <p>Constellation is a figure of stars joined by lines, fixed to the night sky.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Constellation</span> <span class="kd">struct</span> <span class="p">{</span>
 	<span class="nx">Name</span>  <span class="kt">string</span>
-	<span class="nx">Stars</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// directions as seen at midnight (the sun at the lowest point of its circle)</span>
-	<span class="nx">Lines</span> <span class="p">[][</span><span class="mi">2</span><span class="p">]</span><span class="kt">int</span>        <span class="c1">// pairs of indices into Stars</span>
-	<span class="nx">Color</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">Stars</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// directions as seen at midnight (the sun at the lowest point of its circle)</span>
+	<span class="nx">Lines</span> <span class="p">[][</span><span class="mi">2</span><span class="p">]</span><span class="kt">int</span>          <span class="c1">// pairs of indices into Stars</span>
+	<span class="nx">Color</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
 <span class="p">}</span>
 </code></pre>
 
@@ -67,17 +49,17 @@ again.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Daylight</span> <span class="kd">struct</span> <span class="p">{</span>
 	<span class="nx">DayAmount</span>      <span class="kt">float32</span> <span class="c1">// 1 in full day, 0 at night</span>
 	<span class="nx">TwilightAmount</span> <span class="kt">float32</span> <span class="c1">// 1 with the sun on the horizon, 0 far from it</span>
-	<span class="nx">Zenith</span>         <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
-	<span class="nx">Horizon</span>        <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
-	<span class="nx">Fog</span>            <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
-	<span class="nx">SkyLight</span>       <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// ambient light from the sky</span>
-	<span class="nx">GroundLight</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// ambient light bounced from the ground</span>
-	<span class="nx">SunVisible</span>     <span class="kt">float32</span>       <span class="c1">// how much of the sun disc is above the horizon</span>
-	<span class="nx">LightDirection</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// towards the light that shades the scene</span>
-	<span class="nx">LightColor</span>     <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
-	<span class="nx">MoonDirection</span>  <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
-	<span class="nx">StarRotation</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Mat4</span> <span class="c1">// turns world directions into celestial directions</span>
-	<span class="nx">Brightness</span>     <span class="kt">float32</span>       <span class="c1">// overall light level (1 day, low at night) for materials that are not lit</span>
+	<span class="nx">Zenith</span>         <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
+	<span class="nx">Horizon</span>        <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
+	<span class="nx">Fog</span>            <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
+	<span class="nx">SkyLight</span>       <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// ambient light from the sky</span>
+	<span class="nx">GroundLight</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// ambient light bounced from the ground</span>
+	<span class="nx">SunVisible</span>     <span class="kt">float32</span>         <span class="c1">// how much of the sun disc is above the horizon</span>
+	<span class="nx">LightDirection</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// towards the light that shades the scene</span>
+	<span class="nx">LightColor</span>     <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
+	<span class="nx">MoonDirection</span>  <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
+	<span class="nx">StarRotation</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Matrix</span> <span class="c1">// turns world directions into celestial directions</span>
+	<span class="nx">Brightness</span>     <span class="kt">float32</span>         <span class="c1">// overall light level (1 day, low at night) for materials that are not lit</span>
 <span class="p">}</span>
 </code></pre>
 
@@ -94,21 +76,21 @@ again.</p>
 
 <p>Environment holds the lighting and atmosphere.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Environment</span> <span class="kd">struct</span> <span class="p">{</span>
-	<span class="nx">SunDirection</span>  <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// towards the sun, normalized</span>
-	<span class="nx">SunColor</span>      <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
-	<span class="nx">SkyZenith</span>     <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
-	<span class="nx">SkyHorizon</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
-	<span class="nx">GroundAmbient</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">SunDirection</span>  <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// towards the sun, normalized</span>
+	<span class="nx">SunColor</span>      <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
+	<span class="nx">SkyZenith</span>     <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
+	<span class="nx">SkyHorizon</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
+	<span class="nx">GroundAmbient</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
 	<span class="nx">Ambient</span>       <span class="kt">float32</span>
-	<span class="nx">FogColor</span>      <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">FogColor</span>      <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
 	<span class="nx">FogNear</span>       <span class="kt">float32</span>
 	<span class="nx">FogFar</span>        <span class="kt">float32</span> <span class="c1">// 0 = no fog</span>
 	<span class="nx">Water</span>         <span class="o">*</span><span class="nx">Water</span>
 	<span class="nx">VerticalScale</span> <span class="kt">float32</span> <span class="c1">// vertical exaggeration applied to the whole scene (0 = 1)</span>
 	<span class="nx">Sky</span>           <span class="o">*</span><span class="nx">Sky</span>    <span class="c1">// sky over the day and night (nil = DefaultSky)</span>
 	<span class="nx">Wind</span>          <span class="nx">Wind</span>
-	<span class="nx">Snow</span>          <span class="o">*</span><span class="nx">Snow</span>         <span class="c1">// snow on the ground above a height (nil = none)</span>
-	<span class="nx">FoliageTint</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// colour foliage materials take (alpha = how much; zero = none): the season&#39;s</span>
+	<span class="nx">Snow</span>          <span class="o">*</span><span class="nx">Snow</span>           <span class="c1">// snow on the ground above a height (nil = none)</span>
+	<span class="nx">FoliageTint</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// colour foliage materials take (alpha = how much; zero = none): the season&#39;s</span>
 <span class="p">}</span>
 </code></pre>
 
@@ -149,7 +131,7 @@ again.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">HeaderLine</span> <span class="kd">struct</span> <span class="p">{</span>
 	<span class="nx">Icon</span> <span class="kt">string</span>
 	<span class="nx">Text</span> <span class="kt">string</span>
-	<span class="nx">Tint</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// colour of the icon (alpha 0 = the default text colour)</span>
+	<span class="nx">Tint</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// colour of the icon (alpha 0 = the default text colour)</span>
 <span class="p">}</span>
 </code></pre>
 
@@ -157,8 +139,8 @@ again.</p>
 
 <p>Instances draws a mesh many times with a transform and a color per instance. After changing instances, a simulation either sets Dirty (instances were added or removed, or most of them changed: everything is prepared again) or lists the changed ones with MarkChanged (only those are uploaded). The backend clears both.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Instances</span> <span class="kd">struct</span> <span class="p">{</span>
-	<span class="nx">Transforms</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Mat4</span>
-	<span class="nx">Colors</span>     <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">Transforms</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Matrix</span>
+	<span class="nx">Colors</span>     <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
 	<span class="nx">Dirty</span>      <span class="kt">bool</span>
 	<span class="nx">Changed</span>    <span class="p">[]</span><span class="kt">int</span> <span class="c1">// indices changed since the last draw</span>
 	<span class="nx">GPU</span>        <span class="kt">any</span>
@@ -188,15 +170,15 @@ again.</p>
 	<span class="c1">// Node anchors the label to a node: it follows the node&#39;s world transform and hides with it.</span>
 	<span class="c1">// When nil, the label stands at Point.</span>
 	<span class="nx">Node</span>  <span class="o">*</span><span class="nx">Node</span>
-	<span class="nx">Point</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// world position of the anchor when there is no Node</span>
+	<span class="nx">Point</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// world position of the anchor when there is no Node</span>
 	<span class="c1">// Height lifts the label above its anchor, in world units (the top of a box, for example).</span>
 	<span class="nx">Height</span> <span class="kt">float32</span>
 	<span class="nx">Text</span>   <span class="kt">string</span>
 	<span class="nx">Icon</span>   <span class="kt">string</span> <span class="c1">// name of a Lucide icon (https://lucide.dev), drawn before the text or alone</span>
 	<span class="nx">Badge</span>  <span class="kt">string</span> <span class="c1">// a short text in a small pill under the label</span>
-	<span class="c1">// Tint colours the icon and the badge, as a screen colour (see ColorFromHex); alpha 0 = the</span>
+	<span class="c1">// Tint colours the icon and the badge, as a screen colour (see draw2d.ParseHex); alpha 0 = the</span>
 	<span class="c1">// default text colour. The text itself stays dark on a light pill, so it always reads well.</span>
-	<span class="nx">Tint</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">Tint</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
 	<span class="nx">Hidden</span> <span class="kt">bool</span>
 <span class="p">}</span>
 </code></pre>
@@ -254,7 +236,7 @@ again.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Material</span> <span class="kd">struct</span> <span class="p">{</span>
 	<span class="nx">Name</span>        <span class="kt">string</span>
 	<span class="nx">Kind</span>        <span class="nx">MaterialKind</span>
-	<span class="nx">BaseColor</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// linear RGBA multiplied with vertex colors</span>
+	<span class="nx">BaseColor</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// linear RGBA multiplied with vertex colors</span>
 	<span class="nx">DoubleSided</span> <span class="kt">bool</span>
 	<span class="nx">Transparent</span> <span class="kt">bool</span>
 	<span class="c1">// Additive adds the surface&#39;s light to what is behind it instead of covering it: beams, sparks,</span>
@@ -275,11 +257,11 @@ again.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">MaterialKind</span> <span class="kt">int</span>
 </code></pre>
 <pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
-	<span class="nx">KindLit</span>       <span class="nx">MaterialKind</span> <span class="p">=</span> <span class="kc">iota</span> <span class="c1">// diffuse sun + sky ambient + fog</span>
-	<span class="nx">KindUnlit</span>                         <span class="c1">// flat color (+ fog)</span>
-	<span class="nx">KindWater</span>                         <span class="c1">// animated water surface</span>
-	<span class="nx">KindWaterfall</span>                     <span class="c1">// animated, translucent falling water</span>
-	<span class="nx">KindGlow</span>                          <span class="c1">// lit by day; shines with its own colour in the dark (glowing flowers, lamps)</span>
+	<span class="nx">LitKind</span>       <span class="nx">MaterialKind</span> <span class="p">=</span> <span class="kc">iota</span> <span class="c1">// diffuse sun + sky ambient + fog</span>
+	<span class="nx">UnlitKind</span>                         <span class="c1">// flat color (+ fog)</span>
+	<span class="nx">WaterKind</span>                         <span class="c1">// animated water surface</span>
+	<span class="nx">WaterfallKind</span>                     <span class="c1">// animated, translucent falling water</span>
+	<span class="nx">GlowKind</span>                          <span class="c1">// lit by day; shines with its own colour in the dark (glowing flowers, lamps)</span>
 <span class="p">)</span>
 </code></pre>
 
@@ -310,7 +292,7 @@ again.</p>
 
 <tbody>
 <tr>
-<td><code>func (mesh *Mesh) Bounds() (minimum, maximum graphics.Vec4)</code></td>
+<td><code>func (mesh *Mesh) Bounds() (minimum, maximum graphics.Vector)</code></td>
 <td>Bounds returns the box around the mesh positions in its own coordinates.</td>
 </tr>
 
@@ -345,7 +327,7 @@ again.</p>
 </tr>
 
 <tr>
-<td><code>func (mesh *Mesh) Vertex(index uint32) graphics.Vec4</code></td>
+<td><code>func (mesh *Mesh) Vertex(index uint32) graphics.Vector</code></td>
 <td>Vertex returns the position of a vertex.</td>
 </tr>
 
@@ -360,9 +342,9 @@ again.</p>
 
 <p>Moon is a disc with phases that also lights the scene at night.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Moon</span> <span class="kd">struct</span> <span class="p">{</span>
-	<span class="nx">Direction</span>      <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// towards the moon; zero = opposite the sun</span>
-	<span class="nx">AngularSize</span>    <span class="kt">float32</span>       <span class="c1">// apparent diameter in radians</span>
-	<span class="nx">Color</span>          <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">Direction</span>      <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// towards the moon; zero = opposite the sun</span>
+	<span class="nx">AngularSize</span>    <span class="kt">float32</span>         <span class="c1">// apparent diameter in radians</span>
+	<span class="nx">Color</span>          <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
 	<span class="nx">Phase</span>          <span class="kt">float32</span> <span class="c1">// 0 new, 0.25 first quarter, 0.5 full, 0.75 last quarter</span>
 	<span class="nx">LightIntensity</span> <span class="kt">float32</span> <span class="c1">// moonlight on the scene at full moon, relative to the sun</span>
 <span class="p">}</span>
@@ -373,13 +355,13 @@ again.</p>
 <p>Node places a mesh (optionally instanced) in the world; children inherit the transform.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Node</span> <span class="kd">struct</span> <span class="p">{</span>
 	<span class="nx">Name</span>      <span class="kt">string</span>
-	<span class="nx">Transform</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Mat4</span>
+	<span class="nx">Transform</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Matrix</span>
 	<span class="nx">Mesh</span>      <span class="o">*</span><span class="nx">Mesh</span>
 	<span class="nx">Instances</span> <span class="o">*</span><span class="nx">Instances</span>
 	<span class="nx">Children</span>  <span class="p">[]</span><span class="o">*</span><span class="nx">Node</span>
 	<span class="nx">Hidden</span>    <span class="kt">bool</span>
 	<span class="c1">// Moving says the node&#39;s transform changes often, turning as well as moving: a ship, a</span>
-	<span class="c1">// vehicle. Backends that work a mesh&#39;s light out once for each way it is turned (ctr, on the</span>
+	<span class="c1">// vehicle. Backends that work a mesh&#39;s light out once for each way it is turned (nintendo3ds, on the</span>
 	<span class="c1">// 3DS) light a moving node on the GPU every frame instead.</span>
 	<span class="nx">Moving</span> <span class="kt">bool</span>
 	<span class="nx">Tags</span>   <span class="kd">map</span><span class="p">[</span><span class="kt">string</span><span class="p">]</span><span class="kt">any</span> <span class="c1">// free data from the file (glTF extras) for the application</span>
@@ -392,8 +374,8 @@ again.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Notice</span> <span class="kd">struct</span> <span class="p">{</span>
 	<span class="nx">Icon</span>  <span class="kt">string</span>
 	<span class="nx">Text</span>  <span class="kt">string</span>
-	<span class="nx">Tint</span>  <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// colour of the icon (alpha 0 = the default text colour)</span>
-	<span class="nx">Added</span> <span class="kt">float64</span>       <span class="c1">// the overlay&#39;s Clock when the notice was added</span>
+	<span class="nx">Tint</span>  <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// colour of the icon (alpha 0 = the default text colour)</span>
+	<span class="nx">Added</span> <span class="kt">float64</span>         <span class="c1">// the overlay&#39;s Clock when the notice was added</span>
 <span class="p">}</span>
 </code></pre>
 
@@ -410,7 +392,7 @@ again.</p>
 	<span class="c1">// Clock counts the seconds the overlay has been shown; the viewer advances it at every step.</span>
 	<span class="c1">// Notices remember the clock reading when they were added, so they fade on the viewer&#39;s time.</span>
 	<span class="nx">Clock</span> <span class="kt">float64</span>
-	<span class="c1">// NoticeDuration is how long a notice stays, in seconds, fading at the end; 0 = DefaultNoticeDuration.</span>
+	<span class="c1">// NoticeDuration is how long a notice stays, in seconds, fading at the end; 0 = DefaultNoticeSeconds.</span>
 	<span class="nx">NoticeDuration</span> <span class="kt">float64</span>
 	<span class="c1">// MaximumNotices is how many notices are shown at once, the newest; 0 = DefaultMaximumNotices.</span>
 	<span class="nx">MaximumNotices</span> <span class="kt">int</span>
@@ -432,7 +414,7 @@ again.</p>
 </tr>
 
 <tr>
-<td><code>func (overlay *Overlay) AddNotice(icon, text string, tint graphics.Vec4)</code></td>
+<td><code>func (overlay *Overlay) AddNotice(icon, text string, tint graphics.Vector)</code></td>
 <td>AddNotice shows a message now; it fades after the notice duration.</td>
 </tr>
 
@@ -474,6 +456,8 @@ again.</p>
 <span class="p">)</span>
 </code></pre>
 
+<p>The patterns; PatternNone leaves the material&rsquo;s colour as it is.</p>
+
 <table>
 <thead>
 <tr>
@@ -494,9 +478,9 @@ again.</p>
 
 <p>PointLight is a light that shines from a point all around, as a lamp: full within Inner of it and fading smoothly to nothing at Outer (world units), the same fade as draw2d&rsquo;s point lights. It lights the lit materials it reaches, besides the sun and the sky; each draw takes the few that reach it (see sceneplan.MaxLightsPerDraw).</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">PointLight</span> <span class="kd">struct</span> <span class="p">{</span>
-	<span class="nx">Position</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// in the world, before the vertical scale</span>
+	<span class="nx">Position</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// in the world, before the vertical scale</span>
 	<span class="c1">// Color is linear, like the materials&#39;; its alpha is the intensity (1 a plain lamp, up to a few).</span>
-	<span class="nx">Color</span>        <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">Color</span>        <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
 	<span class="nx">Inner</span><span class="p">,</span> <span class="nx">Outer</span> <span class="kt">float32</span>
 <span class="p">}</span>
 </code></pre>
@@ -532,7 +516,7 @@ again.</p>
 </tr>
 
 <tr>
-<td><code>func (scene *Scene) Bounds() (minimum, maximum graphics.Vec4)</code></td>
+<td><code>func (scene *Scene) Bounds() (minimum, maximum graphics.Vector)</code></td>
 <td>Bounds returns the world-space bounding box of all meshes (instances counted by their origin).</td>
 </tr>
 
@@ -547,12 +531,12 @@ again.</p>
 </tr>
 
 <tr>
-<td><code>func (scene *Scene) Walk(visit func(node *Node, world graphics.Mat4))</code></td>
+<td><code>func (scene *Scene) Walk(visit func(node *Node, world graphics.Matrix))</code></td>
 <td>Walk visits every visible node with its world transform.</td>
 </tr>
 
 <tr>
-<td><code>func (scene *Scene) WorldTransforms(wanted map[*Node]bool) map[*Node]graphics.Mat4</code></td>
+<td><code>func (scene *Scene) WorldTransforms(wanted map[*Node]bool) map[*Node]graphics.Matrix</code></td>
 <td>WorldTransforms returns the world transform of every visible node, for anchoring labels.</td>
 </tr>
 </tbody>
@@ -562,11 +546,11 @@ again.</p>
 
 <p>Sky describes what is drawn behind the scene over a whole day and how it lights the scene at night. The height of the sun decides the time of day: above the horizon it is day, near it twilight, below it night. By default the sky is procedural: the day gradient of the environment, a twilight glow, and a night with stars, a moon and constellations; clouds float over both. Images can replace the day or the night (a skybox): an equirectangular panorama or six cube faces.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Sky</span> <span class="kd">struct</span> <span class="p">{</span>
-	<span class="nx">NightZenith</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// sky color straight up at night (linear)</span>
-	<span class="nx">NightHorizon</span>  <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// sky color at the horizon at night</span>
-	<span class="nx">NightAmbient</span>  <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// sky light that reaches the scene at night</span>
-	<span class="nx">TwilightColor</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// horizon glow at dawn and dusk</span>
-	<span class="nx">CelestialPole</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// axis the night sky turns around (towards the visible pole)</span>
+	<span class="nx">NightZenith</span>   <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// sky color straight up at night (linear)</span>
+	<span class="nx">NightHorizon</span>  <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// sky color at the horizon at night</span>
+	<span class="nx">NightAmbient</span>  <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// sky light that reaches the scene at night</span>
+	<span class="nx">TwilightColor</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// horizon glow at dawn and dusk</span>
+	<span class="nx">CelestialPole</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// axis the night sky turns around (towards the visible pole)</span>
 
 	<span class="nx">Stars</span>          <span class="nx">Stars</span>
 	<span class="nx">Moon</span>           <span class="o">*</span><span class="nx">Moon</span> <span class="c1">// nil = no moon</span>
@@ -624,9 +608,9 @@ again.</p>
 
 <p>Snow covers the lit surfaces that face up above a height, blending over a band.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Snow</span> <span class="kd">struct</span> <span class="p">{</span>
-	<span class="nx">Level</span> <span class="kt">float32</span>       <span class="c1">// world units, before vertical scaling</span>
-	<span class="nx">Blend</span> <span class="kt">float32</span>       <span class="c1">// world units over which the snow fades in</span>
-	<span class="nx">Color</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// linear</span>
+	<span class="nx">Level</span> <span class="kt">float32</span>         <span class="c1">// world units, before vertical scaling</span>
+	<span class="nx">Blend</span> <span class="kt">float32</span>         <span class="c1">// world units over which the snow fades in</span>
+	<span class="nx">Color</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// linear</span>
 <span class="p">}</span>
 </code></pre>
 
@@ -655,8 +639,8 @@ again.</p>
 <p>Water is an infinite animated water plane.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Water</span> <span class="kd">struct</span> <span class="p">{</span>
 	<span class="nx">Level</span>      <span class="kt">float32</span>
-	<span class="nx">Shallow</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
-	<span class="nx">Deep</span>       <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span>
+	<span class="nx">Shallow</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
+	<span class="nx">Deep</span>       <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
 	<span class="nx">Size</span>       <span class="kt">float32</span>         <span class="c1">// extent of the plane (world units)</span>
 	<span class="nx">WaveLength</span> <span class="kt">float32</span>         <span class="c1">// length of the main wave (world units); 0 = Size / 2000</span>
 	<span class="nx">FloorDepth</span> <span class="kt">float32</span>         <span class="c1">// depth of an opaque floor drawn under the water; 0 = Size / 500</span>
@@ -706,8 +690,8 @@ again.</p>
 
 <p>Wind moves clouds and bends plants (materials with Sway).</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Wind</span> <span class="kd">struct</span> <span class="p">{</span>
-	<span class="nx">Direction</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span> <span class="c1">// horizontal direction the wind blows towards</span>
-	<span class="nx">Strength</span>  <span class="kt">float32</span>       <span class="c1">// 0 calm, 1 strong</span>
+	<span class="nx">Direction</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span> <span class="c1">// horizontal direction the wind blows towards</span>
+	<span class="nx">Strength</span>  <span class="kt">float32</span>         <span class="c1">// 0 calm, 1 strong</span>
 <span class="p">}</span>
 </code></pre>
 

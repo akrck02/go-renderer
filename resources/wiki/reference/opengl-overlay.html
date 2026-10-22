@@ -21,21 +21,17 @@ the OpenGL scene renderer uploads its atlas and draws its quads.</p>
 
 <tbody>
 <tr>
-<td><code>func UseFonts(fonts Fonts)</code></td>
-<td>UseFonts makes text draw in other fonts, such as a brand&rsquo;s.</td>
+<td><code>func DefaultFontFolders() []string</code></td>
+<td>DefaultFontFolders are where the system&rsquo;s fonts are looked for by default, for characters the program&rsquo;s fonts lack: Android&rsquo;s own, or the usual folders of the desktop&rsquo;s system.</td>
 </tr>
 </tbody>
 </table>
 
 <h3 id="constants-and-variables">Constants and variables</h3>
-<pre><code class="language-go"><span class="kd">var</span> <span class="nx">FontFolders</span> <span class="p">=</span> <span class="nf">defaultFontFolders</span><span class="p">()</span>
+<pre><code class="language-go"><span class="kd">var</span> <span class="nx">FontNotRead</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;overlay.font-not-read&#34;</span><span class="p">,</span> <span class="s">&#34;a font could not be read&#34;</span><span class="p">)</span>
 </code></pre>
 
-<p>FontFolders are where the system&rsquo;s fonts are looked for, for characters the program&rsquo;s fonts lack: Android&rsquo;s own, or the usual folders of the desktop&rsquo;s system.</p>
-<pre><code class="language-go"><span class="kd">var</span> <span class="nx">PrebuiltCharacters</span> <span class="p">=</span> <span class="nf">prebuiltCharacters</span><span class="p">()</span>
-</code></pre>
-
-<p>PrebuiltCharacters are drawn into the atlas as soon as a face is first used, so the first frames with text do not stop to draw them one by one: ASCII, Latin-1 and a few common signs.</p>
+<p>FontNotRead is returned by NewPainter and NewMeasurer when one of the fonts (the default ones or those given in Fonts) is not a TrueType or OpenType font.</p>
 
 <h3 id="atlas">Atlas</h3>
 
@@ -81,9 +77,15 @@ the OpenGL scene renderer uploads its atlas and draws its quads.</p>
 
 <h3 id="fonts">Fonts</h3>
 
-<p>Fonts are the TrueType or OpenType fonts text is drawn with, one per weight; an empty one keeps the default (the Go fonts).</p>
+<p>Fonts are what a Painter or a Measurer draws text with: the TrueType or OpenType fonts, one per weight, and where the system&rsquo;s fonts are, for the characters they lack. The zero value is the default: the Go fonts and the system&rsquo;s usual folders.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Fonts</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Regular, Medium, Bold and Mono are a font file&#39;s bytes each; an empty one keeps the Go font</span>
+	<span class="c1">// of that weight.</span>
 	<span class="nx">Regular</span><span class="p">,</span> <span class="nx">Medium</span><span class="p">,</span> <span class="nx">Bold</span><span class="p">,</span> <span class="nx">Mono</span> <span class="p">[]</span><span class="kt">byte</span>
+	<span class="c1">// Folders are where the system&#39;s fonts and colour emoji are looked for, for characters the</span>
+	<span class="c1">// fonts lack. nil is DefaultFontFolders(); an empty, non-nil list looks nowhere, and such</span>
+	<span class="c1">// characters are drawn as a question mark.</span>
+	<span class="nx">Folders</span> <span class="p">[]</span><span class="kt">string</span>
 <span class="p">}</span>
 </code></pre>
 
@@ -91,10 +93,10 @@ the OpenGL scene renderer uploads its atlas and draws its quads.</p>
 
 <p>Frame is what the layout needs to know about the frame being drawn.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Frame</span> <span class="kd">struct</span> <span class="p">{</span>
-	<span class="nx">ViewProjection</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Mat4</span> <span class="c1">// the camera&#39;s projection times its view</span>
-	<span class="nx">Width</span><span class="p">,</span> <span class="nx">Height</span>  <span class="kt">int</span>           <span class="c1">// framebuffer size in pixels</span>
-	<span class="nx">Scale</span>          <span class="kt">float32</span>       <span class="c1">// framebuffer pixels per layout pixel: 2 on a high-density screen; 0 = 1</span>
-	<span class="nx">VerticalScale</span>  <span class="kt">float32</span>       <span class="c1">// the scene&#39;s vertical exaggeration; 0 = 1</span>
+	<span class="nx">ViewProjection</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Matrix</span> <span class="c1">// the camera&#39;s projection times its view</span>
+	<span class="nx">Width</span><span class="p">,</span> <span class="nx">Height</span>  <span class="kt">int</span>             <span class="c1">// framebuffer size in pixels</span>
+	<span class="nx">Scale</span>          <span class="kt">float32</span>         <span class="c1">// framebuffer pixels per layout pixel: 2 on a high-density screen; 0 = 1</span>
+	<span class="nx">VerticalScale</span>  <span class="kt">float32</span>         <span class="c1">// the scene&#39;s vertical exaggeration; 0 = 1</span>
 <span class="p">}</span>
 </code></pre>
 
@@ -140,8 +142,8 @@ the OpenGL scene renderer uploads its atlas and draws its quads.</p>
 
 <tbody>
 <tr>
-<td><code>func NewMeasurer() (*Measurer, error)</code></td>
-<td>NewMeasurer parses the embedded fonts.</td>
+<td><code>func NewMeasurer(chosen Fonts) (*Measurer, error)</code></td>
+<td>NewMeasurer reads the fonts (Fonts{} for the default ones).</td>
 </tr>
 
 <tr>
@@ -161,7 +163,9 @@ the OpenGL scene renderer uploads its atlas and draws its quads.</p>
 <p>Painter lays out overlays frame after frame, keeping the atlas and the fonts between frames. It is used from one goroutine, the one that draws.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Painter</span> <span class="kd">struct</span> <span class="p">{</span>
 
-	<span class="c1">// Warn reports a problem once (an unknown icon name); nil = the standard logger.</span>
+	<span class="c1">// Warn hears of a problem once (an unknown icon name, lights a GPU cannot draw); nil = the</span>
+	<span class="c1">// default slog logger, which the program sets with slog.SetDefault (on the Nintendo 3DS, a line</span>
+	<span class="c1">// on the console).</span>
 	<span class="nx">Warn</span> <span class="kd">func</span><span class="p">(</span><span class="nx">message</span> <span class="kt">string</span><span class="p">)</span>
 
 	<span class="c1">// Has unexported fields.</span>
@@ -178,8 +182,8 @@ the OpenGL scene renderer uploads its atlas and draws its quads.</p>
 
 <tbody>
 <tr>
-<td><code>func NewPainter() (*Painter, error)</code></td>
-<td>NewPainter parses the embedded fonts and prepares an empty atlas.</td>
+<td><code>func NewPainter(chosen Fonts) (*Painter, error)</code></td>
+<td>NewPainter reads the fonts (Fonts{} for the default ones) and prepares an empty atlas.</td>
 </tr>
 
 <tr>
@@ -198,13 +202,18 @@ the OpenGL scene renderer uploads its atlas and draws its quads.</p>
 </tr>
 
 <tr>
-<td><code>func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]graphics.Mat4, frame Frame) []Quad</code></td>
+<td><code>func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]graphics.Matrix, frame Frame) []Quad</code></td>
 <td>Paint lays out the whole overlay for a frame.</td>
 </tr>
 
 <tr>
 <td><code>func (painter *Painter) Pictures() *Pictures</code></td>
 <td>Pictures returns the image pictured quads read their colours from.</td>
+</tr>
+
+<tr>
+<td><code>func (painter *Painter) Report(message string)</code></td>
+<td>Report tells the program of a problem a frame works around: through Warn when the program set it, otherwise through warnByDefault (the default slog logger; a line on the console on the Nintendo 3DS, where slog would cost about 42 KB of every program).</td>
 </tr>
 
 <tr>
@@ -275,7 +284,7 @@ the OpenGL scene renderer uploads its atlas and draws its quads.</p>
 
 <tbody>
 <tr>
-<td><code>func Project(point graphics.Vec4, frame Frame) Projection</code></td>
+<td><code>func Project(point graphics.Vector, frame Frame) Projection</code></td>
 <td>Project places a world point on screen, applying the vertical exaggeration as the scene shaders do.</td>
 </tr>
 </tbody>

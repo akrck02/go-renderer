@@ -1,0 +1,162 @@
+<h1 id="1-go-renderer-towards-1-0">1. Go Renderer towards 1.0</h1>
+
+<blockquote>
+<p>Status: building · Author&rsquo;s approval: proposal ☑ (2026-10-22, with the decisions below) plan ☑ (2026-10-22, &ldquo;Si&rdquo;)</p>
+</blockquote>
+
+<h2 id="why">Why</h2>
+
+<p>Go Renderer is an educational experiment at v0.2.0. Games and libraries (Go UI, go-engine) already
+build on it, so a version they can trust would help them. Today nothing promises that:</p>
+
+<ul>
+<li><strong>Little is checked automatically.</strong> Until this branch, no workflow ran the tests. The OpenGL
+scene renderer is never checked by a program: its tests skip without a display, and a frame
+that came out wrong would pass.</li>
+<li><strong>Stub backends.</strong> <code>software</code>, <code>vulkan</code> and <code>webgpu</code> are hand-written beginnings of the
+immediate-mode contract: every call returns &ldquo;Graphics API not implemented yet!&rdquo;. A newcomer cannot tell that from the folder list.</li>
+<li><strong>Metal is tried by hand.</strong> It runs on the author&rsquo;s Mac only, and newer SDKs (macOS 27)
+deprecate <code>MTLStorageModeManaged</code>, which its textures use.</li>
+<li><strong>No releases since v0.2.0.</strong> Paths, strokes, fullscreen, pads and <code>DrawOver</code> landed on main
+since; nothing says what may break between versions.</li>
+<li><strong>AI-written parts are pending review.</strong> The README says so; a 1.0 should not.</li>
+<li><strong>Central packages are thinly tested.</strong> Coverage of <code>windowloop</code> is 6 %, <code>graphics</code> 46 % and
+<code>scene</code> 50 %.</li>
+</ul>
+
+<h2 id="what">What</h2>
+
+<table>
+<thead>
+<tr>
+<th>Id</th>
+<th>Requirement</th>
+<th>Check</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>R1</td>
+<td>Format, vet and tests run on every push and pull request, and the browser packages are vetted for WebAssembly</td>
+<td><code>.github/workflows/test.yaml</code> runs green. <strong>Done by <code>feature/docs-and-ci</code></strong></td>
+</tr>
+
+<tr>
+<td>R2</td>
+<td>The OpenGL scene renderer is tested automatically: frames of the sample island drawn under Mesa without a display (Xvfb or a surfaceless context), or by a software painter, compared with reference pictures within a tolerance</td>
+<td>a CI job that draws and compares; a test fails when a pass is broken on purpose</td>
+</tr>
+
+<tr>
+<td>R3</td>
+<td>Each stub backend (<code>software</code>, <code>vulkan</code>, <code>webgpu</code>) is implemented, removed, or marked unavailable with an error code and a line in the docs. They are the author&rsquo;s hand-written code: he decides which</td>
+<td>the author&rsquo;s decision recorded here; the docs&rsquo; backend table says the state of each</td>
+</tr>
+
+<tr>
+<td>R4</td>
+<td>Metal is tried on a real Mac before each release, and builds without deprecation warnings on the newest SDK (<code>MTLStorageModeManaged</code> replaced where it is deprecated)</td>
+<td>a checklist line in each release&rsquo;s notes; a clean build log on macOS 27</td>
+</tr>
+
+<tr>
+<td>R5</td>
+<td>Releases are tagged with notes, and 1.0 names what stays stable (the <code>Renderer</code> contract? <code>scene</code>, <code>draw2d</code>, <code>input</code>?) and what may still change. This ties to go-engine&rsquo;s <a href="https://github.com/akrck02/go-engine/blob/main/docs/proposals/14-stable-releases.md" target="_blank">proposal 14</a>, which needs Go Renderer released first</td>
+<td>the release page; a page on what 1.0 promises</td>
+</tr>
+
+<tr>
+<td>R6</td>
+<td>The author reviews the AI-written parts listed in the README, and the <em>AI disclosure</em> says what was reviewed</td>
+<td>the README&rsquo;s disclosure, updated</td>
+</tr>
+
+<tr>
+<td>R7</td>
+<td>The central packages are tested where a test proves behaviour (<code>windowloop</code>&rsquo;s fullscreen and pads, <code>graphics</code>&rsquo; transforms, <code>scene</code>&rsquo;s bounds and instances); no tests written only to raise a percentage</td>
+<td>the new tests&rsquo; names say what must be true; coverage is reported, not targeted</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="out-of-scope">Out of scope</h2>
+
+<ul>
+<li>New features (fills of paths, areas in Metal and the browser): 1.0 is about trust, not reach.</li>
+<li>Building Android and the 3DS on every push: they need the NDK and a TinyGo fork; go-engine&rsquo;s
+proposal 14 covers them for the whole family.</li>
+<li>Changing the hand-written <code>Renderer</code> contract or backends without the author.</li>
+</ul>
+
+<h2 id="decisions">Decisions</h2>
+
+<p>The author&rsquo;s answers (2026-10-22):</p>
+
+<ol>
+<li><strong>The stub backends</strong> (<code>software</code>, <code>vulkan</code>, <code>webgpu</code>) stay, to be built later. The docs say so,
+and every function returns an error that says it is not implemented, with a code.</li>
+<li><strong>What 1.0 promises: every package.</strong> So every package first passes an audit against the
+author&rsquo;s guidelines (llm-guidelines), and its API is made simple and efficient.</li>
+<li><strong>Frames in CI:</strong> Mesa&rsquo;s software driver under Xvfb.</li>
+<li><strong>The review:</strong> the author reviews every AI-written part once the audit is done and what it
+asks is simplified or rewritten.</li>
+<li><strong>The Mac:</strong> a MacBook Air M4, where Metal has been tried so far.</li>
+</ol>
+
+<p>And above all: <strong>performance and a simple API (developer experience) are imperative.</strong> Every
+change of this proposal is weighed by both: an API a newcomer reads in minutes, and frames that
+cost no more than today, measured.</p>
+
+<h2 id="design">Design</h2>
+
+<p><strong>One error package.</strong> Go Renderer has no error codes today (33 files build errors from text). A
+small package, <code>failure</code> as in go-engine (<code>Define</code>, <code>Wrap</code>, codes compared with <code>errors.Is</code>), is
+shared by every package; each declares its codes in its own <code>errors.go</code>. The stub backends return
+<code>&lt;backend&gt;.not-implemented</code>.</p>
+
+<p><strong>The audit, before any rewrite.</strong> A reviewer reads each package against llm-guidelines (names,
+size of functions, early returns, error codes, generic names, nothing allocated per frame,
+comments, tests that prove behaviour, docs) and against the two imperatives: is the API the
+smallest that does the job, and what does a frame cost. Its findings go in one document,
+<code>docs/proposals/1-audit.md</code>, package by package, each finding with a severity and what to do.
+Nothing is changed while auditing: the author reads the findings and the plan of each package
+before it is rewritten.</p>
+
+<p><strong>Measured performance.</strong> Before rewriting, the benchmarks that exist (34) are run and kept as a
+baseline, with new ones where a frame&rsquo;s hot path has none (the scene renderer&rsquo;s frame, a 2D list
+of three hundred controls, a pad&rsquo;s reading). A change that makes a frame slower or allocate more
+does not merge.</p>
+
+<p><strong>Frames compared in CI.</strong> A test draws the sample island and a 2D list under Xvfb with Mesa
+(llvmpipe) and compares them with reference pictures in the repository, within a tolerance; a
+pass broken on purpose fails it. The CI installs Mesa and runs it under <code>xvfb-run</code>.</p>
+
+<p><strong>Metal.</strong> The AI-written Metal renderers use <code>MTLStorageModeShared</code> where <code>Managed</code> is deprecated
+(it does nothing on Apple silicon); the author&rsquo;s hand-written stubs are left as they are. The
+release checklist names the MacBook Air M4.</p>
+
+<p><strong>1.0&rsquo;s promise.</strong> A page, <code>docs/6-project/3-version-1.md</code>, says that every package is stable from
+1.0: what that means (no breaking change without a major version), how a change is deprecated
+first, and that releases carry notes (go-engine&rsquo;s proposal 14).</p>
+
+<h2 id="tasks">Tasks</h2>
+
+<ul>
+<li>[x] T1 — the <code>failure</code> package; the stub backends return <code>&lt;backend&gt;.not-implemented</code>; the docs&rsquo; backend table and each stub&rsquo;s page say they come later · R3 · a test per stub that every function returns its code</li>
+<li>[x] T2 — baseline benchmarks, and new ones for a frame&rsquo;s hot paths · <code>*_bench_test.go</code> · imperatives · the numbers kept in <code>docs/6-project/1-optimization-plan.md</code></li>
+<li>[x] T3 — the audit, every package, findings in <a href="./proposals/audit"><code>docs/proposals/1-audit.md</code></a> (written 2026-10-22; awaits the author) with a plan per package · all · R6, R7 · <strong>stop: the author reads it and approves each package&rsquo;s plan</strong></li>
+<li>[ ] T4 — rewrite package by package as the audit&rsquo;s approved plans say, each with its tests and docs, never slower nor allocating more than the baseline · per package · R6, R7 · tests, benchmarks against the baseline
+
+<ul>
+<li>Phases A and B of the <a href="./proposals/audit">audit&rsquo;s order</a> approved by the author for every package (2026-10-22, &ldquo;Si&rdquo;): A, no breaking change and a frame&rsquo;s cost first; B, a smaller API that breaks nothing outside. Phases C (breaking, AI-written) and D (his hand-written code) approved too (2026-10-22, &ldquo;arreglalas todas&rdquo;), with the decisions recorded in the audit&rsquo;s <a href="./proposals/audit">phases C and D</a>: all of C; in D, <code>Vector</code>/<code>Matrix</code> and whole words, <code>models</code> dissolved by meaning, the contract kept but cleaned, coded errors instead of panics and prints, <code>LoadModel</code> in small functions, a <code>-backend</code> flag, readable <code>gles</code> names; and on the 3DS a warning path that does not link <code>log/slog</code>. Never slower nor allocating more than the <em>After A/B</em> column.</li>
+</ul></li>
+<li>[ ] T5 — frames compared in CI under Mesa · <code>opengl</code>, <code>.github/workflows</code> · R2 · the job; a broken pass fails it</li>
+<li>[ ] T6 — Metal: <code>MTLStorageModeShared</code> where deprecated · <code>metal</code> (AI-written parts) · R4 · builds clean on the newest SDK (on the author&rsquo;s Mac); checklist line</li>
+<li>[ ] T7 — the 1.0 page, error codes in the troubleshooting chapter, the README&rsquo;s status · docs · R5 · the pages</li>
+<li>[ ] T8 — the author&rsquo;s review of every AI-written part; the AI disclosure updated · R6 · the README</li>
+</ul>
+
+<h2 id="result">Result</h2>
+
+<p>Building. R1 is done; T1 added the <code>failure</code> package and the stub backends&rsquo; codes; T2 kept the benchmarks&rsquo; baseline in the optimization plan; T3&rsquo;s <a href="./proposals/audit">audit</a> is written; the author approved its phases A and B, which are <a href="./proposals/audit">done</a>: no frame allocates, AI-written errors have codes, and <code>sceneplan</code> and the shader sources left the public API. Phases C and D, approved the same day, are <a href="./proposals/audit">done</a> too, pending his review: the API speaks in whole words, <code>models</code> is <code>window</code>, <code>immediate</code> and <code>camera.Camera</code>, <code>ctr</code> is <code>nintendo3ds</code>, and no library code panics or prints.</p>

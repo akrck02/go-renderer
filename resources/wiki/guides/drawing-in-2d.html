@@ -1,0 +1,218 @@
+<h1 id="drawing-in-2d">✏️ Drawing in 2D</h1>
+
+<p>This guide is for a Go programmer who wants flat shapes on screen: a card, a label, a line
+drawing. At the end you will know every command of a <code>draw2d.List</code> and how to show one.</p>
+
+<p align="center"><img alt="A white card with a soft shadow, a yellow bulb icon and the words 'The lighthouse is lit', next to the outline of a lighthouse drawn as a dark line" src="./images/guide-flat.png" width="480"></p>
+
+<h2 id="the-shortest-program">The shortest program</h2>
+
+<p>A <code>draw2d.List</code> is plain data: a list of shapes for one frame. A renderer paints it. Here a window
+draws nothing else, so it uses <code>opengl.FlatRenderer</code>:</p>
+<pre><code class="language-go"><span class="kn">package</span> <span class="nx">main</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+	<span class="s">&#34;log&#34;</span>
+	<span class="s">&#34;runtime&#34;</span>
+
+	<span class="s">&#34;github.com/akrck02/go-renderer/draw2d&#34;</span>
+	<span class="s">&#34;github.com/akrck02/go-renderer/input&#34;</span>
+	<span class="s">&#34;github.com/akrck02/go-renderer/opengl&#34;</span>
+	<span class="s">&#34;github.com/akrck02/go-renderer/opengl/overlay&#34;</span>
+	<span class="s">&#34;github.com/akrck02/go-renderer/window&#34;</span>
+<span class="p">)</span>
+
+<span class="kd">func</span> <span class="nf">init</span><span class="p">()</span> <span class="p">{</span> <span class="nx">runtime</span><span class="p">.</span><span class="nf">LockOSThread</span><span class="p">()</span> <span class="p">}</span> <span class="c1">// windows live on the main thread</span>
+
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+	<span class="kd">var</span> <span class="nx">renderer</span> <span class="o">*</span><span class="nx">opengl</span><span class="p">.</span><span class="nx">FlatRenderer</span>
+	<span class="kd">var</span> <span class="nx">drawing</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">List</span>
+	<span class="kd">var</span> <span class="nx">tower</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Path</span>
+	<span class="nx">tower</span><span class="p">.</span><span class="nf">MoveTo</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+	<span class="nx">tower</span><span class="p">.</span><span class="nf">LineTo</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+	<span class="nx">tower</span><span class="p">.</span><span class="nf">LineTo</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+	<span class="nx">tower</span><span class="p">.</span><span class="nf">LineTo</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+	<span class="nx">tower</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
+
+	<span class="nx">app</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">window</span><span class="p">.</span><span class="nx">Application</span><span class="p">{</span>
+		<span class="nx">Options</span><span class="p">:</span> <span class="nx">window</span><span class="p">.</span><span class="nx">Options</span><span class="p">{</span><span class="nx">Title</span><span class="p">:</span> <span class="s">&#34;Drawing in 2D&#34;</span><span class="p">,</span> <span class="nx">Width</span><span class="p">:</span> <span class="mi">480</span><span class="p">,</span> <span class="nx">Height</span><span class="p">:</span> <span class="mi">240</span><span class="p">,</span> <span class="nx">FlatOnly</span><span class="p">:</span> <span class="kc">true</span><span class="p">},</span>
+		<span class="nx">Input</span><span class="p">:</span>   <span class="nx">input</span><span class="p">.</span><span class="nf">NewState</span><span class="p">(),</span>
+	<span class="p">}</span>
+	<span class="nx">app</span><span class="p">.</span><span class="nx">Draw</span> <span class="p">=</span> <span class="kd">func</span><span class="p">(</span><span class="nx">app</span> <span class="o">*</span><span class="nx">window</span><span class="p">.</span><span class="nx">Application</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+		<span class="k">if</span> <span class="nx">renderer</span> <span class="o">==</span> <span class="kc">nil</span> <span class="p">{</span> <span class="c1">// the OpenGL context exists from the first frame</span>
+			<span class="kd">var</span> <span class="nx">err</span> <span class="kt">error</span>
+			<span class="k">if</span> <span class="nx">renderer</span><span class="p">,</span> <span class="nx">err</span> <span class="p">=</span> <span class="nx">opengl</span><span class="p">.</span><span class="nf">NewFlatRenderer</span><span class="p">(</span><span class="nx">overlay</span><span class="p">.</span><span class="nx">Fonts</span><span class="p">{});</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+				<span class="k">return</span> <span class="nx">err</span>
+			<span class="p">}</span>
+		<span class="p">}</span>
+		<span class="nx">drawing</span><span class="p">.</span><span class="nf">Reset</span><span class="p">()</span>
+		<span class="nx">card</span> <span class="o">:=</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Rectangle</span><span class="p">{</span><span class="nx">X</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span> <span class="nx">Y</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span> <span class="nx">Width</span><span class="p">:</span> <span class="mi">260</span><span class="p">,</span> <span class="nx">Height</span><span class="p">:</span> <span class="mi">64</span><span class="p">}</span>
+		<span class="nx">drawing</span><span class="p">.</span><span class="nf">Shadow</span><span class="p">(</span><span class="nx">card</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">MustHex</span><span class="p">(</span><span class="s">&#34;#14202f33&#34;</span><span class="p">))</span>
+		<span class="nx">drawing</span><span class="p">.</span><span class="nf">Rectangle</span><span class="p">(</span><span class="nx">card</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">MustHex</span><span class="p">(</span><span class="s">&#34;#ffffff&#34;</span><span class="p">),</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">MustHex</span><span class="p">(</span><span class="s">&#34;#dde3ea&#34;</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+		<span class="nx">drawing</span><span class="p">.</span><span class="nf">Icon</span><span class="p">(</span><span class="s">&#34;lightbulb&#34;</span><span class="p">,</span> <span class="mi">44</span><span class="p">,</span> <span class="mi">48</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">MustHex</span><span class="p">(</span><span class="s">&#34;#e0a020&#34;</span><span class="p">))</span>
+		<span class="nx">drawing</span><span class="p">.</span><span class="nf">Text</span><span class="p">(</span><span class="s">&#34;The lighthouse is lit&#34;</span><span class="p">,</span> <span class="mi">70</span><span class="p">,</span> <span class="mi">61</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Medium</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">MustHex</span><span class="p">(</span><span class="s">&#34;#14202f&#34;</span><span class="p">))</span>
+		<span class="nx">drawing</span><span class="p">.</span><span class="nf">Stroke</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">tower</span><span class="p">,</span> <span class="mi">360</span><span class="p">,</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">MustHex</span><span class="p">(</span><span class="s">&#34;#14202f&#34;</span><span class="p">))</span>
+
+		<span class="nx">state</span> <span class="o">:=</span> <span class="nx">app</span><span class="p">.</span><span class="nx">Input</span>
+		<span class="nx">scale</span> <span class="o">:=</span> <span class="nb">float32</span><span class="p">(</span><span class="nx">state</span><span class="p">.</span><span class="nx">FramebufferWidth</span><span class="p">)</span> <span class="o">/</span> <span class="nb">float32</span><span class="p">(</span><span class="nx">state</span><span class="p">.</span><span class="nx">WindowWidth</span><span class="p">)</span> <span class="c1">// 2 on a high-density screen</span>
+		<span class="nx">renderer</span><span class="p">.</span><span class="nf">Draw</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">drawing</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">MustHex</span><span class="p">(</span><span class="s">&#34;#eef2f6&#34;</span><span class="p">),</span> <span class="nx">state</span><span class="p">.</span><span class="nx">FramebufferWidth</span><span class="p">,</span> <span class="nx">state</span><span class="p">.</span><span class="nx">FramebufferHeight</span><span class="p">,</span> <span class="nx">scale</span><span class="p">)</span>
+		<span class="k">return</span> <span class="kc">nil</span>
+	<span class="p">}</span>
+	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="p">(</span><span class="o">&amp;</span><span class="nx">opengl</span><span class="p">.</span><span class="nx">Window</span><span class="p">{}).</span><span class="nf">Run</span><span class="p">(</span><span class="nx">app</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+		<span class="nx">log</span><span class="p">.</span><span class="nf">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+	<span class="p">}</span>
+<span class="p">}</span>
+</code></pre>
+
+<p><code>go run .</code> opens the window above. Its body is <code>ExampleFlatRenderer</code> in <code>opengl/example_test.go</code>,
+so <code>go test ./opengl</code> checks that it still compiles.</p>
+
+<p>A few things to notice:</p>
+
+<ul>
+<li><strong>Coordinates are layout pixels</strong> from the top-left corner, like the cursor in <code>input.State</code>.
+The renderer multiplies them by <code>scale</code>, so a 14-pixel text has the same size on every screen.</li>
+<li><strong>The list is filled again every frame.</strong> <code>Reset</code> empties it but keeps its memory, so a frame
+allocates nothing.</li>
+<li><strong><code>FlatOnly</code></strong> asks for a window without a depth buffer: a flat interface does not need one.</li>
+</ul>
+
+<p>Over a 3D scene, the same list goes in <code>world.Overlay.Drawing</code> instead (see
+<a href="./guides/overlay">the overlay</a>). In a browser, <code>gles.FlatRenderer</code> paints
+it, and on the 3DS <code>nintendo3ds.FlatRenderer</code>.</p>
+
+<h2 id="rectangles-shadows-text-and-icons">Rectangles, shadows, text and icons</h2>
+
+<p>These four make most interfaces. The examples of this page are in <code>draw2d/example_test.go</code>, and
+<code>go test ./draw2d</code> runs them and checks what they print.</p>
+<pre><code class="language-go"><span class="kd">var</span> <span class="nx">drawing</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">List</span>
+<span class="nx">card</span> <span class="o">:=</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Rectangle</span><span class="p">{</span><span class="nx">X</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span> <span class="nx">Y</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span> <span class="nx">Width</span><span class="p">:</span> <span class="mi">240</span><span class="p">,</span> <span class="nx">Height</span><span class="p">:</span> <span class="mi">64</span><span class="p">}</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Shadow</span><span class="p">(</span><span class="nx">card</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">MustHex</span><span class="p">(</span><span class="s">&#34;#14202f33&#34;</span><span class="p">))</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Rectangle</span><span class="p">(</span><span class="nx">card</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">MustHex</span><span class="p">(</span><span class="s">&#34;#ffffff&#34;</span><span class="p">),</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">MustHex</span><span class="p">(</span><span class="s">&#34;#dde3ea&#34;</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Icon</span><span class="p">(</span><span class="s">&#34;lightbulb&#34;</span><span class="p">,</span> <span class="mi">44</span><span class="p">,</span> <span class="mi">48</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">MustHex</span><span class="p">(</span><span class="s">&#34;#e0a020&#34;</span><span class="p">))</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Text</span><span class="p">(</span><span class="s">&#34;The lighthouse is lit&#34;</span><span class="p">,</span> <span class="mi">70</span><span class="p">,</span> <span class="mi">61</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Medium</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">MustHex</span><span class="p">(</span><span class="s">&#34;#14202f&#34;</span><span class="p">))</span>
+<span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="nx">drawing</span><span class="p">.</span><span class="nx">Commands</span><span class="p">),</span> <span class="s">&#34;commands&#34;</span><span class="p">)</span> <span class="c1">// 4 commands</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>What it draws</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>Shadow(area, radius, blur, drop, colour)</code></td>
+<td>A soft shadow for a rounded rectangle, falling <code>drop</code> pixels</td>
+</tr>
+
+<tr>
+<td><code>Rectangle(area, radius, fill, border, width)</code></td>
+<td>A rounded rectangle; its border is drawn inside the area</td>
+</tr>
+
+<tr>
+<td><code>Icon(name, x, y, size, colour)</code></td>
+<td>A <a href="https://lucide.dev" target="_blank">Lucide</a> icon in a square</td>
+</tr>
+
+<tr>
+<td><code>Text(text, x, baseline, size, weight, colour)</code></td>
+<td>One line of text; <code>y</code> is its baseline, not its top</td>
+</tr>
+</tbody>
+</table>
+<p>Put the shadow first: later commands cover earlier ones. Colours come from <code>draw2d.MustHex</code>, with an
+optional opacity as the last two digits.</p>
+
+<h2 id="clips-and-layers">Clips and layers</h2>
+
+<p>A clip cuts what follows to a rectangle. A layer lifts what follows above lower layers, whatever
+order it was added in: menus and tooltips use it.</p>
+<pre><code class="language-go"><span class="kd">var</span> <span class="nx">drawing</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">List</span>
+<span class="nx">box</span> <span class="o">:=</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Rectangle</span><span class="p">{</span><span class="nx">X</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span> <span class="nx">Y</span><span class="p">:</span> <span class="mi">120</span><span class="p">,</span> <span class="nx">Width</span><span class="p">:</span> <span class="mi">120</span><span class="p">,</span> <span class="nx">Height</span><span class="p">:</span> <span class="mi">32</span><span class="p">}</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Rectangle</span><span class="p">(</span><span class="nx">box</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">MustHex</span><span class="p">(</span><span class="s">&#34;#f4f6f8&#34;</span><span class="p">),</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Transparent</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">PushClip</span><span class="p">(</span><span class="nx">box</span><span class="p">.</span><span class="nf">Inset</span><span class="p">(</span><span class="mi">8</span><span class="p">))</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Text</span><span class="p">(</span><span class="s">&#34;A line too long for its box&#34;</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">141</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Regular</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">MustHex</span><span class="p">(</span><span class="s">&#34;#14202f&#34;</span><span class="p">))</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">PopClip</span><span class="p">()</span>
+
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">SetLayer</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="c1">// drawn over layer 0, whatever comes after</span>
+<span class="nx">tip</span> <span class="o">:=</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Rectangle</span><span class="p">{</span><span class="nx">X</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span> <span class="nx">Y</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span> <span class="nx">Width</span><span class="p">:</span> <span class="mi">90</span><span class="p">,</span> <span class="nx">Height</span><span class="p">:</span> <span class="mi">26</span><span class="p">}</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Rectangle</span><span class="p">(</span><span class="nx">tip</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">MustHex</span><span class="p">(</span><span class="s">&#34;#14202f&#34;</span><span class="p">),</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Transparent</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Text</span><span class="p">(</span><span class="s">&#34;Lighthouse&#34;</span><span class="p">,</span> <span class="mi">108</span><span class="p">,</span> <span class="mi">117</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Regular</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">MustHex</span><span class="p">(</span><span class="s">&#34;#ffffff&#34;</span><span class="p">))</span>
+<span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">drawing</span><span class="p">.</span><span class="nx">Commands</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="nx">HasClip</span><span class="p">,</span> <span class="nx">drawing</span><span class="p">.</span><span class="nx">Commands</span><span class="p">[</span><span class="mi">3</span><span class="p">].</span><span class="nx">Layer</span><span class="p">)</span> <span class="c1">// true 1</span>
+</code></pre>
+
+<p>Clips nest: a clip inside another keeps only what both share. A command wholly outside the clip
+is left out as it is added, so a long scrolled list costs only its visible rows.</p>
+
+<h2 id="images">Images</h2>
+
+<p>A <code>draw2d.Image</code> is a picture the program keeps between frames, so the renderer uploads it once.
+<code>DecodeImage</code> reads a PNG, JPEG or GIF; <code>NewBlankImage</code> makes one to fill pixel by pixel:</p>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">side</span> <span class="p">=</span> <span class="mi">8</span>
+<span class="nx">tiles</span> <span class="o">:=</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">NewBlankImage</span><span class="p">(</span><span class="nx">side</span><span class="p">,</span> <span class="nx">side</span><span class="p">)</span>
+<span class="nx">tiles</span><span class="p">.</span><span class="nx">Sharp</span> <span class="p">=</span> <span class="kc">true</span> <span class="c1">// pixel art: no blending between pixels</span>
+<span class="k">for</span> <span class="nx">y</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">side</span> <span class="p">{</span>
+	<span class="k">for</span> <span class="nx">x</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">side</span> <span class="p">{</span>
+		<span class="k">if</span> <span class="p">(</span><span class="nx">x</span><span class="o">+</span><span class="nx">y</span><span class="p">)</span><span class="o">%</span><span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span> <span class="p">{</span>
+			<span class="nx">tiles</span><span class="p">.</span><span class="nx">Pixels</span><span class="p">.</span><span class="nf">Set</span><span class="p">(</span><span class="nx">x</span><span class="p">,</span> <span class="nx">y</span><span class="p">,</span> <span class="nx">color</span><span class="p">.</span><span class="nx">NRGBA</span><span class="p">{</span><span class="nx">R</span><span class="p">:</span> <span class="mi">40</span><span class="p">,</span> <span class="nx">G</span><span class="p">:</span> <span class="mi">120</span><span class="p">,</span> <span class="nx">B</span><span class="p">:</span> <span class="mi">200</span><span class="p">,</span> <span class="nx">A</span><span class="p">:</span> <span class="mi">255</span><span class="p">})</span>
+		<span class="p">}</span>
+	<span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">var</span> <span class="nx">drawing</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">List</span>
+<span class="nx">white</span> <span class="o">:=</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Color</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">}</span> <span class="c1">// a white tint shows the picture as it is</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Image</span><span class="p">(</span><span class="nx">tiles</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Rectangle</span><span class="p">{</span><span class="nx">X</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span> <span class="nx">Y</span><span class="p">:</span> <span class="mi">24</span><span class="p">,</span> <span class="nx">Width</span><span class="p">:</span> <span class="mi">64</span><span class="p">,</span> <span class="nx">Height</span><span class="p">:</span> <span class="mi">64</span><span class="p">},</span> <span class="mi">8</span><span class="p">,</span> <span class="nx">white</span><span class="p">)</span>
+</code></pre>
+
+<p>After changing its pixels, call <code>tiles.Changed()</code> so the renderer uploads them again (a video&rsquo;s
+next frame). Lights over images and frosted glass are in <a href="./guides/overlay">the overlay</a>.</p>
+
+<h2 id="paths-and-strokes">Paths and strokes</h2>
+
+<p>A <code>draw2d.Path</code> is a line of straight pieces and curves, in the program&rsquo;s own units. Build it with
+<code>MoveTo</code>, <code>LineTo</code>, <code>CurveTo</code> and <code>Close</code>, or add a whole <code>Circle</code> or <code>RoundedRectangle</code>.
+<code>List.Stroke</code> then draws its line:</p>
+<pre><code class="language-go"><span class="kd">var</span> <span class="nx">tower</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Path</span>
+<span class="nx">tower</span><span class="p">.</span><span class="nf">MoveTo</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span> <span class="c1">// the path&#39;s own units: here, one per metre</span>
+<span class="nx">tower</span><span class="p">.</span><span class="nf">LineTo</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+<span class="nx">tower</span><span class="p">.</span><span class="nf">LineTo</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+<span class="nx">tower</span><span class="p">.</span><span class="nf">LineTo</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+<span class="nx">tower</span><span class="p">.</span><span class="nf">Close</span><span class="p">()</span>
+
+<span class="kd">var</span> <span class="nx">sun</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">Path</span>
+<span class="nx">sun</span><span class="p">.</span><span class="nf">Circle</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+<span class="kd">var</span> <span class="nx">drawing</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nx">List</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Stroke</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">tower</span><span class="p">,</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">MustHex</span><span class="p">(</span><span class="s">&#34;#14202f&#34;</span><span class="p">))</span> <span class="c1">// 12 layout pixels a metre</span>
+<span class="nx">drawing</span><span class="p">.</span><span class="nf">Stroke</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">sun</span><span class="p">,</span> <span class="mi">120</span><span class="p">,</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">MustHex</span><span class="p">(</span><span class="s">&#34;#e0a020&#34;</span><span class="p">))</span>
+<span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">tower</span><span class="p">.</span><span class="nf">Bounds</span><span class="p">())</span> <span class="c1">// {0 0 4 10}</span>
+</code></pre>
+
+<p><code>Stroke(path, x, y, scale, width, colour)</code> puts the path&rsquo;s point (0, 0) at (x, y) of the screen,
+and makes each of its units <code>scale</code> layout pixels. <code>width</code> is the line&rsquo;s thickness in layout
+pixels, whatever the scale. <code>CurveTo</code> is SVG&rsquo;s <code>C</code>: a cubic Bézier curve with two control points.</p>
+
+<h3 id="why-a-stroke-is-a-cached-picture">Why a stroke is a cached picture</h3>
+
+<p>A list only knows rectangles, text and pictures: that keeps every renderer small, from OpenGL to the
+3DS. So a stroke is drawn on the processor into a picture of its own, a <strong>mask</strong>. The mask is white,
+and the line&rsquo;s coverage is its opacity, with smoothed edges. The list shows it tinted with the
+colour, like any image.</p>
+
+<p>Drawing the mask costs time, so the path keeps it. It is drawn again only when the scale or the
+width changes. Moving the stroke or changing its colour costs nothing more. So:</p>
+
+<ul>
+<li><strong>Keep paths between frames</strong>, as the program above does with <code>tower</code>. A path made anew every
+frame draws its mask every frame.</li>
+<li><strong>Change the colour freely</strong>; change the size only when needed (a zoom, not every frame).</li>
+<li><strong>A stroke is a picture</strong>, so it covers and is covered like one, and follows clips and layers.</li>
+</ul>
+
+<h2 id="not-yet">Not yet</h2>
+
+<p>Paths are strokes only: there is no fill of a shape&rsquo;s inside yet, and no dashed lines.</p>

@@ -14,26 +14,33 @@
 
 <tbody>
 <tr>
-<td><code>func CompileShader(</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func InitWindow(app *models.Application) *glfw.Window</code></td>
-<td>initGlfw initializes glfw and returns a Window to use.</td>
-</tr>
-
-<tr>
-<td><code>func LinkProgram(vertexShader, fragmentShader uint32) (uint32, error)</code></td>
-<td></td>
-</tr>
-
-<tr>
 <td><code>func Wake()</code></td>
 <td>Wake makes a window that draws on demand draw a frame now: for a program whose data changes on another goroutine (a download finishing, a message arriving).</td>
 </tr>
 </tbody>
 </table>
+
+<h3 id="constants-and-variables">Constants and variables</h3>
+<pre><code class="language-go"><span class="kd">var</span> <span class="p">(</span>
+	<span class="c1">// FramebufferIncomplete is a framebuffer OpenGL cannot draw into, such as the shadow map&#39;s on</span>
+	<span class="c1">// a driver that lacks depth textures. Its details give OpenGL&#39;s status.</span>
+	<span class="nx">FramebufferIncomplete</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;opengl.framebuffer-incomplete&#34;</span><span class="p">,</span> <span class="s">&#34;OpenGL cannot draw into the framebuffer&#34;</span><span class="p">)</span>
+	<span class="c1">// WindowNotOpened is a window GLFW could not open: no display, or no OpenGL 4.1.</span>
+	<span class="nx">WindowNotOpened</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;opengl.window-not-opened&#34;</span><span class="p">,</span> <span class="s">&#34;the window could not be opened&#34;</span><span class="p">)</span>
+	<span class="c1">// ContextNotStarted is OpenGL&#39;s functions failing to load in the window&#39;s context.</span>
+	<span class="nx">ContextNotStarted</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;opengl.context-not-started&#34;</span><span class="p">,</span> <span class="s">&#34;OpenGL could not start&#34;</span><span class="p">)</span>
+	<span class="c1">// ShaderNotCompiled is a shader the driver would not compile. Its details give the driver&#39;s log.</span>
+	<span class="nx">ShaderNotCompiled</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;opengl.shader-not-compiled&#34;</span><span class="p">,</span> <span class="s">&#34;OpenGL could not compile a shader&#34;</span><span class="p">)</span>
+	<span class="c1">// ProgramNotLinked is two shaders the driver would not link. Its details give the driver&#39;s log.</span>
+	<span class="nx">ProgramNotLinked</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;opengl.program-not-linked&#34;</span><span class="p">,</span> <span class="s">&#34;OpenGL could not link a shader program&#34;</span><span class="p">)</span>
+	<span class="c1">// FrameNotSaved is a captured frame that could not be written to its file.</span>
+	<span class="nx">FrameNotSaved</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;opengl.frame-not-saved&#34;</span><span class="p">,</span> <span class="s">&#34;the frame could not be saved&#34;</span><span class="p">)</span>
+	<span class="c1">// NotImplemented is an immediate-mode shape the OpenGL renderer cannot draw yet.</span>
+	<span class="nx">NotImplemented</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;opengl.not-implemented&#34;</span><span class="p">,</span> <span class="s">&#34;the OpenGL renderer cannot draw this shape yet&#34;</span><span class="p">)</span>
+<span class="p">)</span>
+</code></pre>
+
+<p>Codes of the errors the OpenGL backend returns.</p>
 
 <h3 id="area">Area</h3>
 
@@ -59,8 +66,8 @@
 
 <tbody>
 <tr>
-<td><code>func NewFlatRenderer() (*FlatRenderer, error)</code></td>
-<td>NewFlatRenderer prepares the atlas and shaders.</td>
+<td><code>func NewFlatRenderer(fonts overlay.Fonts) (*FlatRenderer, error)</code></td>
+<td>NewFlatRenderer prepares the atlas and shaders; text is drawn in fonts (overlay.Fonts{} for the default ones).</td>
 </tr>
 
 <tr>
@@ -76,95 +83,65 @@
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">FrameStatistics</span> <span class="p">=</span> <span class="nx">sceneplan</span><span class="p">.</span><span class="nx">FrameStatistics</span>
 </code></pre>
 
-<h3 id="opengl-1">OpenGL</h3>
-<pre><code class="language-go"><span class="kd">type</span> <span class="nx">OpenGL</span> <span class="kd">struct</span> <span class="p">{</span>
-	<span class="c1">// Has unexported fields.</span>
-<span class="p">}</span>
-</code></pre>
-
-<table>
-<thead>
-<tr>
-<th>Function or method</th>
-<th></th>
-</tr>
-</thead>
-
-<tbody>
-<tr>
-<td><code>func (opengl *OpenGL) Draw(app *models.Application) error</code></td>
-<td>Draw a frame into the display</td>
-</tr>
-
-<tr>
-<td><code>func (opengl *OpenGL) DrawOnDisk(app *models.Application, filePath string) error</code></td>
-<td>SaveFrameToDisk captures the current OpenGL framebuffer and saves it as a PNG.</td>
-</tr>
-
-<tr>
-<td><code>func (opengl *OpenGL) StartLoop(app *models.Application) error</code></td>
-<td>StartLoop opens the window and runs the application until it closes.</td>
-</tr>
-</tbody>
-</table>
-
-<h3 id="openglrenderer">OpenGLRenderer</h3>
-<pre><code class="language-go"><span class="kd">type</span> <span class="nx">OpenGLRenderer</span> <span class="kd">struct</span> <span class="p">{</span>
-	<span class="c1">// Has unexported fields.</span>
-<span class="p">}</span>
-</code></pre>
-
-<table>
-<thead>
-<tr>
-<th>Function or method</th>
-<th></th>
-</tr>
-</thead>
-
-<tbody>
-<tr>
-<td><code>func (r *OpenGLRenderer) Render3dModel(space graphics.CoordinateSpace, model *models.Model, shader *string) error</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (r *OpenGLRenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vec4, shader *string) error</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (r *OpenGLRenderer) RenderImage(</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (r *OpenGLRenderer) RenderPolygon(</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (r *OpenGLRenderer) RenderRectangle(</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (r *OpenGLRenderer) RenderTriangle(</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (r *OpenGLRenderer) SetMatrices(projection, view, model graphics.Mat4)</code></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-
 <h3 id="passtimes">PassTimes</h3>
 
 <p>PassTimes are GPU durations of the passes of one frame.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">PassTimes</span> <span class="p">=</span> <span class="nx">sceneplan</span><span class="p">.</span><span class="nx">PassTimes</span>
 </code></pre>
+
+<h3 id="renderer">Renderer</h3>
+
+<p>Renderer draws immediate-mode shapes (immediate.Renderer) with OpenGL, in the window&rsquo;s current program. Its zero value is ready; it makes its buffers on the first shape and reuses them, so a shape allocates nothing on the Go side.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Renderer</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (renderer *Renderer) RenderImage(space graphics.CoordinateSpace, bytes []byte, centre graphics.Vector, width float32, height float32, shader *string) error</code></td>
+<td>RenderImage returns NotImplemented: OpenGL cannot draw pictures in immediate mode yet.</td>
+</tr>
+
+<tr>
+<td><code>func (renderer *Renderer) RenderModel(space graphics.CoordinateSpace, model *immediate.Model, shader *string) error</code></td>
+<td>RenderModel draws every mesh of the model.</td>
+</tr>
+
+<tr>
+<td><code>func (renderer *Renderer) RenderObject(space graphics.CoordinateSpace, vertices []graphics.Vector, shader *string) error</code></td>
+<td>RenderObject draws the triangles of a 3D object, three vertices each.</td>
+</tr>
+
+<tr>
+<td><code>func (renderer *Renderer) RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error</code></td>
+<td>RenderPolygon returns NotImplemented: OpenGL cannot draw polygons yet.</td>
+</tr>
+
+<tr>
+<td><code>func (renderer *Renderer) RenderRectangle(space graphics.CoordinateSpace, centre graphics.Vector, width float32, height float32, shader *string, fill bool) error</code></td>
+<td>RenderRectangle draws a rectangle of width × height centred on centre, in the plane z = centre&rsquo;s z.</td>
+</tr>
+
+<tr>
+<td><code>func (renderer *Renderer) RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error</code></td>
+<td>RenderTriangle draws triangles, three coordinates each.</td>
+</tr>
+
+<tr>
+<td><code>func (renderer *Renderer) SetMatrices(projection, view, model graphics.Matrix)</code></td>
+<td>SetMatrices sets the matrices the next shapes are drawn with.</td>
+</tr>
+</tbody>
+</table>
 
 <h3 id="scenerenderer">SceneRenderer</h3>
 
@@ -191,22 +168,22 @@
 
 <tbody>
 <tr>
-<td><code>func NewSceneRenderer() (*SceneRenderer, error)</code></td>
-<td>NewSceneRenderer compiles the scene shaders.</td>
+<td><code>func NewSceneRenderer(fonts overlay.Fonts) (*SceneRenderer, error)</code></td>
+<td>NewSceneRenderer compiles the scene shaders; the overlay&rsquo;s text is drawn in fonts (overlay.Fonts{} for the default ones).</td>
 </tr>
 
 <tr>
-<td><code>func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int, seconds float64)</code></td>
+<td><code>func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Lens, width, height int, seconds float64)</code></td>
 <td>Draw renders the scene from the camera into the current framebuffer of the given size, then its overlay on top.</td>
 </tr>
 
 <tr>
-<td><code>func (renderer *SceneRenderer) DrawIn(world *scene.Scene, camera models.Camera, area Area, seconds float64)</code></td>
+<td><code>func (renderer *SceneRenderer) DrawIn(world *scene.Scene, camera camera.Lens, area Area, seconds float64)</code></td>
 <td>DrawIn renders the scene from the camera into an area of the current framebuffer, clearing only that area, and without the scene&rsquo;s overlay: several scenes can share a frame (a preview of a console&rsquo;s two screens), and an overlay over all of them is drawn once after (DrawOverlay).</td>
 </tr>
 
 <tr>
-<td><code>func (renderer *SceneRenderer) DrawOver(world *scene.Scene, camera models.Camera, area Area, seconds float64)</code></td>
+<td><code>func (renderer *SceneRenderer) DrawOver(world *scene.Scene, camera camera.Lens, area Area, seconds float64)</code></td>
 <td>DrawOver renders the scene from the camera into an area over what the framebuffer holds there: it clears only the depth and draws no sky, so the scene floats over the one behind it (a radar in a corner of a game&rsquo;s view).</td>
 </tr>
 
@@ -235,6 +212,40 @@
 <tr>
 <td><code>func DefaultShadowSettings() ShadowSettings</code></td>
 <td>DefaultShadowSettings returns enabled shadows with automatic sizes.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="window">Window</h3>
+
+<p>Window runs a window.Application in an OpenGL 4.1 window. Its zero value is ready to use.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Window</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Has unexported fields.</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (opengl *Window) Draw(app *window.Application) error</code></td>
+<td>Draw draws a frame: the immediate-mode matrices from the application&rsquo;s camera, a clear to its background, then its Draw callback.</td>
+</tr>
+
+<tr>
+<td><code>func (opengl *Window) Run(app *window.Application) error</code></td>
+<td>Run opens the window and runs the application until it closes or sets Stop; a Headless application draws one frame into a hidden window and saves it.</td>
+</tr>
+
+<tr>
+<td><code>func (opengl *Window) SaveFrame(app *window.Application, path string) error</code></td>
+<td>SaveFrame saves the frame just drawn (and not yet shown) as a PNG at path.</td>
 </tr>
 </tbody>
 </table>

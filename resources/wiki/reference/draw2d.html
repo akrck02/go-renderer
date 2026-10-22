@@ -17,6 +17,15 @@ same size on every screen and stays sharp.</p>
 easy to build and to check in tests.</p>
 
 <h3 id="constants-and-variables">Constants and variables</h3>
+<pre><code class="language-go"><span class="kd">var</span> <span class="p">(</span>
+	<span class="c1">// InvalidColour is a colour that is not written as &#34;#rrggbb&#34; or &#34;#rrggbbaa&#34;.</span>
+	<span class="nx">InvalidColour</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;draw2d.invalid-colour&#34;</span><span class="p">,</span> <span class="s">&#34;a colour must be written as #rrggbb or #rrggbbaa&#34;</span><span class="p">)</span>
+	<span class="c1">// ImageNotDecoded is a picture that is not a PNG, JPEG or GIF, or is damaged.</span>
+	<span class="nx">ImageNotDecoded</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;draw2d.image-not-decoded&#34;</span><span class="p">,</span> <span class="s">&#34;the picture could not be decoded&#34;</span><span class="p">)</span>
+<span class="p">)</span>
+</code></pre>
+
+<p>Codes of the errors draw2d returns.</p>
 <pre><code class="language-go"><span class="kd">var</span> <span class="nx">Transparent</span> <span class="p">=</span> <span class="nx">Color</span><span class="p">{}</span>
 </code></pre>
 
@@ -38,13 +47,13 @@ easy to build and to check in tests.</p>
 
 <tbody>
 <tr>
-<td><code>func Hex(text string) Color</code></td>
+<td><code>func MustHex(text string) Color</code></td>
 <td>Hex reads a colour written as &ldquo;#rrggbb&rdquo; or &ldquo;#rrggbbaa&rdquo;.</td>
 </tr>
 
 <tr>
 <td><code>func ParseHex(text string) (Color, error)</code></td>
-<td>ParseHex reads a colour written as &ldquo;#rrggbb&rdquo; or &ldquo;#rrggbbaa&rdquo;.</td>
+<td>ParseHex reads a colour written as on a web page, &ldquo;#rrggbb&rdquo;, &ldquo;#rrggbbaa&rdquo; or the short &ldquo;#rgb&rdquo;; InvalidColour otherwise.</td>
 </tr>
 
 <tr>
@@ -69,9 +78,9 @@ easy to build and to check in tests.</p>
 <p>Command is one shape of the list. Only the fields of its kind are used; keeping every kind in one flat struct lets a list be reused frame after frame without allocating.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Command</span> <span class="kd">struct</span> <span class="p">{</span>
 	<span class="nx">Kind</span>    <span class="nx">Kind</span>
-	<span class="nx">Area</span>    <span class="nx">Rect</span> <span class="c1">// the rectangle, the shadow&#39;s caster, the icon&#39;s square</span>
-	<span class="nx">Layer</span>   <span class="kt">int</span>  <span class="c1">// higher layers cover lower ones; within a layer, later commands cover earlier ones</span>
-	<span class="nx">Clip</span>    <span class="nx">Rect</span> <span class="c1">// nothing is drawn outside it, when HasClip</span>
+	<span class="nx">Area</span>    <span class="nx">Rectangle</span> <span class="c1">// the rectangle, the shadow&#39;s caster, the icon&#39;s square</span>
+	<span class="nx">Layer</span>   <span class="kt">int</span>       <span class="c1">// higher layers cover lower ones; within a layer, later commands cover earlier ones</span>
+	<span class="nx">Clip</span>    <span class="nx">Rectangle</span> <span class="c1">// nothing is drawn outside it, when HasClip</span>
 	<span class="nx">HasClip</span> <span class="kt">bool</span>
 
 	<span class="nx">Radius</span>      <span class="kt">float32</span> <span class="c1">// rectangle and shadow: corner radius</span>
@@ -80,7 +89,7 @@ easy to build and to check in tests.</p>
 	<span class="nx">BorderWidth</span> <span class="kt">float32</span> <span class="c1">// rectangle: outline thickness, inside the area</span>
 	<span class="nx">Blur</span>        <span class="kt">float32</span> <span class="c1">// shadow: how far it fades out; Area is the caster grown by it and moved down. Backdrop: how far what is behind spreads (a standard deviation, as CSS&#39;s blur())</span>
 
-	<span class="nx">Text</span>     <span class="kt">string</span>  <span class="c1">// text: the line; icon: the icon&#39;s name</span>
+	<span class="nx">Text</span>     <span class="kt">string</span>  <span class="c1">// text: the line; icon: the icon&#39;s name (one field for both keeps a Command small)</span>
 	<span class="nx">Size</span>     <span class="kt">float32</span> <span class="c1">// text and icon: size in layout pixels (the font&#39;s em square)</span>
 	<span class="nx">Weight</span>   <span class="nx">Weight</span>  <span class="c1">// text</span>
 	<span class="nx">Baseline</span> <span class="kt">float32</span> <span class="c1">// text: y of the baseline; the line starts at Area.X</span>
@@ -187,7 +196,7 @@ easy to build and to check in tests.</p>
 
 <tbody>
 <tr>
-<td><code>func (list *List) Backdrop(area Rect, radius, blur float32)</code></td>
+<td><code>func (list *List) Backdrop(area Rectangle, radius, blur float32)</code></td>
 <td>Backdrop shows, inside a rounded rectangle, what was drawn behind it, blurred: the frosted glass under a translucent panel, whose Rectangle comes next, over it.</td>
 </tr>
 
@@ -202,7 +211,7 @@ easy to build and to check in tests.</p>
 </tr>
 
 <tr>
-<td><code>func (list *List) Image(picture *Image, area Rect, radius float32, tint Color)</code></td>
+<td><code>func (list *List) Image(picture *Image, area Rectangle, radius float32, tint Color)</code></td>
 <td>Image draws a picture covering a rounded rectangle: scaled to fill it, and cropped evenly at the sides or at the top and bottom when their shapes differ, as photos fill cards and avatars.</td>
 </tr>
 
@@ -227,12 +236,12 @@ easy to build and to check in tests.</p>
 </tr>
 
 <tr>
-<td><code>func (list *List) PushClip(area Rect)</code></td>
+<td><code>func (list *List) PushClip(area Rectangle)</code></td>
 <td>PushClip limits the following commands to a rectangle, inside the current clip if there is one.</td>
 </tr>
 
 <tr>
-<td><code>func (list *List) Rectangle(area Rect, radius float32, fill, border Color, borderWidth float32)</code></td>
+<td><code>func (list *List) Rectangle(area Rectangle, radius float32, fill, border Color, borderWidth float32)</code></td>
 <td>Rectangle draws a rounded rectangle: fill inside, and a border of a width drawn inside the area.</td>
 </tr>
 
@@ -247,12 +256,12 @@ easy to build and to check in tests.</p>
 </tr>
 
 <tr>
-<td><code>func (list *List) Shadow(area Rect, radius, blur, offsetY float32, color Color)</code></td>
+<td><code>func (list *List) Shadow(area Rectangle, radius, blur, offsetY float32, color Color)</code></td>
 <td>Shadow draws a soft shadow for a rounded rectangle, fading out over blur pixels on every side and falling offsetY pixels below it.</td>
 </tr>
 
 <tr>
-<td><code>func (list *List) SpriteLight(picture *Image, area Rect, color Color)</code></td>
+<td><code>func (list *List) SpriteLight(picture *Image, area Rectangle, color Color)</code></td>
 <td>SpriteLight adds a picture shining as a light over an area, tinted by a colour whose alpha is its intensity: a lamp&rsquo;s glow, a sign that shines.</td>
 </tr>
 
@@ -296,7 +305,7 @@ easy to build and to check in tests.</p>
 
 <tbody>
 <tr>
-<td><code>func (path *Path) Bounds() Rect</code></td>
+<td><code>func (path *Path) Bounds() Rectangle</code></td>
 <td>Bounds is the smallest rectangle, in the path&rsquo;s units, that holds every point of it.</td>
 </tr>
 
@@ -338,10 +347,10 @@ easy to build and to check in tests.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Point</span> <span class="kd">struct</span><span class="p">{</span> <span class="nx">X</span><span class="p">,</span> <span class="nx">Y</span> <span class="kt">float32</span> <span class="p">}</span>
 </code></pre>
 
-<h3 id="rect">Rect</h3>
+<h3 id="rectangle">Rectangle</h3>
 
-<p>Rect is an area of the screen: its top-left corner and its size, in layout pixels.</p>
-<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Rect</span> <span class="kd">struct</span> <span class="p">{</span>
+<p>Rectangle is an area of the screen: its top-left corner and its size, in layout pixels.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Rectangle</span> <span class="kd">struct</span> <span class="p">{</span>
 	<span class="nx">X</span><span class="p">,</span> <span class="nx">Y</span><span class="p">,</span> <span class="nx">Width</span><span class="p">,</span> <span class="nx">Height</span> <span class="kt">float32</span>
 <span class="p">}</span>
 </code></pre>
@@ -356,32 +365,32 @@ easy to build and to check in tests.</p>
 
 <tbody>
 <tr>
-<td><code>func (rect Rect) Bottom() float32</code></td>
+<td><code>func (rect Rectangle) Bottom() float32</code></td>
 <td>Bottom is the y of the rectangle&rsquo;s bottom edge.</td>
 </tr>
 
 <tr>
-<td><code>func (rect Rect) Contains(x, y float32) bool</code></td>
+<td><code>func (rect Rectangle) Contains(x, y float32) bool</code></td>
 <td>Contains tells whether a point is inside the rectangle (left and top edges included).</td>
 </tr>
 
 <tr>
-<td><code>func (rect Rect) Inset(amount float32) Rect</code></td>
+<td><code>func (rect Rectangle) Inset(amount float32) Rectangle</code></td>
 <td>Inset shrinks the rectangle by an amount on every side.</td>
 </tr>
 
 <tr>
-<td><code>func (rect Rect) Intersect(other Rect) Rect</code></td>
+<td><code>func (rect Rectangle) Intersect(other Rectangle) Rectangle</code></td>
 <td>Intersect returns the area two rectangles share; it is empty when they do not overlap.</td>
 </tr>
 
 <tr>
-<td><code>func (rect Rect) IsEmpty() bool</code></td>
+<td><code>func (rect Rectangle) IsEmpty() bool</code></td>
 <td>IsEmpty tells whether the rectangle covers no area.</td>
 </tr>
 
 <tr>
-<td><code>func (rect Rect) Right() float32</code></td>
+<td><code>func (rect Rectangle) Right() float32</code></td>
 <td>Right is the x of the rectangle&rsquo;s right edge.</td>
 </tr>
 </tbody>

@@ -35,13 +35,8 @@ frame.</p>
 </tr>
 
 <tr>
-<td><code>func Run(window *glfw.Window, app *models.Application, clock *Clock, drawFrame func() error) error</code></td>
+<td><code>func Run(glfwWindow *glfw.Window, app *window.Application, clock *frameloop.Clock, drawFrame func() error) error</code></td>
 <td>Run calls the application&rsquo;s update steps and drawFrame until the window closes or the application stops.</td>
-</tr>
-
-<tr>
-<td><code>func RunUpdateStep(app *models.Application, step float64) error</code></td>
-<td>RunUpdateStep calls the application update once and clears the per-step input deltas.</td>
 </tr>
 
 <tr>
@@ -56,27 +51,9 @@ frame.</p>
 </tbody>
 </table>
 
-<h3 id="clock">Clock</h3>
-
-<p>Clock runs Application.Update at a fixed time step; it lives in frameloop, which the browser loop shares.</p>
-<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Clock</span> <span class="p">=</span> <span class="nx">frameloop</span><span class="p">.</span><span class="nx">Clock</span>
+<h3 id="constants-and-variables">Constants and variables</h3>
+<pre><code class="language-go"><span class="kd">var</span> <span class="nx">NotOnMainThread</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;windowloop.not-on-main-thread&#34;</span><span class="p">,</span>
 </code></pre>
-
-<table>
-<thead>
-<tr>
-<th>Function or method</th>
-<th></th>
-</tr>
-</thead>
-
-<tbody>
-<tr>
-<td><code>func NewClock(step float64) *Clock</code></td>
-<td>NewClock makes a clock of step seconds (<sup>1</sup>&frasl;<sub>60</sub> when 0).</td>
-</tr>
-</tbody>
-</table>
 
 <h3 id="cursorshapes">CursorShapes</h3>
 
@@ -97,7 +74,7 @@ frame.</p>
 <tbody>
 <tr>
 <td><code>func (shapes *CursorShapes) Apply(window *glfw.Window, state *input.State)</code></td>
-<td></td>
+<td>Apply shows the pointer shape the state asks for, if it is not already shown.</td>
 </tr>
 </tbody>
 </table>

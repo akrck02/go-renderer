@@ -1,0 +1,203 @@
+<h1 id="reading-pads-and-keys-and-filling-the-screen">🎮 Reading pads and keys, and filling the screen</h1>
+
+<p>This guide is for a Go programmer writing a game or a tool with Go Renderer. At the end you will
+read keys (F1 to F12 too), a game pad&rsquo;s buttons and sticks, name its buttons the way its maker
+does, and put the window on the whole screen.</p>
+
+<h2 id="the-shortest-program-f11-for-the-whole-screen">The shortest program: F11 for the whole screen</h2>
+
+<p>Every backend fills one <code>input.State</code>: the desktop window, the browser, Android and the 3DS. A
+program gives the application a state and reads it in its update step:</p>
+<pre><code class="language-go"><span class="nx">state</span> <span class="o">:=</span> <span class="nx">input</span><span class="p">.</span><span class="nf">NewState</span><span class="p">()</span>
+<span class="nx">state</span><span class="p">.</span><span class="nf">Feed</span><span class="p">().</span><span class="nf">SetKey</span><span class="p">(</span><span class="nx">input</span><span class="p">.</span><span class="nx">KeyF11</span><span class="p">,</span> <span class="kc">true</span><span class="p">)</span> <span class="c1">// the backend: F11 went down</span>
+
+<span class="k">if</span> <span class="nx">state</span><span class="p">.</span><span class="nf">Pressed</span><span class="p">(</span><span class="nx">input</span><span class="p">.</span><span class="nx">KeyF11</span><span class="p">)</span> <span class="p">{</span>
+	<span class="nx">state</span><span class="p">.</span><span class="nf">SetFullscreen</span><span class="p">(!</span><span class="nx">state</span><span class="p">.</span><span class="nf">Fullscreen</span><span class="p">())</span>
+<span class="p">}</span>
+<span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">state</span><span class="p">.</span><span class="nf">Down</span><span class="p">(</span><span class="nx">input</span><span class="p">.</span><span class="nx">KeyF11</span><span class="p">),</span> <span class="nx">state</span><span class="p">.</span><span class="nf">Fullscreen</span><span class="p">())</span> <span class="c1">// true true</span>
+
+<span class="nx">state</span><span class="p">.</span><span class="nf">Feed</span><span class="p">().</span><span class="nf">EndFrame</span><span class="p">()</span> <span class="c1">// the backend, after the step: a press lasts one step</span>
+<span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">state</span><span class="p">.</span><span class="nf">Down</span><span class="p">(</span><span class="nx">input</span><span class="p">.</span><span class="nx">KeyF11</span><span class="p">),</span> <span class="nx">state</span><span class="p">.</span><span class="nf">Pressed</span><span class="p">(</span><span class="nx">input</span><span class="p">.</span><span class="nx">KeyF11</span><span class="p">))</span> <span class="c1">// true false</span>
+</code></pre>
+
+<p>In a real program the first <code>SetKey</code> and the <code>EndFrame</code> belong to the backend: they are on the
+state&rsquo;s <code>Feed()</code>, the side backends write, so <code>go doc input.State</code> shows only what a program
+reads. You write the <code>if</code>. This is <code>ExampleState_Pressed</code> in <code>input/example_test.go</code>, and <code>go test ./input</code> checks what
+it prints. In a window it looks like this:</p>
+<pre><code class="language-go"><span class="nx">app</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">window</span><span class="p">.</span><span class="nx">Application</span><span class="p">{</span><span class="nx">Input</span><span class="p">:</span> <span class="nx">input</span><span class="p">.</span><span class="nf">NewState</span><span class="p">()}</span>
+<span class="nx">app</span><span class="p">.</span><span class="nx">Update</span> <span class="p">=</span> <span class="kd">func</span><span class="p">(</span><span class="nx">app</span> <span class="o">*</span><span class="nx">window</span><span class="p">.</span><span class="nx">Application</span><span class="p">,</span> <span class="nx">seconds</span> <span class="kt">float64</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+	<span class="k">if</span> <span class="nx">app</span><span class="p">.</span><span class="nx">Input</span><span class="p">.</span><span class="nf">Pressed</span><span class="p">(</span><span class="nx">input</span><span class="p">.</span><span class="nx">KeyF11</span><span class="p">)</span> <span class="p">{</span>
+		<span class="nx">app</span><span class="p">.</span><span class="nx">Input</span><span class="p">.</span><span class="nf">SetFullscreen</span><span class="p">(!</span><span class="nx">app</span><span class="p">.</span><span class="nx">Input</span><span class="p">.</span><span class="nf">Fullscreen</span><span class="p">())</span>
+	<span class="p">}</span>
+	<span class="k">return</span> <span class="kc">nil</span>
+<span class="p">}</span>
+</code></pre>
+
+<h2 id="keys">Keys</h2>
+
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>True when</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>Down(key)</code></td>
+<td>the key is held now</td>
+</tr>
+
+<tr>
+<td><code>Pressed(key)</code></td>
+<td>it went down during this step: once per press</td>
+</tr>
+
+<tr>
+<td><code>Typed(key)</code></td>
+<td>it went down or the system repeated it: Backspace held in a text field</td>
+</tr>
+</tbody>
+</table>
+<p><code>input.Key</code> holds letters, digits, arrows, Space, Tab, Enter, Escape, Shift, Control, Alt, the
+Command or Windows key (<code>KeySuper</code>), and <code>KeyF1</code> to <code>KeyF12</code>. Characters typed (an &ldquo;ñ&rdquo;, an &ldquo;€&rdquo;)
+come from <code>TypedText()</code>, after the keyboard layout. When an interface has the keyboard (a text
+field), it calls <code>ClaimKeyboard</code>, and <code>Unclaimed()</code> gives the rest of the program a state without
+those keys.</p>
+
+<h2 id="a-game-pad">A game pad</h2>
+
+<p align="center"><img alt="A game pad with every part named: PadA at the bottom of the four face buttons, PadB right, PadX left, PadY top; the shoulders; PadBack, PadGuide and PadStart in the middle; the cross as PadUp, PadRight, PadDown and PadLeft; the left stick as StickX and StickY, the right one as RightStickX and RightStickY" src="./images/pad-buttons.svg" width="640"></p>
+
+<p>Buttons are read <strong>by position</strong>, like keys: <code>PadA</code> is always the bottom face button.</p>
+<pre><code class="language-go"><span class="nx">state</span> <span class="o">:=</span> <span class="nx">input</span><span class="p">.</span><span class="nf">NewState</span><span class="p">()</span>
+<span class="nx">state</span><span class="p">.</span><span class="nf">Feed</span><span class="p">().</span><span class="nf">SetStick</span><span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="c1">// the backend: half right, all the way up</span>
+<span class="nx">state</span><span class="p">.</span><span class="nf">Feed</span><span class="p">().</span><span class="nf">SetPadButton</span><span class="p">(</span><span class="nx">input</span><span class="p">.</span><span class="nx">PadA</span><span class="p">,</span> <span class="kc">true</span><span class="p">)</span>
+
+<span class="kd">const</span> <span class="nx">metresPerSecond</span> <span class="p">=</span> <span class="mi">4</span>
+<span class="kd">const</span> <span class="nx">seconds</span> <span class="p">=</span> <span class="mf">0.5</span>
+<span class="nx">stickX</span><span class="p">,</span> <span class="nx">stickY</span> <span class="o">:=</span> <span class="nx">state</span><span class="p">.</span><span class="nf">Stick</span><span class="p">()</span>
+<span class="nx">forward</span> <span class="o">:=</span> <span class="nx">stickY</span> <span class="o">*</span> <span class="nx">metresPerSecond</span> <span class="o">*</span> <span class="nx">seconds</span>
+<span class="nx">sideways</span> <span class="o">:=</span> <span class="nx">stickX</span> <span class="o">*</span> <span class="nx">metresPerSecond</span> <span class="o">*</span> <span class="nx">seconds</span>
+<span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">forward</span><span class="p">,</span> <span class="nx">sideways</span><span class="p">,</span> <span class="nx">state</span><span class="p">.</span><span class="nf">PadPressed</span><span class="p">(</span><span class="nx">input</span><span class="p">.</span><span class="nx">PadA</span><span class="p">))</span> <span class="c1">// 2 1 true</span>
+</code></pre>
+
+<p><code>PadDown(button)</code> and <code>PadPressed(button)</code> work like <code>Down</code> and <code>Pressed</code>. The sticks are read with
+<code>Stick()</code> and <code>RightStick()</code>, each giving x and y from -1 to 1, <strong>right and up positive</strong>, and 0 at rest. A small dead zone round the middle reads
+as 0, since a stick let go never sits exactly there.</p>
+
+<table>
+<thead>
+<tr>
+<th>Stick</th>
+<th>Read with</th>
+<th>On a pad</th>
+<th>On a 3DS</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Main</td>
+<td><code>Stick()</code></td>
+<td>the left stick</td>
+<td>the circle pad</td>
+</tr>
+
+<tr>
+<td>Second</td>
+<td><code>RightStick()</code></td>
+<td>the right stick</td>
+<td>a New 3DS&rsquo;s C-stick</td>
+</tr>
+</tbody>
+</table>
+<p>Multiply a stick by a speed and the step&rsquo;s <code>seconds</code> to move something smoothly, as above.</p>
+
+<h2 id="naming-the-buttons-the-pad-s-layout">Naming the buttons: the pad&rsquo;s layout</h2>
+
+<p>Each maker prints other names on the same buttons. The bottom one is A on an Xbox pad, ✕ on a
+PlayStation pad and B on a Nintendo pad. A game that says &ldquo;Press A&rdquo; should say what the player sees:</p>
+<pre><code class="language-go"><span class="nx">bottomButton</span> <span class="o">:=</span> <span class="kd">map</span><span class="p">[</span><span class="nx">input</span><span class="p">.</span><span class="nx">PadLayout</span><span class="p">]</span><span class="kt">string</span><span class="p">{</span>
+	<span class="nx">input</span><span class="p">.</span><span class="nx">XboxLayout</span><span class="p">:</span>        <span class="s">&#34;A&#34;</span><span class="p">,</span>
+	<span class="nx">input</span><span class="p">.</span><span class="nx">PlayStationLayout</span><span class="p">:</span> <span class="s">&#34;✕&#34;</span><span class="p">,</span>
+	<span class="nx">input</span><span class="p">.</span><span class="nx">NintendoLayout</span><span class="p">:</span>    <span class="s">&#34;B&#34;</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="nx">state</span> <span class="o">:=</span> <span class="nx">input</span><span class="p">.</span><span class="nf">NewState</span><span class="p">()</span>
+<span class="c1">// a browser&#39;s name for a pad; a window&#39;s backend reads the GUID instead (PadLayoutFromGUID)</span>
+<span class="nx">state</span><span class="p">.</span><span class="nf">SetPadLayout</span><span class="p">(</span><span class="nx">input</span><span class="p">.</span><span class="nf">PadLayoutFromName</span><span class="p">(</span><span class="s">&#34;Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 09cc)&#34;</span><span class="p">))</span>
+<span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Press&#34;</span><span class="p">,</span> <span class="nx">bottomButton</span><span class="p">[</span><span class="nx">state</span><span class="p">.</span><span class="nf">PadLayout</span><span class="p">()],</span> <span class="s">&#34;to jump&#34;</span><span class="p">)</span> <span class="c1">// Press ✕ to jump</span>
+</code></pre>
+
+<p>The backend sets the layout when a pad connects; a program only reads <code>state.PadLayout()</code>. It is
+worked out from the pad&rsquo;s <strong>USB vendor</strong>, which every system gives, while pad names vary by
+driver: 054c is Sony, 057e Nintendo, anything else reads as Xbox. Only the names change: the
+Nintendo layout&rsquo;s &ldquo;B&rdquo; is still <code>PadA</code>, the bottom button.</p>
+
+<h2 id="the-whole-screen">The whole screen</h2>
+
+<p><code>SetFullscreen(true)</code> <strong>asks</strong> for the whole screen, and <code>Fullscreen()</code> tells what was asked. The
+backend applies it after the frame, in its own way:</p>
+
+<ul>
+<li><strong>A desktop window</strong> (<code>windowloop</code>) moves to the screen that holds most of it, at that screen&rsquo;s
+size. Asked no more, it goes back to its place and size. Without a screen (a headless display),
+the request is dropped and <code>Fullscreen()</code> turns false.</li>
+<li><strong>A web page</strong> (<code>browser</code>) can take the whole screen only while it answers a key or a click: the
+browser forbids it otherwise. So the request waits for the next press. When the person leaves
+with Escape, <code>Fullscreen()</code> turns false, so a toggle stays right.</li>
+</ul>
+
+<p>Leaving needs no such moment, anywhere.</p>
+
+<h2 id="which-backend-reads-what">Which backend reads what</h2>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Keys, F1–F12</th>
+<th>Pad buttons</th>
+<th>Sticks</th>
+<th>Pad layout</th>
+<th>Whole screen</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Desktop window (GLFW)</td>
+<td>yes</td>
+<td>first pad</td>
+<td>first pad</td>
+<td>from the GUID</td>
+<td>yes</td>
+</tr>
+
+<tr>
+<td>Web page</td>
+<td>yes, no F keys yet</td>
+<td>not yet</td>
+<td>not yet</td>
+<td>from the pad&rsquo;s name</td>
+<td>on the next press</td>
+</tr>
+
+<tr>
+<td>Nintendo 3DS (<code>nintendo3ds</code>)</td>
+<td>its buttons, as keys</td>
+<td>—</td>
+<td>circle pad, C-stick</td>
+<td>—</td>
+<td>always</td>
+</tr>
+</tbody>
+</table>
+<p>On the desktop, GLFW gives every known pad Xbox&rsquo;s order, so one program reads them all the same
+way.</p>
+
+<h2 id="not-yet">Not yet</h2>
+
+<p>A browser does not read a pad&rsquo;s buttons and sticks yet, nor F1 to F12; only the first pad is read
+on a computer.</p>

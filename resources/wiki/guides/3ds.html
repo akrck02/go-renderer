@@ -1,8 +1,8 @@
 <h1 id="on-the-nintendo-3ds">🎮 On the Nintendo 3DS</h1>
 
-<p><strong>Status:</strong> a first step (October 2026). Package <code>ctr</code> draws through the 3DS&rsquo;s graphics chip, the
+<p><strong>Status:</strong> a first step (October 2026). Package <code>nintendo3ds</code> draws through the 3DS&rsquo;s graphics chip, the
 PICA200, with citro3d: <code>cmd/triangle3ds</code> turns a triangle of three colours on the top screen at 60
-frames a second, and <code>cmd/island3ds</code> flies round the sample island with <code>ctr.SceneRenderer</code>. It runs as homebrew, from the Homebrew Launcher, built with a TinyGo that has a
+frames a second, and <code>cmd/island3ds</code> flies round the sample island with <code>nintendo3ds.SceneRenderer</code>. It runs as homebrew, from the Homebrew Launcher, built with a TinyGo that has a
 <code>nintendo3ds</code> target (a separate fork of TinyGo, not part of this repository). The triangle is
 checked in the Azahar emulator; the loading and planning figures below come from a New 3DS XL.</p>
 
@@ -24,11 +24,11 @@ checked in the Azahar emulator; the loading and planning figures below come from
 <tbody>
 <tr>
 <td>Your program</td>
-<td>Plans frames with <code>sceneplan</code>, moves things with <code>graphics</code></td>
+<td>Builds a <code>scene</code> and moves things with <code>graphics</code>; the renderers plan each frame</td>
 </tr>
 
 <tr>
-<td><code>ctr</code></td>
+<td><code>nintendo3ds</code></td>
 <td>The top screen, vertex shaders, vertex buffers and matrices, over citro3d (this package)</td>
 </tr>
 
@@ -44,39 +44,39 @@ checked in the Azahar emulator; the loading and planning figures below come from
 </tbody>
 </table>
 <p>The rest of go-renderer is plain Go and already runs there: on the console, <code>encoding/json</code>,
-<code>image/png</code>, <code>loaders.ParseSceneGLB</code> and the sample island load, and planning a frame of the island
-takes under a millisecond. The tests of <code>graphics</code>, <code>scene</code>, <code>sceneplan</code>, <code>camera</code>, <code>draw2d</code>,
+<code>image/png</code>, <code>loaders.ReadScene</code> and the sample island load, and planning a frame of the island
+takes under a millisecond. The tests of <code>graphics</code>, <code>scene</code>, <code>internal/sceneplan</code>, <code>camera</code>, <code>draw2d</code>,
 <code>input</code> and <code>frameloop</code> pass in the emulator.</p>
 
 <h2 id="what-is-different-about-the-pica200">What is different about the PICA200</h2>
 
 <ul>
 <li><strong>No fragment shaders.</strong> Vertex shaders are written in the PICA200&rsquo;s assembly (<code>.v.pica</code>) and
-assembled with devkitPro&rsquo;s <code>picasso</code>; colours come out of a few fixed stages. <code>ctr</code> sets the first
+assembled with devkitPro&rsquo;s <code>picasso</code>; colours come out of a few fixed stages. <code>nintendo3ds</code> sets the first
 one to pass the vertex colour through.</li>
 <li><strong>Matrices row by row, components backwards.</strong> citro3d stores a matrix as four rows, and each row
-as w, z, y, x. <code>graphics.Mat4</code> is column by column; <code>ctr.PICAMatrix</code> lays it out (tested on any
+as w, z, y, x. <code>graphics.Matrix</code> is column by column; <code>nintendo3ds.GPUMatrix</code> lays it out (tested on any
 computer).</li>
 <li><strong>A screen on its side.</strong> The 3DS&rsquo;s screens are portrait panels turned a quarter turn, and depth
-runs from -1 to 0. <code>ctr.OrthographicTilt</code> is citro3d&rsquo;s <code>Mtx_OrthoTilt</code> for a right-handed view,
+runs from -1 to 0. <code>nintendo3ds.OrthographicTilt</code> is citro3d&rsquo;s <code>Mtx_OrthoTilt</code> for a right-handed view,
 as everywhere in go-renderer: what is visible lies between z = 0 and z = -far.
 <code>cmd/triangle3ds</code> checks it against citro3d&rsquo;s own on the console.</li>
-<li><strong>Vertex buffers outside the Go heap.</strong> <code>ctr.NewVertexBuffer</code> copies vertices to the linear
+<li><strong>Vertex buffers outside the Go heap.</strong> <code>nintendo3ds.NewVertexBuffer</code> copies vertices to the linear
 memory the GPU reads, so the garbage collector never scans them.</li>
 </ul>
 
 <h2 id="the-scene-renderer">The scene renderer</h2>
 
-<p><code>ctr.SceneRenderer</code> draws a <code>scene.Scene</code> the way <code>gles</code> does: lit meshes and instances, the light
-of the time of day, fog and translucent water, planned by <code>sceneplan</code>. What changes on the PICA200:</p>
+<p><code>nintendo3ds.SceneRenderer</code> draws a <code>scene.Scene</code> the way <code>gles</code> does: lit meshes and instances, the light
+of the time of day, fog and translucent water, planned by <code>internal/sceneplan</code>. What changes on the PICA200:</p>
 
 <ul>
 <li><strong>Light worked out on the processor.</strong> Lighting every vertex on the GPU held the sample island
 to 30 frames a second on a New 3DS XL: the GPU took 34 ms a frame, the processor 0.4 ms. Sun and
-sky change slowly, so <code>ctr/bake.go</code> lights each vertex once, when a mesh is uploaded (sun, sky
+sky change slowly, so <code>nintendo3ds/bake.go</code> lights each vertex once, when a mesh is uploaded (sun, sky
 and ground light, glow, flat by brightness, then the screen&rsquo;s gamma), and keeps its colour in
 four bytes: a vertex is 16 bytes instead of 40. A mesh is baked again only when the light, the
-mesh or its node&rsquo;s turn changes. <code>ctr/shaders/baked.v.pica</code> then only places each vertex and
+mesh or its node&rsquo;s turn changes. <code>nintendo3ds/shaders/baked.v.pica</code> then only places each vertex and
 fogs it by its distance to the camera, linearly: 27 instructions instead of 95. A mesh keeps at
 most four bakes, one per way it is turned; past that the least recently drawn one is baked
 again, so a node that keeps turning doesn&rsquo;t fill linear memory.</li>
@@ -88,32 +88,32 @@ around the camera, a frame went from 40 ms of processor time to 16.</li>
 light whenever one of them changes; a scene without water skips it, or a few dozen moving meshes
 were measured vertex by vertex every frame.</li>
 <li><strong>Water on the GPU, on a coarser grid.</strong> Water&rsquo;s reflection of the sky depends on where the
-camera looks from, so water goes through the full shader, <code>ctr/shaders/scene.v.pica</code> (gles&rsquo;s
+camera looks from, so water goes through the full shader, <code>nintendo3ds/shaders/scene.v.pica</code> (gles&rsquo;s
 scene shader done per vertex, with its smoothstep fog and the chip&rsquo;s <code>lg2</code> and <code>ex2</code> for gamma).
 The planner&rsquo;s water grid of 256 × 256 cells, made for the desktop&rsquo;s waves, was 131 072 of the
-island&rsquo;s 160 756 triangles; <code>ctr</code> asks for 32 × 32 (<code>Planner.WaterGridDivisions</code>), still fine
+island&rsquo;s 160 756 triangles; <code>nintendo3ds</code> asks for 32 × 32 (<code>Planner.WaterGridDivisions</code>), still fine
 near the camera for the fog.</li>
 <li><strong>Not the chip&rsquo;s own fog.</strong> The PICA200 can fog in fixed function, from a table of 128 steps of
 the depth buffer; but depth is far from linear (with the near plane at 0.1 and the far one at
-20 000, the whole island&rsquo;s fog would fall in the first step), so ctr fogs per vertex.</li>
-<li><strong>OpenGL&rsquo;s matrices, turned.</strong> <code>sceneplan</code> plans frames with OpenGL&rsquo;s clip space; one fixed
-matrix (<code>ctr.PICAViewProjection</code>) gives the PICA200&rsquo;s quarter turn and depth range. Turning
-<code>graphics.OrthographicOpenGL</code> with it gives <code>ctr.OrthographicTilt</code> (tested on any computer).</li>
+20 000, the whole island&rsquo;s fog would fall in the first step), so nintendo3ds fogs per vertex.</li>
+<li><strong>OpenGL&rsquo;s matrices, turned.</strong> <code>internal/sceneplan</code> plans frames with OpenGL&rsquo;s clip space; one fixed
+matrix (<code>nintendo3ds.GPUViewProjection</code>) gives the PICA200&rsquo;s quarter turn and depth range. Turning
+<code>graphics.OrthographicOpenGL</code> with it gives <code>nintendo3ds.OrthographicTilt</code> (tested on any computer).</li>
 <li><strong>16-bit indices.</strong> Meshes with more than 65 535 vertices are drawn in pieces
-(<code>ctr/split.go</code>).</li>
-<li><strong>Instances merged on the processor,</strong> as in <code>gles</code>: the merging moved to <code>sceneplan</code>
+(<code>nintendo3ds/split.go</code>).</li>
+<li><strong>Instances merged on the processor,</strong> as in <code>gles</code>: the merging moved to <code>internal/sceneplan</code>
 (<code>MergedBatch</code>), which both renderers share.</li>
 <li><strong>Meshes in linear memory,</strong> uploaded once and again only when <code>Dirty</code>.</li>
 </ul>
 
 <h2 id="the-bottom-screen">The bottom screen</h2>
 
-<p><code>ctr.FlatRenderer</code> paints a <code>draw2d.List</code> (an interface: go-ui&rsquo;s, or a program&rsquo;s own) on the
+<p><code>nintendo3ds.FlatRenderer</code> paints a <code>draw2d.List</code> (an interface: go-ui&rsquo;s, or a program&rsquo;s own) on the
 bottom screen, as <code>gles.FlatRenderer</code> does in browsers and on phones: <code>opengl/overlay</code> lays the
 list out as rectangles of one atlas of glyphs, icons and rounded corners, and they are drawn in one
 call. On the PICA200 the atlas is a texture of one byte per pixel (A8), which has to be laid out
 in the chip&rsquo;s own way: tiles of 8 × 8 pixels, from the bottom of the picture, Morton order inside
-each tile (<code>ctr/texture.go</code>, tested on any computer); a colour stage then multiplies each
+each tile (<code>nintendo3ds/texture.go</code>, tested on any computer); a colour stage then multiplies each
 rectangle&rsquo;s alpha by the atlas&rsquo;s coverage. Pictures (<code>draw2d</code> images) are the overlay&rsquo;s second
 atlas, of straight RGBA pixels, tiled the same way as an RGBA8 texture (whose bytes the chip reads
 as alpha, blue, green, red); their rectangles multiply the picture by their colour and then by the
@@ -129,8 +129,8 @@ nearest pixel: a game&rsquo;s top screen is sharp, the interface below stays smo
   <img alt="The island from afar above; below, the View tab with a map of the island (a picture drawn by the program, coloured by height, with dots on the village and the peak) beside buttons to fly to the island, the village and the peak" src="./images/3ds-interface-map.png" width="420">
 </p>
 
-<p>Both screens are drawn in one frame: <code>ctr.BeginFrame</code>, then <code>SceneRenderer.PaintStereo</code> for the
-top screen and <code>FlatRenderer.Paint</code> for the bottom one, then <code>ctr.EndFrame</code>. (<code>Draw</code> and
+<p>Both screens are drawn in one frame: <code>nintendo3ds.BeginFrame</code>, then <code>SceneRenderer.PaintStereo</code> for the
+top screen and <code>FlatRenderer.Paint</code> for the bottom one, then <code>nintendo3ds.EndFrame</code>. (<code>Draw</code> and
 <code>DrawStereo</code> begin and end a frame themselves, for a program with the top screen only.)
 <a href="https://github.com/akrck02/go-3ds" target="_blank">go-3ds</a> puts go-ui on the bottom screen this way.</p>
 
@@ -177,22 +177,28 @@ between frames, as it keeps its rectangles&rsquo;.</p>
 
 <h2 id="both-screens-and-the-controls">Both screens, and the controls</h2>
 
-<p><code>ctr.Surface</code> is either screen: <code>SceneRenderer.PaintOn</code> and <code>FlatRenderer.PaintOn</code> draw a scene or
+<p>The API names the screens for what they are to any program, not for where the 3DS has them: the
+top one is the main <code>Screen</code> (<code>nintendo3ds.OpenScreen</code>), the bottom one the <code>SecondScreen</code>
+(<code>OpenSecondScreen</code>, <code>SecondScreenWidth</code>), the 3D slider the <code>DepthSlider</code>, the circle pad and the
+C-stick a reading&rsquo;s <code>Stick</code> and <code>RightStick</code>. The 3DS&rsquo;s own words stay in the comments, for whoever
+knows the console.</p>
+
+<p><code>nintendo3ds.Surface</code> is either screen: <code>SceneRenderer.PaintOn</code> and <code>FlatRenderer.PaintOn</code> draw a scene or
 an interface on the top one or the bottom one (which has a depth buffer, so a scene can be shown
 where it can be touched). go-ui&rsquo;s window for the 3DS uses it to swap the screens with SELECT.</p>
 
-<p><code>ctr.ReadControls</code> reads the buttons, the circle pad and the touch screen, and <code>ctr.Controls</code>
+<p><code>nintendo3ds.ReadControls</code> reads the buttons, the circle pad and the touch screen, and <code>nintendo3ds.Controls</code>
 turns them into <code>input.State</code>: the cross is the arrow keys, L and R minus and plus, A Enter, B
-Escape and the system&rsquo;s back, the circle pad the stick (<code>input.State.StickX</code> and <code>StickY</code>) and the
+Escape and the system&rsquo;s back, the circle pad the stick (<code>input.State.Stick</code>) and the
 touch screen the pointer (tested on any computer). The cameras read the stick as a game&rsquo;s player
 moves: the orbit and the plan move their target over the ground, the walk walks.</p>
 
 <p>The C-stick (a New 3DS&rsquo;s) and the gyroscope are services of their own, started only when a game
-asks: <code>ctr.StartMotionControls</code> starts both and says which did, and from then on each reading has
-<code>CStick()</code> (from -1 to 1, as <code>Circle()</code>) and <code>Gyroscope</code> (how fast the console turns, in degrees a
+asks: <code>nintendo3ds.StartMotionControls</code> starts both and says which did, and from then on each reading has
+<code>RightStick()</code> (the C-stick, from -1 to 1, as <code>Stick()</code> for the circle pad) and <code>Gyroscope</code> (how fast the console turns, in degrees a
 second). <code>StopMotionControls</code> stops them, as the gyroscope uses power.</p>
 
-<p><code>ctr.Open</code> asks a New 3DS for its fast mode (804 MHz and the second-level cache): libctru leaves
+<p><code>nintendo3ds.OpenScreen</code> asks a New 3DS for its fast mode (804 MHz and the second-level cache): libctru leaves
 the processor at 268 MHz otherwise, a third of what it can do.</p>
 
 <p><code>FlatRenderer</code> keeps the corners of every list it paints, one buffer per list painted in a frame.
@@ -201,14 +207,14 @@ them, without being laid out: an interface that does not change costs the proces
 nothing. Each rectangle is four corners and two triangles of a fixed index buffer, written straight
 into linear memory.</p>
 
-<p><code>ctr.ReadMemory</code> tells how much of the console&rsquo;s memory is free: the linear memory the GPU reads,
+<p><code>nintendo3ds.ReadMemory</code> tells how much of the console&rsquo;s memory is free: the linear memory the GPU reads,
 the video memory and the application&rsquo;s region, which holds the Go heap. It is cheap enough to read
 every second, for a program that shows its own resources.</p>
 
 <h2 id="memory">Memory</h2>
 
 <p>TinyGo&rsquo;s collector does not move what it keeps, so garbage made over and over fragments the heap
-until a large block no longer fits. <code>ctr</code> keeps its bake and upload buffers and reuses them, and
+until a large block no longer fits. <code>nintendo3ds</code> keeps its bake and upload buffers and reuses them, and
 lets go of a mesh, on the GPU and in its caches, once it has not been drawn for a second: a
 program that makes its scene again (a plan whose machines change colour) leaves nothing behind.</p>
 
@@ -233,13 +239,13 @@ twice: keep it to a sight and a label.</li>
 <li><strong>Waiting for the GPU</strong> is the time the PICA200 took for the frame before: triangles, filled
 pixels and blending. Fewer triangles far away, and fewer layers of transparent rectangles,
 lower it.</li>
-<li><strong>The New 3DS&rsquo;s fast mode</strong> is on: <code>ctr.Open</code> asks for it.</li>
+<li><strong>The New 3DS&rsquo;s fast mode</strong> is on: <code>nintendo3ds.OpenScreen</code> asks for it.</li>
 </ul>
 
 <h2 id="garbage">Garbage</h2>
 
 <p>TinyGo&rsquo;s collector stops the program while it runs, so a frame should make as little garbage as
-it can. <code>ctr</code>, the overlay and the scene planner make none in a steady frame: their lists and
+it can. <code>nintendo3ds</code>, the overlay and the scene planner make none in a steady frame: their lists and
 buffers are kept and filled again. What a program builds every frame is the rest; tinygo-3ds&rsquo;s
 <code>NINTENDO3DS.md</code> lists what makes garbage in TinyGo that would not in Go, and how to find it.</p>
 
@@ -248,10 +254,14 @@ buffers are kept and filled again. What a program builds every frame is the rest
 <p>The top screen shows a picture for each eye when the 3D slider is up. <code>SceneRenderer.DrawStereo</code>
 plans the frame once, for the camera between the eyes, and draws it twice: each eye&rsquo;s camera is
 moved sideways by half the separation, looking the same way, and its picture is shifted so that
-what lies at the focal distance falls on the plane of the screen (<code>ctr.EyeViewProjection</code>, tested
-on any computer); nearer comes out of the screen, farther goes in. <code>ctr.Slider3D</code> reads the
+what lies at the focal distance falls on the plane of the screen (<code>nintendo3ds.EyeViewProjection</code>, tested
+on any computer); nearer comes out of the screen, farther goes in. <code>nintendo3ds.DepthSlider</code> reads the
 slider; a program usually makes the separation grow with it. Drawing twice doubles the GPU&rsquo;s
 work: the sample island goes from about 5 to 10 ms a frame.</p>
+
+<p>A problem a frame works around (a texture that outgrew the GPU&rsquo;s largest) is written as a
+<code>warning:</code> line on the console. Elsewhere it goes to the program&rsquo;s <code>log/slog</code> logger; on the 3DS
+that package alone would add about 42 KB to every <code>.3dsx</code>, so the overlay leaves it out there.</p>
 
 <h2 id="building">Building</h2>
 <pre><code class="language-bash">tinygo build -target<span class="o">=</span>nintendo3ds -o triangle3ds.3dsx ./cmd/triangle3ds

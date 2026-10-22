@@ -1,0 +1,187 @@
+<h1 id="scenes-in-areas-of-the-window">🪟 Scenes in areas of the window</h1>
+
+<p>This guide is for a Go programmer who draws a scene with <code>opengl.SceneRenderer</code> and wants more
+than one view in a frame. At the end you will draw a scene into any rectangle of the window, side
+by side with another, or floating over it.</p>
+
+<h2 id="the-shortest-program-two-views-side-by-side">The shortest program: two views side by side</h2>
+
+<p><code>SceneRenderer.Draw</code> fills the whole window. <code>DrawIn</code> fills only an <strong>area</strong>: a rectangle of the
+framebuffer, in its pixels. Two calls make two views, here of the sample island:</p>
+
+<p align="center"><img alt="The sample island twice in one window: on the left from straight above, as a map; on the right from above its southern shore, with the label of the harbour house" src="./images/guide-in.png" width="720"></p>
+<pre><code class="language-go"><span class="kn">package</span> <span class="nx">main</span>
+
+<span class="kn">import</span> <span class="p">(</span>
+	<span class="s">&#34;log&#34;</span>
+	<span class="s">&#34;runtime&#34;</span>
+
+	<span class="s">&#34;github.com/akrck02/go-renderer/camera&#34;</span>
+	<span class="s">&#34;github.com/akrck02/go-renderer/graphics&#34;</span>
+	<span class="s">&#34;github.com/akrck02/go-renderer/input&#34;</span>
+	<span class="s">&#34;github.com/akrck02/go-renderer/opengl&#34;</span>
+	<span class="s">&#34;github.com/akrck02/go-renderer/opengl/overlay&#34;</span>
+	<span class="s">&#34;github.com/akrck02/go-renderer/scene&#34;</span>
+	<span class="s">&#34;github.com/akrck02/go-renderer/scene/sample&#34;</span>
+	<span class="s">&#34;github.com/akrck02/go-renderer/window&#34;</span>
+<span class="p">)</span>
+
+<span class="kd">func</span> <span class="nf">init</span><span class="p">()</span> <span class="p">{</span> <span class="nx">runtime</span><span class="p">.</span><span class="nf">LockOSThread</span><span class="p">()</span> <span class="p">}</span> <span class="c1">// windows live on the main thread</span>
+
+<span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+	<span class="nx">world</span> <span class="o">:=</span> <span class="nx">sample</span><span class="p">.</span><span class="nf">Island</span><span class="p">()</span>
+	<span class="nx">above</span><span class="p">,</span> <span class="nx">shore</span> <span class="o">:=</span> <span class="nf">mapCamera</span><span class="p">(</span><span class="nx">world</span><span class="p">),</span> <span class="nf">shoreCamera</span><span class="p">(</span><span class="nx">world</span><span class="p">)</span>
+	<span class="kd">var</span> <span class="nx">renderer</span> <span class="o">*</span><span class="nx">opengl</span><span class="p">.</span><span class="nx">SceneRenderer</span>
+
+	<span class="nx">app</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">window</span><span class="p">.</span><span class="nx">Application</span><span class="p">{</span>
+		<span class="nx">Options</span><span class="p">:</span> <span class="nx">window</span><span class="p">.</span><span class="nx">Options</span><span class="p">{</span><span class="nx">Title</span><span class="p">:</span> <span class="s">&#34;Two views&#34;</span><span class="p">,</span> <span class="nx">Width</span><span class="p">:</span> <span class="mi">960</span><span class="p">,</span> <span class="nx">Height</span><span class="p">:</span> <span class="mi">400</span><span class="p">},</span>
+		<span class="nx">Input</span><span class="p">:</span>   <span class="nx">input</span><span class="p">.</span><span class="nf">NewState</span><span class="p">(),</span>
+	<span class="p">}</span>
+	<span class="nx">app</span><span class="p">.</span><span class="nx">Draw</span> <span class="p">=</span> <span class="kd">func</span><span class="p">(</span><span class="nx">app</span> <span class="o">*</span><span class="nx">window</span><span class="p">.</span><span class="nx">Application</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+		<span class="k">if</span> <span class="nx">renderer</span> <span class="o">==</span> <span class="kc">nil</span> <span class="p">{</span>
+			<span class="kd">var</span> <span class="nx">err</span> <span class="kt">error</span>
+			<span class="k">if</span> <span class="nx">renderer</span><span class="p">,</span> <span class="nx">err</span> <span class="p">=</span> <span class="nx">opengl</span><span class="p">.</span><span class="nf">NewSceneRenderer</span><span class="p">(</span><span class="nx">overlay</span><span class="p">.</span><span class="nx">Fonts</span><span class="p">{});</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+				<span class="k">return</span> <span class="nx">err</span>
+			<span class="p">}</span>
+		<span class="p">}</span>
+		<span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="o">:=</span> <span class="nx">app</span><span class="p">.</span><span class="nx">Input</span><span class="p">.</span><span class="nx">FramebufferWidth</span><span class="p">,</span> <span class="nx">app</span><span class="p">.</span><span class="nx">Input</span><span class="p">.</span><span class="nx">FramebufferHeight</span>
+		<span class="nx">half</span> <span class="o">:=</span> <span class="nx">width</span> <span class="o">/</span> <span class="mi">2</span>
+		<span class="nx">renderer</span><span class="p">.</span><span class="nf">DrawIn</span><span class="p">(</span><span class="nx">world</span><span class="p">,</span> <span class="nx">above</span><span class="p">,</span> <span class="nx">opengl</span><span class="p">.</span><span class="nx">Area</span><span class="p">{</span><span class="nx">Width</span><span class="p">:</span> <span class="nx">half</span><span class="p">,</span> <span class="nx">Height</span><span class="p">:</span> <span class="nx">height</span><span class="p">},</span> <span class="mi">0</span><span class="p">)</span>
+		<span class="nx">renderer</span><span class="p">.</span><span class="nf">DrawIn</span><span class="p">(</span><span class="nx">world</span><span class="p">,</span> <span class="nx">shore</span><span class="p">,</span> <span class="nx">opengl</span><span class="p">.</span><span class="nx">Area</span><span class="p">{</span><span class="nx">X</span><span class="p">:</span> <span class="nx">half</span><span class="p">,</span> <span class="nx">Width</span><span class="p">:</span> <span class="nx">width</span> <span class="o">-</span> <span class="nx">half</span><span class="p">,</span> <span class="nx">Height</span><span class="p">:</span> <span class="nx">height</span><span class="p">},</span> <span class="mi">0</span><span class="p">)</span>
+		<span class="nx">renderer</span><span class="p">.</span><span class="nf">DrawOverlay</span><span class="p">(</span><span class="nx">world</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span><span class="p">)</span> <span class="c1">// once, after every area</span>
+		<span class="k">return</span> <span class="kc">nil</span>
+	<span class="p">}</span>
+	<span class="k">if</span> <span class="nx">err</span> <span class="o">:=</span> <span class="p">(</span><span class="o">&amp;</span><span class="nx">opengl</span><span class="p">.</span><span class="nx">Window</span><span class="p">{}).</span><span class="nf">Run</span><span class="p">(</span><span class="nx">app</span><span class="p">);</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+		<span class="nx">log</span><span class="p">.</span><span class="nf">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+	<span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">// mapCamera looks straight down on the whole scene, without perspective.</span>
+<span class="kd">func</span> <span class="nf">mapCamera</span><span class="p">(</span><span class="nx">world</span> <span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Scene</span><span class="p">)</span> <span class="nx">camera</span><span class="p">.</span><span class="nx">Lens</span> <span class="p">{</span>
+	<span class="nx">centre</span><span class="p">,</span> <span class="nx">size</span> <span class="o">:=</span> <span class="nf">middleAndSize</span><span class="p">(</span><span class="nx">world</span><span class="p">)</span>
+	<span class="k">return</span> <span class="nx">camera</span><span class="p">.</span><span class="nx">Lens</span><span class="p">{</span>
+		<span class="nx">Position</span><span class="p">:</span>           <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">{</span><span class="nx">centre</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nx">size</span><span class="p">,</span> <span class="nx">centre</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="mi">1</span><span class="p">},</span>
+		<span class="nx">Target</span><span class="p">:</span>             <span class="nx">centre</span><span class="p">,</span>
+		<span class="nx">Up</span><span class="p">:</span>                 <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">{</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">},</span> <span class="c1">// north at the top</span>
+		<span class="nx">OrthographicHeight</span><span class="p">:</span> <span class="nx">size</span><span class="p">,</span>
+		<span class="nx">Far</span><span class="p">:</span>                <span class="nx">size</span> <span class="o">*</span> <span class="mi">3</span><span class="p">,</span>
+	<span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">// shoreCamera looks at the middle of the scene from above its southern shore.</span>
+<span class="kd">func</span> <span class="nf">shoreCamera</span><span class="p">(</span><span class="nx">world</span> <span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Scene</span><span class="p">)</span> <span class="nx">camera</span><span class="p">.</span><span class="nx">Lens</span> <span class="p">{</span>
+	<span class="nx">centre</span><span class="p">,</span> <span class="nx">size</span> <span class="o">:=</span> <span class="nf">middleAndSize</span><span class="p">(</span><span class="nx">world</span><span class="p">)</span>
+	<span class="k">return</span> <span class="nx">camera</span><span class="p">.</span><span class="nx">Lens</span><span class="p">{</span>
+		<span class="nx">Position</span><span class="p">:</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">{</span><span class="nx">centre</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nx">size</span> <span class="o">/</span> <span class="mi">4</span><span class="p">,</span> <span class="nx">centre</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="nx">size</span><span class="o">*</span><span class="mf">0.7</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span>
+		<span class="nx">Target</span><span class="p">:</span>   <span class="nx">centre</span><span class="p">,</span>
+		<span class="nx">Up</span><span class="p">:</span>       <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">{</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">},</span>
+		<span class="nx">Far</span><span class="p">:</span>      <span class="nx">size</span> <span class="o">*</span> <span class="mi">4</span><span class="p">,</span>
+	<span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">// middleAndSize is the middle of a scene&#39;s ground and the larger of its two sides.</span>
+<span class="kd">func</span> <span class="nf">middleAndSize</span><span class="p">(</span><span class="nx">world</span> <span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Scene</span><span class="p">)</span> <span class="p">(</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">,</span> <span class="kt">float32</span><span class="p">)</span> <span class="p">{</span>
+	<span class="nx">minimum</span><span class="p">,</span> <span class="nx">maximum</span> <span class="o">:=</span> <span class="nx">world</span><span class="p">.</span><span class="nf">Bounds</span><span class="p">()</span>
+	<span class="nx">centre</span> <span class="o">:=</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">{(</span><span class="nx">minimum</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="nx">maximum</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="nx">minimum</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="nx">maximum</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">}</span>
+	<span class="k">return</span> <span class="nx">centre</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="nx">maximum</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="nx">minimum</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nx">maximum</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">-</span><span class="nx">minimum</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+<span class="p">}</span>
+</code></pre>
+
+<p>The body of <code>main</code> is <code>ExampleSceneRenderer_DrawIn</code> in <code>opengl/example_test.go</code>, with the three
+helpers next to it; <code>go test ./opengl</code> checks that it compiles.</p>
+
+<h2 id="what-an-area-is">What an area is</h2>
+
+<p><code>opengl.Area{X, Y, Width, Height}</code> is in <strong>framebuffer pixels, from the bottom-left corner</strong>, as
+OpenGL counts. That is not the cursor&rsquo;s units: on a high-density screen the framebuffer has twice
+the window&rsquo;s pixels, and the cursor&rsquo;s y grows downwards. Take sizes from
+<code>app.Input.FramebufferWidth</code> and <code>FramebufferHeight</code>, as above.</p>
+
+<p>Each area gets its own aspect ratio, so a camera never looks stretched.</p>
+
+<h2 id="the-overlay-once">The overlay, once</h2>
+
+<p><code>DrawIn</code> leaves out the scene&rsquo;s overlay (its labels, notices and <code>Overlay.Drawing</code>). The overlay
+belongs to the whole window, so <code>DrawOverlay(world, width, height)</code> draws it once, after every
+area. It places labels with the camera of the <strong>last</strong> area drawn: in the picture, the label
+follows the shore view on the right.</p>
+
+<p><code>Draw(world, camera, width, height, seconds)</code> is simply <code>DrawIn</code> over the whole window followed by
+<code>DrawOverlay</code>.</p>
+
+<h2 id="a-scene-floating-over-another-a-radar">A scene floating over another: a radar</h2>
+
+<p><code>DrawIn</code> clears its area and draws the sky behind the scene. <code>DrawOver</code> clears only the depth and
+draws <strong>no sky</strong>: the scene floats over what is already there. A radar in a corner is the classic
+case:</p>
+
+<p align="center"><img alt="The sample island from above its southern shore, and in the top-right corner a small map of the same island from straight above" src="./images/guide-over.png" width="640"></p>
+<pre><code class="language-go"><span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="o">:=</span> <span class="nx">app</span><span class="p">.</span><span class="nx">Input</span><span class="p">.</span><span class="nx">FramebufferWidth</span><span class="p">,</span> <span class="nx">app</span><span class="p">.</span><span class="nx">Input</span><span class="p">.</span><span class="nx">FramebufferHeight</span>
+<span class="nx">side</span><span class="p">,</span> <span class="nx">margin</span> <span class="o">:=</span> <span class="nx">height</span><span class="o">/</span><span class="mi">3</span><span class="p">,</span> <span class="nx">height</span><span class="o">/</span><span class="mi">30</span>
+<span class="nx">corner</span> <span class="o">:=</span> <span class="nx">opengl</span><span class="p">.</span><span class="nx">Area</span><span class="p">{</span><span class="nx">X</span><span class="p">:</span> <span class="nx">width</span> <span class="o">-</span> <span class="nx">side</span> <span class="o">-</span> <span class="nx">margin</span><span class="p">,</span> <span class="nx">Y</span><span class="p">:</span> <span class="nx">height</span> <span class="o">-</span> <span class="nx">side</span> <span class="o">-</span> <span class="nx">margin</span><span class="p">,</span> <span class="nx">Width</span><span class="p">:</span> <span class="nx">side</span><span class="p">,</span> <span class="nx">Height</span><span class="p">:</span> <span class="nx">side</span><span class="p">}</span>
+<span class="nx">renderer</span><span class="p">.</span><span class="nf">DrawIn</span><span class="p">(</span><span class="nx">world</span><span class="p">,</span> <span class="nx">view</span><span class="p">,</span> <span class="nx">opengl</span><span class="p">.</span><span class="nx">Area</span><span class="p">{</span><span class="nx">Width</span><span class="p">:</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">Height</span><span class="p">:</span> <span class="nx">height</span><span class="p">},</span> <span class="mi">0</span><span class="p">)</span>
+<span class="nx">renderer</span><span class="p">.</span><span class="nf">DrawOver</span><span class="p">(</span><span class="nx">world</span><span class="p">,</span> <span class="nx">radar</span><span class="p">,</span> <span class="nx">corner</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="c1">// no sky: the view stays round the island</span>
+<span class="nx">renderer</span><span class="p">.</span><span class="nf">DrawOverlay</span><span class="p">(</span><span class="nx">world</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span><span class="p">)</span>
+</code></pre>
+
+<p>This is the inside of <code>app.Draw</code> in <code>ExampleSceneRenderer_DrawOver</code>, with <code>view := shoreCamera(world)</code>
+and <code>radar := mapCamera(world)</code>. <code>Y: height - side - margin</code> puts the corner at the <strong>top</strong>, since
+areas count from the bottom.</p>
+
+<p>Here the sea fills the radar, so it looks square. With a scene that does not reach the edges, the
+view behind shows through around it. A frame round the radar is a <code>draw2d</code> rectangle in
+<code>Overlay.Drawing</code>, in layout pixels: divide the area by the screen&rsquo;s scale to place it.</p>
+
+<h2 id="previewing-a-console-s-two-screens">Previewing a console&rsquo;s two screens</h2>
+
+<p>The 3DS has two screens, one above the other. A computer can preview both in one window: <code>DrawIn</code>
+the top screen&rsquo;s camera into the upper area and the bottom one into the lower area, at the
+console&rsquo;s sizes (400 × 240 and 320 × 240) times a zoom. See <a href="./guides/3ds">on the Nintendo 3DS</a>.</p>
+
+<h2 id="which-to-use">Which to use</h2>
+
+<table>
+<thead>
+<tr>
+<th>Call</th>
+<th>Clears</th>
+<th>Sky</th>
+<th>Overlay</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>Draw</code></td>
+<td>the whole window</td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+
+<tr>
+<td><code>DrawIn</code></td>
+<td>its area</td>
+<td>yes</td>
+<td>no: call <code>DrawOverlay</code></td>
+</tr>
+
+<tr>
+<td><code>DrawOver</code></td>
+<td>depth only, in its area</td>
+<td>no</td>
+<td>no: call <code>DrawOverlay</code></td>
+</tr>
+
+<tr>
+<td><code>DrawOverlay</code></td>
+<td>nothing</td>
+<td>no</td>
+<td>the scene&rsquo;s, over the whole window</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="not-yet">Not yet</h2>
+
+<p>Areas are in <code>opengl</code> only. The Metal, browser (<code>gles</code>) and 3DS renderers draw a scene over the
+whole screen.</p>

@@ -33,17 +33,22 @@ then back; on the map any drag moves it, scroll zooms and Q/E turn it a quarter.
 </tr>
 
 <tr>
-<td><code>func Run(world *scene.Scene, options Options, title string, update UpdateFunc, loadingTime time.Duration) error</code></td>
+<td><code>func Run(world *scene.Scene, options Options, title string, update UpdateFunc) error</code></td>
 <td>Run shows the scene until the window closes (or, for a capture or a benchmark, until it is done).</td>
 </tr>
 </tbody>
 </table>
 
 <h3 id="constants-and-variables">Constants and variables</h3>
-<pre><code class="language-go"><span class="kd">const</span> <span class="nx">Usage</span> <span class="p">=</span> <span class="s">&#34;[-width W] [-height H] [-capture frame.png] [-walk] [-no-shadows] [-night] [-sun-elevation D] [-sun-azimuth D] [-zoom F] [-benchmark N] [-no-vsync] [-look-at x,z] [-heading D] [-pitch D] [-eye-height H] [-walk-speed S] [-time S] [-backend B] [-continuous]&#34;</span>
+<pre><code class="language-go"><span class="kd">var</span> <span class="p">(</span>
+	<span class="c1">// InvalidPoint is a point flag (-look-at) not written as two numbers, &#34;x,z&#34;.</span>
+	<span class="nx">InvalidPoint</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;viewer.invalid-point&#34;</span><span class="p">,</span> <span class="s">&#34;a point is written as two numbers, x,z&#34;</span><span class="p">)</span>
+	<span class="c1">// UnknownBackend is a -backend that is not automatic, metal or opengl.</span>
+	<span class="nx">UnknownBackend</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;viewer.unknown-backend&#34;</span><span class="p">,</span> <span class="s">&#34;the backend is automatic, metal or opengl&#34;</span><span class="p">)</span>
+<span class="p">)</span>
 </code></pre>
 
-<p>Usage lists the viewer flags for a usage line.</p>
+<p>Codes of the errors the viewer&rsquo;s flags return.</p>
 
 <h3 id="backend">Backend</h3>
 
@@ -73,7 +78,7 @@ then back; on the map any drag moves it, scroll zooms and Q/E turn it a quarter.
 
 <tr>
 <td><code>func (backend *Backend) String() string</code></td>
-<td></td>
+<td>String is the backend as its flag writes it: automatic, metal or opengl.</td>
 </tr>
 </tbody>
 </table>
@@ -84,36 +89,33 @@ then back; on the map any drag moves it, scroll zooms and Q/E turn it a quarter.
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">EditFunc</span> <span class="kd">func</span><span class="p">(</span><span class="nx">world</span> <span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Scene</span><span class="p">,</span> <span class="nx">state</span> <span class="o">*</span><span class="nx">input</span><span class="p">.</span><span class="nx">State</span><span class="p">,</span> <span class="nx">step</span> <span class="kt">float64</span><span class="p">,</span> <span class="nx">view</span> <span class="nx">View</span><span class="p">)</span>
 </code></pre>
 
+<h3 id="measure">Measure</h3>
+
+<p>Measure says what a session captures or measures instead of being explored.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Measure</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// CapturePath renders one frame to this PNG (in a hidden window) instead of exploring.</span>
+	<span class="nx">CapturePath</span> <span class="kt">string</span>
+	<span class="c1">// BenchmarkFrames measures this many frames, writes their times to Output and ends; 0</span>
+	<span class="c1">// explores.</span>
+	<span class="nx">BenchmarkFrames</span> <span class="kt">int</span>
+	<span class="c1">// LoadingTime is how long the scene took to load, shown with the benchmark&#39;s times.</span>
+	<span class="nx">LoadingTime</span> <span class="nx">time</span><span class="p">.</span><span class="nx">Duration</span>
+	<span class="c1">// Output is where a benchmark writes its report; nil writes it nowhere.</span>
+	<span class="nx">Output</span> <span class="nx">io</span><span class="p">.</span><span class="nx">Writer</span>
+<span class="p">}</span>
+</code></pre>
+
 <h3 id="options">Options</h3>
 
-<p>Options configure a viewing session.</p>
+<p>Options configure a viewing session, in three groups: where the view starts, how it is drawn, and what is measured or captured.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Options</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Width and Height are the window&#39;s size.</span>
 	<span class="nx">Width</span><span class="p">,</span> <span class="nx">Height</span> <span class="kt">int</span>
-	<span class="nx">CapturePath</span>   <span class="kt">string</span> <span class="c1">// render one frame to this PNG (hidden window) instead of exploring</span>
-	<span class="nx">StartWalking</span>  <span class="kt">bool</span>
-	<span class="nx">StartMap</span>      <span class="kt">bool</span> <span class="c1">// start on the map: the ground from straight above, without perspective</span>
-	<span class="nx">Isometric</span>     <span class="kt">bool</span> <span class="c1">// start on the map&#39;s isometric view</span>
-	<span class="nx">NoShadows</span>     <span class="kt">bool</span>
-	<span class="nx">Night</span>         <span class="kt">bool</span>
-	<span class="nx">SunElevation</span>  <span class="kt">float64</span>     <span class="c1">// degrees; NaN keeps the scene&#39;s sun</span>
-	<span class="nx">SunAzimuth</span>    <span class="kt">float64</span>     <span class="c1">// degrees clockwise from north; NaN keeps the scene&#39;s sun</span>
-	<span class="nx">Zoom</span>          <span class="kt">float64</span>     <span class="c1">// initial orbit distance as a fraction of the default (0 = 1)</span>
-	<span class="nx">Benchmark</span>     <span class="kt">int</span>         <span class="c1">// frames to measure before printing times and exiting; 0 = explore</span>
-	<span class="nx">NoVsync</span>       <span class="kt">bool</span>        <span class="c1">// draw as fast as possible instead of waiting for the display</span>
-	<span class="nx">LookAt</span>        <span class="o">*</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="kt">float32</span> <span class="c1">// point (x, z) the view starts centred on, and where walking starts; nil = the scene centre</span>
-	<span class="nx">Heading</span>       <span class="kt">float64</span>     <span class="c1">// walking: degrees clockwise from north (-z) the walker starts facing; NaN keeps the default</span>
-	<span class="nx">Pitch</span>         <span class="kt">float64</span>     <span class="c1">// walking: degrees the walker starts looking up (negative = down)</span>
-	<span class="nx">EyeHeight</span>     <span class="kt">float64</span>     <span class="c1">// walking: eye height in scene units; 0 keeps the default (a share of the scene size)</span>
-	<span class="nx">WalkSpeed</span>     <span class="kt">float64</span>     <span class="c1">// walking: speed in scene units per second; 0 keeps the default (a share of the scene size)</span>
-	<span class="c1">// Continuous draws every frame, so water, clouds and plants in the wind keep moving while</span>
-	<span class="c1">// nothing else happens. By default the viewer draws only when something changes (input, the</span>
-	<span class="c1">// camera, the sun, notices), unless it runs a program&#39;s update function (a simulation).</span>
-	<span class="nx">Continuous</span> <span class="kt">bool</span>
+	<span class="nx">Start</span>         <span class="nx">Start</span>
+	<span class="nx">Rendering</span>     <span class="nx">Rendering</span>
+	<span class="nx">Measure</span>       <span class="nx">Measure</span>
 	<span class="c1">// Backend is what draws: Automatic (Metal on macOS, OpenGL elsewhere), Metal or OpenGL.</span>
 	<span class="nx">Backend</span> <span class="nx">Backend</span>
-	<span class="c1">// Time, when not NaN, draws every frame as if this many seconds had passed (water, clouds and</span>
-	<span class="c1">// waterfalls stand still): captures that must come out the same, to compare them.</span>
-	<span class="nx">Time</span> <span class="kt">float64</span>
 <span class="p">}</span>
 </code></pre>
 
@@ -128,7 +130,7 @@ then back; on the map any drag moves it, scroll zooms and Q/E turn it a quarter.
 <tbody>
 <tr>
 <td><code>func DefaultOptions() Options</code></td>
-<td>DefaultOptions returns a 1280×800 window with the scene&rsquo;s own sun.</td>
+<td>DefaultOptions returns a 1280×800 window with the scene&rsquo;s own sun, reporting benchmarks on the standard output.</td>
 </tr>
 
 <tr>
@@ -137,6 +139,51 @@ then back; on the map any drag moves it, scroll zooms and Q/E turn it a quarter.
 </tr>
 </tbody>
 </table>
+
+<h3 id="rendering">Rendering</h3>
+
+<p>Rendering are switches of how frames are drawn.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Rendering</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">NoShadows</span> <span class="kt">bool</span>
+	<span class="c1">// NoVsync draws as fast as possible instead of waiting for the display.</span>
+	<span class="nx">NoVsync</span> <span class="kt">bool</span>
+	<span class="c1">// Continuous draws every frame, so water, clouds and plants in the wind keep moving while</span>
+	<span class="c1">// nothing else happens. By default the viewer draws only when something changes (input, the</span>
+	<span class="c1">// camera, the sun, notices), unless it runs a program&#39;s update function (a simulation).</span>
+	<span class="nx">Continuous</span> <span class="kt">bool</span>
+	<span class="c1">// FixedSeconds, when not NaN, draws every frame as if this many seconds had passed (water,</span>
+	<span class="c1">// clouds and waterfalls stand still): captures that must come out the same, to compare them.</span>
+	<span class="nx">FixedSeconds</span> <span class="kt">float64</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="start">Start</h3>
+
+<p>Start is where the view starts looking from, and the light it starts in.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Start</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Walking</span>   <span class="kt">bool</span> <span class="c1">// on the ground, walking</span>
+	<span class="nx">Map</span>       <span class="kt">bool</span> <span class="c1">// on the map: the ground from straight above, without perspective</span>
+	<span class="nx">Isometric</span> <span class="kt">bool</span> <span class="c1">// on the map&#39;s isometric view</span>
+	<span class="nx">Night</span>     <span class="kt">bool</span>
+	<span class="c1">// LookAt is the point (x, z) the view starts centred on, and where walking starts; nil is the</span>
+	<span class="c1">// scene&#39;s centre.</span>
+	<span class="nx">LookAt</span> <span class="o">*</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="kt">float32</span>
+	<span class="c1">// Zoom is the starting orbit distance (or map span) as a fraction of the default; 0 is 1.</span>
+	<span class="nx">Zoom</span> <span class="kt">float64</span>
+	<span class="c1">// SunElevationDegrees and SunAzimuthDegrees (clockwise from north) place the sun; NaN keeps</span>
+	<span class="c1">// the scene&#39;s.</span>
+	<span class="nx">SunElevationDegrees</span> <span class="kt">float64</span>
+	<span class="nx">SunAzimuthDegrees</span>   <span class="kt">float64</span>
+	<span class="c1">// HeadingDegrees, clockwise from north (-z), is the way the walker starts facing; NaN keeps</span>
+	<span class="c1">// the default. PitchDegrees is how far it starts looking up (negative is down).</span>
+	<span class="nx">HeadingDegrees</span> <span class="kt">float64</span>
+	<span class="nx">PitchDegrees</span>   <span class="kt">float64</span>
+	<span class="c1">// EyeHeight (scene units) and WalkSpeed (scene units a second) of the walker; 0 keeps the</span>
+	<span class="c1">// default, a share of the scene&#39;s size.</span>
+	<span class="nx">EyeHeight</span> <span class="kt">float64</span>
+	<span class="nx">WalkSpeed</span> <span class="kt">float64</span>
+<span class="p">}</span>
+</code></pre>
 
 <h3 id="updatefunc">UpdateFunc</h3>
 
@@ -148,7 +195,7 @@ then back; on the map any drag moves it, scroll zooms and Q/E turn it a quarter.
 
 <p>View is what an editing program knows about the view at a step: the camera that drew the frame the user sees, and the window&rsquo;s size. The pointer&rsquo;s position (input.State.CursorX and CursorY) is in the same window pixels.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">View</span> <span class="kd">struct</span> <span class="p">{</span>
-	<span class="nx">Camera</span>        <span class="nx">models</span><span class="p">.</span><span class="nx">Camera</span>
+	<span class="nx">Camera</span>        <span class="nx">camera</span><span class="p">.</span><span class="nx">Lens</span>
 	<span class="nx">Width</span><span class="p">,</span> <span class="nx">Height</span> <span class="kt">int</span> <span class="c1">// window pixels</span>
 
 	<span class="c1">// Has unexported fields.</span>
@@ -170,12 +217,12 @@ then back; on the map any drag moves it, scroll zooms and Q/E turn it a quarter.
 </tr>
 
 <tr>
-<td><code>func (view View) PointOnGround(x, y float64) (graphics.Vec4, bool)</code></td>
+<td><code>func (view View) PointOnGround(x, y float64) (graphics.Vector, bool)</code></td>
 <td>PointOnGround returns the point of the window (x, y in window pixels) on the scene&rsquo;s walkable ground (meshes marked Ground), with its true height.</td>
 </tr>
 
 <tr>
-<td><code>func (view View) PointOnPlane(x, y float64, height float32) (graphics.Vec4, bool)</code></td>
+<td><code>func (view View) PointOnPlane(x, y float64, height float32) (graphics.Vector, bool)</code></td>
 <td>PointOnPlane returns the point of the window (x, y in window pixels) on the horizontal plane at a true height: a flat floor.</td>
 </tr>
 

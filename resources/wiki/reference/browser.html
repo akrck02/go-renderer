@@ -24,7 +24,7 @@ happens.</p>
 
 <tbody>
 <tr>
-<td><code>func Run(canvas *Canvas, app *models.Application, drawFrame func() error) error</code></td>
+<td><code>func Run(canvas *Canvas, app *window.Application, drawFrame func() error) error</code></td>
 <td>Run drives an application in the canvas until it sets Stop: update steps at the fixed step and drawFrame to draw one, called from requestAnimationFrame.</td>
 </tr>
 
@@ -41,14 +41,15 @@ happens.</p>
 </table>
 
 <h3 id="constants-and-variables">Constants and variables</h3>
-<pre><code class="language-go"><span class="kd">var</span> <span class="nx">ErrNoCanvas</span> <span class="p">=</span> <span class="nx">errors</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span><span class="s">&#34;browser: no canvas with that id in the page&#34;</span><span class="p">)</span>
+<pre><code class="language-go"><span class="kd">var</span> <span class="p">(</span>
+	<span class="c1">// CanvasNotFound is a page with no canvas of the id asked for (or no canvas at all).</span>
+	<span class="nx">CanvasNotFound</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;browser.canvas-not-found&#34;</span><span class="p">,</span> <span class="s">&#34;the page has no canvas with that id&#34;</span><span class="p">)</span>
+	<span class="c1">// WebGL2Missing is a browser that cannot give the canvas a WebGL2 context.</span>
+	<span class="nx">WebGL2Missing</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;browser.webgl2-missing&#34;</span><span class="p">,</span> <span class="s">&#34;this browser has no WebGL2&#34;</span><span class="p">)</span>
+<span class="p">)</span>
 </code></pre>
 
-<p>ErrNoCanvas is returned when the page has no canvas with the given id.</p>
-<pre><code class="language-go"><span class="kd">var</span> <span class="nx">ErrNoWebGL2</span> <span class="p">=</span> <span class="nx">errors</span><span class="p">.</span><span class="nf">New</span><span class="p">(</span><span class="s">&#34;browser: this browser has no WebGL2&#34;</span><span class="p">)</span>
-</code></pre>
-
-<p>ErrNoWebGL2 is returned when the browser cannot give the canvas a WebGL2 context.</p>
+<p>Codes of the errors OpenCanvas and the renderers return.</p>
 
 <h3 id="canvas">Canvas</h3>
 
@@ -107,243 +108,243 @@ happens.</p>
 
 <tbody>
 <tr>
-<td><code>func (webgl *WebGL) ActiveTexture(unit gles.Enum)</code></td>
-<td></td>
-</tr>
-
-<tr>
 <td><code>func (webgl *WebGL) AttachShader(program gles.Program, shader gles.Shader)</code></td>
-<td></td>
+<td>AttachShader implements gles.Functions.</td>
 </tr>
 
 <tr>
-<td><code>func (webgl *WebGL) BindAttribLocation(program gles.Program, index uint32, name string)</code></td>
-<td></td>
+<td><code>func (webgl *WebGL) AttachTextureToFramebuffer(target, attachment, textureTarget gles.Enum, texture gles.Texture, level int)</code></td>
+<td>AttachTextureToFramebuffer implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) BindAttributeLocation(program gles.Program, index uint32, name string)</code></td>
+<td>BindAttributeLocation implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) BindBuffer(target gles.Enum, buffer gles.Buffer)</code></td>
-<td></td>
+<td>BindBuffer implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) BindFramebuffer(target gles.Enum, framebuffer gles.Framebuffer)</code></td>
-<td></td>
+<td>BindFramebuffer implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) BindTexture(target gles.Enum, texture gles.Texture)</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) BlendFuncSeparate(sourceColor, destinationColor, sourceAlpha, destinationAlpha gles.Enum)</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) BufferData(target gles.Enum, data []byte, usage gles.Enum)</code></td>
-<td></td>
+<td>BindTexture implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) Clear(mask gles.Enum)</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) ClearColor(red, green, blue, alpha float32)</code></td>
-<td></td>
+<td>Clear implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) CompileShader(shader gles.Shader)</code></td>
-<td></td>
+<td>CompileShader implements gles.Functions.</td>
 </tr>
 
 <tr>
-<td><code>func (webgl *WebGL) CopyTexSubImage2D(target gles.Enum, level, xOffset, yOffset, x, y, width, height int)</code></td>
-<td></td>
+<td><code>func (webgl *WebGL) CopyFramebufferToTexture(target gles.Enum, level, xOffset, yOffset, x, y, width, height int)</code></td>
+<td>CopyFramebufferToTexture implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) CreateBuffer() gles.Buffer</code></td>
-<td></td>
+<td>CreateBuffer implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) CreateFramebuffer() gles.Framebuffer</code></td>
-<td></td>
+<td>CreateFramebuffer implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) CreateProgram() gles.Program</code></td>
-<td></td>
+<td>CreateProgram implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) CreateShader(stage gles.Enum) gles.Shader</code></td>
-<td></td>
+<td>CreateShader implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) CreateTexture() gles.Texture</code></td>
-<td></td>
+<td>CreateTexture implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) DeleteFramebuffer(framebuffer gles.Framebuffer)</code></td>
-<td></td>
+<td>DeleteFramebuffer implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) DeleteShader(shader gles.Shader)</code></td>
-<td></td>
+<td>DeleteShader implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) DeleteTexture(texture gles.Texture)</code></td>
-<td></td>
+<td>DeleteTexture implements gles.Functions.</td>
 </tr>
 
 <tr>
-<td><code>func (webgl *WebGL) DepthFunc(function gles.Enum)</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) DepthMask(write bool)</code></td>
-<td></td>
+<td><code>func (webgl *WebGL) DescribeVertexAttribute(index uint32, size int, kind gles.Enum, normalized bool, stride, offset int)</code></td>
+<td>DescribeVertexAttribute implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) Disable(capability gles.Enum)</code></td>
-<td></td>
+<td>Disable implements gles.Functions.</td>
 </tr>
 
 <tr>
-<td><code>func (webgl *WebGL) DisableVertexAttribArray(index uint32)</code></td>
-<td></td>
+<td><code>func (webgl *WebGL) DisableVertexAttribute(index uint32)</code></td>
+<td>DisableVertexAttribute implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) DrawArrays(mode gles.Enum, first, count int)</code></td>
-<td></td>
+<td>DrawArrays implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) DrawElements(mode gles.Enum, count int, kind gles.Enum, offset int)</code></td>
-<td></td>
+<td>DrawElements implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) Enable(capability gles.Enum)</code></td>
-<td></td>
+<td>Enable implements gles.Functions.</td>
 </tr>
 
 <tr>
-<td><code>func (webgl *WebGL) EnableVertexAttribArray(index uint32)</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) FramebufferTexture2D(target, attachment, textureTarget gles.Enum, texture gles.Texture, level int)</code></td>
-<td></td>
+<td><code>func (webgl *WebGL) EnableVertexAttribute(index uint32)</code></td>
+<td>EnableVertexAttribute implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) LinkProgram(program gles.Program)</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) PixelStorei(name gles.Enum, value int32)</code></td>
-<td></td>
+<td>LinkProgram implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) ProgramLinked(program gles.Program) (bool, string)</code></td>
-<td></td>
+<td>ProgramLinked implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) ReplaceTexturePart(target gles.Enum, level, x, y, width, height int, format, kind gles.Enum, pixels []byte)</code></td>
+<td>ReplaceTexturePart implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) SelectTextureUnit(unit gles.Enum)</code></td>
+<td>SelectTextureUnit implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) SetBlendFactors(sourceColor, destinationColor, sourceAlpha, destinationAlpha gles.Enum)</code></td>
+<td>SetBlendFactors implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) SetBufferData(target gles.Enum, data []byte, usage gles.Enum)</code></td>
+<td>SetBufferData implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) SetClearColor(red, green, blue, alpha float32)</code></td>
+<td>SetClearColor implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) SetDepthFunction(function gles.Enum)</code></td>
+<td>SetDepthFunction implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) SetDepthWrite(write bool)</code></td>
+<td>SetDepthWrite implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) SetPixelStorage(name gles.Enum, value int32)</code></td>
+<td>SetPixelStorage implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) SetShaderSource(shader gles.Shader, source string)</code></td>
+<td>SetShaderSource implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) SetTextureImage(target gles.Enum, level int, internalFormat gles.Enum, width, height int, format, kind gles.Enum, pixels []byte)</code></td>
+<td>SetTextureImage implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) SetTextureParameter(target, name gles.Enum, value int32)</code></td>
+<td>SetTextureParameter implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) SetUniformFloat(location gles.Uniform, value float32)</code></td>
+<td>SetUniformFloat implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) SetUniformFourFloats(location gles.Uniform, first, second, third, fourth float32)</code></td>
+<td>SetUniformFourFloats implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) SetUniformInteger(location gles.Uniform, value int32)</code></td>
+<td>SetUniformInteger implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) SetUniformMatrix3By3(location gles.Uniform, matrix [9]float32)</code></td>
+<td>SetUniformMatrix3By3 implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) SetUniformMatrix4By4(location gles.Uniform, matrix [16]float32)</code></td>
+<td>SetUniformMatrix4By4 implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) SetUniformThreeFloats(location gles.Uniform, first, second, third float32)</code></td>
+<td>SetUniformThreeFloats implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) SetUniformTwoFloats(location gles.Uniform, first, second float32)</code></td>
+<td>SetUniformTwoFloats implements gles.Functions.</td>
+</tr>
+
+<tr>
+<td><code>func (webgl *WebGL) SetViewport(x, y, width, height int)</code></td>
+<td>SetViewport implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) ShaderCompiled(shader gles.Shader) (bool, string)</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) ShaderSource(shader gles.Shader, source string)</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) TexImage2D(target gles.Enum, level int, internalFormat gles.Enum, width, height int, format, kind gles.Enum, pixels []byte)</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) TexParameteri(target, name gles.Enum, value int32)</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) TexSubImage2D(target gles.Enum, level, x, y, width, height int, format, kind gles.Enum, pixels []byte)</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) Uniform1f(location gles.Uniform, value float32)</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) Uniform1i(location gles.Uniform, value int32)</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) Uniform2f(location gles.Uniform, first, second float32)</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) Uniform3f(location gles.Uniform, first, second, third float32)</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) Uniform4f(location gles.Uniform, first, second, third, fourth float32)</code></td>
-<td></td>
+<td>ShaderCompiled implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) UniformLocation(program gles.Program, name string) gles.Uniform</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) UniformMatrix3(location gles.Uniform, matrix [9]float32)</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) UniformMatrix4(location gles.Uniform, matrix [16]float32)</code></td>
-<td></td>
+<td>UniformLocation implements gles.Functions.</td>
 </tr>
 
 <tr>
 <td><code>func (webgl *WebGL) UseProgram(program gles.Program)</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) VertexAttribPointer(index uint32, size int, kind gles.Enum, normalized bool, stride, offset int)</code></td>
-<td></td>
-</tr>
-
-<tr>
-<td><code>func (webgl *WebGL) Viewport(x, y, width, height int)</code></td>
-<td></td>
+<td>UseProgram implements gles.Functions.</td>
 </tr>
 </tbody>
 </table>

@@ -17,7 +17,7 @@ program.</p>
 <tbody>
 <tr>
 <td>The island from a file</td>
-<td><code>loaders.LoadScene</code>, extras, <code>ParseSceneGLB</code></td>
+<td><code>loaders.LoadScene</code>, extras, <code>ReadScene</code></td>
 <td>10 min</td>
 </tr>
 </tbody>
@@ -39,7 +39,7 @@ a whole scene.</p>
 <span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
 	<span class="nx">log</span><span class="p">.</span><span class="nf">Fatal</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
 <span class="p">}</span>
-<span class="nx">viewer</span><span class="p">.</span><span class="nf">Run</span><span class="p">(</span><span class="nx">world</span><span class="p">,</span> <span class="nx">options</span><span class="p">,</span> <span class="s">&#34;Island&#34;</span><span class="p">,</span> <span class="kc">nil</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+<span class="nx">viewer</span><span class="p">.</span><span class="nf">Run</span><span class="p">(</span><span class="nx">world</span><span class="p">,</span> <span class="nx">options</span><span class="p">,</span> <span class="s">&#34;Island&#34;</span><span class="p">,</span> <span class="kc">nil</span><span class="p">)</span>
 </code></pre>
 
 <p>That is the whole of <code>cmd/visor</code>, give or take its flags: <code>go run ./cmd/visor island.glb</code> opens
@@ -130,11 +130,12 @@ on it. To animate a node, find it by name:</p>
 
 <h2 id="carrying-the-scene-inside-the-program">Carrying the scene inside the program</h2>
 
-<p>A program for a web page or a phone has no files beside it. Embed the <code>.glb</code> and parse its bytes:</p>
+<p>A program for a web page or a phone has no files beside it. Embed the <code>.glb</code> and read it from its
+bytes (<code>ReadScene</code> takes any <code>io.Reader</code>):</p>
 <pre><code class="language-go"><span class="cp">//go:embed island.glb</span>
 <span class="kd">var</span> <span class="nx">islandFile</span> <span class="p">[]</span><span class="kt">byte</span>
 
-<span class="nx">world</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">loaders</span><span class="p">.</span><span class="nf">ParseSceneGLB</span><span class="p">(</span><span class="nx">islandFile</span><span class="p">)</span>
+<span class="nx">world</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">loaders</span><span class="p">.</span><span class="nf">ReadScene</span><span class="p">(</span><span class="nx">bytes</span><span class="p">.</span><span class="nf">NewReader</span><span class="p">(</span><span class="nx">islandFile</span><span class="p">))</span>
 </code></pre>
 
 <p>The buffers must be inside the file, as a <code>.glb</code>&rsquo;s are; a <code>.gltf</code> with separate <code>.bin</code> files needs
@@ -149,7 +150,7 @@ on it. To animate a node, find it by name:</p>
 <h2 id="what-you-learnt">What you learnt</h2>
 
 <ul>
-<li><code>loaders.LoadScene</code> opens a <code>.glb</code> or <code>.gltf</code>; <code>ParseSceneGLB</code> reads embedded bytes.</li>
+<li><code>loaders.LoadScene</code> opens a <code>.glb</code> or <code>.gltf</code>; <code>ReadScene</code> reads embedded bytes.</li>
 <li>Extras carry what glTF cannot: the environment, the ground, material kinds, labels.</li>
 <li>A loaded scene is an ordinary <code>scene.Scene</code>: find nodes by name and change them.</li>
 </ul>
@@ -171,17 +172,17 @@ on it. To animate a node, find it by name:</p>
 
 ```go
 height, _ := world.GroundHeight(18, 0)
-second := &scene.Node{Name: "east lighthouse", Transform: graphics.Translate(graphics.Vec4{18, height, 0, 1}),
-	Mesh: box(1.5, 5, 1.5, graphics.Vec4{0.75, 0.2, 0.15, 1})}
-secondLamp := &scene.Node{Name: "east lamp", Transform: graphics.Translate(graphics.Vec4{0, 5, 0, 1}),
-	Mesh: box(2, 0.4, 0.4, graphics.Vec4{1, 0.85, 0.3, 1})}
-secondLamp.Mesh.Material.Kind = scene.KindGlow
+second := &scene.Node{Name: "east lighthouse", Transform: graphics.Translate(graphics.Vector{18, height, 0, 1}),
+	Mesh: box(1.5, 5, 1.5, graphics.Vector{0.75, 0.2, 0.15, 1})}
+secondLamp := &scene.Node{Name: "east lamp", Transform: graphics.Translate(graphics.Vector{0, 5, 0, 1}),
+	Mesh: box(2, 0.4, 0.4, graphics.Vector{1, 0.85, 0.3, 1})}
+secondLamp.Mesh.Material.Kind = scene.GlowKind
 second.Children = append(second.Children, secondLamp)
 world.Nodes = append(world.Nodes, second)
 world.Overlay.AddLabel(&scene.Label{Node: second, Height: 6, Icon: "lightbulb", Text: "East Light"})
 
 // in the edit function, after the first lamp:
-secondLamp.Transform = graphics.Translate(graphics.Vec4{0, 5, 0, 1}).Multiply(graphics.RotateY(-angle))
+secondLamp.Transform = graphics.Translate(graphics.Vector{0, 5, 0, 1}).Multiply(graphics.RotateY(-angle))
 ```
 
 </details>

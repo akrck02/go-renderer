@@ -18,7 +18,7 @@ closer.</p>
 <h2 id="what-was-already-portable">What was already portable</h2>
 
 <p>Most of Go Renderer is plain Go and builds for WebAssembly as it is: the scene (<code>scene</code>), the
-frame planning (<code>sceneplan</code>), cameras (<code>camera</code>), glTF loading (<code>loaders</code>), input (<code>input</code>), the
+frame planning (<code>internal/sceneplan</code>), cameras (<code>camera</code>), glTF loading (<code>loaders</code>), input (<code>input</code>), the
 2D draw lists (<code>draw2d</code>) and the overlay painter with its atlas and fonts (<code>opengl/overlay</code>, which
 rasterises on the processor and embeds its fonts with <code>go:embed</code>). Only three packages are tied to
 the desktop, through GLFW and cgo: <code>opengl</code>, <code>windowloop</code> and <code>viewer</code>.</p>
@@ -103,7 +103,7 @@ to make shaders, buffers and textures and to draw. Each platform implements it:<
 same atlas, one draw call. <code>gles.SceneRenderer</code> draws a scene in its <strong>simplest form</strong>: lit meshes
 with vertex colours, instances, the light of the time of day (<code>Environment.Daylight</code>), fog,
 translucent water and, over everything, the overlay. What a frame draws is still decided by
-<code>sceneplan</code>, so culling and levels of detail work as on the desktop.</p>
+<code>internal/sceneplan</code>, so culling and levels of detail work as on the desktop.</p>
 
 <p>They use <strong>only what OpenGL ES 2.0 has</strong> (plus 32-bit indices, which every current phone has),
 because the first Android step went through <code>golang.org/x/mobile/gl</code>, which knows no newer

@@ -57,8 +57,13 @@ root), so they say exactly what <code>go doc</code> says; for the whole comment 
 </tr>
 
 <tr>
-<td>Draw triangles myself every frame (immediate mode), or run my own loop</td>
-<td><a href="./reference/models"><code>models</code></a></td>
+<td>Run my own program in a window: its options, update and draw</td>
+<td><a href="./reference/window"><code>window</code></a></td>
+</tr>
+
+<tr>
+<td>Draw triangles myself every frame (immediate mode)</td>
+<td><a href="./reference/immediate"><code>immediate</code></a></td>
 </tr>
 </tbody>
 </table>
@@ -91,7 +96,7 @@ root), so they say exactly what <code>go doc</code> says; for the whole comment 
 
 <tr>
 <td><a href="./reference/camera"><code>camera</code></a></td>
-<td>Orbit, walking and map controllers; the ray through a pixel</td>
+<td>The <code>Camera</code>; orbit, walking and map controllers; the ray through a pixel</td>
 </tr>
 
 <tr>
@@ -106,17 +111,27 @@ root), so they say exactly what <code>go doc</code> says; for the whole comment 
 
 <tr>
 <td><a href="./reference/graphics"><code>graphics</code></a></td>
-<td><code>Vec4</code>, <code>Mat4</code>, transformations and projections, the shaders&rsquo; sources</td>
+<td><code>Vector</code>, <code>Matrix</code>, transformations and projections</td>
 </tr>
 
 <tr>
-<td><a href="./reference/models"><code>models</code></a></td>
-<td>The application loop (<code>Application</code>), the camera, and the immediate-mode <code>Renderer</code> contract</td>
+<td><a href="./reference/window"><code>window</code></a></td>
+<td>A program in a window: its <code>Options</code>, its <code>Callbacks</code> (update, draw) and the <code>Application</code> they make</td>
+</tr>
+
+<tr>
+<td><a href="./reference/immediate"><code>immediate</code></a></td>
+<td>The immediate-mode <code>Renderer</code> contract: shapes drawn at once, every frame</td>
 </tr>
 
 <tr>
 <td><a href="./reference/scene-sample"><code>scene/sample</code></a></td>
 <td>A made-up island that uses every feature, needing no files</td>
+</tr>
+
+<tr>
+<td><a href="./reference/failure"><code>failure</code></a></td>
+<td>Error codes: <code>Define</code>, <code>Wrap</code>, checked with <code>errors.Is</code></td>
 </tr>
 </tbody>
 </table>
@@ -175,11 +190,14 @@ root), so they say exactly what <code>go doc</code> says; for the whole comment 
 </tr>
 
 <tr>
-<td><a href="./reference/sceneplan"><code>sceneplan</code></a></td>
-<td>What a frame of a scene draws, worked out once for every backend</td>
+<td><a href="./reference/software"><code>software</code></a>, <a href="./reference/vulkan"><code>vulkan</code></a>, <a href="./reference/webgpu"><code>webgpu</code></a></td>
+<td>Backends of the immediate-mode contract, to be built later: every function returns <code>&lt;backend&gt;.not-implemented</code></td>
 </tr>
 </tbody>
 </table>
+<p>The backends also share two packages of the module&rsquo;s own, which programs cannot import:
+<code>internal/sceneplan</code> (what a frame of a scene draws, worked out once for every backend) and
+<code>internal/shading</code> (what every backend&rsquo;s shaders agree on).</p>
 
 <h2 id="conventions">Conventions</h2>
 
@@ -206,7 +224,7 @@ root), so they say exactly what <code>go doc</code> says; for the whole comment 
 
 <tr>
 <td><strong>Points and directions</strong></td>
-<td>A <code>Vec4</code> with 1 last is a point, with 0 a direction; colours use it as opacity</td>
+<td>A <code>Vector</code> with 1 last is a point, with 0 a direction; colours use it as opacity</td>
 </tr>
 
 <tr>

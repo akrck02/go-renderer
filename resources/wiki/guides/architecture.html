@@ -15,7 +15,7 @@ simulators use.</li>
 scene, and it shows the result.</p>
 
 <p align="center">
-  <img alt="Immediate mode: your program's Update and Draw call the hand-written models.Renderer contract, drawn by the software, opengl, vulkan, metal or webgpu backend. A retained scene: glTF 2.0 through loaders into scene and sceneplan, drawn by the scene renderers: opengl and metal on the desktop, gles in browsers and on Android" src="./images/two-ways.svg" width="880">
+  <img alt="Immediate mode: your program's Update and Draw call the hand-written immediate.Renderer contract, drawn by the software, opengl, vulkan, metal or webgpu backend. A retained scene: glTF 2.0 through loaders into scene and sceneplan, drawn by the scene renderers: opengl and metal on the desktop, gles in browsers and on Android" src="./images/two-ways.svg" width="880">
 </p>
 
 <h2 id="packages">Packages</h2>
@@ -31,21 +31,41 @@ scene, and it shows the result.</p>
 <tbody>
 <tr>
 <td><code>graphics</code></td>
-<td>Vectors, matrices, coordinate spaces and transformations; the shader sources</td>
+<td>Vectors, matrices, coordinate spaces and transformations</td>
 </tr>
 
 <tr>
-<td><code>models</code></td>
-<td>The application loop (<code>Application</code>, a fixed time step before every frame), the <code>Renderer</code> contract and the backend enumeration</td>
+<td><code>window</code></td>
+<td>A program in a window: what the window is (<code>Options</code>), what runs every frame (<code>Callbacks</code>: a fixed-step <code>Update</code>, <code>Draw</code>) and what both share (<code>Application</code>)</td>
 </tr>
 
 <tr>
-<td><code>software</code>, <code>opengl</code>, <code>vulkan</code>, <code>metal</code>, <code>webgpu</code></td>
-<td>Backends behind the contract; OpenGL is the complete one. <code>metal</code> also has <code>FlatWindow</code> and <code>FlatRenderer</code>, which draw a flat interface through Metal on macOS (<a href="./guides/metal">design</a>)</td>
+<td><code>immediate</code></td>
+<td>The hand-written immediate-mode contract: <code>Renderer</code>, <code>Mesh</code>, <code>Model</code></td>
 </tr>
 
 <tr>
-<td><code>sceneplan</code></td>
+<td><code>opengl</code>, <code>metal</code></td>
+<td>Backends behind the contract (<code>opengl.Window</code> and <code>opengl.Renderer</code>); OpenGL is the complete one. <code>metal</code> also has <code>FlatWindow</code> and <code>FlatRenderer</code>, which draw a flat interface through Metal on macOS (<a href="./guides/metal">design</a>)</td>
+</tr>
+
+<tr>
+<td><code>software</code>, <code>vulkan</code>, <code>webgpu</code></td>
+<td>Backends behind the contract that will be built later. Until then every function returns its package&rsquo;s <code>NotImplemented</code> code (<code>software.not-implemented</code>, <code>vulkan.not-implemented</code>, <code>webgpu.not-implemented</code>), checked with <code>errors.Is</code></td>
+</tr>
+
+<tr>
+<td><code>failure</code></td>
+<td>Error codes: <code>failure.Define</code> declares one, <code>failure.Wrap</code> adds details; check them with <code>errors.Is</code></td>
+</tr>
+
+<tr>
+<td><code>internal/shading</code></td>
+<td>What the backends&rsquo; shaders agree on (a sharp picture&rsquo;s offset, ambient light, the backdrop blur&rsquo;s weights); each backend keeps its own shader sources (the OpenGL ones in <code>opengl/*_shaders.go</code>)</td>
+</tr>
+
+<tr>
+<td><code>internal/sceneplan</code></td>
 <td>Decides what a frame of a scene draws, for any backend: the draw commands in order, culling and levels of detail, instance batches, where the shadow and seabed maps look</td>
 </tr>
 
@@ -106,7 +126,7 @@ scene, and it shows the result.</p>
 
 <tr>
 <td><code>camera</code></td>
-<td>Camera controllers: orbit, walk and map; the ray through a point of the window (<code>RayThrough</code>) and where it meets a plane or the ground</td>
+<td>The <code>Camera</code> and its controllers: orbit, walk and map; the ray through a point of the window (<code>RayThrough</code>) and where it meets a plane or the ground</td>
 </tr>
 
 <tr>
@@ -125,18 +145,18 @@ scene, and it shows the result.</p>
 
 <p>An application implements an update and a draw, and calls the renderer every frame:</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Renderer</span> <span class="kd">interface</span> <span class="p">{</span>
-	<span class="nf">RenderPolygon</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">coordinates</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">,</span> <span class="nx">fill</span> <span class="kt">bool</span><span class="p">)</span> <span class="kt">error</span>
-	<span class="nf">RenderTriangle</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">coordinates</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">,</span> <span class="nx">fill</span> <span class="kt">bool</span><span class="p">)</span> <span class="kt">error</span>
-	<span class="nf">RenderRectangle</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">coordinates</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">float32</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">,</span> <span class="nx">fill</span> <span class="kt">bool</span><span class="p">)</span> <span class="kt">error</span>
-	<span class="nf">RenderImage</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">bytes</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">,</span> <span class="nx">coordinates</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">float32</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span>
-	<span class="nf">Render3dObject</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">vertices</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span>
-	<span class="nf">Render3dModel</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">model</span> <span class="o">*</span><span class="nx">Model</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span>
-	<span class="nf">SetMatrices</span><span class="p">(</span><span class="nx">projection</span><span class="p">,</span> <span class="nx">view</span><span class="p">,</span> <span class="nx">model</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Mat4</span><span class="p">)</span>
+	<span class="nf">RenderPolygon</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">coordinates</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">,</span> <span class="nx">fill</span> <span class="kt">bool</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="nf">RenderTriangle</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">coordinates</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">,</span> <span class="nx">fill</span> <span class="kt">bool</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="nf">RenderRectangle</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">centre</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">float32</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">,</span> <span class="nx">fill</span> <span class="kt">bool</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="nf">RenderImage</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">bytes</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">,</span> <span class="nx">centre</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">,</span> <span class="nx">width</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">float32</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="nf">RenderObject</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">vertices</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="nf">RenderModel</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">model</span> <span class="o">*</span><span class="nx">Model</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="nf">SetMatrices</span><span class="p">(</span><span class="nx">projection</span><span class="p">,</span> <span class="nx">view</span><span class="p">,</span> <span class="nx">model</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Matrix</span><span class="p">)</span>
 <span class="p">}</span>
 </code></pre>
 
 <p>Coordinates can be given in local, world or viewport space; the backend does the transformations.
-<code>models.Application.Update</code> runs at a fixed time step before every frame, so motion does not
+<code>window.Application.Update</code> runs at a fixed time step before every frame, so motion does not
 depend on the frame rate.</p>
 
 <p>An application that is mostly still (a window of controls) sets <code>DrawOnDemand</code>: the loop then
@@ -183,14 +203,14 @@ attributes (<code>KHR_mesh_quantization</code>: integer positions, normals, colo
 <a href="./guides/gltf-extras">extras</a>: environment, sky, water, material kinds, levels of detail and walkable
 ground.</p>
 
-<p><code>loaders.ParseSceneGLB</code> reads the same from the bytes of a <code>.glb</code>, for programs with no file system
+<p><code>loaders.ReadScene</code> reads the same from a <code>.glb</code>&rsquo;s content (any <code>io.Reader</code>), for programs with no file system
 (a web page) or that carry their scene inside them.</p>
 
 <h2 id="the-scene-renderers">The scene renderers</h2>
 
 <p>There are two, which draw the same frame: <code>opengl.SceneRenderer</code> and, on macOS, <code>metal.SceneRenderer</code>
 (the viewer chooses with <code>-backend</code>; Metal by default on macOS). What a frame draws is decided once,
-in <code>sceneplan</code>, which makes no graphics calls; each backend only uploads and draws that plan, with
+in <code>internal/sceneplan</code>, which makes no graphics calls; each backend only uploads and draws that plan, with
 shaders that are faithful translations of each other. Their captures of the sample island match
 except for rounding and where two surfaces lie in the same plane (<code>cmd/visor</code>&rsquo;s
 <code>TestMetalDrawsTheSceneLikeOpenGL</code>; <a href="./guides/metal">measurements</a>).</p>
@@ -238,7 +258,7 @@ the system, characters typed, which click of a double click a press was). An int
 the view can <strong>claim</strong> the mouse or the keyboard for a step (<code>ClaimMouse</code>, <code>ClaimKeyboard</code>); the
 viewer gives its cameras and shortcuts <code>State.Unclaimed()</code>, a copy without what was claimed, so a
 slider being dragged does not turn the camera. <code>camera.Orbit</code>
-(drag, pan, zoom), <code>camera.Walk</code> (first person on the ground) and <code>camera.Plan</code> (a flat map, from
+(drag, pan, zoom), <code>camera.Walk</code> (first person on the ground) and <code>camera.Map</code> (a flat map, from
 above or isometric) turn it into a camera placement.</p>
 
 <p>A game pad is read by position, whatever its maker: <code>PadA</code> is always the bottom face button. What

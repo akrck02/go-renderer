@@ -1,0 +1,51 @@
+<h1 id="immediate">immediate</h1>
+<pre><code class="language-go"><span class="kn">import</span> <span class="s">&#34;github.com/akrck02/go-renderer/immediate&#34;</span>
+</code></pre>
+
+<p>Package immediate is the immediate-mode drawing contract: a program asks a
+Renderer for a shape every frame, and the backend (OpenGL today; software,
+Vulkan, Metal and WebGPU as stubs) draws it at once. Nothing is kept between
+frames, which makes it the simplest way to put a triangle on the screen. Scenes
+that last (a glTF world, an interface) use the retained renderers instead.</p>
+
+<h3 id="mesh">Mesh</h3>
+
+<p>Mesh is a list of vertices and, optionally, the indices that join them into triangles: three indices per triangle. Without indices, every three vertices make a triangle.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Mesh</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Vertices</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
+	<span class="nx">Indices</span>  <span class="p">[]</span><span class="kt">uint32</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="model">Model</h3>
+
+<p>Model is a set of meshes drawn together, as a file loaded with loaders.LoadModel.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Model</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Meshes</span> <span class="p">[]</span><span class="nx">Mesh</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="renderer">Renderer</h3>
+
+<p>Renderer draws shapes at once, with the matrices last given to SetMatrices. shader names the shader to draw with; nil is the backend&rsquo;s own. fill draws the inside of a shape, not only its edges. A backend that cannot draw a shape yet returns its not-implemented error code.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Renderer</span> <span class="kd">interface</span> <span class="p">{</span>
+	<span class="c1">// RenderPolygon draws a flat polygon through the coordinates.</span>
+	<span class="nf">RenderPolygon</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">coordinates</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">,</span> <span class="nx">fill</span> <span class="kt">bool</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="c1">// RenderTriangle draws triangles, three coordinates each.</span>
+	<span class="nf">RenderTriangle</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">coordinates</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">,</span> <span class="nx">fill</span> <span class="kt">bool</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="c1">// RenderRectangle draws a rectangle of width × height centred on centre.</span>
+	<span class="nf">RenderRectangle</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">centre</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">,</span> <span class="nx">width</span> <span class="kt">float32</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">float32</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">,</span> <span class="nx">fill</span> <span class="kt">bool</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="c1">// RenderImage draws an encoded picture (PNG, JPEG) of width × height centred on centre.</span>
+	<span class="nf">RenderImage</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">bytes</span> <span class="p">[]</span><span class="kt">byte</span><span class="p">,</span> <span class="nx">centre</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">,</span> <span class="nx">width</span> <span class="kt">float32</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">float32</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="c1">// RenderObject draws triangles of a 3D object, three vertices each.</span>
+	<span class="nf">RenderObject</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">vertices</span> <span class="p">[]</span><span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="c1">// RenderModel draws every mesh of a model.</span>
+	<span class="nf">RenderModel</span><span class="p">(</span><span class="nx">space</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">CoordinateSpace</span><span class="p">,</span> <span class="nx">model</span> <span class="o">*</span><span class="nx">Model</span><span class="p">,</span> <span class="nx">shader</span> <span class="o">*</span><span class="kt">string</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="c1">// SetMatrices sets the projection, view and model matrices the next shapes are drawn with.</span>
+	<span class="nf">SetMatrices</span><span class="p">(</span><span class="nx">projection</span><span class="p">,</span> <span class="nx">view</span><span class="p">,</span> <span class="nx">model</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Matrix</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre>
+
+<hr>
+
+<p><a href="./reference/packages">← Reference</a> · generated from the doc comments by <code>generate.py</code></p>

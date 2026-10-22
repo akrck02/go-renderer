@@ -52,8 +52,8 @@ with the display.</p>
 </tr>
 
 <tr>
-<td><code>ErrUnavailable</code>, and a <code>FlatWindow</code> that returns it outside macOS</td>
-<td><code>metal/flat.go</code>, <code>metal/flat_other.go</code></td>
+<td>The <code>metal.unavailable</code> code (<code>metal.Unavailable</code>), and a <code>FlatWindow</code> that returns it outside macOS</td>
+<td><code>metal/errors.go</code>, <code>metal/flat_other.go</code></td>
 </tr>
 
 <tr>
@@ -158,7 +158,7 @@ a translation layer over Metal, which keeps more buffers and caches of its own.<
 
 <ul>
 <li><strong>One plan, two backends.</strong> What a frame draws (commands in order, culling, levels of detail,
-instance batches, the shadow and seabed regions) moved out of <code>opengl</code> into <code>sceneplan</code>, which
+instance batches, the shadow and seabed regions) moved out of <code>opengl</code> into <code>internal/sceneplan</code>, which
 makes no graphics calls. OpenGL&rsquo;s captures came out identical, pixel for pixel, before and after
 the move. <code>metal.SceneRenderer</code> draws the same plan.</li>
 <li><strong>Shaders translated one to one</strong> (<code>metal/scene_shaders.go</code>), compiled at start with precise
@@ -383,7 +383,7 @@ coverage times colour. They are compiled from source when the renderer starts
 
 <h3 id="3-a-loop-shared-by-both-backends">3. A loop shared by both backends</h3>
 
-<p>Today the window loop lives in <code>opengl.StartLoop</code>. Its parts are not about OpenGL:</p>
+<p>Today the window loop lives in <code>opengl.Run</code>. Its parts are not about OpenGL:</p>
 
 <ul>
 <li>GLFW events,</li>

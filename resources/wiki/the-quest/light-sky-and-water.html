@@ -15,7 +15,7 @@ fog in the distance, wind in the trees, clouds, and the night, with a lamp that 
 <tbody>
 <tr>
 <td>The sea, the wind, clouds and the night</td>
-<td><code>scene.Environment</code>, <code>Water</code>, <code>Sky</code>, <code>KindGlow</code></td>
+<td><code>scene.Environment</code>, <code>Water</code>, <code>Sky</code>, <code>GlowKind</code></td>
 <td>15 min</td>
 </tr>
 </tbody>
@@ -38,15 +38,15 @@ ground below it, so the shore shines turquoise and the open sea turns dark blue 
 <pre><code class="language-go"><span class="nx">world</span><span class="p">.</span><span class="nx">Environment</span><span class="p">.</span><span class="nx">Water</span> <span class="p">=</span> <span class="o">&amp;</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Water</span><span class="p">{</span>
 	<span class="nx">Level</span><span class="p">:</span>   <span class="mi">1</span><span class="p">,</span>    <span class="c1">// one metre above zero: the hill&#39;s edges go under</span>
 	<span class="nx">Size</span><span class="p">:</span>    <span class="mi">2000</span><span class="p">,</span> <span class="c1">// how far the plane reaches</span>
-	<span class="nx">Shallow</span><span class="p">:</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.55</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span>
-	<span class="nx">Deep</span><span class="p">:</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="mf">0.02</span><span class="p">,</span> <span class="mf">0.12</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span>
+	<span class="nx">Shallow</span><span class="p">:</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">{</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.55</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span>
+	<span class="nx">Deep</span><span class="p">:</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">{</span><span class="mf">0.02</span><span class="p">,</span> <span class="mf">0.12</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span>
 <span class="p">}</span>
 </code></pre>
 
 <h3 id="fog-and-wind">Fog and wind</h3>
-<pre><code class="language-go"><span class="nx">world</span><span class="p">.</span><span class="nx">Environment</span><span class="p">.</span><span class="nx">FogColor</span> <span class="p">=</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.85</span><span class="p">,</span> <span class="mi">1</span><span class="p">}</span>
+<pre><code class="language-go"><span class="nx">world</span><span class="p">.</span><span class="nx">Environment</span><span class="p">.</span><span class="nx">FogColor</span> <span class="p">=</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">{</span><span class="mf">0.75</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.85</span><span class="p">,</span> <span class="mi">1</span><span class="p">}</span>
 <span class="nx">world</span><span class="p">.</span><span class="nx">Environment</span><span class="p">.</span><span class="nx">FogNear</span><span class="p">,</span> <span class="nx">world</span><span class="p">.</span><span class="nx">Environment</span><span class="p">.</span><span class="nx">FogFar</span> <span class="p">=</span> <span class="mi">80</span><span class="p">,</span> <span class="mi">400</span> <span class="c1">// FogFar 0 means no fog</span>
-<span class="nx">world</span><span class="p">.</span><span class="nx">Environment</span><span class="p">.</span><span class="nx">Wind</span> <span class="p">=</span> <span class="nx">scene</span><span class="p">.</span><span class="nx">Wind</span><span class="p">{</span><span class="nx">Direction</span><span class="p">:</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mi">0</span><span class="p">},</span> <span class="nx">Strength</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">}</span>
+<span class="nx">world</span><span class="p">.</span><span class="nx">Environment</span><span class="p">.</span><span class="nx">Wind</span> <span class="p">=</span> <span class="nx">scene</span><span class="p">.</span><span class="nx">Wind</span><span class="p">{</span><span class="nx">Direction</span><span class="p">:</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mi">0</span><span class="p">},</span> <span class="nx">Strength</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">}</span>
 </code></pre>
 
 <p>The wind moves the clouds and bends every material with a <code>Sway</code>. Plants are modelled with their
@@ -59,7 +59,7 @@ base at the origin and a height of one; the higher a vertex, the more it bends:<
 <p><code>scene.Sky</code> describes the sky over a whole day: stars, a moon with phases, clouds, constellations,
 or pictures (a skybox). Start from Earth&rsquo;s:</p>
 <pre><code class="language-go"><span class="nx">sky</span> <span class="o">:=</span> <span class="nx">scene</span><span class="p">.</span><span class="nf">DefaultSky</span><span class="p">()</span>
-<span class="nx">sky</span><span class="p">.</span><span class="nx">Clouds</span> <span class="p">=</span> <span class="nx">scene</span><span class="p">.</span><span class="nx">Clouds</span><span class="p">{</span><span class="nx">Coverage</span><span class="p">:</span> <span class="mf">0.4</span><span class="p">,</span> <span class="nx">Color</span><span class="p">:</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span> <span class="nx">Speed</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="nx">Scale</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>
+<span class="nx">sky</span><span class="p">.</span><span class="nx">Clouds</span> <span class="p">=</span> <span class="nx">scene</span><span class="p">.</span><span class="nx">Clouds</span><span class="p">{</span><span class="nx">Coverage</span><span class="p">:</span> <span class="mf">0.4</span><span class="p">,</span> <span class="nx">Color</span><span class="p">:</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span> <span class="nx">Speed</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span> <span class="nx">Scale</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>
 <span class="nx">world</span><span class="p">.</span><span class="nx">Environment</span><span class="p">.</span><span class="nx">Sky</span> <span class="p">=</span> <span class="nx">sky</span>
 </code></pre>
 
@@ -75,7 +75,7 @@ start there.</p>
 
 <p>A lighthouse should shine at night. A <strong>glowing</strong> material is lit like any other by day and shows
 its own colour in the dark:</p>
-<pre><code class="language-go"><span class="nx">lamp</span><span class="p">.</span><span class="nx">Mesh</span><span class="p">.</span><span class="nx">Material</span><span class="p">.</span><span class="nx">Kind</span> <span class="p">=</span> <span class="nx">scene</span><span class="p">.</span><span class="nx">KindGlow</span>
+<pre><code class="language-go"><span class="nx">lamp</span><span class="p">.</span><span class="nx">Mesh</span><span class="p">.</span><span class="nx">Material</span><span class="p">.</span><span class="nx">Kind</span> <span class="p">=</span> <span class="nx">scene</span><span class="p">.</span><span class="nx">GlowKind</span>
 </code></pre>
 <pre><code class="language-bash">go run . -night
 </code></pre>
@@ -88,8 +88,8 @@ its own colour in the dark:</p>
 from a point all around, full within its inner radius and fading smoothly to nothing at its
 outer one, and lights the lit materials it reaches, besides the sun and the sky:</p>
 <pre><code class="language-go"><span class="nx">world</span><span class="p">.</span><span class="nx">Lights</span> <span class="p">=</span> <span class="p">[]</span><span class="nx">scene</span><span class="p">.</span><span class="nx">PointLight</span><span class="p">{{</span>
-	<span class="nx">Position</span><span class="p">:</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="mi">2</span><span class="p">,</span> <span class="mf">3.2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span>       <span class="c1">// the lamp, at the top of the tower</span>
-	<span class="nx">Color</span><span class="p">:</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vec4</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.85</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">},</span>  <span class="c1">// warm, at one and a half times (alpha is the intensity)</span>
+	<span class="nx">Position</span><span class="p">:</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">{</span><span class="mi">2</span><span class="p">,</span> <span class="mf">3.2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span>       <span class="c1">// the lamp, at the top of the tower</span>
+	<span class="nx">Color</span><span class="p">:</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.85</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">},</span>  <span class="c1">// warm, at one and a half times (alpha is the intensity)</span>
 	<span class="nx">Inner</span><span class="p">:</span>    <span class="mf">0.5</span><span class="p">,</span>
 	<span class="nx">Outer</span><span class="p">:</span>    <span class="mi">6</span><span class="p">,</span>
 <span class="p">}}</span>
@@ -98,7 +98,7 @@ outer one, and lights the lit materials it reaches, besides the sun and the sky:
 <p align="center"><img alt="A grey floor at night with three cubes, lit by an orange lamp on the left, a blue one in the middle and a green one on the right: each lights the floor in a soft circle and the faces of the cubes that face it" src="./images/point-lights.png" width="480"></p>
 
 <p><strong>How many?</strong> As many as the scene wants, but each draw takes at most the four nearest whose
-reach meets it (<code>sceneplan.MaxLightsPerDraw</code>), chosen once a frame on the processor, so the
+reach meets it (<code>MaxLightsPerDraw</code> in the module&rsquo;s <code>internal/sceneplan</code>), chosen once a frame on the processor, so the
 shaders stay short on every platform: this is what Unity&rsquo;s and Godot&rsquo;s forward renderers do on
 phones. Lamps far apart can light a whole village; four lamps piled on one small thing are as
 many as it shows. Move a lamp by changing its position between frames. The 3DS bakes the lamps
@@ -116,27 +116,27 @@ into its colours with the sun (its guide).</p>
 
 <tbody>
 <tr>
-<td><code>KindLit</code></td>
+<td><code>LitKind</code></td>
 <td>Sun or moon, sky light, point lights, shadows, fog: most things</td>
 </tr>
 
 <tr>
-<td><code>KindUnlit</code></td>
+<td><code>UnlitKind</code></td>
 <td>Its colour as it is (plus fog): flags, markers, things that should not darken</td>
 </tr>
 
 <tr>
-<td><code>KindGlow</code></td>
+<td><code>GlowKind</code></td>
 <td>Lit by day, shining in the dark: lamps, windows, glowing flowers</td>
 </tr>
 
 <tr>
-<td><code>KindWater</code></td>
+<td><code>WaterKind</code></td>
 <td>An animated water surface: a river or a lake above the sea&rsquo;s level</td>
 </tr>
 
 <tr>
-<td><code>KindWaterfall</code></td>
+<td><code>WaterfallKind</code></td>
 <td>Translucent falling water</td>
 </tr>
 </tbody>
@@ -153,7 +153,7 @@ into its colours with the sun (its guide).</p>
 <ul>
 <li><code>Environment</code> holds the sun, the sky, fog, water, wind and snow.</li>
 <li>The sun&rsquo;s height is the time of day; the night comes with the moon and the stars.</li>
-<li><code>Sway</code> bends plants in the wind; <code>KindGlow</code> shines at night; <code>Lights</code> light around them.</li>
+<li><code>Sway</code> bends plants in the wind; <code>GlowKind</code> shines at night; <code>Lights</code> light around them.</li>
 </ul>
 
 <h2 id="bonus-optional">Bonus (optional)</h2>
@@ -165,9 +165,9 @@ foliage turned a little brown.</p>
 <summary>🔓 Show the solution</summary>
 
 ```go
-world.Environment.Snow = &scene.Snow{Level: 2.5, Blend: 0.5, Color: graphics.Vec4{0.95, 0.97, 1, 1}}
+world.Environment.Snow = &scene.Snow{Level: 2.5, Blend: 0.5, Color: graphics.Vector{0.95, 0.97, 1, 1}}
 forest.Mesh.Material.Foliage = true // takes the season's tint
-world.Environment.FoliageTint = graphics.Vec4{0.55, 0.45, 0.3, 0.5} // the colour, and how much
+world.Environment.FoliageTint = graphics.Vector{0.55, 0.45, 0.3, 0.5} // the colour, and how much
 ```
 
 Snow settles on surfaces facing up, so the tower's walls stay clear.

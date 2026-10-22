@@ -1,0 +1,137 @@
+<h1 id="window">window</h1>
+<pre><code class="language-go"><span class="kn">import</span> <span class="s">&#34;github.com/akrck02/go-renderer/window&#34;</span>
+</code></pre>
+
+<p>Package window describes a program that draws in a window: what the window is
+(Options), what the program does every frame (Callbacks) and what the two share
+while it runs (Application). A backend (opengl.Window, metal.Window, the Android
+and browser loops) opens the window and drives the application.</p>
+
+<h3 id="constants-and-variables">Constants and variables</h3>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">DefaultCapturePath</span> <span class="p">=</span> <span class="s">&#34;frame.png&#34;</span>
+</code></pre>
+
+<p>DefaultCapturePath is where a Headless application saves its frame when CapturePath is empty.</p>
+
+<h3 id="application">Application</h3>
+
+<p>Application is a program running in a window: its Options and Callbacks, and what the backend and the program share while it runs.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Application</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Options</span>
+	<span class="nx">Callbacks</span>
+	<span class="c1">// Input, when not nil, is filled by the backend every frame (keyboard, mouse, touches, pads).</span>
+	<span class="nx">Input</span> <span class="o">*</span><span class="nx">input</span><span class="p">.</span><span class="nx">State</span>
+	<span class="c1">// Renderer draws immediate-mode shapes; the backend fills it.</span>
+	<span class="nx">Renderer</span> <span class="nx">immediate</span><span class="p">.</span><span class="nx">Renderer</span>
+	<span class="c1">// Camera is where the immediate-mode shapes are seen from.</span>
+	<span class="nx">Camera</span> <span class="nx">camera</span><span class="p">.</span><span class="nx">Lens</span>
+	<span class="c1">// Stop, when set by Update or Draw, ends the application after the current frame.</span>
+	<span class="nx">Stop</span> <span class="kt">bool</span>
+	<span class="c1">// ModelMatrix, ViewMatrix and ProjectionMatrix are the immediate-mode matrices: the backend</span>
+	<span class="c1">// sets the view and projection from Camera each frame, and the model matrix starts as the</span>
+	<span class="c1">// identity.</span>
+	<span class="nx">ModelMatrix</span>      <span class="nx">graphics</span><span class="p">.</span><span class="nx">Matrix</span>
+	<span class="nx">ViewMatrix</span>       <span class="nx">graphics</span><span class="p">.</span><span class="nx">Matrix</span>
+	<span class="nx">ProjectionMatrix</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Matrix</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="backend">Backend</h3>
+
+<p>Backend opens a window (or a hidden one, for a Headless application) and drives an Application in it: opengl.Window, metal.Window and the software, Vulkan and WebGPU stubs.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Backend</span> <span class="kd">interface</span> <span class="p">{</span>
+	<span class="c1">// Run opens the window and runs the application until it closes or sets Stop.</span>
+	<span class="nf">Run</span><span class="p">(</span><span class="nx">app</span> <span class="o">*</span><span class="nx">Application</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="c1">// Draw draws one frame of the application.</span>
+	<span class="nf">Draw</span><span class="p">(</span><span class="nx">app</span> <span class="o">*</span><span class="nx">Application</span><span class="p">)</span> <span class="kt">error</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="callbacks">Callbacks</h3>
+
+<p>Callbacks are what the program does every frame. Each may be nil.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Callbacks</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Update runs at a fixed time step (Options.FixedStepSeconds) before drawing: where</span>
+	<span class="c1">// simulations and camera controllers advance. stepSeconds is always that step.</span>
+	<span class="nx">Update</span> <span class="kd">func</span><span class="p">(</span><span class="nx">app</span> <span class="o">*</span><span class="nx">Application</span><span class="p">,</span> <span class="nx">stepSeconds</span> <span class="kt">float64</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="c1">// Draw draws a frame.</span>
+	<span class="nx">Draw</span> <span class="kd">func</span><span class="p">(</span><span class="nx">app</span> <span class="o">*</span><span class="nx">Application</span><span class="p">)</span> <span class="kt">error</span>
+	<span class="c1">// Unchanged, when set, is asked before each frame is drawn: true means the frame would look</span>
+	<span class="c1">// exactly like the last one shown, and the backend skips drawing and presenting it. An</span>
+	<span class="c1">// interface answers by comparing its draw list&#39;s fingerprint (draw2d.List.Fingerprint), so a</span>
+	<span class="c1">// pointer moving over still parts of a window costs an update step and nothing more.</span>
+	<span class="nx">Unchanged</span> <span class="kd">func</span><span class="p">(</span><span class="nx">app</span> <span class="o">*</span><span class="nx">Application</span><span class="p">)</span> <span class="kt">bool</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="kind">Kind</h3>
+
+<p>Kind says whether a window is shown.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Kind</span> <span class="kt">int</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="c1">// OnScreen is a window shown on the screen, the default.</span>
+	<span class="nx">OnScreen</span> <span class="nx">Kind</span> <span class="p">=</span> <span class="kc">iota</span>
+	<span class="c1">// Headless draws one frame in a hidden window and saves it to Options.CapturePath.</span>
+	<span class="nx">Headless</span>
+<span class="p">)</span>
+</code></pre>
+
+<h3 id="options">Options</h3>
+
+<p>Options are what the window is: chosen before it opens.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Options</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Kind</span> <span class="nx">Kind</span>
+	<span class="c1">// Title and Version are shown in the window&#39;s title bar.</span>
+	<span class="nx">Title</span>   <span class="kt">string</span>
+	<span class="nx">Version</span> <span class="kt">string</span>
+	<span class="c1">// Width and Height are the window&#39;s size in screen coordinates.</span>
+	<span class="nx">Width</span>  <span class="kt">int</span>
+	<span class="nx">Height</span> <span class="kt">int</span>
+	<span class="c1">// MinWidth and MinHeight, when above 0, stop the window from being made smaller.</span>
+	<span class="nx">MinWidth</span><span class="p">,</span> <span class="nx">MinHeight</span> <span class="kt">int</span>
+	<span class="c1">// Background is the colour (red, green, blue, alpha from 0 to 1) a frame is cleared to.</span>
+	<span class="nx">Background</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
+	<span class="c1">// FixedStepSeconds is the time step of Callbacks.Update; 0 is 1/60 of a second.</span>
+	<span class="nx">FixedStepSeconds</span> <span class="kt">float64</span>
+	<span class="c1">// CapturePath is where a Headless application saves its frame (PNG); DefaultCapturePath</span>
+	<span class="c1">// when empty.</span>
+	<span class="nx">CapturePath</span> <span class="kt">string</span>
+	<span class="c1">// DrawOnDemand draws only when something happens (input, a resize, a frame asked for with</span>
+	<span class="c1">// Input.RequestFrame, or opengl.Wake from another goroutine) instead of every frame: the</span>
+	<span class="c1">// program sleeps in between, which an interface that is mostly still needs for the battery.</span>
+	<span class="c1">// Each frame runs exactly one update step. Needs Application.Input.</span>
+	<span class="nx">DrawOnDemand</span> <span class="kt">bool</span>
+	<span class="c1">// FlatOnly asks for a window with no depth or stencil buffer: a program that only draws flat</span>
+	<span class="c1">// shapes (an interface, see opengl.FlatRenderer) saves a buffer the size of the window, about</span>
+	<span class="c1">// 14 MB for a 1280 × 720 window on a high-density screen. It also skips the 3D renderer&#39;s</span>
+	<span class="c1">// shaders and its part of each frame (the flat renderer clears and draws the whole window), and</span>
+	<span class="c1">// on a Mac with two GPUs lets the system keep the window on the integrated, low-power one.</span>
+	<span class="nx">FlatOnly</span> <span class="kt">bool</span>
+	<span class="c1">// DisableVsync draws frames as fast as possible instead of waiting for the display (benchmarks).</span>
+	<span class="nx">DisableVsync</span> <span class="kt">bool</span>
+	<span class="c1">// ShowFramesPerSecond writes the frames drawn each second in the title, for a window that</span>
+	<span class="c1">// draws every frame (not on demand).</span>
+	<span class="nx">ShowFramesPerSecond</span> <span class="kt">bool</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (options Options) CapturePathOrDefault() string</code></td>
+<td>CapturePathOrDefault returns where a Headless application saves its frame.</td>
+</tr>
+</tbody>
+</table>
+
+<hr>
+
+<p><a href="./reference/packages">← Reference</a> · generated from the doc comments by <code>generate.py</code></p>

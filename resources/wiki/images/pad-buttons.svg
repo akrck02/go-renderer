@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 340" width="720" height="340" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <style>
+    .bg { fill: #ffffff; }
+    .body { fill: #f6f8fa; stroke: #d0d7de; stroke-width: 2; }
+    .part { fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.5; }
+    .code { fill: #0969da; font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .text { fill: #59636e; font-size: 12px; }
+    .line { stroke: #8c959f; stroke-width: 1.2; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0d1117; }
+      .body { fill: #161b22; stroke: #30363d; }
+      .part { fill: #0c2d4b; stroke: #1f6feb; }
+      .code { fill: #4493f8; }
+      .text { fill: #9198a1; }
+      .line { stroke: #6e7681; }
+    }
+  </style>
+  <rect class="bg" width="720" height="340"/>
+  <!-- shoulders -->
+  <rect class="part" x="190" y="58" width="90" height="18" rx="8"/>
+  <rect class="part" x="440" y="58" width="90" height="18" rx="8"/>
+  <!-- body -->
+  <path class="body" d="M220 80 H500 C590 80 620 150 630 230 C640 290 590 300 560 260 L520 210 H200 L160 260 C130 300 80 290 90 230 C100 150 130 80 220 80 Z"/>
+  <!-- left stick and pad -->
+  <circle class="part" cx="230" cy="130" r="24"/>
+  <rect class="part" x="270" y="160" width="16" height="48" rx="3"/>
+  <rect class="part" x="254" y="176" width="48" height="16" rx="3"/>
+  <!-- right stick -->
+  <circle class="part" cx="430" cy="184" r="24"/>
+  <!-- face buttons -->
+  <circle class="part" cx="490" cy="150" r="12"/>
+  <circle class="part" cx="466" cy="126" r="12"/>
+  <circle class="part" cx="514" cy="126" r="12"/>
+  <circle class="part" cx="490" cy="102" r="12"/>
+  <!-- back, guide, start -->
+  <rect class="part" x="326" y="110" width="20" height="10" rx="5"/>
+  <circle class="part" cx="360" cy="140" r="10"/>
+  <rect class="part" x="374" y="110" width="20" height="10" rx="5"/>
+
+  <!-- labels, left -->
+  <line class="line" x1="190" y1="67" x2="120" y2="40"/><text class="code" x="20" y="44">PadLeftShoulder</text>
+  <line class="line" x1="206" y1="130" x2="120" y2="110"/><text class="code" x="20" y="100">StickX, StickY</text><text class="text" x="20" y="116">press: PadLeftThumb</text>
+  <line class="line" x1="254" y1="184" x2="120" y2="300"/><text class="code" x="20" y="320">PadUp PadRight PadDown PadLeft</text>
+  <line class="line" x1="336" y1="110" x2="300" y2="30"/><text class="code" x="250" y="24">PadBack</text>
+  <line class="line" x1="360" y1="150" x2="360" y2="300"/><text class="code" x="330" y="320">PadGuide</text>
+  <line class="line" x1="384" y1="110" x2="420" y2="30"/><text class="code" x="396" y="24">PadStart</text>
+  <!-- labels, right -->
+  <line class="line" x1="530" y1="67" x2="580" y2="40"/><text class="code" x="560" y="34">PadRightShoulder</text>
+  <line class="line" x1="502" y1="102" x2="600" y2="80"/><text class="code" x="604" y="84">PadY (top)</text>
+  <line class="line" x1="526" y1="126" x2="600" y2="112"/><text class="code" x="604" y="116">PadB (right)</text>
+  <line class="line" x1="478" y1="126" x2="600" y2="144" stroke-dasharray="3 3"/><text class="code" x="604" y="148">PadX (left)</text>
+  <line class="line" x1="502" y1="150" x2="600" y2="176"/><text class="code" x="604" y="180">PadA (bottom)</text>
+  <line class="line" x1="430" y1="208" x2="470" y2="300"/><text class="code" x="440" y="320">RightStickX, RightStickY</text><text class="text" x="440" y="336">press: PadRightThumb</text>
+</svg>

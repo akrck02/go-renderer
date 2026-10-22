@@ -14,8 +14,8 @@
 
 <tbody>
 <tr>
-<td><code>func LoadGLB(path string) (*models.Model, error)</code></td>
-<td></td>
+<td><code>func LoadModel(path string) (*immediate.Model, error)</code></td>
+<td>LoadModel reads the meshes of a glTF 2.0 file (.glb, or .gltf with external buffers) into an immediate.Model, for the immediate-mode Renderer: each triangle primitive&rsquo;s positions and indices, in any of glTF&rsquo;s component types.</td>
 </tr>
 
 <tr>
@@ -24,11 +24,27 @@
 </tr>
 
 <tr>
-<td><code>func ParseSceneGLB(content []byte) (*scene.Scene, error)</code></td>
-<td>ParseSceneGLB reads a scene from the bytes of a .glb file, as LoadScene does from its path: for programs with no file system (a web page) or that carry their scene inside them.</td>
+<td><code>func ReadScene(reader io.Reader) (*scene.Scene, error)</code></td>
+<td>ReadScene reads a scene from a .glb file&rsquo;s content, as LoadScene does from its path: for programs with no file system (a web page) or that carry their scene inside them.</td>
 </tr>
 </tbody>
 </table>
+
+<h3 id="constants-and-variables">Constants and variables</h3>
+<pre><code class="language-go"><span class="kd">var</span> <span class="p">(</span>
+	<span class="c1">// FileNotRead is a scene, buffer or image file that could not be opened or read.</span>
+	<span class="nx">FileNotRead</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;loaders.file-not-read&#34;</span><span class="p">,</span> <span class="s">&#34;a file of the scene could not be read&#34;</span><span class="p">)</span>
+	<span class="c1">// InvalidGLTF is a file that is not glTF 2.0, or breaks its rules (a chunk cut short, an</span>
+	<span class="c1">// accessor past its buffer, a sky cube without six faces).</span>
+	<span class="nx">InvalidGLTF</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;loaders.invalid-gltf&#34;</span><span class="p">,</span> <span class="s">&#34;the file is not valid glTF&#34;</span><span class="p">)</span>
+	<span class="c1">// UnsupportedAccessor is an accessor of a type or component type the loader does not read.</span>
+	<span class="nx">UnsupportedAccessor</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;loaders.unsupported-accessor&#34;</span><span class="p">,</span> <span class="s">&#34;an accessor&#39;s type is not supported&#34;</span><span class="p">)</span>
+	<span class="c1">// ImageNotDecoded is a sky image that is not a PNG or JPEG, or is damaged.</span>
+	<span class="nx">ImageNotDecoded</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;loaders.image-not-decoded&#34;</span><span class="p">,</span> <span class="s">&#34;an image of the scene could not be decoded&#34;</span><span class="p">)</span>
+<span class="p">)</span>
+</code></pre>
+
+<p>Codes of the errors LoadScene, ReadScene and LoadModel return.</p>
 
 <hr>
 

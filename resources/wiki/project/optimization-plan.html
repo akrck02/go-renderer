@@ -347,6 +347,399 @@ without timers (the steadiest), with the processor time of that round.</p>
 
 <p>Phase 3 changed the file size, not the speed: 76 → 33 MB, loading ~60 ms.</p>
 
-<hr>
+<h2 id="baseline-2026-10-22">Baseline (2026-10-22)</h2>
+
+<p>Before the rewrite towards 1.0 (<a href="./proposals/towards-version-1">proposal 1</a>), every Go
+benchmark was run and kept here, so a rewritten package can show it is no slower and allocates no
+more. Run them again with:</p>
+<pre><code class="language-bash"><span class="nv">DISPLAY</span><span class="o">=</span>:95 go <span class="nb">test</span> -run xxx -bench . -benchmem -count <span class="m">3</span> ./...   <span class="c1"># any display works for opengl</span>
+</code></pre>
+
+<p>Machine: AMD Ryzen 5 5600G (8 threads), Linux, Go 1.26.8; the OpenGL ones under Xvfb with Mesa&rsquo;s
+llvmpipe, so their times measure the software driver, not a GPU. Each time is the median of three
+runs. The four marked <em>new</em> were added for this baseline: a frame&rsquo;s hot paths that had none.</p>
+
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Benchmark</th>
+<th align="right">ns/op</th>
+<th align="right">B/op</th>
+<th align="right">allocs/op</th>
+<th align="right">After A/B: ns/op</th>
+<th align="right">B/op</th>
+<th align="right">allocs/op</th>
+<th align="right">After C/D: ns/op</th>
+<th align="right">B/op</th>
+<th align="right">allocs/op</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>internal/sceneplan</code></td>
+<td>PlanningAFrameOfTheSampleIsland (<em>new</em>: <code>Plan</code> with shadows, after the first frame)</td>
+<td align="right">2,262</td>
+<td align="right">288</td>
+<td align="right">2</td>
+<td align="right">2,190</td>
+<td align="right">0</td>
+<td align="right"><strong>0</strong></td>
+<td align="right">2,187</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+
+<tr>
+<td><code>internal/sceneplan</code></td>
+<td>UpdateThousandInstances</td>
+<td align="right">367,029</td>
+<td align="right">12,568</td>
+<td align="right">0</td>
+<td align="right">364,487</td>
+<td align="right">12,587</td>
+<td align="right">0</td>
+<td align="right">354,031</td>
+<td align="right">14,189</td>
+<td align="right">0</td>
+</tr>
+
+<tr>
+<td><code>internal/sceneplan</code></td>
+<td>RebuildGrid</td>
+<td align="right">36,349,470</td>
+<td align="right">9,585,181</td>
+<td align="right">9</td>
+<td align="right">36,452,780</td>
+<td align="right">9,552,659</td>
+<td align="right">9</td>
+<td align="right">35,270,624</td>
+<td align="right">9,522,104</td>
+<td align="right">9</td>
+</tr>
+
+<tr>
+<td><code>draw2d</code></td>
+<td>BuildingAListOfThreeHundredControls (<em>new</em>: shadow, rectangle, text and icon each)</td>
+<td align="right">31,244</td>
+<td align="right">14</td>
+<td align="right">0</td>
+<td align="right">30,878</td>
+<td align="right">13</td>
+<td align="right">0</td>
+<td align="right">31,114</td>
+<td align="right">14</td>
+<td align="right">0</td>
+</tr>
+
+<tr>
+<td><code>input</code></td>
+<td>ReadingAPadForAFrame (<em>new</em>: every button set and read, then <code>EndFrame</code>)</td>
+<td align="right">19</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">19</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">16</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+
+<tr>
+<td><code>opengl</code></td>
+<td>AFrameUnlit (a 2D list drawn and read back)</td>
+<td align="right">690,528</td>
+<td align="right">182</td>
+<td align="right">3</td>
+<td align="right">700,047</td>
+<td align="right">130</td>
+<td align="right"><strong>0</strong></td>
+<td align="right">696,341</td>
+<td align="right">131</td>
+<td align="right">0</td>
+</tr>
+
+<tr>
+<td><code>opengl</code></td>
+<td>AFrameWithEightLights</td>
+<td align="right">2,038,480</td>
+<td align="right">466</td>
+<td align="right">4</td>
+<td align="right">2,049,664</td>
+<td align="right">387</td>
+<td align="right"><strong>0</strong></td>
+<td align="right">2,045,226</td>
+<td align="right">395</td>
+<td align="right">0</td>
+</tr>
+
+<tr>
+<td><code>opengl/overlay</code></td>
+<td>PaintingTwoThousandCommands, was AuditPaint2000 (the overlay&rsquo;s frame)</td>
+<td align="right">589,448</td>
+<td align="right">24</td>
+<td align="right">1</td>
+<td align="right">589,816</td>
+<td align="right">0</td>
+<td align="right"><strong>0</strong></td>
+<td align="right">401,580</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+
+<tr>
+<td><code>opengl/overlay</code></td>
+<td>PaintingAnApplicationFrame, hiddenRows=0 (was AuditRegisterPaint)</td>
+<td align="right">149,075</td>
+<td align="right">24</td>
+<td align="right">1</td>
+<td align="right">148,771</td>
+<td align="right">0</td>
+<td align="right"><strong>0</strong></td>
+<td align="right">124,021</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+
+<tr>
+<td><code>opengl/overlay</code></td>
+<td>PaintingAnApplicationFrame, hiddenRows=1000</td>
+<td align="right">148,738</td>
+<td align="right">24</td>
+<td align="right">1</td>
+<td align="right">148,154</td>
+<td align="right">0</td>
+<td align="right"><strong>0</strong></td>
+<td align="right">124,153</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+
+<tr>
+<td><code>opengl/overlay</code></td>
+<td>FillingTheVerticesOfAFrame (was AuditFillVertices)</td>
+<td align="right">105,612</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">105,346</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">105,343</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+
+<tr>
+<td><code>opengl/overlay</code></td>
+<td>FillingPackedInstances (was AuditFillPacked)</td>
+<td align="right">58,160</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">58,174</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">57,831</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+
+<tr>
+<td><code>opengl/overlay</code></td>
+<td>ClippingQuads (was AuditClipQuads)</td>
+<td align="right">268,652</td>
+<td align="right">159</td>
+<td align="right">0</td>
+<td align="right">267,548</td>
+<td align="right">153</td>
+<td align="right">0</td>
+<td align="right">157,550</td>
+<td align="right">90</td>
+<td align="right">0</td>
+</tr>
+
+<tr>
+<td><code>opengl/overlay</code></td>
+<td>HashingAList (was AuditHashList)</td>
+<td align="right">19,342</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">19,472</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">19,474</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+
+<tr>
+<td><code>opengl/overlay</code></td>
+<td>SortingCommandsByLayer (was AuditDrawingOrder)</td>
+<td align="right">793</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">639</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">494</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+
+<tr>
+<td><code>opengl/overlay</code></td>
+<td>SortingAnApplicationFrameByLayer, hiddenRows=0 / 1000 (was AuditRegisterDrawingOrder)</td>
+<td align="right">176</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">142</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">97</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+
+<tr>
+<td><code>opengl/overlay</code></td>
+<td>PaintingALineOfText (was AuditRegisterTextLine)</td>
+<td align="right">1,485</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">1,487</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">1,279</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+
+<tr>
+<td><code>opengl/overlay</code></td>
+<td>FindingAGlyph (was AuditRegisterHasGlyph)</td>
+<td align="right">57</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">56</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">39</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+
+<tr>
+<td><code>opengl/overlay</code></td>
+<td>RasterisingAGlyph (once per new glyph)</td>
+<td align="right">2,916</td>
+<td align="right">390</td>
+<td align="right">2</td>
+<td align="right">2,944</td>
+<td align="right">390</td>
+<td align="right">2</td>
+<td align="right">2,932</td>
+<td align="right">390</td>
+<td align="right">2</td>
+</tr>
+
+<tr>
+<td><code>opengl/overlay</code></td>
+<td>MakingAShadowMask (once per new shadow size)</td>
+<td align="right">175,587</td>
+<td align="right">6,592</td>
+<td align="right">2</td>
+<td align="right">175,540</td>
+<td align="right">6,592</td>
+<td align="right">2</td>
+<td align="right">176,060</td>
+<td align="right">6,592</td>
+<td align="right">2</td>
+</tr>
+
+<tr>
+<td><code>opengl/overlay</code></td>
+<td>PrebuildingAFace (loading)</td>
+<td align="right">2,212,267</td>
+<td align="right">877,105</td>
+<td align="right">413</td>
+<td align="right">2,216,968</td>
+<td align="right">903,106</td>
+<td align="right">413</td>
+<td align="right">2,231,749</td>
+<td align="right">899,324</td>
+<td align="right">413</td>
+</tr>
+
+<tr>
+<td><code>opengl/overlay</code></td>
+<td>GrowingTheAtlas (loading)</td>
+<td align="right">6,615,328</td>
+<td align="right">5,505,313</td>
+<td align="right">8</td>
+<td align="right">6,628,332</td>
+<td align="right">5,505,313</td>
+<td align="right">8</td>
+<td align="right">6,639,473</td>
+<td align="right">5,505,313</td>
+<td align="right">8</td>
+</tr>
+</tbody>
+</table>
+<p>What it says, in short:</p>
+
+<ul>
+<li><strong>Planning a frame is cheap</strong> (about 2 µs for the sample island) but still allocates twice; a
+frame of the 2D overlay allocates once (24 B), and an OpenGL frame three or four times. Those are
+the allocations per frame the rewrite should bring to zero.</li>
+<li><strong>A busy interface costs ~31 µs to describe</strong> (300 controls) and ~150–590 µs to lay out: layout,
+not description, is where the 2D frame&rsquo;s processor time goes.</li>
+<li><strong>Rebuilding an instance grid</strong> (36 ms, 9.6 MB) happens when instances change, not every frame;
+moving a thousand instances is 0.37 ms with no allocation.</li>
+<li>There were 18 benchmarks before (not the 34 the proposal counted: several names repeat with
+sub-cases); the overlay&rsquo;s were named <code>Audit…</code> from an earlier review, and are now named for what
+they measure.</li>
+</ul>
+
+<h3 id="after-phases-a-and-b-2026-10-22">After phases A and B (2026-10-22)</h3>
+
+<p>The <em>After A/B</em> columns are the same benchmarks once <a href="./proposals/audit">the audit&rsquo;s</a>
+phases A and B were done, measured the same way. <strong>No frame allocates any more</strong>: planning the
+island, laying out the overlay and drawing an OpenGL 2D frame (with lights and a blurred backdrop)
+make no garbage, and a test in each package (<code>testing.AllocsPerRun</code>) keeps it so. The times did
+not move beyond the runs&rsquo; noise (about 2 % for the OpenGL frames, which measure Mesa&rsquo;s software
+driver). The OpenGL frames still report about 130–390 bytes per frame and no allocation: their
+first frame is measured with the rest and grows the vertex buffers once, spread over every frame.</p>
+
+<h3 id="after-phases-c-and-d-2026-10-22">After phases C and D (2026-10-22)</h3>
+
+<p>The <em>After C/D</em> columns are the same benchmarks once the audit&rsquo;s phases C and D were done, measured
+the same way (<code>-count 3</code>, the median). Phases C and D were about names and errors, not speed, but
+the imperative held: nothing may be slower or allocate more than <em>After A/B</em>. Two benchmarks had
+grown from changes elsewhere in the binary (ordering commands by layer, +23 %; updating instances,
++1 %), and three more by under 1 % (painting a frame and a line of text, clipping): each was
+compared with the <em>After A/B</em> commit in the same session, and won back with real work rather than
+waved off as noise:</p>
+
+<ul>
+<li><strong>Ordering commands</strong> writes the order in place and checks the layers without a branch on the
+index: 488 ns from 639.</li>
+<li><strong>Moving a box&rsquo;s corners</strong> skips the matrix&rsquo;s fourth row (a point&rsquo;s w is always 1): updating a
+thousand instances takes 352 µs from 364, and rebuilding the grid 35.3 ms from 36.5.</li>
+<li><strong>Clipping</strong> keeps a quad wholly inside the clip where it is, instead of copying it twice: 157 µs
+from 268 for 10 000 quads.</li>
+<li><strong>Finding a glyph</strong> looks a character up once in its own face, not twice: 39 ns from 56. A line
+of text paints in 1.28 µs from 1.49, a busy application frame in 124 µs from 149, two thousand
+commands in 400 µs from 590.</li>
+</ul>
+
+<p>The OpenGL frames measure Mesa&rsquo;s software driver and move by about 2 % from run to run either way;
+compared with the <em>After A/B</em> build in one session they are the same, as are building a draw list
+and the loading benchmarks (prebuilding a face, a shadow mask, growing the atlas), which move by
+under 1 % either way between runs. The bytes of the benchmarks that make no allocation
+(<code>UpdateThousandInstances</code>&rsquo; 12–14 KB, a frame&rsquo;s 13–14 or 125–134 B) are their setup, or the first
+frame&rsquo;s growth, spread over however many runs the benchmark chose; no frame allocates, and the</p>
+
+<h2 id="allocsperrun-tests-still-say-so"><code>AllocsPerRun</code> tests still say so.</h2>
 
 <p><a href="./overview">← All the documentation</a></p>
