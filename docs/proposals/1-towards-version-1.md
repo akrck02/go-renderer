@@ -92,7 +92,7 @@ first, and that releases carry notes (go-engine's proposal 14).
 
 - [x] T1 — the `failure` package; the stub backends return `<backend>.not-implemented`; the docs' backend table and each stub's page say they come later · R3 · a test per stub that every function returns its code
 - [x] T2 — baseline benchmarks, and new ones for a frame's hot paths · `*_bench_test.go` · imperatives · the numbers kept in `docs/6-project/1-optimization-plan.md`
-- [ ] T3 — the audit, every package, findings in `docs/proposals/1-audit.md` with a plan per package · all · R6, R7 · **stop: the author reads it and approves each package's plan**
+- [x] T3 — the audit, every package, findings in [`docs/proposals/1-audit.md`](1-audit.md) (written 2026-10-22; awaits the author) with a plan per package · all · R6, R7 · **stop: the author reads it and approves each package's plan**
 - [ ] T4 — rewrite package by package as the audit's approved plans say, each with its tests and docs, never slower nor allocating more than the baseline · per package · R6, R7 · tests, benchmarks against the baseline
 - [ ] T5 — frames compared in CI under Mesa · `opengl`, `.github/workflows` · R2 · the job; a broken pass fails it
 - [ ] T6 — Metal: `MTLStorageModeShared` where deprecated · `metal` (AI-written parts) · R4 · builds clean on the newest SDK (on the author's Mac); checklist line
@@ -101,4 +101,4 @@ first, and that releases carry notes (go-engine's proposal 14).
 
 ## Result
 
-Building. R1 is done; T1 added the `failure` package and the stub backends' codes; T2 kept the benchmarks' baseline in the optimization plan.
+Building. R1 is done; T1 added the `failure` package and the stub backends' codes; T2 kept the benchmarks' baseline in the optimization plan; T3's [audit](1-audit.md) is written and awaits the author, package by package, before T4.
