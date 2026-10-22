@@ -6,6 +6,7 @@ import (
 	"image/png"
 	"os"
 
+	"github.com/akrck02/go-renderer/frameloop"
 	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/windowloop"
 	"github.com/go-gl/glfw/v3.4/glfw"
@@ -96,7 +97,7 @@ func (metal *metalWindow) run(app *models.Application, makeRenderer func(*glfw.W
 	if app.Input != nil {
 		windowloop.ForwardInput(window, app.Input)
 	}
-	clock := windowloop.NewClock(app.FixedStep)
+	clock := frameloop.NewClock(app.FixedStep)
 	if app.Type == models.HeadlessApplication {
 		return metal.capture(app, clock, renderer)
 	}
@@ -133,14 +134,14 @@ func (metal *metalWindow) drawFrame(app *models.Application) error {
 
 // capture runs a few update steps so the application settles, drawing each frame off screen, and
 // saves the last as a PNG.
-func (metal *metalWindow) capture(app *models.Application, clock *windowloop.Clock, renderer capturer) error {
+func (metal *metalWindow) capture(app *models.Application, clock *frameloop.Clock, renderer capturer) error {
 	renderer.startCapturing()
 	for frame := 0; frame < 3; frame++ {
 		glfw.PollEvents()
 		if app.Input != nil {
 			windowloop.UpdateSizes(metal.window, app.Input)
 		}
-		if err := windowloop.RunUpdateStep(app, clock.Step()); err != nil {
+		if err := frameloop.RunUpdateStep(app, clock.Step()); err != nil {
 			return err
 		}
 		if err := app.Draw(app); err != nil {
