@@ -183,30 +183,30 @@ Machine: AMD Ryzen 5 5600G (8 threads), Linux, Go 1.26.8; the OpenGL ones under 
 llvmpipe, so their times measure the software driver, not a GPU. Each time is the median of three
 runs. The four marked *new* were added for this baseline: a frame's hot paths that had none.
 
-| Package | Benchmark | ns/op | B/op | allocs/op |
-|---|---|---:|---:|---:|
-| `sceneplan` | PlanningAFrameOfTheSampleIsland (*new*: `Plan` with shadows, after the first frame) | 2,262 | 288 | 2 |
-| `sceneplan` | UpdateThousandInstances | 367,029 | 12,568 | 0 |
-| `sceneplan` | RebuildGrid | 36,349,470 | 9,585,181 | 9 |
-| `draw2d` | BuildingAListOfThreeHundredControls (*new*: shadow, rectangle, text and icon each) | 31,244 | 14 | 0 |
-| `input` | ReadingAPadForAFrame (*new*: every button set and read, then `EndFrame`) | 19 | 0 | 0 |
-| `opengl` | AFrameUnlit (a 2D list drawn and read back) | 690,528 | 182 | 3 |
-| `opengl` | AFrameWithEightLights | 2,038,480 | 466 | 4 |
-| `opengl/overlay` | AuditPaint2000 (lays out a list of 2,000 commands: the overlay's frame) | 589,448 | 24 | 1 |
-| `opengl/overlay` | AuditRegisterPaint, hiddenRows=0 | 149,075 | 24 | 1 |
-| `opengl/overlay` | AuditRegisterPaint, hiddenRows=1000 | 148,738 | 24 | 1 |
-| `opengl/overlay` | AuditFillVertices | 105,612 | 0 | 0 |
-| `opengl/overlay` | AuditFillPacked | 58,160 | 0 | 0 |
-| `opengl/overlay` | AuditClipQuads | 268,652 | 159 | 0 |
-| `opengl/overlay` | AuditHashList | 19,342 | 0 | 0 |
-| `opengl/overlay` | AuditDrawingOrder | 793 | 0 | 0 |
-| `opengl/overlay` | AuditRegisterDrawingOrder, hiddenRows=0 / 1000 | 176 | 0 | 0 |
-| `opengl/overlay` | AuditRegisterTextLine | 1,485 | 0 | 0 |
-| `opengl/overlay` | AuditRegisterHasGlyph | 57 | 0 | 0 |
-| `opengl/overlay` | AuditRasteriseGlyph (once per new glyph) | 2,916 | 390 | 2 |
-| `opengl/overlay` | AuditShadowMask (once per new shadow size) | 175,587 | 6,592 | 2 |
-| `opengl/overlay` | AuditPrebuildFace (loading) | 2,212,267 | 877,105 | 413 |
-| `opengl/overlay` | AuditAtlasGrow (loading) | 6,615,328 | 5,505,313 | 8 |
+| Package | Benchmark | ns/op | B/op | allocs/op | After A/B: ns/op | B/op | allocs/op |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `internal/sceneplan` | PlanningAFrameOfTheSampleIsland (*new*: `Plan` with shadows, after the first frame) | 2,262 | 288 | 2 | 2,190 | 0 | **0** |
+| `internal/sceneplan` | UpdateThousandInstances | 367,029 | 12,568 | 0 | 364,487 | 12,587 | 0 |
+| `internal/sceneplan` | RebuildGrid | 36,349,470 | 9,585,181 | 9 | 36,452,780 | 9,552,659 | 9 |
+| `draw2d` | BuildingAListOfThreeHundredControls (*new*: shadow, rectangle, text and icon each) | 31,244 | 14 | 0 | 30,878 | 13 | 0 |
+| `input` | ReadingAPadForAFrame (*new*: every button set and read, then `EndFrame`) | 19 | 0 | 0 | 19 | 0 | 0 |
+| `opengl` | AFrameUnlit (a 2D list drawn and read back) | 690,528 | 182 | 3 | 700,047 | 130 | **0** |
+| `opengl` | AFrameWithEightLights | 2,038,480 | 466 | 4 | 2,049,664 | 387 | **0** |
+| `opengl/overlay` | PaintingTwoThousandCommands, was AuditPaint2000 (the overlay's frame) | 589,448 | 24 | 1 | 589,816 | 0 | **0** |
+| `opengl/overlay` | PaintingAnApplicationFrame, hiddenRows=0 (was AuditRegisterPaint) | 149,075 | 24 | 1 | 148,771 | 0 | **0** |
+| `opengl/overlay` | PaintingAnApplicationFrame, hiddenRows=1000 | 148,738 | 24 | 1 | 148,154 | 0 | **0** |
+| `opengl/overlay` | FillingTheVerticesOfAFrame (was AuditFillVertices) | 105,612 | 0 | 0 | 105,346 | 0 | 0 |
+| `opengl/overlay` | FillingPackedInstances (was AuditFillPacked) | 58,160 | 0 | 0 | 58,174 | 0 | 0 |
+| `opengl/overlay` | ClippingQuads (was AuditClipQuads) | 268,652 | 159 | 0 | 267,548 | 153 | 0 |
+| `opengl/overlay` | HashingAList (was AuditHashList) | 19,342 | 0 | 0 | 19,472 | 0 | 0 |
+| `opengl/overlay` | SortingCommandsByLayer (was AuditDrawingOrder) | 793 | 0 | 0 | 639 | 0 | 0 |
+| `opengl/overlay` | SortingAnApplicationFrameByLayer, hiddenRows=0 / 1000 (was AuditRegisterDrawingOrder) | 176 | 0 | 0 | 142 | 0 | 0 |
+| `opengl/overlay` | PaintingALineOfText (was AuditRegisterTextLine) | 1,485 | 0 | 0 | 1,487 | 0 | 0 |
+| `opengl/overlay` | FindingAGlyph (was AuditRegisterHasGlyph) | 57 | 0 | 0 | 56 | 0 | 0 |
+| `opengl/overlay` | RasterisingAGlyph (once per new glyph) | 2,916 | 390 | 2 | 2,944 | 390 | 2 |
+| `opengl/overlay` | MakingAShadowMask (once per new shadow size) | 175,587 | 6,592 | 2 | 175,540 | 6,592 | 2 |
+| `opengl/overlay` | PrebuildingAFace (loading) | 2,212,267 | 877,105 | 413 | 2,216,968 | 903,106 | 413 |
+| `opengl/overlay` | GrowingTheAtlas (loading) | 6,615,328 | 5,505,313 | 8 | 6,628,332 | 5,505,313 | 8 |
 
 What it says, in short:
 
@@ -218,9 +218,18 @@ What it says, in short:
 * **Rebuilding an instance grid** (36 ms, 9.6 MB) happens when instances change, not every frame;
   moving a thousand instances is 0.37 ms with no allocation.
 * There were 18 benchmarks before (not the 34 the proposal counted: several names repeat with
-  sub-cases); they are named `Audit…` from an earlier review of the overlay, and the rewrite
-  should rename them for what they measure.
+  sub-cases); the overlay's were named `Audit…` from an earlier review, and are now named for what
+  they measure.
 
+### After phases A and B (2026-10-22)
+
+The *After A/B* columns are the same benchmarks once [the audit's](../proposals/1-audit.md)
+phases A and B were done, measured the same way. **No frame allocates any more**: planning the
+island, laying out the overlay and drawing an OpenGL 2D frame (with lights and a blurred backdrop)
+make no garbage, and a test in each package (`testing.AllocsPerRun`) keeps it so. The times did
+not move beyond the runs' noise (about 2 % for the OpenGL frames, which measure Mesa's software
+driver). The OpenGL frames still report about 130–390 bytes per frame and no allocation: their
+first frame is measured with the rest and grows the vertex buffers once, spread over every frame.
 ---
 
 [← All the documentation](../1-overview.md)
