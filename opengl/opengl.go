@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/akrck02/go-renderer/frameloop"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/windowloop"
@@ -50,7 +51,7 @@ func (opengl *OpenGL) StartLoop(app *models.Application) error {
 	} else {
 		setInputs(opengl, app)
 	}
-	clock := windowloop.NewClock(app.FixedStep)
+	clock := frameloop.NewClock(app.FixedStep)
 	started := time.Now()
 
 	switch app.Type {
@@ -281,10 +282,10 @@ func (opengl *OpenGL) DrawOnDisk(app *models.Application, filePath string) error
 }
 
 // renderSettledFrame draws a few frames so that every buffer is uploaded and the camera settled.
-func (opengl *OpenGL) renderSettledFrame(app *models.Application, clock *windowloop.Clock) error {
+func (opengl *OpenGL) renderSettledFrame(app *models.Application, clock *frameloop.Clock) error {
 	for frame := 0; frame < 3; frame++ {
 		glfw.PollEvents()
-		if err := windowloop.RunUpdateStep(app, clock.Step()); err != nil {
+		if err := frameloop.RunUpdateStep(app, clock.Step()); err != nil {
 			return err
 		}
 		if err := opengl.Draw(app); err != nil {

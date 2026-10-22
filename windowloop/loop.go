@@ -17,7 +17,7 @@ import (
 // Run calls the application's update steps and drawFrame until the window closes or the
 // application stops. drawFrame draws and shows one frame; it may skip one that would look like
 // the last (models.Application.Unchanged). It must be called on the main thread.
-func Run(window *glfw.Window, app *models.Application, clock *Clock, drawFrame func() error) error {
+func Run(window *glfw.Window, app *models.Application, clock *frameloop.Clock, drawFrame func() error) error {
 	var failure error
 	resize := followResizing(window, app, clock, drawFrame, &failure)
 	onDemand := app.DrawOnDemand && app.Input != nil
@@ -70,18 +70,6 @@ func Run(window *glfw.Window, app *models.Application, clock *Clock, drawFrame f
 	return nil
 }
 
-// Clock runs Application.Update at a fixed time step; it lives in frameloop, which the browser
-// loop shares.
-type Clock = frameloop.Clock
-
-// NewClock makes a clock of step seconds (1/60 when 0).
-func NewClock(step float64) *Clock { return frameloop.NewClock(step) }
-
-// RunUpdateStep calls the application update once and clears the per-step input deltas.
-func RunUpdateStep(app *models.Application, step float64) error {
-	return frameloop.RunUpdateStep(app, step)
-}
-
 // resizeFollower keeps a window's content in step with its size. While a window is being resized,
 // some systems (macOS) hold the program inside glfw.PollEvents until the mouse is let go, so the
 // main loop draws nothing and the window shows a stretched or empty frame: it flickers. The
@@ -90,13 +78,13 @@ func RunUpdateStep(app *models.Application, step float64) error {
 type resizeFollower struct {
 	window        *glfw.Window
 	app           *models.Application
-	clock         *Clock
+	clock         *frameloop.Clock
 	width, height int // the framebuffer size the last update step saw
 }
 
 // followResizing installs the refresh callback; an error drawing in it lands in failure for the
 // main loop to return.
-func followResizing(window *glfw.Window, app *models.Application, clock *Clock, drawFrame func() error, failure *error) *resizeFollower {
+func followResizing(window *glfw.Window, app *models.Application, clock *frameloop.Clock, drawFrame func() error, failure *error) *resizeFollower {
 	follower := &resizeFollower{window: window, app: app, clock: clock}
 	window.SetRefreshCallback(func(*glfw.Window) {
 		if *failure != nil {
