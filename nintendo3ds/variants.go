@@ -1,4 +1,4 @@
-package ctr
+package nintendo3ds
 
 import "unsafe"
 

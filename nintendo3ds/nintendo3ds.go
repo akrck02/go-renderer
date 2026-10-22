@@ -1,6 +1,6 @@
 //go:build nintendo3ds
 
-package ctr
+package nintendo3ds
 
 /*
 #cgo CFLAGS: -Wno-ignored-attributes
@@ -108,7 +108,7 @@ static int uniformLocation(shaderProgram_s* program, const char* name) {
 	return shaderInstanceGetUniformLocation(program->vertexShader, name);
 }
 
-// setMatrix takes the 16 floats already laid out the PICA200's way (ctr.PICAMatrix).
+// setMatrix takes the 16 floats already laid out the PICA200's way (nintendo3ds.GPUMatrix).
 static void setMatrix(int location, const float* values) {
 	C3D_Mtx matrix;
 	memcpy(matrix.m, values, sizeof matrix.m);
@@ -143,13 +143,8 @@ static void openBottomConsole(void) {
 	consoleInit(GFX_BOTTOM, NULL);
 }
 
-static u32 buttonsPressed(void) {
-	hidScanInput();
-	return hidKeysDown();
-}
-
 // orthographicTiltFromCitro3D is citro3d's own Mtx_OrthoTilt, right-handed like go-renderer, to
-// check ctr.OrthographicTilt.
+// check nintendo3ds.OrthographicTilt.
 static void orthographicTiltFromCitro3D(float* out, float left, float right, float bottom, float top, float near, float far) {
 	C3D_Mtx matrix;
 	Mtx_OrthoTilt(&matrix, left, right, bottom, top, near, far, false);
@@ -171,14 +166,8 @@ func Running() bool {
 	return bool(C.aptMainLoop())
 }
 
-// ButtonsPressed reads the buttons and answers those pressed since the last read, for a program
-// that needs no more; ReadControls reads everything.
-func ButtonsPressed() Buttons {
-	return Buttons(C.buttonsPressed())
-}
-
-// OpenBottomConsole turns the bottom screen into a text console for println, after Open.
-func OpenBottomConsole() {
+// OpenSecondScreenConsole turns the bottom screen into a text console for println, after Open.
+func OpenSecondScreenConsole() {
 	C.openBottomConsole()
 }
 
@@ -192,8 +181,8 @@ type Screen struct {
 	drawing *C.C3D_RenderTarget
 }
 
-// Open starts the graphics system and prepares the top screen for drawing.
-func Open() (*Screen, error) {
+// OpenScreen starts the graphics system and prepares the main (top) screen for drawing.
+func OpenScreen() (*Screen, error) {
 	target := C.openTopScreen()
 	if target == nil {
 		return nil, failure.Wrap(ScreenNotOpened, "the top screen", nil)
@@ -224,26 +213,12 @@ func EndFrame() {
 	C.endFrame()
 }
 
-// BeginFrame begins a frame (the package's BeginFrame) and clears the screen to a colour given as
-// 0xRRGGBBAA, for one picture.
-func (screen *Screen) BeginFrame(clearColour uint32) {
-	BeginFrame()
-	screen.Clear(clearColour)
-}
-
 // Clear clears the screen for one picture, in a frame: the screen leaves 3D, and the next draws go
 // to it.
 func (screen *Screen) Clear(clearColour uint32) {
 	screen.setStereo(false)
 	C.clearOn(screen.target, C.u32(clearColour))
 	screen.drawing = screen.target
-}
-
-// BeginStereoFrame is BeginFrame for a picture for each eye; DrawOn chooses the one drawn next.
-// It falls back to one picture, and answers false, when the second cannot be made.
-func (screen *Screen) BeginStereoFrame(clearColour uint32) bool {
-	BeginFrame()
-	return screen.ClearStereo(clearColour)
 }
 
 // ClearStereo clears both eyes' pictures in a frame; the next draws go to the left one.
@@ -290,14 +265,9 @@ func (screen *Screen) setStereo(stereo bool) {
 	C.set3D(C.int(on))
 }
 
-// Slider3D is the position of the 3D slider, from 0 (off) to 1.
-func Slider3D() float32 {
+// DepthSlider is the position of the 3D slider, from 0 (off) to 1.
+func DepthSlider() float32 {
 	return float32(C.slider3D())
-}
-
-// EndFrame ends the frame (the package's EndFrame).
-func (screen *Screen) EndFrame() {
-	EndFrame()
 }
 
 // Shader is a vertex shader for the PICA200, assembled by devkitPro's picasso (a .shbin file).
@@ -342,7 +312,7 @@ func SetMatrix(location int, matrix graphics.Matrix) {
 	if location < 0 {
 		return
 	}
-	laidOut := PICAMatrix(matrix)
+	laidOut := GPUMatrix(matrix)
 	C.setMatrix(C.int(location), (*C.float)(unsafe.Pointer(&laidOut[0])))
 }
 
@@ -407,9 +377,9 @@ func (buffer *VertexBuffer) Free() {
 	C.linearFree(buffer.data)
 }
 
-// OrthographicTiltFromCitro3D is citro3d's right-handed Mtx_OrthoTilt, laid out the PICA200's way, to check
+// ReferenceOrthographicTilt is citro3d's right-handed Mtx_OrthoTilt, laid out the PICA200's way, to check
 // OrthographicTilt against on the console.
-func OrthographicTiltFromCitro3D(left, right, bottom, top, near, far float32) [16]float32 {
+func ReferenceOrthographicTilt(left, right, bottom, top, near, far float32) [16]float32 {
 	var laidOut [16]float32
 	C.orthographicTiltFromCitro3D((*C.float)(unsafe.Pointer(&laidOut[0])), C.float(left), C.float(right), C.float(bottom), C.float(top), C.float(near), C.float(far))
 	return laidOut

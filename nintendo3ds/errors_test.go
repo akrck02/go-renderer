@@ -1,4 +1,4 @@
-package ctr
+package nintendo3ds
 
 import (
 	"testing"
@@ -8,10 +8,10 @@ import (
 
 func TestEachCodeHasItsOwnName(test *testing.T) {
 	codes := map[*failure.Code]string{
-		ScreenNotOpened:   "ctr.screen-not-opened",
-		InvalidShader:     "ctr.invalid-shader",
-		InvalidVertices:   "ctr.invalid-vertices",
-		OutOfLinearMemory: "ctr.out-of-linear-memory",
+		ScreenNotOpened:   "nintendo3ds.screen-not-opened",
+		InvalidShader:     "nintendo3ds.invalid-shader",
+		InvalidVertices:   "nintendo3ds.invalid-vertices",
+		OutOfLinearMemory: "nintendo3ds.out-of-linear-memory",
 	}
 	for code, want := range codes {
 		if code.Name() != want {

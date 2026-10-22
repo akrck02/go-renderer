@@ -1,4 +1,4 @@
-package ctr
+package nintendo3ds
 
 import (
 	"github.com/akrck02/go-renderer/opengl/overlay"

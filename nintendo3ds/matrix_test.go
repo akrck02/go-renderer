@@ -1,4 +1,4 @@
-package ctr
+package nintendo3ds
 
 import (
 	"testing"
@@ -6,9 +6,9 @@ import (
 	"github.com/akrck02/go-renderer/graphics"
 )
 
-func TestPICAMatrixGoesRowByRowWithComponentsReversed(test *testing.T) {
+func TestGPUMatrixGoesRowByRowWithComponentsReversed(test *testing.T) {
 	translation := graphics.Translate(graphics.Vector{10, 20, 30, 1})
-	laidOut := PICAMatrix(translation)
+	laidOut := GPUMatrix(translation)
 	// The first row is (1, 0, 0, 10): reversed, w first.
 	if laidOut[0] != 10 || laidOut[3] != 1 {
 		test.Fatalf("first row %v, want [10 0 0 1]", laidOut[0:4])

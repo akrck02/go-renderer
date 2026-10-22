@@ -1,4 +1,4 @@
-package ctr
+package nintendo3ds
 
 import (
 	"testing"
@@ -10,7 +10,7 @@ import (
 
 func TestOpenGLMatricesBecomePICAOnes(test *testing.T) {
 	openGL := graphics.OrthographicOpenGL(0, 400, 0, 240, 0, 1)
-	pica := PICAViewProjection(openGL)
+	pica := GPUViewProjection(openGL)
 	want := OrthographicTilt(0, 400, 0, 240, 0, 1)
 	for index := range pica {
 		if !near(pica[index], want[index]) {

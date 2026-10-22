@@ -1,5 +1,5 @@
 // Package shading holds what the backends' shaders agree on, whatever their language (GLSL in
-// opengl and gles, MSL in metal, the PICA200's in ctr): how a quad asks for a sharp picture, how
+// opengl and gles, MSL in metal, the PICA200's in nintendo3ds): how a quad asks for a sharp picture, how
 // ambient light is kept, and the backdrop blur's weights. The shader sources themselves live in
 // the backend that compiles them.
 package shading

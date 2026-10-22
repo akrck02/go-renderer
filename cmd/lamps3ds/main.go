@@ -11,8 +11,8 @@ package main
 
 import (
 	"github.com/akrck02/go-renderer/camera"
-	"github.com/akrck02/go-renderer/ctr"
 	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/nintendo3ds"
 	"github.com/akrck02/go-renderer/scene"
 )
 
@@ -50,22 +50,22 @@ func gridFloor(side float32, cells int, colour graphics.Vector) *scene.Mesh {
 }
 
 func main() {
-	screen, err := ctr.Open()
+	screen, err := nintendo3ds.OpenScreen()
 	if err != nil {
 		println(err.Error())
 		return
 	}
-	ctr.OpenBottomConsole()
-	renderer, err := ctr.NewSceneRenderer(screen)
+	nintendo3ds.OpenSecondScreenConsole()
+	renderer, err := nintendo3ds.NewSceneRenderer(screen)
 	if err != nil {
 		println(err.Error())
 		return
 	}
 	world, camera := lampWorld()
 	println("lamps: hold A to move the blue one")
-	for frame := 0; ctr.Running(); frame++ {
-		reading := ctr.ReadControls()
-		if reading.Held&ctr.ButtonA != 0 {
+	for frame := 0; nintendo3ds.Running(); frame++ {
+		reading := nintendo3ds.ReadControls()
+		if reading.Held&nintendo3ds.ButtonA != 0 {
 			world.Lights[1].Position[0] = wrapped(world.Lights[1].Position[0] + lampStep)
 		}
 		turning := world.Nodes[2]

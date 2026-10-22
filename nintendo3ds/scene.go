@@ -1,6 +1,6 @@
 //go:build nintendo3ds
 
-package ctr
+package nintendo3ds
 
 /*
 #cgo CFLAGS: -Wno-ignored-attributes
@@ -236,13 +236,13 @@ func (renderer *SceneRenderer) PaintStereo(world *scene.Scene, camera camera.Cam
 		renderer.screen.Clear(clear)
 	}
 	if !stereo {
-		renderer.drawEye(PICAViewProjection(frame.Matrices.ViewProjection), frame)
+		renderer.drawEye(GPUViewProjection(frame.Matrices.ViewProjection), frame)
 		return
 	}
 	for _, eye := range []Eye{LeftEye, RightEye} {
 		renderer.screen.DrawOn(eye)
 		viewProjection := EyeViewProjection(camera, eye, separation, focalDistance, ScreenWidth, ScreenHeight)
-		renderer.drawEye(PICAViewProjection(viewProjection), frame)
+		renderer.drawEye(GPUViewProjection(viewProjection), frame)
 	}
 }
 
@@ -258,7 +258,7 @@ func (renderer *SceneRenderer) PaintOn(surface Surface, world *scene.Scene, came
 	renderer.shading = shadingFor(world.Environment, frame.Light, camera)
 	renderer.light = lightKeyOf(renderer.shading)
 	surface.clear(screenColour(frame.Light.Horizon))
-	renderer.drawEye(PICAViewProjection(frame.Matrices.ViewProjection), frame)
+	renderer.drawEye(GPUViewProjection(frame.Matrices.ViewProjection), frame)
 }
 
 // drawEye draws the planned frame with one view-projection.

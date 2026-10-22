@@ -1,13 +1,13 @@
-// Package ctr draws through the Nintendo 3DS's graphics chip, the PICA200, with citro3d. The
+// Package nintendo3ds draws through the Nintendo 3DS's graphics chip, the PICA200, with citro3d. The
 // drawing part is built only for the nintendo3ds target (TinyGo); the matrix conversions here are
 // plain Go, so they are tested on any computer.
-package ctr
+package nintendo3ds
 
 import "github.com/akrck02/go-renderer/graphics"
 
-// PICAMatrix lays out a matrix the way citro3d and the PICA200 read it: row by row, and inside
+// GPUMatrix lays out a matrix the way citro3d and the PICA200 read it: row by row, and inside
 // each row the components in reverse order (w, z, y, x). graphics.Matrix is column by column.
-func PICAMatrix(matrix graphics.Matrix) [16]float32 {
+func GPUMatrix(matrix graphics.Matrix) [16]float32 {
 	var laidOut [16]float32
 	for row := range 4 {
 		for column := range 4 {

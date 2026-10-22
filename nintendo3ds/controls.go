@@ -1,4 +1,4 @@
-package ctr
+package nintendo3ds
 
 // The console's buttons, circle pad and touch screen, turned into input.State, so cameras and
 // interfaces written for a keyboard and a mouse work on it. Reading the hardware is built only for
@@ -52,11 +52,12 @@ const circlePadDeadZone = 0.12
 
 // Reading is the hardware at one moment.
 type Reading struct {
-	Held             Buttons
-	TouchX, TouchY   int // on the bottom screen, 320 × 240, when ButtonTouch is held
-	CircleX, CircleY int // the circle pad, ±156; up is positive
-	CStickX, CStickY int // the C-stick, about ±146, once StartMotionControls started it
-	Gyroscope        Gyroscope
+	Held                     Buttons
+	Pressed                  Buttons // held now and not at the previous reading
+	TouchX, TouchY           int     // on the bottom screen, 320 × 240, when ButtonTouch is held
+	StickX, StickY           int     // the circle pad, ±156; up is positive
+	RightStickX, RightStickY int     // the C-stick, about ±146, once StartMotionControls started it
+	Gyroscope                Gyroscope
 }
 
 // Gyroscope is how fast the console turns, in degrees a second, once StartMotionControls started
@@ -78,14 +79,16 @@ const (
 	cStickDeadZone = 0.15
 )
 
-// CStick is the C-stick from -1 to 1 on each axis (up positive), 0 inside its dead zone.
-func (reading Reading) CStick() (x, y float64) {
-	return stickAxes(reading.CStickX, reading.CStickY, cStickReach, cStickDeadZone)
+// RightStick is the C-stick (the New 3DS's second stick) from -1 to 1 on each axis (up positive),
+// 0 inside its dead zone.
+func (reading Reading) RightStick() (x, y float64) {
+	return stickAxes(reading.RightStickX, reading.RightStickY, cStickReach, cStickDeadZone)
 }
 
-// Circle is the circle pad from -1 to 1 on each axis (up positive), 0 inside its dead zone.
-func (reading Reading) Circle() (x, y float64) {
-	return stickAxes(reading.CircleX, reading.CircleY, circlePadReach, circlePadDeadZone)
+// Stick is the circle pad, the main stick, from -1 to 1 on each axis (up positive), 0 inside its
+// dead zone.
+func (reading Reading) Stick() (x, y float64) {
+	return stickAxes(reading.StickX, reading.StickY, circlePadReach, circlePadDeadZone)
 }
 
 // stickAxes is a stick's raw position as -1 to 1 on each axis, 0 inside its dead zone (a share of
@@ -105,11 +108,6 @@ type Controls struct {
 	touchX, touchY float32 // where the finger was last: libctru reports nothing once it is lifted
 }
 
-// Pressed are the buttons held now that were not held at the previous reading.
-func (controls *Controls) Pressed(reading Reading) Buttons {
-	return reading.Held &^ controls.previous.Held
-}
-
 // Apply puts a reading into the input state: the buttons as keys (B also as the system's back),
 // the circle pad as the stick, and the touch screen as the pointer, so dragging works like dragging
 // with a mouse.
@@ -120,11 +118,11 @@ func (controls *Controls) Apply(state *input.State, reading Reading) {
 			state.Feed().SetKey(mapping.key, reading.Held&mapping.button != 0)
 		}
 	}
-	if controls.Pressed(reading)&ButtonB != 0 {
+	if reading.Held&^controls.previous.Held&ButtonB != 0 {
 		state.Feed().PressBack()
 	}
-	state.Feed().SetStick(reading.Circle())
-	state.Feed().SetRightStick(reading.CStick()) // at rest until StartMotionControls
+	state.Feed().SetStick(reading.Stick())
+	state.Feed().SetRightStick(reading.RightStick()) // at rest until StartMotionControls
 	controls.applyTouch(state, reading)
 	controls.previous = reading
 }

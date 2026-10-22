@@ -1,6 +1,6 @@
 //go:build nintendo3ds
 
-package ctr
+package nintendo3ds
 
 /*
 #cgo CFLAGS: -Wno-ignored-attributes
@@ -172,7 +172,7 @@ func (pass *lightPass) prepare(painter *overlay.Painter) bool {
 	tiled := tileForPICA(nil, lightDiscs(), discTextureSide)
 	pass.discs = C.newDiscTexture(discTextureSide, unsafe.Pointer(&tiled[0]))
 	if pass.target == nil || pass.discs == nil {
-		painter.Report("ctr: no room for the 2D lights' textures: lists are drawn unlit")
+		painter.Report("nintendo3ds: no room for the 2D lights' textures: lists are drawn unlit")
 		pass.release()
 		pass.failed = true
 		return false

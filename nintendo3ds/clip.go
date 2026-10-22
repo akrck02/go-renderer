@@ -1,4 +1,4 @@
-package ctr
+package nintendo3ds
 
 import (
 	"github.com/akrck02/go-renderer/camera"
@@ -16,8 +16,8 @@ var openGLToPICA = graphics.Matrix{
 	0, 0, -0.5, 1, // column 3: …and moved down by half of w
 }
 
-// PICAViewProjection is an OpenGL view-projection matrix (sceneplan's) made ready for the PICA200.
-func PICAViewProjection(openGL graphics.Matrix) graphics.Matrix {
+// GPUViewProjection is an OpenGL view-projection matrix (sceneplan's) made ready for the PICA200.
+func GPUViewProjection(openGL graphics.Matrix) graphics.Matrix {
 	return openGLToPICA.Multiply(openGL)
 }
 
