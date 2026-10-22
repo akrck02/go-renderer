@@ -39,16 +39,16 @@ func ExampleFlatRenderer() {
 			}
 		}
 		drawing.Reset()
-		card := draw2d.Rect{X: 24, Y: 24, Width: 260, Height: 64}
-		drawing.Shadow(card, 12, 12, 4, draw2d.Hex("#14202f33"))
-		drawing.Rectangle(card, 12, draw2d.Hex("#ffffff"), draw2d.Hex("#dde3ea"), 1)
-		drawing.Icon("lightbulb", 44, 48, 16, draw2d.Hex("#e0a020"))
-		drawing.Text("The lighthouse is lit", 70, 61, 14, draw2d.Medium, draw2d.Hex("#14202f"))
-		drawing.Stroke(&tower, 360, 40, 14, 3, draw2d.Hex("#14202f"))
+		card := draw2d.Rectangle{X: 24, Y: 24, Width: 260, Height: 64}
+		drawing.Shadow(card, 12, 12, 4, draw2d.MustHex("#14202f33"))
+		drawing.Rectangle(card, 12, draw2d.MustHex("#ffffff"), draw2d.MustHex("#dde3ea"), 1)
+		drawing.Icon("lightbulb", 44, 48, 16, draw2d.MustHex("#e0a020"))
+		drawing.Text("The lighthouse is lit", 70, 61, 14, draw2d.Medium, draw2d.MustHex("#14202f"))
+		drawing.Stroke(&tower, 360, 40, 14, 3, draw2d.MustHex("#14202f"))
 
 		state := app.Input
 		scale := float32(state.FramebufferWidth) / float32(state.WindowWidth) // 2 on a high-density screen
-		renderer.Draw(&drawing, draw2d.Hex("#eef2f6"), state.FramebufferWidth, state.FramebufferHeight, scale)
+		renderer.Draw(&drawing, draw2d.MustHex("#eef2f6"), state.FramebufferWidth, state.FramebufferHeight, scale)
 		return nil
 	}
 	if err := (&opengl.Window{}).Run(app); err != nil {

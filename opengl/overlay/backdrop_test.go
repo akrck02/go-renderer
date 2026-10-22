@@ -17,7 +17,7 @@ func paintWithSnapshots(test *testing.T, list *draw2d.List, scale float32) ([]Qu
 
 func TestAListWithoutBackdropsAsksForNoSnapshot(test *testing.T) {
 	var list draw2d.List
-	list.Rectangle(draw2d.Rect{X: 10, Y: 10, Width: 100, Height: 50}, 8, white, draw2d.Transparent, 0)
+	list.Rectangle(draw2d.Rectangle{X: 10, Y: 10, Width: 100, Height: 50}, 8, white, draw2d.Transparent, 0)
 	quads, snapshots := paintWithSnapshots(test, &list, 1)
 	if len(snapshots) != 0 {
 		test.Fatalf("nothing frosted, no snapshot: got %v", snapshots)
@@ -31,7 +31,7 @@ func TestAListWithoutBackdropsAsksForNoSnapshot(test *testing.T) {
 
 func TestABackdropIsARoundedFillThatReadsTheSnapshot(test *testing.T) {
 	var list draw2d.List
-	area := draw2d.Rect{X: 20, Y: 30, Width: 200, Height: 100}
+	area := draw2d.Rectangle{X: 20, Y: 30, Width: 200, Height: 100}
 	list.Backdrop(area, 12, 24)
 	quads, snapshots := paintWithSnapshots(test, &list, 1)
 	if len(quads) == 0 {
@@ -52,11 +52,11 @@ func TestABackdropIsARoundedFillThatReadsTheSnapshot(test *testing.T) {
 
 func TestTheBackdropsOfALayerShareOneSnapshotTakenBeforeTheFirst(test *testing.T) {
 	var list draw2d.List
-	list.Rectangle(draw2d.Rect{X: 0, Y: 0, Width: 800, Height: 600}, 0, white, draw2d.Transparent, 0)
+	list.Rectangle(draw2d.Rectangle{X: 0, Y: 0, Width: 800, Height: 600}, 0, white, draw2d.Transparent, 0)
 	for row := float32(0); row < 3; row++ {
-		panel := draw2d.Rect{X: 20, Y: 20 + row*120, Width: 300, Height: 100}
+		panel := draw2d.Rectangle{X: 20, Y: 20 + row*120, Width: 300, Height: 100}
 		list.Backdrop(panel, 12, 16+row*4)
-		list.Rectangle(panel, 12, draw2d.Hex("#ffffff20"), draw2d.Transparent, 0)
+		list.Rectangle(panel, 12, draw2d.MustHex("#ffffff20"), draw2d.Transparent, 0)
 	}
 	quads, snapshots := paintWithSnapshots(test, &list, 2)
 	if len(snapshots) != 1 {
@@ -72,9 +72,9 @@ func TestTheBackdropsOfALayerShareOneSnapshotTakenBeforeTheFirst(test *testing.T
 
 func TestEachLayerWithBackdropsTakesItsOwnSnapshot(test *testing.T) {
 	var list draw2d.List
-	list.Backdrop(draw2d.Rect{X: 10, Y: 10, Width: 100, Height: 100}, 8, 24)
+	list.Backdrop(draw2d.Rectangle{X: 10, Y: 10, Width: 100, Height: 100}, 8, 24)
 	list.SetLayer(1) // a dialog over the page: its glass blurs the page, panels included
-	list.Backdrop(draw2d.Rect{X: 50, Y: 50, Width: 100, Height: 100}, 8, 24)
+	list.Backdrop(draw2d.Rectangle{X: 50, Y: 50, Width: 100, Height: 100}, 8, 24)
 	_, snapshots := paintWithSnapshots(test, &list, 1)
 	if len(snapshots) != 2 || snapshots[1].At <= snapshots[0].At {
 		test.Fatalf("a layer over another takes a snapshot of its own, later: got %v", snapshots)
@@ -83,7 +83,7 @@ func TestEachLayerWithBackdropsTakesItsOwnSnapshot(test *testing.T) {
 
 func TestABackdropWithoutBlurIsLeftOut(test *testing.T) {
 	var list draw2d.List
-	list.Backdrop(draw2d.Rect{X: 10, Y: 10, Width: 100, Height: 100}, 8, 0)
+	list.Backdrop(draw2d.Rectangle{X: 10, Y: 10, Width: 100, Height: 100}, 8, 0)
 	if !list.IsEmpty() {
 		test.Fatal("no blur, no backdrop: a system asking for less transparency costs nothing")
 	}

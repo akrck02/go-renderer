@@ -61,7 +61,7 @@ func TestALightingLeavesWhatIsDrawnAfterItUnlit(test *testing.T) {
 	renderer := openLightTestWindow(test, lightTestSide, lightTestSide)
 	list := &draw2d.List{}
 	list.Lighting(draw2d.Color{0, 0, 0, 1})
-	list.Rectangle(draw2d.Rect{X: 16, Y: 16, Width: 32, Height: 32}, 0, grey, draw2d.Color{}, 0)
+	list.Rectangle(draw2d.Rectangle{X: 16, Y: 16, Width: 32, Height: 32}, 0, grey, draw2d.Color{}, 0)
 	renderer.Draw(list, grey, lightTestSide, lightTestSide, 1)
 	checkRed(test, "the rectangle after the lighting", lightTestSide/2, 128)
 	checkRed(test, "the background before it", 2, 0)
@@ -79,7 +79,7 @@ func TestASpriteLightShinesThroughItsPicture(test *testing.T) {
 		}
 	}
 	list := &draw2d.List{}
-	list.SpriteLight(draw2d.NewImage(pixels), draw2d.Rect{Width: lightTestSide, Height: lightTestSide}, draw2d.Color{1, 1, 1, 1})
+	list.SpriteLight(draw2d.NewImage(pixels), draw2d.Rectangle{Width: lightTestSide, Height: lightTestSide}, draw2d.Color{1, 1, 1, 1})
 	list.Lighting(draw2d.Color{0, 0, 0, 1})
 	renderer.Draw(list, grey, lightTestSide, lightTestSide, 1)
 	checkRedAt(test, "the left, under the white", 8, lightTestSide/2, 128)
@@ -91,9 +91,9 @@ func TestASpriteLightShinesThroughItsPicture(test *testing.T) {
 func TestABackdropAndALightingCutTheDrawingInTurn(test *testing.T) {
 	renderer := openLightTestWindow(test, lightTestSide, lightTestSide)
 	list := &draw2d.List{}
-	list.Backdrop(draw2d.Rect{X: 4, Y: 4, Width: 24, Height: 24}, 0, 4)
+	list.Backdrop(draw2d.Rectangle{X: 4, Y: 4, Width: 24, Height: 24}, 0, 4)
 	list.Lighting(draw2d.Color{0, 0, 0, 1})
-	list.Rectangle(draw2d.Rect{X: 36, Y: 36, Width: 24, Height: 24}, 0, grey, draw2d.Color{}, 0)
+	list.Rectangle(draw2d.Rectangle{X: 36, Y: 36, Width: 24, Height: 24}, 0, grey, draw2d.Color{}, 0)
 	renderer.Draw(list, grey, lightTestSide, lightTestSide, 1)
 	checkRedAt(test, "the glass panel, lit in the dark", 16, lightTestSide-16, 0)
 	checkRedAt(test, "the panel after the lighting", 48, lightTestSide-48, 128)
@@ -127,7 +127,7 @@ func measuredFrame(lit bool) *draw2d.List {
 	const panels, columns, panelSide, lights, lightRadius = 20, 5, 200, 8, 160
 	list := &draw2d.List{}
 	for index := range panels {
-		area := draw2d.Rect{X: float32(index%columns) * 250, Y: float32(index/columns) * 180, Width: panelSide, Height: panelSide / 2}
+		area := draw2d.Rectangle{X: float32(index%columns) * 250, Y: float32(index/columns) * 180, Width: panelSide, Height: panelSide / 2}
 		list.Rectangle(area, 12, draw2d.Color{0.8, 0.7, 0.6, 1}, draw2d.Color{}, 0)
 	}
 	if !lit {
@@ -146,7 +146,7 @@ func measuredFrame(lit bool) *draw2d.List {
 func TestALightingUnderAClipLeavesTheRestOfTheFrame(test *testing.T) {
 	renderer := openLightTestWindow(test, lightTestSide, lightTestSide)
 	list := &draw2d.List{}
-	list.PushClip(draw2d.Rect{Width: lightTestSide / 2, Height: lightTestSide})
+	list.PushClip(draw2d.Rectangle{Width: lightTestSide / 2, Height: lightTestSide})
 	list.Lighting(draw2d.Color{0, 0, 0, 1})
 	list.PopClip()
 	renderer.Draw(list, grey, lightTestSide, lightTestSide, 1)
@@ -220,8 +220,8 @@ func checkRedAt(test *testing.T, name string, x, y int, wanted uint8) {
 func TestAFrameAfterTheFirstAllocatesNothing(test *testing.T) {
 	renderer := openLightTestWindow(test, measuredWidth, measuredHeight)
 	list := measuredFrame(true)
-	list.Backdrop(draw2d.Rect{X: 40, Y: 40, Width: 300, Height: 200}, 12, 6)
-	list.Rectangle(draw2d.Rect{X: 40, Y: 40, Width: 300, Height: 200}, 12, draw2d.Color{1, 1, 1, 0.4}, draw2d.Color{}, 0)
+	list.Backdrop(draw2d.Rectangle{X: 40, Y: 40, Width: 300, Height: 200}, 12, 6)
+	list.Rectangle(draw2d.Rectangle{X: 40, Y: 40, Width: 300, Height: 200}, 12, draw2d.Color{1, 1, 1, 0.4}, draw2d.Color{}, 0)
 	renderer.Draw(list, grey, measuredWidth, measuredHeight, 1)
 	allocations := testing.AllocsPerRun(10, func() {
 		renderer.Draw(list, grey, measuredWidth, measuredHeight, 1)

@@ -18,38 +18,38 @@ import (
 	"github.com/akrck02/go-renderer/failure"
 )
 
-// Rect is an area of the screen: its top-left corner and its size, in layout pixels.
-type Rect struct {
+// Rectangle is an area of the screen: its top-left corner and its size, in layout pixels.
+type Rectangle struct {
 	X, Y, Width, Height float32
 }
 
 // Right is the x of the rectangle's right edge.
-func (rect Rect) Right() float32 { return rect.X + rect.Width }
+func (rect Rectangle) Right() float32 { return rect.X + rect.Width }
 
 // Bottom is the y of the rectangle's bottom edge.
-func (rect Rect) Bottom() float32 { return rect.Y + rect.Height }
+func (rect Rectangle) Bottom() float32 { return rect.Y + rect.Height }
 
 // IsEmpty tells whether the rectangle covers no area.
-func (rect Rect) IsEmpty() bool { return rect.Width <= 0 || rect.Height <= 0 }
+func (rect Rectangle) IsEmpty() bool { return rect.Width <= 0 || rect.Height <= 0 }
 
 // Contains tells whether a point is inside the rectangle (left and top edges included).
-func (rect Rect) Contains(x, y float32) bool {
+func (rect Rectangle) Contains(x, y float32) bool {
 	return x >= rect.X && y >= rect.Y && x < rect.Right() && y < rect.Bottom()
 }
 
 // Intersect returns the area two rectangles share; it is empty when they do not overlap.
-func (rect Rect) Intersect(other Rect) Rect {
+func (rect Rectangle) Intersect(other Rectangle) Rectangle {
 	left, top := max(rect.X, other.X), max(rect.Y, other.Y)
 	right, bottom := min(rect.Right(), other.Right()), min(rect.Bottom(), other.Bottom())
 	if right <= left || bottom <= top {
-		return Rect{X: left, Y: top}
+		return Rectangle{X: left, Y: top}
 	}
-	return Rect{X: left, Y: top, Width: right - left, Height: bottom - top}
+	return Rectangle{X: left, Y: top, Width: right - left, Height: bottom - top}
 }
 
 // Inset shrinks the rectangle by an amount on every side.
-func (rect Rect) Inset(amount float32) Rect {
-	return Rect{X: rect.X + amount, Y: rect.Y + amount, Width: max(rect.Width-2*amount, 0), Height: max(rect.Height-2*amount, 0)}
+func (rect Rectangle) Inset(amount float32) Rectangle {
+	return Rectangle{X: rect.X + amount, Y: rect.Y + amount, Width: max(rect.Width-2*amount, 0), Height: max(rect.Height-2*amount, 0)}
 }
 
 // Color is a straight (not premultiplied) RGBA colour, each channel from 0 to 1, as seen on
@@ -61,7 +61,7 @@ var Transparent = Color{}
 
 // Hex reads a colour written as "#rrggbb" or "#rrggbbaa". It panics on a malformed colour, so it
 // is meant for constants such as a theme's; use ParseHex for colours read from files.
-func Hex(text string) Color {
+func MustHex(text string) Color {
 	color, err := ParseHex(text)
 	if err != nil {
 		panic(err)

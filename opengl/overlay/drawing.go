@@ -236,7 +236,7 @@ func coverCrop(bounds image.Rectangle, area rectangle) [4]float32 {
 }
 
 // screenArea turns a rectangle in layout pixels into whole screen pixels.
-func screenArea(area draw2d.Rect, scale float32) rectangle {
+func screenArea(area draw2d.Rectangle, scale float32) rectangle {
 	left, top := pixels(area.X, scale), pixels(area.Y, scale)
 	return rectangle{left, top, pixels(area.Right(), scale), pixels(area.Bottom(), scale)}
 }

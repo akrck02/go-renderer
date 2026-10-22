@@ -19,9 +19,9 @@ import (
 )
 
 var (
-	applicationInk     = draw2d.Hex("#14202f")
-	applicationSurface = draw2d.Hex("#ffffff")
-	applicationLine    = draw2d.Hex("#dde3ea")
+	applicationInk     = draw2d.MustHex("#14202f")
+	applicationSurface = draw2d.MustHex("#ffffff")
+	applicationLine    = draw2d.MustHex("#dde3ea")
 )
 
 // applicationList builds a frame like the register's, plus hiddenRows table rows (5 texts each)
@@ -31,13 +31,13 @@ func applicationList(hiddenRows int) *draw2d.List {
 	texts := []string{"Lighthouses", "North Point", "Rocky island, north shore", "1850", "20 nm", "Lit", "Sort by name", "All", "Export"}
 	icons := []string{"lamp", "save", "undo-2", "redo-2", "sun", "moon", "radar", "circle", "settings"}
 	for index := range 17 { // separators and bars
-		list.Rectangle(draw2d.Rect{X: float32(index * 70), Y: 0, Width: 1280, Height: 1}, 0, applicationLine, draw2d.Transparent, 0)
+		list.Rectangle(draw2d.Rectangle{X: float32(index * 70), Y: 0, Width: 1280, Height: 1}, 0, applicationLine, draw2d.Transparent, 0)
 	}
 	for index := range 20 { // controls
-		list.Rectangle(draw2d.Rect{X: float32(20 + index*50), Y: 100, Width: 120, Height: 30}, 6, applicationSurface, applicationLine, 1)
+		list.Rectangle(draw2d.Rectangle{X: float32(20 + index*50), Y: 100, Width: 120, Height: 30}, 6, applicationSurface, applicationLine, 1)
 	}
 	for index := range 10 { // cards and chips
-		list.Rectangle(draw2d.Rect{X: float32(20 + index*90), Y: 200, Width: 220, Height: 110}, 10, applicationSurface, draw2d.Transparent, 0)
+		list.Rectangle(draw2d.Rectangle{X: float32(20 + index*90), Y: 200, Width: 220, Height: 110}, 10, applicationSurface, draw2d.Transparent, 0)
 	}
 	for index := range 27 {
 		list.Icon(icons[index%len(icons)], float32(10+index*40), 40, 16, applicationInk)
@@ -45,18 +45,18 @@ func applicationList(hiddenRows int) *draw2d.List {
 	for index := range 110 { // visible texts, half of them in clipped table cells
 		clipped := index%2 == 0
 		if clipped {
-			list.PushClip(draw2d.Rect{X: 240, Y: 300, Width: 700, Height: 380})
+			list.PushClip(draw2d.Rectangle{X: 240, Y: 300, Width: 700, Height: 380})
 		}
 		list.Text(texts[index%len(texts)], float32(20+index%10*100), float32(320+index/10*30), 13, draw2d.Weight(index%3), applicationInk)
 		if clipped {
 			list.PopClip()
 		}
 	}
-	list.PushClip(draw2d.Rect{X: 240, Y: 300, Width: 700, Height: 380})
+	list.PushClip(draw2d.Rectangle{X: 240, Y: 300, Width: 700, Height: 380})
 	for row := range hiddenRows { // each cell clips to its own box inside the table's clip
 		y := float32(700 + row*40)
 		for column := range 5 {
-			list.PushClip(draw2d.Rect{X: float32(256 + column*130), Y: y, Width: 120, Height: 40})
+			list.PushClip(draw2d.Rectangle{X: float32(256 + column*130), Y: y, Width: 120, Height: 40})
 			list.Text(fmt.Sprintf("Lighthouse %d", row), float32(256+column*130), y+25, 13, draw2d.Regular, applicationInk)
 			list.PopClip()
 		}

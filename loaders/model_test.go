@@ -2,6 +2,7 @@ package loaders
 
 import (
 	"encoding/binary"
+	"errors"
 	"testing"
 
 	"github.com/akrck02/go-renderer/graphics"
@@ -43,7 +44,7 @@ func TestLoadModelReadsPositionsAndShortIndices(test *testing.T) {
 }
 
 func TestLoadModelOfAMissingFileIsFileNotRead(test *testing.T) {
-	if _, err := LoadModel("no-such-model.glb"); err == nil {
-		test.Fatal("a missing file loaded")
+	if _, err := LoadModel("no-such-model.glb"); !errors.Is(err, FileNotRead) {
+		test.Fatalf("got %v, want FileNotRead", err)
 	}
 }

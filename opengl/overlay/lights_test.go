@@ -38,14 +38,14 @@ func TestAPointLightIsASquareRoundItsCentre(test *testing.T) {
 
 func TestALightingLightsWhatWasDrawnBeforeItWithTheLightsSinceTheLast(test *testing.T) {
 	var list draw2d.List
-	list.Rectangle(draw2d.Rect{Width: 800, Height: 600}, 0, white, draw2d.Transparent, 0)
+	list.Rectangle(draw2d.Rectangle{Width: 800, Height: 600}, 0, white, draw2d.Transparent, 0)
 	list.PointLight(100, 100, 0, 50, white)
 	list.PointLight(300, 100, 0, 50, white)
 	list.Lighting(draw2d.Color{0, 0, 0, 1})
 	list.SetLayer(1)
 	list.PointLight(500, 100, 0, 50, white)
 	list.Lighting(draw2d.Color{0, 0, 0, 1})
-	list.Rectangle(draw2d.Rect{X: 10, Y: 10, Width: 50, Height: 20}, 0, white, draw2d.Transparent, 0)
+	list.Rectangle(draw2d.Rectangle{X: 10, Y: 10, Width: 50, Height: 20}, 0, white, draw2d.Transparent, 0)
 	quads, lights, lightings := paintWithLights(test, &list, 1)
 	if len(lights) != 3 || len(lightings) != 2 {
 		test.Fatalf("three lights and two lightings became %d and %d", len(lights), len(lightings))
@@ -66,7 +66,7 @@ func TestASpriteLightShinesThroughItsPicture(test *testing.T) {
 	}
 	picture := draw2d.NewImage(pixels)
 	var list draw2d.List
-	list.SpriteLight(picture, draw2d.Rect{X: 10, Y: 10, Width: 40, Height: 40}, draw2d.Color{1, 1, 0.8, 1})
+	list.SpriteLight(picture, draw2d.Rectangle{X: 10, Y: 10, Width: 40, Height: 40}, draw2d.Color{1, 1, 0.8, 1})
 	list.Lighting(draw2d.Color{1, 1, 1, 0.5})
 	_, lights, _ := paintWithLights(test, &list, 1)
 	if len(lights) != 1 || !lights[0].Pictured || lights[0].Picture[2]-lights[0].Picture[0] != 4 {
@@ -76,7 +76,7 @@ func TestASpriteLightShinesThroughItsPicture(test *testing.T) {
 
 func TestNothingLitCostsNothing(test *testing.T) {
 	var list draw2d.List
-	list.Rectangle(draw2d.Rect{Width: 100, Height: 100}, 0, white, draw2d.Transparent, 0)
+	list.Rectangle(draw2d.Rectangle{Width: 100, Height: 100}, 0, white, draw2d.Transparent, 0)
 	_, lights, lightings := paintWithLights(test, &list, 1)
 	if len(lights) != 0 || len(lightings) != 0 {
 		test.Fatalf("an unlit list has %d lights and %d lightings", len(lights), len(lightings))
@@ -86,7 +86,7 @@ func TestNothingLitCostsNothing(test *testing.T) {
 func TestALightingLightsItsClipOrTheWholeFrame(test *testing.T) {
 	var list draw2d.List
 	list.Lighting(draw2d.Color{1, 1, 1, 1})
-	list.PushClip(draw2d.Rect{X: 100, Y: 50, Width: 200, Height: 100})
+	list.PushClip(draw2d.Rectangle{X: 100, Y: 50, Width: 200, Height: 100})
 	list.Lighting(draw2d.Color{1, 1, 1, 1})
 	list.PopClip()
 	_, _, lightings := paintWithLights(test, &list, 2)

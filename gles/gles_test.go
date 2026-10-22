@@ -59,9 +59,9 @@ func TestALinkErrorIsReported(test *testing.T) {
 
 func card() *draw2d.List {
 	var list draw2d.List
-	area := draw2d.Rect{X: 20, Y: 20, Width: 200, Height: 60}
-	list.Rectangle(area, 8, draw2d.Hex("#ffffff"), draw2d.Hex("#dde3ea"), 1)
-	list.Text("Lighthouse", 36, 56, 14, draw2d.Regular, draw2d.Hex("#18212e"))
+	area := draw2d.Rectangle{X: 20, Y: 20, Width: 200, Height: 60}
+	list.Rectangle(area, 8, draw2d.MustHex("#ffffff"), draw2d.MustHex("#dde3ea"), 1)
+	list.Text("Lighthouse", 36, 56, 14, draw2d.Regular, draw2d.MustHex("#18212e"))
 	return &list
 }
 
@@ -71,7 +71,7 @@ func TestTheFlatRendererDrawsAFrameInOneCall(test *testing.T) {
 	if err != nil {
 		test.Fatal(err)
 	}
-	renderer.Draw(card(), draw2d.Hex("#eef1f5"), 640, 480, 1)
+	renderer.Draw(card(), draw2d.MustHex("#eef1f5"), 640, 480, 1)
 	if len(fake.draws) != 1 {
 		test.Fatalf("draw calls = %d, want 1", len(fake.draws))
 	}
@@ -89,9 +89,9 @@ func TestTheAtlasIsUploadedOnlyWhenItChanges(test *testing.T) {
 	if err != nil {
 		test.Fatal(err)
 	}
-	renderer.Draw(card(), draw2d.Hex("#eef1f5"), 640, 480, 1)
+	renderer.Draw(card(), draw2d.MustHex("#eef1f5"), 640, 480, 1)
 	fake.forget()
-	renderer.Draw(card(), draw2d.Hex("#eef1f5"), 640, 480, 1)
+	renderer.Draw(card(), draw2d.MustHex("#eef1f5"), 640, 480, 1)
 	if fake.textureUploads != 0 {
 		test.Fatalf("atlas uploads = %d on a frame with the same glyphs, want 0", fake.textureUploads)
 	}
@@ -106,7 +106,7 @@ func TestAnEmptyListDrawsNothing(test *testing.T) {
 	if err != nil {
 		test.Fatal(err)
 	}
-	renderer.Draw(&draw2d.List{}, draw2d.Hex("#eef1f5"), 640, 480, 1)
+	renderer.Draw(&draw2d.List{}, draw2d.MustHex("#eef1f5"), 640, 480, 1)
 	if len(fake.draws) != 0 || fake.textureUploads != 0 {
 		test.Fatalf("draws %d, atlas uploads %d: an empty list should only clear", len(fake.draws), fake.textureUploads)
 	}
@@ -247,8 +247,8 @@ func TestAnImageIsDrawnInTheSameCallAndOnlyItsChangesAreSent(test *testing.T) {
 	}
 	photo := draw2d.NewBlankImage(64, 48)
 	list := card()
-	list.Image(photo, draw2d.Rect{X: 20, Y: 100, Width: 120, Height: 90}, 12, draw2d.Hex("#ffffff"))
-	renderer.Draw(list, draw2d.Hex("#eef1f5"), 640, 480, 1)
+	list.Image(photo, draw2d.Rectangle{X: 20, Y: 100, Width: 120, Height: 90}, 12, draw2d.MustHex("#ffffff"))
+	renderer.Draw(list, draw2d.MustHex("#eef1f5"), 640, 480, 1)
 	if len(fake.draws) != 1 {
 		test.Fatalf("draw calls = %d with an image, want still 1", len(fake.draws))
 	}
@@ -257,7 +257,7 @@ func TestAnImageIsDrawnInTheSameCallAndOnlyItsChangesAreSent(test *testing.T) {
 	}
 	fake.forget()
 	photo.Changed()
-	renderer.Draw(list, draw2d.Hex("#eef1f5"), 640, 480, 1)
+	renderer.Draw(list, draw2d.MustHex("#eef1f5"), 640, 480, 1)
 	if fake.textureUploads != 0 || fake.textureAreaUploads != 1 {
 		test.Fatalf("whole uploads %d, area uploads %d after the picture changed; want only its area",
 			fake.textureUploads, fake.textureAreaUploads)
@@ -271,8 +271,8 @@ func TestAFlatListWithoutBackdropsIsOneDrawAndNoSnapshot(test *testing.T) {
 		test.Fatal(err)
 	}
 	var list draw2d.List
-	list.Rectangle(draw2d.Rect{X: 10, Y: 10, Width: 200, Height: 100}, 12, draw2d.Hex("#ffffff20"), draw2d.Transparent, 0)
-	renderer.Draw(&list, draw2d.Hex("#202020"), 800, 600, 1)
+	list.Rectangle(draw2d.Rectangle{X: 10, Y: 10, Width: 200, Height: 100}, 12, draw2d.MustHex("#ffffff20"), draw2d.Transparent, 0)
+	renderer.Draw(&list, draw2d.MustHex("#202020"), 800, 600, 1)
 	if len(fake.draws) != 1 || fake.snapshots != 0 {
 		test.Fatalf("no backdrop: one draw and no copy of the frame, got %d draws and %d copies", len(fake.draws), fake.snapshots)
 	}
@@ -285,13 +285,13 @@ func TestPanelsOfOneLayerShareOneSnapshot(test *testing.T) {
 		test.Fatal(err)
 	}
 	var list draw2d.List
-	list.Rectangle(draw2d.Rect{X: 0, Y: 0, Width: 800, Height: 600}, 0, draw2d.Hex("#808080"), draw2d.Transparent, 0)
+	list.Rectangle(draw2d.Rectangle{X: 0, Y: 0, Width: 800, Height: 600}, 0, draw2d.MustHex("#808080"), draw2d.Transparent, 0)
 	for row := float32(0); row < 4; row++ {
-		panel := draw2d.Rect{X: 20, Y: 20 + row*140, Width: 300, Height: 120}
+		panel := draw2d.Rectangle{X: 20, Y: 20 + row*140, Width: 300, Height: 120}
 		list.Backdrop(panel, 12, 24)
-		list.Rectangle(panel, 12, draw2d.Hex("#ffffff20"), draw2d.Transparent, 0)
+		list.Rectangle(panel, 12, draw2d.MustHex("#ffffff20"), draw2d.Transparent, 0)
 	}
-	renderer.Draw(&list, draw2d.Hex("#202020"), 800, 600, 1)
+	renderer.Draw(&list, draw2d.MustHex("#202020"), 800, 600, 1)
 	if fake.snapshots != 1 {
 		test.Fatalf("four panels of one layer copy the frame once, got %d", fake.snapshots)
 	}
@@ -309,12 +309,12 @@ func TestALightingAddsItsLightsAndMultipliesTheScreenInTwoDraws(test *testing.T)
 		test.Fatal(err)
 	}
 	var list draw2d.List
-	list.Rectangle(draw2d.Rect{Width: 800, Height: 600}, 0, draw2d.Hex("#808080"), draw2d.Transparent, 0)
-	list.PointLight(200, 200, 20, 80, draw2d.Hex("#ffeeaa"))
-	list.PointLight(600, 200, 20, 80, draw2d.Hex("#aaeeff"))
+	list.Rectangle(draw2d.Rectangle{Width: 800, Height: 600}, 0, draw2d.MustHex("#808080"), draw2d.Transparent, 0)
+	list.PointLight(200, 200, 20, 80, draw2d.MustHex("#ffeeaa"))
+	list.PointLight(600, 200, 20, 80, draw2d.MustHex("#aaeeff"))
 	list.Lighting(draw2d.Color{0.6, 0.6, 0.8, 0.7})
-	list.Text("Score", 10, 30, 16, draw2d.Regular, draw2d.Hex("#ffffff"))
-	renderer.Draw(&list, draw2d.Hex("#202020"), 800, 600, 1)
+	list.Text("Score", 10, 30, 16, draw2d.Regular, draw2d.MustHex("#ffffff"))
+	renderer.Draw(&list, draw2d.MustHex("#202020"), 800, 600, 1)
 	// the ground; the two lights in one draw; the multiply over the screen; the text after
 	if len(fake.draws) != 4 {
 		test.Fatalf("got %d draws, wanted 4", len(fake.draws))
@@ -335,13 +335,13 @@ func TestLightsAndBackdropsDrawBackIntoTheRenderersTarget(test *testing.T) {
 	}
 	renderer.Target = fake.CreateFramebuffer() // a picture the caller draws into, not the screen
 	var list draw2d.List
-	list.Rectangle(draw2d.Rect{Width: 800, Height: 600}, 0, draw2d.Hex("#808080"), draw2d.Transparent, 0)
-	list.PointLight(200, 200, 20, 80, draw2d.Hex("#ffeeaa"))
+	list.Rectangle(draw2d.Rectangle{Width: 800, Height: 600}, 0, draw2d.MustHex("#808080"), draw2d.Transparent, 0)
+	list.PointLight(200, 200, 20, 80, draw2d.MustHex("#ffeeaa"))
 	list.Lighting(draw2d.Color{0.6, 0.6, 0.8, 0.7})
-	panel := draw2d.Rect{X: 20, Y: 20, Width: 300, Height: 120}
+	panel := draw2d.Rectangle{X: 20, Y: 20, Width: 300, Height: 120}
 	list.Backdrop(panel, 12, 24)
-	list.Rectangle(panel, 12, draw2d.Hex("#ffffff20"), draw2d.Transparent, 0)
-	renderer.Draw(&list, draw2d.Hex("#202020"), 800, 600, 1)
+	list.Rectangle(panel, 12, draw2d.MustHex("#ffffff20"), draw2d.Transparent, 0)
+	renderer.Draw(&list, draw2d.MustHex("#202020"), 800, 600, 1)
 	ground, multiply, panelDraw := fake.draws[0], fake.draws[2], fake.draws[len(fake.draws)-1]
 	for name, draw := range map[string]recordedDraw{"the ground": ground, "the multiply": multiply, "the panel": panelDraw} {
 		if draw.framebuffer != renderer.Target {
@@ -358,7 +358,7 @@ func TestALightingWithNoLightsOnlyMultipliesTheAmbient(test *testing.T) {
 	}
 	var list draw2d.List
 	list.Lighting(draw2d.Color{1, 1, 1, 0.5})
-	renderer.Draw(&list, draw2d.Hex("#202020"), 800, 600, 1)
+	renderer.Draw(&list, draw2d.MustHex("#202020"), 800, 600, 1)
 	if len(fake.draws) != 1 || fake.draws[0].count != len(cornerFloats)/2 {
 		test.Fatalf("got draws %+v, wanted only the multiply over the screen", fake.draws)
 	}

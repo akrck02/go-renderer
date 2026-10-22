@@ -28,7 +28,7 @@ func TestAnImageKeepsStraightColours(test *testing.T) {
 func TestAChangedImageChangesTheFingerprint(test *testing.T) {
 	picture := NewBlankImage(4, 4)
 	var list List
-	list.Image(picture, Rect{X: 0, Y: 0, Width: 40, Height: 40}, 8, Color{1, 1, 1, 1})
+	list.Image(picture, Rectangle{X: 0, Y: 0, Width: 40, Height: 40}, 8, Color{1, 1, 1, 1})
 	seed := maphash.MakeSeed()
 	before := list.Fingerprint(seed)
 	if list.Fingerprint(seed) != before {
@@ -42,7 +42,7 @@ func TestAChangedImageChangesTheFingerprint(test *testing.T) {
 
 func TestNothingToShowDrawsNoImage(test *testing.T) {
 	var list List
-	area := Rect{Width: 40, Height: 40}
+	area := Rectangle{Width: 40, Height: 40}
 	list.Image(nil, area, 0, Color{1, 1, 1, 1})
 	list.Image(NewBlankImage(0, 0), area, 0, Color{1, 1, 1, 1})
 	list.Image(NewBlankImage(4, 4), area, 0, Color{1, 1, 1, 0})
