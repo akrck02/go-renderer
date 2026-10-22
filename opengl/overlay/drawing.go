@@ -351,19 +351,36 @@ func (painter *Painter) paintIcon(command *draw2d.Command, scale float32) {
 // clipQuads cuts the quads from first onwards to a rectangle of the screen, moving their atlas
 // coordinates with their edges, and drops the ones left outside.
 func (painter *Painter) clipQuads(first int, clip rectangle) {
+	limits := [4]float32{float32(clip.left), float32(clip.top), float32(clip.right), float32(clip.bottom)}
+	quads := painter.quads
 	kept := first
-	for index := first; index < len(painter.quads); index++ {
-		quad, visible := clipQuad(painter.quads[index], clip)
-		if visible {
-			painter.quads[kept] = quad
+	for index := first; index < len(quads); index++ {
+		quad := &quads[index]
+		if isInside(quad.Screen, limits) { // most quads: kept as they are, without copying them twice
+			if kept != index {
+				quads[kept] = *quad
+			}
+			kept++
+			continue
+		}
+		if clipped, visible := clipQuad(*quad, limits); visible {
+			quads[kept] = clipped
 			kept++
 		}
 	}
-	painter.quads = painter.quads[:kept]
+	painter.quads = quads[:kept]
 }
 
-func clipQuad(quad Quad, clip rectangle) (Quad, bool) {
-	limits := [4]float32{float32(clip.left), float32(clip.top), float32(clip.right), float32(clip.bottom)}
+// isInside tells whether a quad's screen rectangle lies wholly within the limits (left, top,
+// right, bottom) and covers some area.
+func isInside(screen, limits [4]float32) bool {
+	return screen[0] >= limits[0] && screen[1] >= limits[1] && screen[2] <= limits[2] && screen[3] <= limits[3] &&
+		screen[2] > screen[0] && screen[3] > screen[1]
+}
+
+// clipQuad cuts a quad to the limits (left, top, right, bottom), its atlas and picture with it;
+// false when nothing of it is left.
+func clipQuad(quad Quad, limits [4]float32) (Quad, bool) {
 	for axis := 0; axis < 2; axis++ {
 		low, high := axis, axis+2
 		start, end := quad.Screen[low], quad.Screen[high]

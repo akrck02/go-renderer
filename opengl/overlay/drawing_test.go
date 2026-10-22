@@ -90,11 +90,11 @@ func TestClipCutsQuadsAndTheirAtlas(test *testing.T) {
 		test.Fatalf("the rectangle is cut to the clip, got %v", bounds)
 	}
 	quad := Quad{Screen: [4]float32{0, 0, 10, 10}, Atlas: [4]float32{100, 100, 110, 110}}
-	cut, visible := clipQuad(quad, rectangle{5, 0, 20, 20})
+	cut, visible := clipQuad(quad, [4]float32{5, 0, 20, 20})
 	if !visible || cut.Screen[0] != 5 || cut.Atlas[0] != 105 {
 		test.Fatalf("the atlas moves with the edge: %+v", cut)
 	}
-	if _, visible := clipQuad(quad, rectangle{20, 20, 30, 30}); visible {
+	if _, visible := clipQuad(quad, [4]float32{20, 20, 30, 30}); visible {
 		test.Fatal("a quad outside the clip is dropped")
 	}
 }
