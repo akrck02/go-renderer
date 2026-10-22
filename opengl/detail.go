@@ -62,7 +62,7 @@ func (instanceBatches) FillBatch(handle any, mesh *scene.Mesh, packed []float32)
 func (instanceBatches) RewriteInstances(handle any, position int, packed []float32) {
 	batch := handle.(*instanceBatch)
 	gl.BindBuffer(gl.ARRAY_BUFFER, batch.instanceBuffer)
-	gl.BufferSubData(gl.ARRAY_BUFFER, position*sceneplan.FloatsPerInstance*bytesPerFloat, len(packed)*bytesPerFloat, gl.Ptr(packed))
+	gl.BufferSubData(gl.ARRAY_BUFFER, position*sceneplan.FloatsPerInstance*bytesPerFloat, len(packed)*bytesPerFloat, firstFloat(packed))
 }
 
 // newInstanceBatch creates a vertex array that combines a mesh with its own instance buffer.

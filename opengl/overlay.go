@@ -1,8 +1,6 @@
 package opengl
 
 import (
-	"log"
-
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
@@ -22,6 +20,7 @@ type overlayRenderer struct {
 	picturesTexture           uint32
 	picturesSize              int // the side of the pictures on the GPU; 0 before any
 	vertices                  []float32
+	framebuffer               int32         // the frame's framebuffer while lightings are drawn: a field, as GL's pointer would make a local escape
 	blur                      *backdropBlur // made the first time a frame has a backdrop
 	lights                    *lightLayer   // made the first time a frame has lights
 }
@@ -107,16 +106,15 @@ func (renderer *overlayRenderer) drawQuads(quads []overlay.Quad, width, height i
 	if len(lightings) > 0 && !renderer.prepareLights() {
 		lightings = nil // no lights on this machine: the frame is drawn unlit
 	}
-	var framebuffer int32 // the one the frame is drawn into, which each lighting comes back to
-	if len(lightings) > 0 {
-		gl.GetIntegerv(gl.DRAW_FRAMEBUFFER_BINDING, &framebuffer)
+	if len(lightings) > 0 { // the framebuffer the frame is drawn into, which each lighting comes back to
+		gl.GetIntegerv(gl.DRAW_FRAMEBUFFER_BINDING, &renderer.framebuffer)
 	}
 	// without backdrops nor lights this is one draw call; each snapshot or lighting cuts it in two
 	drawn := 0
 	for len(snapshots) > 0 || len(lightings) > 0 {
 		if len(lightings) > 0 && (len(snapshots) == 0 || lightings[0].At <= snapshots[0].At) {
 			renderer.drawVertices(drawn, lightings[0].At, width, height)
-			renderer.lights.light(lightings[0], uint32(framebuffer), width, height, renderer.picturesSize)
+			renderer.lights.light(lightings[0], uint32(renderer.framebuffer), width, height, renderer.picturesSize)
 			drawn, lightings = lightings[0].At, lightings[1:]
 			continue
 		}
@@ -138,7 +136,7 @@ func (renderer *overlayRenderer) prepareLights() bool {
 	if renderer.lights == nil {
 		lights, err := newLightLayer()
 		if err != nil {
-			log.Print("2D lights unavailable: ", err)
+			warn(renderer.painter, "2D lights unavailable", err)
 			renderer.lights = &lightLayer{} // a layer with no program: not tried again
 			return false
 		}
@@ -159,7 +157,7 @@ func (renderer *overlayRenderer) takeSnapshot(width, height int, deviation float
 	if renderer.blur == nil {
 		blur, err := newBackdropBlur()
 		if err != nil {
-			log.Print("backdrop blur unavailable: ", err)
+			warn(renderer.painter, "backdrop blur unavailable", err)
 			renderer.blur = &backdropBlur{} // a blur with no program: not tried again
 			return false
 		}
@@ -260,7 +258,7 @@ func (renderer *overlayRenderer) fillVertices(quads []overlay.Quad) {
 	}
 	renderer.vertices = vertices
 	gl.BindBuffer(gl.ARRAY_BUFFER, renderer.vertexBuffer)
-	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*bytesPerFloat, gl.Ptr(vertices), gl.STREAM_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*bytesPerFloat, firstFloat(vertices), gl.STREAM_DRAW)
 }
 
 // verticesPerQuad: two triangles.
@@ -290,4 +288,12 @@ func (renderer *overlayRenderer) drawVertices(first, last, width, height int) {
 	gl.Disable(gl.BLEND)
 	gl.DepthMask(true)
 	gl.Enable(gl.DEPTH_TEST)
+}
+
+// warn tells the painter's Warn, when the program gave one, of a problem the frame works around
+// (it is drawn without lights or blur); a library prints nothing of its own.
+func warn(painter *overlay.Painter, problem string, err error) {
+	if painter.Warn != nil {
+		painter.Warn(problem + ": " + err.Error())
+	}
 }

@@ -1,8 +1,9 @@
 package opengl
 
 import (
-	"fmt"
+	"strconv"
 
+	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/scene"
 	"github.com/akrck02/go-renderer/sceneplan"
@@ -25,7 +26,7 @@ func newShadowMap(resolution int32) (*shadowMap, error) {
 	shadow.depthTexture = newDepthTexture(resolution)
 	enableDepthComparison(shadow.depthTexture)
 	if shadow.framebuffer, err = newDepthFramebuffer(shadow.depthTexture); err != nil {
-		return nil, fmt.Errorf("shadow map: %w", err)
+		return nil, err
 	}
 	return shadow, nil
 }
@@ -66,7 +67,7 @@ func newDepthFramebuffer(depthTexture uint32) (uint32, error) {
 	status := gl.CheckFramebufferStatus(gl.FRAMEBUFFER)
 	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
 	if status != gl.FRAMEBUFFER_COMPLETE {
-		return 0, fmt.Errorf("depth framebuffer incomplete: 0x%x", status)
+		return 0, failure.Wrap(FramebufferIncomplete, "shadow map, status 0x"+strconv.FormatUint(uint64(status), 16), nil)
 	}
 	return framebuffer, nil
 }

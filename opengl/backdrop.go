@@ -18,6 +18,10 @@ type backdropBlur struct {
 	spare      target   // the smallest level's size: where the first blur pass writes
 	width      int
 	height     int
+	// drawn, samples and weights go to GL by pointer: fields, as GL's pointer would make locals
+	// escape to the heap every frame
+	drawn, samples int32
+	weights        [graphics.BackdropTaps + 1]float32
 }
 
 // target is a texture with a framebuffer to draw into it.
@@ -40,15 +44,15 @@ func newBackdropBlur() (*backdropBlur, error) {
 // screen pixels, and leaves the result bound on unit textureUnit. The framebuffer, viewport and
 // blending are as they were when it returns.
 func (blur *backdropBlur) snapshot(width, height int, deviation float32, textureUnit uint32) {
-	var drawn int32
-	gl.GetIntegerv(gl.DRAW_FRAMEBUFFER_BINDING, &drawn)
+	gl.GetIntegerv(gl.DRAW_FRAMEBUFFER_BINDING, &blur.drawn)
+	drawn := blur.drawn
 	halvings := graphics.BackdropHalvings(deviation)
 	blur.prepare(width, height, halvings)
 
 	// A multisampled framebuffer can only be copied at its own size, which resolves it; any other
 	// is halved straight from the frame, sparing a full-size copy: most of the snapshot's cost.
 	source, sourceWidth, sourceHeight := uint32(drawn), int32(width), int32(height)
-	if halvings == 0 || isMultisampled(source) {
+	if halvings == 0 || blur.isMultisampled(source) {
 		if blur.copy.texture == 0 {
 			blur.copy = newTarget(int32(width), int32(height)) // made only when needed: it is the largest
 		}
@@ -70,11 +74,10 @@ func (blur *backdropBlur) snapshot(width, height int, deviation float32, texture
 }
 
 // isMultisampled tells whether a framebuffer keeps several samples a pixel.
-func isMultisampled(framebuffer uint32) bool {
-	var samples int32
+func (blur *backdropBlur) isMultisampled(framebuffer uint32) bool {
 	gl.BindFramebuffer(gl.READ_FRAMEBUFFER, framebuffer)
-	gl.GetIntegerv(gl.SAMPLES, &samples)
-	return samples > 1
+	gl.GetIntegerv(gl.SAMPLES, &blur.samples)
+	return blur.samples > 1
 }
 
 // copyInto copies a framebuffer's whole picture into a target, scaled to its size.
@@ -86,10 +89,10 @@ func copyInto(source uint32, width, height int32, into target, filter uint32) {
 
 // blurInPlace blurs a target across, into the spare, then down, back into the target.
 func (blur *backdropBlur) blurInPlace(level target, deviation float32) {
-	weights := graphics.BackdropWeights(deviation)
+	blur.weights = graphics.BackdropWeights(deviation)
 	program := blur.program
 	gl.UseProgram(program.handle)
-	gl.Uniform1fv(program.location("weights"), int32(len(weights)), &weights[0])
+	gl.Uniform1fv(program.location("weights"), int32(len(blur.weights)), &blur.weights[0])
 	program.setInteger("source", 0)
 	gl.Disable(gl.BLEND)
 	gl.Disable(gl.DEPTH_TEST)

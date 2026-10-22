@@ -67,6 +67,16 @@ type instanceBuffers struct {
 
 const bytesPerFloat = 4
 
+// firstFloat points GL at a slice's first value, or at nothing for an empty slice. gl.Ptr does
+// the same, but takes an interface: handing it the slice copies the slice's header to the heap
+// on every call, which a frame cannot afford.
+func firstFloat(values []float32) unsafe.Pointer {
+	if len(values) == 0 {
+		return nil
+	}
+	return unsafe.Pointer(&values[0])
+}
+
 // NewSceneRenderer compiles the scene shaders. Call it after the OpenGL context exists.
 func NewSceneRenderer() (*SceneRenderer, error) {
 	sceneProgram, err := newShaderProgram(graphics.SceneVertexShader, graphics.SceneFragmentShader)
@@ -451,7 +461,7 @@ func uploadInstances(instances *scene.Instances, mesh *meshBuffers) *instanceBuf
 func fillInstanceBuffer(buffer uint32, data []float32) {
 	gl.BindBuffer(gl.ARRAY_BUFFER, buffer)
 	if len(data) > 0 {
-		gl.BufferData(gl.ARRAY_BUFFER, len(data)*bytesPerFloat, gl.Ptr(data), gl.DYNAMIC_DRAW)
+		gl.BufferData(gl.ARRAY_BUFFER, len(data)*bytesPerFloat, firstFloat(data), gl.DYNAMIC_DRAW)
 	}
 }
 
