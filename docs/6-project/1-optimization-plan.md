@@ -169,6 +169,58 @@ Triangles after phase 2: 2.2 M in the overview, 0.46 M close, 1.15 M walking.
 
 Phase 3 changed the file size, not the speed: 76 → 33 MB, loading ~60 ms.
 
+## Baseline (2026-10-22)
+
+Before the rewrite towards 1.0 ([proposal 1](../proposals/1-towards-version-1.md)), every Go
+benchmark was run and kept here, so a rewritten package can show it is no slower and allocates no
+more. Run them again with:
+
+```bash
+DISPLAY=:95 go test -run xxx -bench . -benchmem -count 3 ./...   # any display works for opengl
+```
+
+Machine: AMD Ryzen 5 5600G (8 threads), Linux, Go 1.26.8; the OpenGL ones under Xvfb with Mesa's
+llvmpipe, so their times measure the software driver, not a GPU. Each time is the median of three
+runs. The four marked *new* were added for this baseline: a frame's hot paths that had none.
+
+| Package | Benchmark | ns/op | B/op | allocs/op |
+|---|---|---:|---:|---:|
+| `sceneplan` | PlanningAFrameOfTheSampleIsland (*new*: `Plan` with shadows, after the first frame) | 2,262 | 288 | 2 |
+| `sceneplan` | UpdateThousandInstances | 367,029 | 12,568 | 0 |
+| `sceneplan` | RebuildGrid | 36,349,470 | 9,585,181 | 9 |
+| `draw2d` | BuildingAListOfThreeHundredControls (*new*: shadow, rectangle, text and icon each) | 31,244 | 14 | 0 |
+| `input` | ReadingAPadForAFrame (*new*: every button set and read, then `EndFrame`) | 19 | 0 | 0 |
+| `opengl` | AFrameUnlit (a 2D list drawn and read back) | 690,528 | 182 | 3 |
+| `opengl` | AFrameWithEightLights | 2,038,480 | 466 | 4 |
+| `opengl/overlay` | AuditPaint2000 (lays out a list of 2,000 commands: the overlay's frame) | 589,448 | 24 | 1 |
+| `opengl/overlay` | AuditRegisterPaint, hiddenRows=0 | 149,075 | 24 | 1 |
+| `opengl/overlay` | AuditRegisterPaint, hiddenRows=1000 | 148,738 | 24 | 1 |
+| `opengl/overlay` | AuditFillVertices | 105,612 | 0 | 0 |
+| `opengl/overlay` | AuditFillPacked | 58,160 | 0 | 0 |
+| `opengl/overlay` | AuditClipQuads | 268,652 | 159 | 0 |
+| `opengl/overlay` | AuditHashList | 19,342 | 0 | 0 |
+| `opengl/overlay` | AuditDrawingOrder | 793 | 0 | 0 |
+| `opengl/overlay` | AuditRegisterDrawingOrder, hiddenRows=0 / 1000 | 176 | 0 | 0 |
+| `opengl/overlay` | AuditRegisterTextLine | 1,485 | 0 | 0 |
+| `opengl/overlay` | AuditRegisterHasGlyph | 57 | 0 | 0 |
+| `opengl/overlay` | AuditRasteriseGlyph (once per new glyph) | 2,916 | 390 | 2 |
+| `opengl/overlay` | AuditShadowMask (once per new shadow size) | 175,587 | 6,592 | 2 |
+| `opengl/overlay` | AuditPrebuildFace (loading) | 2,212,267 | 877,105 | 413 |
+| `opengl/overlay` | AuditAtlasGrow (loading) | 6,615,328 | 5,505,313 | 8 |
+
+What it says, in short:
+
+* **Planning a frame is cheap** (about 2 µs for the sample island) but still allocates twice; a
+  frame of the 2D overlay allocates once (24 B), and an OpenGL frame three or four times. Those are
+  the allocations per frame the rewrite should bring to zero.
+* **A busy interface costs ~31 µs to describe** (300 controls) and ~150–590 µs to lay out: layout,
+  not description, is where the 2D frame's processor time goes.
+* **Rebuilding an instance grid** (36 ms, 9.6 MB) happens when instances change, not every frame;
+  moving a thousand instances is 0.37 ms with no allocation.
+* There were 18 benchmarks before (not the 34 the proposal counted: several names repeat with
+  sub-cases); they are named `Audit…` from an earlier review of the overlay, and the rewrite
+  should rename them for what they measure.
+
 ---
 
 [← All the documentation](../1-overview.md)
