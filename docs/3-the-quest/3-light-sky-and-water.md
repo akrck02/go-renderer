@@ -98,7 +98,7 @@ world.Lights = []scene.PointLight{{
 <p align="center"><img alt="A grey floor at night with three cubes, lit by an orange lamp on the left, a blue one in the middle and a green one on the right: each lights the floor in a soft circle and the faces of the cubes that face it" src="../images/point-lights.png" width="480"></p>
 
 **How many?** As many as the scene wants, but each draw takes at most the four nearest whose
-reach meets it (`sceneplan.MaxLightsPerDraw`), chosen once a frame on the processor, so the
+reach meets it (`MaxLightsPerDraw` in the module's `internal/sceneplan`), chosen once a frame on the processor, so the
 shaders stay short on every platform: this is what Unity's and Godot's forward renderers do on
 phones. Lamps far apart can light a whole village; four lamps piled on one small thing are as
 many as it shows. Move a lamp by changing its position between frames. The 3DS bakes the lamps

@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/akrck02/go-renderer/sceneplan"
+	"github.com/akrck02/go-renderer/internal/sceneplan"
 )
 
 // warmupFrames are drawn before measuring, while meshes are uploaded to the GPU.

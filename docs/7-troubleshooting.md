@@ -22,7 +22,7 @@ takes a minute; later ones are quick.
 cgo is off, or there is no C compiler. Install one (`gcc`, or Xcode's command line tools on macOS
 with `xcode-select --install`) and check that `go env CGO_ENABLED` prints `1`.
 
-Packages that need no window (`scene`, `draw2d`, `input`, `sceneplan`) build without cgo. Only
+Packages that need no window (`scene`, `draw2d`, `input`, `internal/sceneplan`) build without cgo. Only
 `opengl`, `windowloop`, `viewer`, `metal` and `cmd/visor` need it.
 
 ### Warnings on macOS: `'glClear' is deprecated`, `MTLStorageModeManaged is deprecated`

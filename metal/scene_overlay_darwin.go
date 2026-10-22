@@ -8,9 +8,9 @@ import "C"
 import (
 	"unsafe"
 
+	"github.com/akrck02/go-renderer/internal/sceneplan"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
-	"github.com/akrck02/go-renderer/sceneplan"
 )
 
 // overlayLayer draws the scene's overlay (labels, header, notices) over the finished frame, with

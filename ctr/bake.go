@@ -4,8 +4,8 @@ import (
 	"math"
 
 	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/internal/sceneplan"
 	"github.com/akrck02/go-renderer/scene"
-	"github.com/akrck02/go-renderer/sceneplan"
 )
 
 // The PICA200 runs vertex shaders slowly enough that lighting every vertex every frame held the

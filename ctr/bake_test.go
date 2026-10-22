@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/internal/sceneplan"
 	"github.com/akrck02/go-renderer/scene"
-	"github.com/akrck02/go-renderer/sceneplan"
 )
 
 func upwardLight() lightKey {

@@ -1,8 +1,8 @@
 package opengl
 
 import (
+	"github.com/akrck02/go-renderer/internal/sceneplan"
 	"github.com/akrck02/go-renderer/scene"
-	"github.com/akrck02/go-renderer/sceneplan"
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
 

@@ -11,7 +11,7 @@ Each folder is one idea, and dependencies point one way: the scene knows nothing
 |---|---|---|
 | `graphics`, `models` | Vectors, matrices, the application and the immediate-mode `Renderer` contract | plain Go |
 | `scene`, `scene/sample`, `loaders` | The retained scene, glTF files, the sample island | plain Go |
-| `sceneplan` | What a frame draws, decided once for every backend | plain Go |
+| `internal/sceneplan` | What a frame draws, decided once for every backend; internal, as only the module's backends use it | plain Go |
 | `input`, `camera`, `draw2d`, `frameloop` | Input, cameras, 2D draw lists, the clock | plain Go |
 | `opengl`, `opengl/overlay`, `windowloop` | The desktop backend: GLFW, OpenGL 4.1, the overlay | cgo |
 | `metal` | The Metal backend on macOS (Objective-C) | cgo, macOS |

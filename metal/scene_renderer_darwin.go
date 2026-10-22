@@ -16,10 +16,10 @@ import (
 
 	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/internal/sceneplan"
 	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
-	"github.com/akrck02/go-renderer/sceneplan"
 	"github.com/go-gl/glfw/v3.4/glfw"
 )
 

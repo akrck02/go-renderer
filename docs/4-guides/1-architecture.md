@@ -25,7 +25,7 @@ scene, and it shows the result.
 | `opengl`, `metal` | Backends behind the contract; OpenGL is the complete one. `metal` also has `FlatWindow` and `FlatRenderer`, which draw a flat interface through Metal on macOS ([design](7-metal.md)) |
 | `software`, `vulkan`, `webgpu` | Backends behind the contract that will be built later. Until then every function returns its package's `NotImplemented` code (`software.not-implemented`, `vulkan.not-implemented`, `webgpu.not-implemented`), checked with `errors.Is` |
 | `failure` | Error codes: `failure.Define` declares one, `failure.Wrap` adds details; check them with `errors.Is` |
-| `sceneplan` | Decides what a frame of a scene draws, for any backend: the draw commands in order, culling and levels of detail, instance batches, where the shadow and seabed maps look |
+| `internal/sceneplan` | Decides what a frame of a scene draws, for any backend: the draw commands in order, culling and levels of detail, instance batches, where the shadow and seabed maps look |
 | `scene/sample` | A made-up island that uses every feature the renderers draw, for tests and comparisons |
 | `gles` | Renderers written once for OpenGL ES (WebGL2 in browsers, Android): a flat `FlatRenderer` and a simple `SceneRenderer`, over a small interface each platform implements ([in a browser](5-web.md)) |
 | `browser` | Built only for WebAssembly: a canvas as the window, its events as input, WebGL2, and the loop over `requestAnimationFrame` |
@@ -110,7 +110,7 @@ ground.
 
 There are two, which draw the same frame: `opengl.SceneRenderer` and, on macOS, `metal.SceneRenderer`
 (the viewer chooses with `-backend`; Metal by default on macOS). What a frame draws is decided once,
-in `sceneplan`, which makes no graphics calls; each backend only uploads and draws that plan, with
+in `internal/sceneplan`, which makes no graphics calls; each backend only uploads and draws that plan, with
 shaders that are faithful translations of each other. Their captures of the sample island match
 except for rounding and where two surfaces lie in the same plane (`cmd/visor`'s
 `TestMetalDrawsTheSceneLikeOpenGL`; [measurements](7-metal.md)).
