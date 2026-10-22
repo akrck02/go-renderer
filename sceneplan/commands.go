@@ -147,34 +147,42 @@ func splitOpaqueAndTransparent(commands []Command) (opaque, transparent []Comman
 	return commands, nil
 }
 
-// waterCommand returns a large water plane that follows the camera horizontally.
+// defaultDeepWater is the colour of deep water when the scene gives none: a dark, translucent teal.
+var defaultDeepWater = graphics.Vec4{0.05, 0.22, 0.28, 0.85}
+
+// waterFloorDarkening is how much darker than deep water the floor under it is drawn.
+const waterFloorDarkening = 0.6
+
+// waterCommand returns a large water plane that follows the camera horizontally. Its node is made
+// once and kept, so a frame allocates nothing for it.
 func (planner *Planner) waterCommand(water *scene.Water, camera models.Camera) Command {
 	if planner.waterPlane == nil {
-		planner.waterPlane = newWaterGrid(water.Size, planner.WaterGridDivisions)
+		planner.waterPlane = &scene.Node{Name: "water", Mesh: newWaterGrid(water.Size, planner.WaterGridDivisions)}
 	}
+	mesh := planner.waterPlane.Mesh
 	deepColor := water.Deep
 	if deepColor == (graphics.Vec4{}) {
-		deepColor = graphics.Vec4{0.05, 0.22, 0.28, 0.85}
+		deepColor = defaultDeepWater
 	}
-	planner.waterPlane.Material.BaseColor = deepColor
+	mesh.Material.BaseColor = deepColor
 	world := graphics.Translate(graphics.Vec4{camera.Position[0], water.Level, camera.Position[2], 0})
-	node := &scene.Node{Name: "water", Mesh: planner.waterPlane}
-	return Command{Node: node, World: world, Material: planner.waterPlane.Material, SquaredCameraDistance: -1, Transparent: true, SeaSurface: true}
+	return Command{Node: planner.waterPlane, World: world, Material: mesh.Material, SquaredCameraDistance: -1, Transparent: true, SeaSurface: true}
 }
 
 // waterFloorCommand returns an opaque dark floor under the water, so that nothing behind the
 // scene shows through the translucent surface where the geometry ends.
 func (planner *Planner) waterFloorCommand(water *scene.Water, camera models.Camera) Command {
 	if planner.waterFloor == nil {
-		planner.waterFloor = newWaterPlane(water.Size)
-		planner.waterFloor.Material = &scene.Material{Name: "water floor", Kind: scene.KindUnlit, DoubleSided: true}
+		mesh := newWaterPlane(water.Size)
+		mesh.Material = &scene.Material{Name: "water floor", Kind: scene.KindUnlit, DoubleSided: true}
+		planner.waterFloor = &scene.Node{Name: "water floor", Mesh: mesh}
 	}
+	material := planner.waterFloor.Mesh.Material
 	deep := water.Deep
-	planner.waterFloor.Material.BaseColor = graphics.Vec4{deep[0] * 0.6, deep[1] * 0.6, deep[2] * 0.6, 1}
+	material.BaseColor = graphics.Vec4{deep[0] * waterFloorDarkening, deep[1] * waterFloorDarkening, deep[2] * waterFloorDarkening, 1}
 	depth := water.Level - water.EffectiveFloorDepth()
 	world := graphics.Translate(graphics.Vec4{camera.Position[0], depth, camera.Position[2], 0})
-	node := &scene.Node{Name: "water floor", Mesh: planner.waterFloor}
-	return Command{Node: node, World: world, Material: planner.waterFloor.Material}
+	return Command{Node: planner.waterFloor, World: world, Material: material}
 }
 
 // defaultWaterGridDivisions is the number of cells per side of the water surface.
