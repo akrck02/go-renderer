@@ -3,7 +3,7 @@ package android
 import "testing"
 
 // Each feeling has Android's constant for it, and the older phones the nearest they have.
-func TestFeelingsHaveTheirConstants(t *testing.T) {
+func TestFeelingsHaveTheirConstants(test *testing.T) {
 	cases := []struct {
 		feeling Feeling
 		level   int
@@ -19,7 +19,7 @@ func TestFeelingsHaveTheirConstants(t *testing.T) {
 	}
 	for _, test := range cases {
 		if got := constantFor(test.feeling, test.level); got != test.want {
-			t.Errorf("feeling %d on API %d: %d, want %d", test.feeling, test.level, got, test.want)
+			test.Errorf("feeling %d on API %d: %d, want %d", test.feeling, test.level, got, test.want)
 		}
 	}
 }
