@@ -7,7 +7,9 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 
+	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/scene"
 )
@@ -145,7 +147,7 @@ func LoadScene(path string) (*scene.Scene, error) {
 // must be in the file, as a .glb's are.
 func ParseSceneGLB(content []byte) (*scene.Scene, error) {
 	if !isGLBContainer(content) {
-		return nil, fmt.Errorf("not a .glb file")
+		return nil, failure.Wrap(InvalidGLTF, "not a .glb file", nil)
 	}
 	file := &gltfFile{}
 	if err := file.parseGLBContainer(content); err != nil {
@@ -153,7 +155,7 @@ func ParseSceneGLB(content []byte) (*scene.Scene, error) {
 	}
 	for _, buffer := range file.document.Buffers {
 		if buffer.URI != "" {
-			return nil, fmt.Errorf("the .glb names an external buffer (%s), which needs its folder: use LoadScene", buffer.URI)
+			return nil, failure.Wrap(InvalidGLTF, "the .glb names an external buffer ("+buffer.URI+"), which needs its folder: use LoadScene", nil)
 		}
 	}
 	return file.buildScene()
@@ -162,13 +164,13 @@ func ParseSceneGLB(content []byte) (*scene.Scene, error) {
 func readGLTFFile(path string) (*gltfFile, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, failure.Wrap(FileNotRead, path, err)
 	}
 	file := &gltfFile{directory: filepath.Dir(path)}
 	if isGLBContainer(content) {
 		err = file.parseGLBContainer(content)
 	} else {
-		err = json.Unmarshal(content, &file.document)
+		err = readDocument(content, &file.document)
 	}
 	if err != nil {
 		return nil, err
@@ -187,7 +189,7 @@ func (file *gltfFile) parseGLBContainer(content []byte) error {
 		length := int(binary.LittleEndian.Uint32(content[offset:]))
 		chunkType := binary.LittleEndian.Uint32(content[offset+4:])
 		if offset+8+length > len(content) {
-			return fmt.Errorf("glb: truncated chunk")
+			return failure.Wrap(InvalidGLTF, "a .glb chunk is cut short", nil)
 		}
 		data := content[offset+8 : offset+8+length]
 		switch chunkType {
@@ -199,7 +201,15 @@ func (file *gltfFile) parseGLBContainer(content []byte) error {
 		offset += 8 + length
 	}
 	file.buffers = [][]byte{binaryChunk}
-	return json.Unmarshal(jsonChunk, &file.document)
+	return readDocument(jsonChunk, &file.document)
+}
+
+// readDocument reads a glTF document's JSON.
+func readDocument(content []byte, document *gltfDocument) error {
+	if err := json.Unmarshal(content, document); err != nil {
+		return failure.Wrap(InvalidGLTF, "its JSON", err)
+	}
+	return nil
 }
 
 // loadExternalBuffers reads buffers stored next to a .gltf file.
@@ -210,7 +220,7 @@ func (file *gltfFile) loadExternalBuffers(directory string) error {
 		}
 		data, err := os.ReadFile(filepath.Join(directory, buffer.URI))
 		if err != nil {
-			return fmt.Errorf("gltf buffer %d: %w", bufferNumber, err)
+			return failure.Wrap(FileNotRead, "buffer "+strconv.Itoa(bufferNumber)+" ("+buffer.URI+")", err)
 		}
 		for len(file.buffers) <= bufferNumber {
 			file.buffers = append(file.buffers, nil)
@@ -223,13 +233,13 @@ func (file *gltfFile) loadExternalBuffers(directory string) error {
 // readAccessor returns the accessor values as floats and the number of components per element.
 func (file *gltfFile) readAccessor(accessorNumber int) ([]float32, int, error) {
 	if accessorNumber < 0 || accessorNumber >= len(file.document.Accessors) {
-		return nil, 0, fmt.Errorf("accessor %d out of range", accessorNumber)
+		return nil, 0, failure.Wrap(InvalidGLTF, "accessor "+strconv.Itoa(accessorNumber)+" does not exist", nil)
 	}
 	accessor := file.document.Accessors[accessorNumber]
 	components := componentsPerElement[accessor.Type]
 	componentSize := bytesPerComponent[accessor.ComponentType]
 	if components == 0 || componentSize == 0 {
-		return nil, 0, fmt.Errorf("accessor %d: unsupported %s of component type %d", accessorNumber, accessor.Type, accessor.ComponentType)
+		return nil, 0, failure.Wrap(UnsupportedAccessor, fmt.Sprintf("accessor %d: %s of component type %d", accessorNumber, accessor.Type, accessor.ComponentType), nil)
 	}
 	values := make([]float32, accessor.Count*components)
 	if accessor.BufferView == nil {
@@ -246,7 +256,7 @@ func (file *gltfFile) readAccessor(accessorNumber int) ([]float32, int, error) {
 		for component := 0; component < components; component++ {
 			offset := start + element*stride + component*componentSize
 			if offset+componentSize > len(data) {
-				return nil, 0, fmt.Errorf("accessor %d: out of buffer bounds", accessorNumber)
+				return nil, 0, failure.Wrap(InvalidGLTF, "accessor "+strconv.Itoa(accessorNumber)+" runs past its buffer", nil)
 			}
 			values[element*components+component] = readComponent(data[offset:], accessor.ComponentType, accessor.Normalized)
 		}
