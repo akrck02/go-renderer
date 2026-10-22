@@ -2,7 +2,7 @@ package input
 
 import "testing"
 
-func TestAPadsLayoutIsReadFromTheVendorInItsGUID(t *testing.T) {
+func TestAPadsLayoutIsReadFromTheVendorInItsGUID(test *testing.T) {
 	cases := map[string]PadLayout{
 		"030000004c050000cc09000011810000": PlayStationLayout, // Sony
 		"050000007e0500000920000001800000": NintendoLayout,    // Nintendo
@@ -14,12 +14,12 @@ func TestAPadsLayoutIsReadFromTheVendorInItsGUID(t *testing.T) {
 	}
 	for guid, want := range cases {
 		if got := PadLayoutFromGUID(guid); got != want {
-			t.Errorf("PadLayoutFromGUID(%q) = %v, want %v", guid, got, want)
+			test.Errorf("PadLayoutFromGUID(%q) = %v, want %v", guid, got, want)
 		}
 	}
 }
 
-func TestAPadsLayoutIsReadFromTheVendorInTheBrowsersName(t *testing.T) {
+func TestAPadsLayoutIsReadFromTheVendorInTheBrowsersName(test *testing.T) {
 	cases := map[string]PadLayout{
 		"Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 09cc)": PlayStationLayout, // Chrome
 		"054c-09cc-Wireless Controller":                                     PlayStationLayout, // Firefox
@@ -32,18 +32,18 @@ func TestAPadsLayoutIsReadFromTheVendorInTheBrowsersName(t *testing.T) {
 	}
 	for name, want := range cases {
 		if got := PadLayoutFromName(name); got != want {
-			t.Errorf("PadLayoutFromName(%q) = %v, want %v", name, got, want)
+			test.Errorf("PadLayoutFromName(%q) = %v, want %v", name, got, want)
 		}
 	}
 }
 
-func TestAPadIsReadAsAnXboxPadUntilTheBackendSaysOtherwise(t *testing.T) {
+func TestAPadIsReadAsAnXboxPadUntilTheBackendSaysOtherwise(test *testing.T) {
 	state := NewState()
 	if state.PadLayout() != XboxLayout {
-		t.Fatal("a new state does not read its pad as an Xbox pad")
+		test.Fatal("a new state does not read its pad as an Xbox pad")
 	}
 	state.SetPadLayout(NintendoLayout)
 	if state.PadLayout() != NintendoLayout {
-		t.Fatal("the layout set is not the layout read")
+		test.Fatal("the layout set is not the layout read")
 	}
 }
