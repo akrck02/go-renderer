@@ -83,19 +83,19 @@ func (pass *quadPass) describeVertexLayout() {
 		pass.attributesOn = true
 	}
 	stride := floatsPerQuadVertex * 4
-	functions.VertexAttribPointer(0, 2, Float, false, stride, 0)
-	functions.VertexAttribPointer(1, 2, Float, false, stride, 2*4)
-	functions.VertexAttribPointer(2, 4, Float, false, stride, 4*4)
-	functions.EnableVertexAttribArray(pictureAttribute)
-	functions.VertexAttribPointer(pictureAttribute, 2, Float, false, stride, 8*4)
-	functions.EnableVertexAttribArray(backdropAttribute)
-	functions.VertexAttribPointer(backdropAttribute, 1, Float, false, stride, 10*4)
+	functions.DescribeVertexAttribute(0, 2, Float, false, stride, 0)
+	functions.DescribeVertexAttribute(1, 2, Float, false, stride, 2*4)
+	functions.DescribeVertexAttribute(2, 4, Float, false, stride, 4*4)
+	functions.EnableVertexAttribute(pictureAttribute)
+	functions.DescribeVertexAttribute(pictureAttribute, 2, Float, false, stride, 8*4)
+	functions.EnableVertexAttribute(backdropAttribute)
+	functions.DescribeVertexAttribute(backdropAttribute, 1, Float, false, stride, 10*4)
 }
 
 // switchAttributesOn turns on the three vertex attributes both programs read; they stay on.
 func switchAttributesOn(functions Functions) {
 	for index := range uint32(3) {
-		functions.EnableVertexAttribArray(index)
+		functions.EnableVertexAttribute(index)
 	}
 }
 
@@ -201,19 +201,19 @@ func (pass *quadPass) takeSnapshot(width, height int, deviation float32) bool {
 func (pass *quadPass) uploadAtlas() {
 	functions := pass.functions
 	atlas := pass.painter.Atlas()
-	functions.ActiveTexture(Texture0 + atlasTextureUnit)
+	functions.SelectTextureUnit(TextureUnit0 + atlasTextureUnit)
 	functions.BindTexture(Texture2D, pass.atlasTexture)
 	if atlas.Version == pass.atlasVersion {
 		return
 	}
 	size := atlas.Size()
-	functions.PixelStorei(UnpackAlignment, 1) // rows of a one-byte-per-pixel image are not padded
-	functions.TexImage2D(Texture2D, 0, Luminance, size, size, Luminance, UnsignedByte, atlas.Image.Pix)
-	functions.PixelStorei(UnpackAlignment, 4)
-	functions.TexParameteri(Texture2D, TextureMinFilter, int32(Linear))
-	functions.TexParameteri(Texture2D, TextureMagFilter, int32(Linear))
-	functions.TexParameteri(Texture2D, TextureWrapS, int32(ClampToEdge))
-	functions.TexParameteri(Texture2D, TextureWrapT, int32(ClampToEdge))
+	functions.SetPixelStorage(UnpackAlignment, 1) // rows of a one-byte-per-pixel image are not padded
+	functions.SetTextureImage(Texture2D, 0, Luminance, size, size, Luminance, UnsignedByte, atlas.Image.Pix)
+	functions.SetPixelStorage(UnpackAlignment, 4)
+	functions.SetTextureParameter(Texture2D, TextureMinFilter, int32(Linear))
+	functions.SetTextureParameter(Texture2D, TextureMagFilter, int32(Linear))
+	functions.SetTextureParameter(Texture2D, TextureWrapS, int32(ClampToEdge))
+	functions.SetTextureParameter(Texture2D, TextureWrapT, int32(ClampToEdge))
 	pass.atlasVersion = atlas.Version
 }
 
@@ -225,25 +225,25 @@ func (pass *quadPass) uploadPictures() {
 	if pictures.Size() == 0 {
 		return // no picture drawn yet
 	}
-	functions.ActiveTexture(Texture0 + picturesTextureUnit)
+	functions.SelectTextureUnit(TextureUnit0 + picturesTextureUnit)
 	functions.BindTexture(Texture2D, pass.picturesTexture)
 	whole, areas := pictures.Pending()
 	size := pictures.Size()
 	if whole || size != pass.picturesSize {
-		functions.TexImage2D(Texture2D, 0, RGBA, size, size, RGBA, UnsignedByte, pictures.Image.Pix)
-		functions.TexParameteri(Texture2D, TextureMinFilter, int32(Linear))
-		functions.TexParameteri(Texture2D, TextureMagFilter, int32(Linear))
-		functions.TexParameteri(Texture2D, TextureWrapS, int32(ClampToEdge))
-		functions.TexParameteri(Texture2D, TextureWrapT, int32(ClampToEdge))
+		functions.SetTextureImage(Texture2D, 0, RGBA, size, size, RGBA, UnsignedByte, pictures.Image.Pix)
+		functions.SetTextureParameter(Texture2D, TextureMinFilter, int32(Linear))
+		functions.SetTextureParameter(Texture2D, TextureMagFilter, int32(Linear))
+		functions.SetTextureParameter(Texture2D, TextureWrapS, int32(ClampToEdge))
+		functions.SetTextureParameter(Texture2D, TextureWrapT, int32(ClampToEdge))
 		pass.picturesSize = size
 	} else {
 		for _, area := range areas {
 			pass.areaPixels = areaRows(pass.areaPixels[:0], pictures.Image, area)
-			functions.TexSubImage2D(Texture2D, 0, area.Min.X, area.Min.Y, area.Dx(), area.Dy(), RGBA, UnsignedByte, pass.areaPixels)
+			functions.ReplaceTexturePart(Texture2D, 0, area.Min.X, area.Min.Y, area.Dx(), area.Dy(), RGBA, UnsignedByte, pass.areaPixels)
 		}
 	}
 	pictures.Uploaded()
-	functions.ActiveTexture(Texture0 + atlasTextureUnit)
+	functions.SelectTextureUnit(TextureUnit0 + atlasTextureUnit)
 }
 
 // areaRows copies an area of an image's pixels row after row, as OpenGL ES 2 reads them (it
@@ -260,7 +260,7 @@ func areaRows(into []byte, picture *image.NRGBA, area image.Rectangle) []byte {
 func (pass *quadPass) fillVertices(quads []overlay.Quad) {
 	pass.vertices = appendQuadVertices(pass.vertices[:0], quads)
 	pass.functions.BindBuffer(ArrayBuffer, pass.vertexBuffer)
-	pass.functions.BufferData(ArrayBuffer, floatBytes(pass.vertices), StreamDraw)
+	pass.functions.SetBufferData(ArrayBuffer, floatBytes(pass.vertices), StreamDraw)
 }
 
 // appendQuadVertices writes six corners per rectangle: position, atlas position, colour, picture
@@ -301,7 +301,7 @@ func (pass *quadPass) drawVertices(first, last, width, height int) {
 		return
 	}
 	functions := pass.functions
-	functions.ActiveTexture(Texture0 + atlasTextureUnit) // a blur in between used this unit
+	functions.SelectTextureUnit(TextureUnit0 + atlasTextureUnit) // a blur in between used this unit
 	functions.BindTexture(Texture2D, pass.atlasTexture)
 	pass.program.use()
 	pass.program.setVector2("screenSize", float32(width), float32(height))
@@ -313,14 +313,14 @@ func (pass *quadPass) drawVertices(first, last, width, height int) {
 	pass.program.setInteger("blurred", blurredTextureUnit)
 	pass.program.setVector2("frameSize", float32(width), float32(height))
 	functions.Disable(DepthTest)
-	functions.DepthMask(false)
+	functions.SetDepthWrite(false)
 	functions.Enable(Blend)
-	functions.BlendFuncSeparate(SourceAlpha, OneMinusSrcAlpha, One, OneMinusSrcAlpha)
+	functions.SetBlendFactors(SourceAlpha, OneMinusSourceAlpha, One, OneMinusSourceAlpha)
 	functions.BindBuffer(ArrayBuffer, pass.vertexBuffer)
 	pass.describeVertexLayout()
 	functions.DrawArrays(Triangles, first*cornersPerQuad, (last-first)*cornersPerQuad)
-	functions.DisableVertexAttribArray(pictureAttribute)
-	functions.DisableVertexAttribArray(backdropAttribute)
+	functions.DisableVertexAttribute(pictureAttribute)
+	functions.DisableVertexAttribute(backdropAttribute)
 	functions.Disable(Blend)
-	functions.DepthMask(true)
+	functions.SetDepthWrite(true)
 }

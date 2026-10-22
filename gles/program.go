@@ -33,7 +33,7 @@ func newProgram(functions Functions, vertexSource, fragmentSource string, attrib
 	functions.AttachShader(handle, vertex)
 	functions.AttachShader(handle, fragment)
 	for index, name := range attributes {
-		functions.BindAttribLocation(handle, uint32(index), name)
+		functions.BindAttributeLocation(handle, uint32(index), name)
 	}
 	functions.LinkProgram(handle)
 	if linked, log := functions.ProgramLinked(handle); !linked {
@@ -44,7 +44,7 @@ func newProgram(functions Functions, vertexSource, fragmentSource string, attrib
 
 func compileShader(functions Functions, stage Enum, source string) (Shader, error) {
 	shader := functions.CreateShader(stage)
-	functions.ShaderSource(shader, source)
+	functions.SetShaderSource(shader, source)
 	functions.CompileShader(shader)
 	if compiled, log := functions.ShaderCompiled(shader); !compiled {
 		functions.DeleteShader(shader)
@@ -82,42 +82,42 @@ func (program *program) changed(name string, values ...float32) (Uniform, bool) 
 
 func (program *program) setInteger(name string, value int32) {
 	if location, send := program.changed(name, float32(value)); send {
-		program.functions.Uniform1i(location, value)
+		program.functions.SetUniformInteger(location, value)
 	}
 }
 
 func (program *program) setFloat(name string, value float32) {
 	if location, send := program.changed(name, value); send {
-		program.functions.Uniform1f(location, value)
+		program.functions.SetUniformFloat(location, value)
 	}
 }
 
 func (program *program) setVector2(name string, first, second float32) {
 	if location, send := program.changed(name, first, second); send {
-		program.functions.Uniform2f(location, first, second)
+		program.functions.SetUniformTwoFloats(location, first, second)
 	}
 }
 
 func (program *program) setVector3(name string, vector graphics.Vector) {
 	if location, send := program.changed(name, vector[0], vector[1], vector[2]); send {
-		program.functions.Uniform3f(location, vector[0], vector[1], vector[2])
+		program.functions.SetUniformThreeFloats(location, vector[0], vector[1], vector[2])
 	}
 }
 
 func (program *program) setVector4(name string, vector graphics.Vector) {
 	if location, send := program.changed(name, vector[:]...); send {
-		program.functions.Uniform4f(location, vector[0], vector[1], vector[2], vector[3])
+		program.functions.SetUniformFourFloats(location, vector[0], vector[1], vector[2], vector[3])
 	}
 }
 
 func (program *program) setMatrix3(name string, matrix [9]float32) {
 	if location, send := program.changed(name, matrix[:]...); send {
-		program.functions.UniformMatrix3(location, matrix)
+		program.functions.SetUniformMatrix3By3(location, matrix)
 	}
 }
 
 func (program *program) setMatrix(name string, matrix graphics.Matrix) {
 	if location, send := program.changed(name, matrix[:]...); send {
-		program.functions.UniformMatrix4(location, matrix)
+		program.functions.SetUniformMatrix4By4(location, matrix)
 	}
 }

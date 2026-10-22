@@ -35,8 +35,8 @@ func NewFlatRenderer(functions Functions, fonts overlay.Fonts) (*FlatRenderer, e
 func (renderer *FlatRenderer) Draw(list *draw2d.List, background draw2d.Color, width, height int, scale float32) {
 	renderer.functions.BindFramebuffer(FramebufferTarget, renderer.Target)
 	renderer.quads.target = renderer.Target
-	renderer.functions.Viewport(0, 0, width, height)
-	renderer.functions.ClearColor(background[0], background[1], background[2], 1)
+	renderer.functions.SetViewport(0, 0, width, height)
+	renderer.functions.SetClearColor(background[0], background[1], background[2], 1)
 	renderer.functions.Clear(ColorBufferBit)
 	renderer.layer.Drawing = list
 	renderer.quads.paintFlat(&renderer.layer, width, height, scale)

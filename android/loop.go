@@ -247,7 +247,7 @@ func (current *activityWindow) showPlainBackground() {
 	if systemDark.Load() {
 		shade = 0
 	}
-	GL{}.ClearColor(shade, shade, shade, 1)
+	GL{}.SetClearColor(shade, shade, shade, 1)
 	GL{}.Clear(gles.ColorBufferBit)
 	C.surface_present(&current.surface)
 }
