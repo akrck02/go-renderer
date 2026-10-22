@@ -73,7 +73,7 @@ func orbitAround(world *scene.Scene) (*camera.Orbit, float32) {
 		size = 10
 	}
 	center := graphics.Vector{(minimum[0] + maximum[0]) / 2, 0, (minimum[2] + maximum[2]) / 2, 1}
-	orbit := camera.NewOrbit(center, float64(size)*1.1)
+	orbit := camera.NewOrbit(center, size*1.1)
 	orbit.MaximumDistance = float64(size) * 3
 	orbit.Ground = world.GroundHeight
 	return orbit, size

@@ -37,7 +37,7 @@ type viewer struct {
 	orbit          *camera.Orbit
 	walk           *camera.Walk
 	walking        bool
-	plan           *camera.Plan
+	plan           *camera.Map
 	planning       bool       // showing the map (top or isometric view) instead of the orbit
 	fogBeforePlan  [2]float32 // fog near and far to restore when leaving the map
 	sceneSize      float32
@@ -192,14 +192,14 @@ func newViewer(world *scene.Scene, startWalking bool) *viewer {
 }
 
 func newOrbitFor(world *scene.Scene, center graphics.Vector, size float32) *camera.Orbit {
-	orbit := camera.NewOrbit(center, float64(size)*1.1)
+	orbit := camera.NewOrbit(center, size*1.1)
 	orbit.MaximumDistance = float64(size) * 3
 	orbit.Ground = world.GroundHeight
 	return orbit
 }
 
-func newPlanFor(world *scene.Scene, center graphics.Vector, size float32) *camera.Plan {
-	plan := camera.NewPlan(center, float64(size)*1.05)
+func newPlanFor(world *scene.Scene, center graphics.Vector, size float32) *camera.Map {
+	plan := camera.NewMap(center, size*1.05)
 	plan.Ground = world.GroundHeight
 	return plan
 }
