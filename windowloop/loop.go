@@ -1,74 +1,143 @@
 // Package windowloop runs a GLFW window's main loop for any drawing backend (OpenGL, Metal): the
 // window's events, input, drawing on demand, the fixed-step update clock, frames asked for while
-// the window is being resized, the pointer's shape and lock, and the whole screen. A backend only has to draw and show
-// a frame.
+// the window is being resized, the pointer's shape and lock, and the whole screen. A backend only
+// has to draw and show a frame.
 package windowloop
 
 import (
-	"fmt"
+	"strconv"
 	"time"
-
-	"github.com/go-gl/glfw/v3.4/glfw"
 
 	"github.com/akrck02/go-renderer/frameloop"
 	"github.com/akrck02/go-renderer/input"
 	"github.com/akrck02/go-renderer/window"
+	"github.com/go-gl/glfw/v3.4/glfw"
 )
+
+// titleInterval is how often the frames per second are written in the title.
+const titleInterval = time.Second
+
+// loop is the state of a running window loop.
+type loop struct {
+	window    *glfw.Window
+	app       *window.Application
+	clock     *frameloop.Clock
+	drawFrame func() error
+	resize    *resizeFollower
+	failure   error // an error of a frame drawn while resizing, for the loop to return
+	onDemand  bool
+	followUp  bool // the next frame follows one with input (see waitForWork)
+
+	cursorLocked bool
+	shapes       CursorShapes
+	fullscreen   Fullscreen
+	pad          gamePad
+	titleCounter framesCounter
+}
 
 // Run calls the application's update steps and drawFrame until the window closes or the
 // application stops. drawFrame draws and shows one frame; it may skip one that would look like
-// the last (window.Application.Unchanged). It must be called on the main thread.
-func Run(window *glfw.Window, app *window.Application, clock *frameloop.Clock, drawFrame func() error) error {
-	var failure error
-	resize := followResizing(window, app, clock, drawFrame, &failure)
-	onDemand := app.DrawOnDemand && app.Input != nil
-	followUp := false
-	cursorLocked := false
-	var shapes CursorShapes
-	var fullscreen Fullscreen
-	var pad gamePad
-	frames, lastTitle := 0, time.Now()
-	for !window.ShouldClose() && !app.Stop {
-		// events first, so the frame drawn next is for the window as it is now
-		if onDemand {
-			followUp = waitForWork(app.Input, followUp)
-		} else {
-			glfw.PollEvents()
-		}
-		if failure != nil {
-			return failure
-		}
-		if app.Input != nil {
-			pad.read(app.Input)
-		}
-		stepsBefore := clock.Steps()
-		if err := resize.advance(); err != nil {
+// the last (window.Callbacks.Unchanged). It must be called on the main thread.
+func Run(glfwWindow *glfw.Window, app *window.Application, clock *frameloop.Clock, drawFrame func() error) error {
+	running := &loop{window: glfwWindow, app: app, clock: clock, drawFrame: drawFrame,
+		onDemand: app.DrawOnDemand && app.Input != nil, titleCounter: framesCounter{since: time.Now()}}
+	running.resize = followResizing(glfwWindow, app, clock, drawFrame, &running.failure)
+	for !glfwWindow.ShouldClose() && !app.Stop {
+		if err := running.frame(); err != nil {
 			return err
-		}
-		if !onDemand && clock.Steps() == stepsBefore {
-			// nothing was updated, so the frame would repeat the last one: wait for the next
-			// step instead (the display may run faster than the updates, and vsync alone does
-			// not hold the loop back on every system)
-			clock.SleepUntilNextStep()
-			continue
-		}
-
-		if err := drawFrame(); err != nil {
-			return err
-		}
-		if app.Input != nil {
-			ApplyCursorLock(window, app.Input, &cursorLocked)
-			shapes.Apply(window, app.Input)
-			fullscreen.Apply(window, app.Input)
-		}
-
-		frames++
-		if !onDemand && time.Since(lastTitle) >= time.Second {
-			window.SetTitle(fmt.Sprintf("%s %s   |   %d FPS", app.Title, app.Version, frames))
-			lastTitle, frames = time.Now(), 0
 		}
 	}
 	return nil
+}
+
+// frame runs one turn of the loop: events, update steps, and a frame when one is due.
+func (running *loop) frame() error {
+	running.waitForEvents() // events first, so the frame drawn next is for the window as it is now
+	if running.failure != nil {
+		return running.failure
+	}
+	if running.app.Input != nil {
+		running.pad.read(running.app.Input)
+	}
+	stepsBefore := running.clock.Steps()
+	if err := running.resize.advance(); err != nil {
+		return err
+	}
+	if !frameDue(running.onDemand, stepsBefore, running.clock.Steps()) {
+		// the display may run faster than the updates, and vsync alone does not hold the loop
+		// back on every system
+		running.clock.SleepUntilNextStep()
+		return nil
+	}
+	if err := running.drawFrame(); err != nil {
+		return err
+	}
+	running.applyRequests()
+	running.updateTitle()
+	return nil
+}
+
+// waitForEvents polls the window's events, or, drawing on demand, sleeps until there is work.
+func (running *loop) waitForEvents() {
+	if running.onDemand {
+		running.followUp = waitForWork(running.app.Input, running.followUp)
+		return
+	}
+	glfw.PollEvents()
+}
+
+// frameDue tells whether a frame should be drawn: always when drawing on demand (the loop only
+// wakes for one), otherwise only when an update step ran, since the frame would repeat the last.
+func frameDue(onDemand bool, stepsBefore, stepsAfter int) bool {
+	return onDemand || stepsAfter != stepsBefore
+}
+
+// applyRequests does what the program asked of the window this frame: the cursor's lock and
+// shape, and the whole screen.
+func (running *loop) applyRequests() {
+	state := running.app.Input
+	if state == nil {
+		return
+	}
+	ApplyCursorLock(running.window, state, &running.cursorLocked)
+	running.shapes.Apply(running.window, state)
+	running.fullscreen.Apply(running.window, state)
+}
+
+// updateTitle writes the frames per second in the title once a second, when the application asks
+// for it and draws every frame.
+func (running *loop) updateTitle() {
+	if running.onDemand || !running.app.ShowFramesPerSecond {
+		return
+	}
+	if frames, due := running.titleCounter.count(time.Now()); due {
+		running.window.SetTitle(framesTitle(running.app.Title, running.app.Version, frames))
+	}
+}
+
+// framesCounter counts frames and says, once an interval has passed, how many there were.
+type framesCounter struct {
+	frames int
+	since  time.Time
+}
+
+// count adds a frame at now; it returns the frames of the interval when one has passed.
+func (counter *framesCounter) count(now time.Time) (frames int, due bool) {
+	counter.frames++
+	if now.Sub(counter.since) < titleInterval {
+		return 0, false
+	}
+	frames = counter.frames
+	counter.frames, counter.since = 0, now
+	return frames, true
+}
+
+// framesTitle is a window's title with its frames per second.
+func framesTitle(title, version string, frames int) string {
+	if version != "" {
+		title += " " + version
+	}
+	return title + "   |   " + strconv.Itoa(frames) + " FPS"
 }
 
 // resizeFollower keeps a window's content in step with its size. While a window is being resized,
@@ -77,17 +146,21 @@ func Run(window *glfw.Window, app *window.Application, clock *frameloop.Clock, d
 // follower draws from the window's refresh callback meanwhile, after an update step at the new
 // size so an interface lays itself out again.
 type resizeFollower struct {
-	window        *glfw.Window
-	app           *window.Application
-	clock         *frameloop.Clock
-	width, height int // the framebuffer size the last update step saw
+	framebufferSize func() (width, height int)
+	updateSizes     func() // copies the window's sizes into the input state
+	app             *window.Application
+	clock           *frameloop.Clock
+	width, height   int // the framebuffer size the last update step saw
 }
 
 // followResizing installs the refresh callback; an error drawing in it lands in failure for the
 // main loop to return.
-func followResizing(window *glfw.Window, app *window.Application, clock *frameloop.Clock, drawFrame func() error, failure *error) *resizeFollower {
-	follower := &resizeFollower{window: window, app: app, clock: clock}
-	window.SetRefreshCallback(func(*glfw.Window) {
+func followResizing(glfwWindow *glfw.Window, app *window.Application, clock *frameloop.Clock, drawFrame func() error, failure *error) *resizeFollower {
+	follower := &resizeFollower{framebufferSize: glfwWindow.GetFramebufferSize, app: app, clock: clock}
+	if app.Input != nil {
+		follower.updateSizes = func() { UpdateSizes(glfwWindow, app.Input) }
+	}
+	glfwWindow.SetRefreshCallback(func(*glfw.Window) {
 		if *failure != nil {
 			return
 		}
@@ -104,9 +177,9 @@ func followResizing(window *glfw.Window, app *window.Application, clock *framelo
 // runs one anyway, borrowed from the next frame's time, so what is drawn is laid out for the new
 // size.
 func (follower *resizeFollower) advance() error {
-	width, height := follower.window.GetFramebufferSize()
-	if follower.app.Input != nil {
-		UpdateSizes(follower.window, follower.app.Input)
+	width, height := follower.framebufferSize()
+	if follower.updateSizes != nil {
+		follower.updateSizes()
 	}
 	if follower.app.DrawOnDemand && follower.app.Input != nil {
 		follower.width, follower.height = width, height
