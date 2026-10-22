@@ -102,4 +102,4 @@ first, and that releases carry notes (go-engine's proposal 14).
 
 ## Result
 
-Building. R1 is done; T1 added the `failure` package and the stub backends' codes; T2 kept the benchmarks' baseline in the optimization plan; T3's [audit](1-audit.md) is written and awaits the author, package by package, before T4.
+Building. R1 is done; T1 added the `failure` package and the stub backends' codes; T2 kept the benchmarks' baseline in the optimization plan; T3's [audit](1-audit.md) is written; the author approved its phases A and B, which are [done](1-audit.md#phases-a-and-b-what-was-done-2026-10-22): no frame allocates, AI-written errors have codes, and `sceneplan` and the shader sources left the public API. Phases C and D await him.
