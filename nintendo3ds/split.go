@@ -1,4 +1,4 @@
-package ctr
+package nintendo3ds
 
 // The PICA200 reads indices of 16 bits at most, so a mesh with more vertices is drawn in pieces.
 const largestPieceVertices = 65535

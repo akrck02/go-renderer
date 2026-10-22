@@ -128,7 +128,7 @@ type Node struct {
 	Children  []*Node
 	Hidden    bool
 	// Moving says the node's transform changes often, turning as well as moving: a ship, a
-	// vehicle. Backends that work a mesh's light out once for each way it is turned (ctr, on the
+	// vehicle. Backends that work a mesh's light out once for each way it is turned (nintendo3ds, on the
 	// 3DS) light a moving node on the GPU every frame instead.
 	Moving bool
 	Tags   map[string]any // free data from the file (glTF extras) for the application

@@ -1,6 +1,6 @@
 //go:build nintendo3ds
 
-package ctr
+package nintendo3ds
 
 /*
 #include <3ds.h>

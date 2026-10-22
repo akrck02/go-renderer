@@ -1,6 +1,6 @@
 //go:build nintendo3ds
 
-package ctr
+package nintendo3ds
 
 /*
 #cgo CFLAGS: -Wno-ignored-attributes
@@ -8,7 +8,7 @@ package ctr
 #include <citro3d.h>
 #include <stdlib.h>
 
-// The same transfer to the screen as the top screen's (ctr.go).
+// The same transfer to the screen as the top screen's (nintendo3ds.go).
 #define BOTTOM_TRANSFER_FLAGS \
 	(GX_TRANSFER_FLIP_VERT(0) | GX_TRANSFER_OUT_TILED(0) | GX_TRANSFER_RAW_COPY(0) | \
 	GX_TRANSFER_IN_FORMAT(GX_TRANSFER_FMT_RGBA8) | GX_TRANSFER_OUT_FORMAT(GX_TRANSFER_FMT_RGB8) | \
@@ -181,26 +181,26 @@ import (
 
 // The bottom screen's size, which interfaces are laid out for. It is also the touch screen.
 const (
-	BottomWidth  = 320
-	BottomHeight = 240
+	SecondScreenWidth  = 320
+	SecondScreenHeight = 240
 )
 
 //go:embed shaders/quad.shbin
 var quadShaderBinary []byte
 
-// BottomScreen is the bottom screen, drawn by citro3d (instead of the text console of
-// OpenBottomConsole).
-type BottomScreen struct {
+// SecondScreen is the bottom screen, drawn by citro3d (instead of the text console of
+// OpenSecondScreenConsole).
+type SecondScreen struct {
 	target *C.C3D_RenderTarget
 }
 
-// OpenBottomScreen prepares the bottom screen for drawing, after Open.
-func OpenBottomScreen() (*BottomScreen, error) {
+// OpenSecondScreen prepares the bottom screen for drawing, after Open.
+func OpenSecondScreen() (*SecondScreen, error) {
 	target := C.openBottomScreen()
 	if target == nil {
 		return nil, failure.Wrap(ScreenNotOpened, "the bottom screen", nil)
 	}
-	return &BottomScreen{target: target}, nil
+	return &SecondScreen{target: target}, nil
 }
 
 // Surface is a screen the GPU draws a frame on: the top one or the bottom one.
@@ -210,9 +210,9 @@ type Surface interface {
 	size() (width, height int)
 }
 
-func (screen *BottomScreen) clear(colour uint32) { C.clearBottom(screen.target, C.u32(colour)) }
-func (screen *BottomScreen) resume()             { C.drawOn(screen.target) }
-func (screen *BottomScreen) size() (int, int)    { return BottomWidth, BottomHeight }
+func (screen *SecondScreen) clear(colour uint32) { C.clearBottom(screen.target, C.u32(colour)) }
+func (screen *SecondScreen) resume()             { C.drawOn(screen.target) }
+func (screen *SecondScreen) size() (int, int)    { return SecondScreenWidth, SecondScreenHeight }
 func (screen *Screen) clear(colour uint32)       { screen.Clear(colour) }
 func (screen *Screen) size() (int, int)          { return ScreenWidth, ScreenHeight }
 
@@ -220,7 +220,7 @@ func (screen *Screen) size() (int, int)          { return ScreenWidth, ScreenHei
 // screen, as gles.FlatRenderer does: opengl/overlay lays it out as rectangles of one atlas of
 // glyphs, icons and rounded corners, drawn in runs, and its 2D lights light them (lights.go).
 type FlatRenderer struct {
-	screen     *BottomScreen
+	screen     *SecondScreen
 	shader     *Shader
 	projection int
 	painter    *overlay.Painter
@@ -296,7 +296,7 @@ const firstVertexBuffer = 64 << 10
 
 // NewFlatRenderer loads the overlay shader and the fonts (overlay.Fonts{} for the default ones),
 // for painting on the bottom screen.
-func NewFlatRenderer(screen *BottomScreen, fonts overlay.Fonts) (*FlatRenderer, error) {
+func NewFlatRenderer(screen *SecondScreen, fonts overlay.Fonts) (*FlatRenderer, error) {
 	shader, err := LoadShader(quadShaderBinary)
 	if err != nil {
 		return nil, err
@@ -452,7 +452,7 @@ func (renderer *FlatRenderer) uploadPictures() {
 	}
 	if size > largestTexture {
 		if !renderer.picturesTooLarge {
-			renderer.painter.Report("ctr: the overlay's pictures outgrew the largest texture: " + strconv.Itoa(size))
+			renderer.painter.Report("nintendo3ds: the overlay's pictures outgrew the largest texture: " + strconv.Itoa(size))
 			renderer.picturesTooLarge = true
 		}
 		pictures.Uploaded()
@@ -485,7 +485,7 @@ func (renderer *FlatRenderer) uploadAtlas() bool {
 	size := atlas.Size()
 	if size > largestTexture {
 		if !renderer.tooLarge {
-			renderer.painter.Report("ctr: the overlay's atlas outgrew the largest texture: " + strconv.Itoa(size))
+			renderer.painter.Report("nintendo3ds: the overlay's atlas outgrew the largest texture: " + strconv.Itoa(size))
 			renderer.tooLarge = true
 		}
 		return renderer.texture != nil // draw with what the texture still has

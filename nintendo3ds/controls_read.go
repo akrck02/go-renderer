@@ -1,13 +1,14 @@
 //go:build nintendo3ds
 
-package ctr
+package nintendo3ds
 
 /*
 #include <3ds.h>
 
-static void readControls(u32* held, int* touchX, int* touchY, int* circleX, int* circleY) {
+static void readControls(u32* held, u32* pressed, int* touchX, int* touchY, int* circleX, int* circleY) {
 	hidScanInput();
 	*held = hidKeysHeld();
+	*pressed = hidKeysDown();
 	touchPosition touch;
 	hidTouchRead(&touch);
 	*touchX = touch.px;
@@ -88,14 +89,14 @@ func StopMotionControls() {
 // ReadControls reads the buttons, the touch screen and the circle pad now, and the C-stick and the
 // gyroscope once StartMotionControls has started them.
 func ReadControls() Reading {
-	var held C.u32
+	var held, pressed C.u32
 	var touchX, touchY, circleX, circleY C.int
-	C.readControls(&held, &touchX, &touchY, &circleX, &circleY)
-	reading := Reading{Held: Buttons(held), TouchX: int(touchX), TouchY: int(touchY), CircleX: int(circleX), CircleY: int(circleY)}
+	C.readControls(&held, &pressed, &touchX, &touchY, &circleX, &circleY)
+	reading := Reading{Held: Buttons(held), Pressed: Buttons(pressed), TouchX: int(touchX), TouchY: int(touchY), StickX: int(circleX), StickY: int(circleY)}
 	if motion.cStick {
 		var x, y C.int
 		C.readCStick(&x, &y)
-		reading.CStickX, reading.CStickY = int(x), int(y)
+		reading.RightStickX, reading.RightStickY = int(x), int(y)
 	}
 	if motion.stepsPerDegree != 0 {
 		var roll, pitch, yaw C.int

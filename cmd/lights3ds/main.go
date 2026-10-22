@@ -12,8 +12,8 @@ import (
 	"image"
 	"image/color"
 
-	"github.com/akrck02/go-renderer/ctr"
 	"github.com/akrck02/go-renderer/draw2d"
+	"github.com/akrck02/go-renderer/nintendo3ds"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 )
 
@@ -24,17 +24,17 @@ const (
 )
 
 func main() {
-	screen, err := ctr.Open()
+	screen, err := nintendo3ds.OpenScreen()
 	if err != nil {
 		println(err.Error())
 		return
 	}
-	bottom, err := ctr.OpenBottomScreen()
+	bottom, err := nintendo3ds.OpenSecondScreen()
 	if err != nil {
 		println(err.Error())
 		return
 	}
-	renderer, err := ctr.NewFlatRenderer(bottom, overlay.Fonts{})
+	renderer, err := nintendo3ds.NewFlatRenderer(bottom, overlay.Fonts{})
 	if err != nil {
 		println(err.Error())
 		return
@@ -42,18 +42,18 @@ func main() {
 	lit, unlit := &draw2d.List{}, &draw2d.List{}
 	addPanels(lit)
 	addPanels(unlit)
-	unlit.PushClip(draw2d.Rectangle{Width: ctr.BottomWidth / 2, Height: ctr.BottomHeight})
+	unlit.PushClip(draw2d.Rectangle{Width: nintendo3ds.SecondScreenWidth / 2, Height: nintendo3ds.SecondScreenHeight})
 	unlit.Lighting(draw2d.Color{1, 1, 1, 0.5})
 	unlit.PopClip()
 	addLights(lit)
 	lit.Rectangle(draw2d.Rectangle{X: 8, Y: 200, Width: 120, Height: 32}, 6, draw2d.MustHex("#ffffff"), draw2d.Transparent, 0)
 	lit.Text("Unlit, after", 16, 221, 12, draw2d.Medium, draw2d.MustHex("#202020"))
 	grey := draw2d.MustHex("#808080")
-	for ctr.Running() {
-		ctr.BeginFrame()
+	for nintendo3ds.Running() {
+		nintendo3ds.BeginFrame()
 		renderer.PaintOn(screen, lit, grey)
 		renderer.Paint(unlit, grey)
-		ctr.EndFrame()
+		nintendo3ds.EndFrame()
 	}
 }
 

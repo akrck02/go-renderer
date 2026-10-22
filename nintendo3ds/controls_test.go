@@ -1,4 +1,4 @@
-package ctr
+package nintendo3ds
 
 import (
 	"testing"
@@ -53,40 +53,32 @@ func TestDraggingOnTheTouchScreenDragsThePointer(test *testing.T) {
 }
 
 func TestTheCirclePadRestsInItsDeadZone(test *testing.T) {
-	if x, y := (Reading{CircleX: 10, CircleY: -8}).Circle(); x != 0 || y != 0 {
+	if x, y := (Reading{StickX: 10, StickY: -8}).Stick(); x != 0 || y != 0 {
 		test.Fatalf("a slight touch gives %v, %v; want 0, 0", x, y)
 	}
-	if x, y := (Reading{CircleX: 156, CircleY: -200}).Circle(); x != 1 || y != -1 {
+	if x, y := (Reading{StickX: 156, StickY: -200}).Stick(); x != 1 || y != -1 {
 		test.Fatalf("the edge gives %v, %v; want 1, -1", x, y)
 	}
 }
 
-func TestPressedIsOnlyTheNewButtons(test *testing.T) {
-	var controls Controls
-	controls.Apply(input.NewState(), Reading{Held: ButtonA})
-	if pressed := controls.Pressed(Reading{Held: ButtonA | ButtonStart}); pressed != ButtonStart {
-		test.Fatalf("pressed %b, want START only", pressed)
-	}
-}
-
-func TestTheCirclePadIsTheStick(test *testing.T) {
+func TestTheCirclePadIsTheMainStick(test *testing.T) {
 	state := input.NewState()
 	var controls Controls
-	controls.Apply(state, Reading{CircleX: 156, CircleY: 0})
+	controls.Apply(state, Reading{StickX: 156, StickY: 0})
 	if x, y := state.Stick(); x != 1 || y != 0 {
 		test.Fatalf("the pad at its right edge is the stick right: %v, %v", x, y)
 	}
-	controls.Apply(state, Reading{CircleX: 5, CircleY: -5})
+	controls.Apply(state, Reading{StickX: 5, StickY: -5})
 	if x, y := state.Stick(); x != 0 || y != 0 {
 		test.Fatalf("the pad at rest is no stick: %v, %v", x, y)
 	}
 }
 
 func TestTheCStickRestsInItsDeadZoneAndReachesOne(test *testing.T) {
-	if x, y := (Reading{CStickX: 10, CStickY: -8}).CStick(); x != 0 || y != 0 {
+	if x, y := (Reading{RightStickX: 10, RightStickY: -8}).RightStick(); x != 0 || y != 0 {
 		test.Fatalf("a C-stick a little off centre reads %v, %v", x, y)
 	}
-	if x, y := (Reading{CStickX: 146, CStickY: -200}).CStick(); x != 1 || y != -1 {
+	if x, y := (Reading{RightStickX: 146, RightStickY: -200}).RightStick(); x != 1 || y != -1 {
 		test.Fatalf("a C-stick at its edge reads %v, %v", x, y)
 	}
 }
@@ -97,10 +89,10 @@ func TestTheGyroscopesStepsAreDividedIntoDegreesASecond(test *testing.T) {
 	}
 }
 
-func TestTheCStickIsTheRightStick(test *testing.T) {
+func TestTheCStickIsTheSecondStick(test *testing.T) {
 	var controls Controls
 	state := input.NewState()
-	controls.Apply(state, Reading{CStickX: 146, CStickY: 146})
+	controls.Apply(state, Reading{RightStickX: 146, RightStickY: 146})
 	if x, y := state.RightStick(); x != 1 || y != 1 {
 		test.Fatalf("the C-stick up and right reads as the right stick at %v, %v", x, y)
 	}
