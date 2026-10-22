@@ -69,9 +69,13 @@ func MustHex(text string) Color {
 	return color
 }
 
-// ParseHex reads a colour written as "#rrggbb" or "#rrggbbaa"; InvalidColour otherwise.
+// ParseHex reads a colour written as on a web page, "#rrggbb", "#rrggbbaa" or the short "#rgb";
+// InvalidColour otherwise.
 func ParseHex(text string) (Color, error) {
-	digits := strings.TrimPrefix(text, "#")
+	digits := strings.TrimPrefix(strings.TrimSpace(text), "#")
+	if len(digits) == 3 {
+		digits = string([]byte{digits[0], digits[0], digits[1], digits[1], digits[2], digits[2]})
+	}
 	if len(digits) != 6 && len(digits) != 8 {
 		return Color{}, failure.Wrap(InvalidColour, strconv.Quote(text), nil)
 	}

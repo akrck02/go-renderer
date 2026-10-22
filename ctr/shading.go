@@ -52,11 +52,11 @@ func shadingFor(environment scene.Environment, light scene.Daylight, camera came
 // their own colour as the light goes.
 func materialWeights(kind scene.MaterialKind, brightness float32) graphics.Vector {
 	switch kind {
-	case scene.KindLit:
+	case scene.LitKind:
 		return graphics.Vector{1, 0, 0, 0}
-	case scene.KindGlow:
+	case scene.GlowKind:
 		return graphics.Vector{1, 0, 0, (1 - brightness) * 1.4}
-	case scene.KindWater:
+	case scene.WaterKind:
 		return graphics.Vector{0, 0, 1, 0}
 	default:
 		return graphics.Vector{0, 1, 0, 0}
@@ -65,7 +65,7 @@ func materialWeights(kind scene.MaterialKind, brightness float32) graphics.Vecto
 
 // minimumAlpha is how opaque a material is at least: water is never more than a quarter clear.
 func minimumAlpha(kind scene.MaterialKind) float32 {
-	if kind == scene.KindWater {
+	if kind == scene.WaterKind {
 		return 0.75
 	}
 	return 0

@@ -38,7 +38,7 @@ func ComputeCameraMatrices(camera camera.Camera, width, height int) CameraMatric
 
 // IsTransparent tells whether a material is blended over what is behind it.
 func IsTransparent(material *scene.Material) bool {
-	return material.Transparent || material.Additive || material.Kind == scene.KindWater || material.Kind == scene.KindWaterfall
+	return material.Transparent || material.Additive || material.Kind == scene.WaterKind || material.Kind == scene.WaterfallKind
 }
 
 // Blending is how a surface is mixed with what is behind it.
@@ -63,7 +63,7 @@ func BlendingOf(command Command) Blending {
 
 // CastsShadow tells whether a command is drawn into the shadow map.
 func CastsShadow(command Command) bool {
-	return !command.Transparent && command.Material.Kind != scene.KindUnlit
+	return !command.Transparent && command.Material.Kind != scene.UnlitKind
 }
 
 // BaseColorOf returns a material's colour, white when it is unset.
@@ -174,7 +174,7 @@ func (planner *Planner) waterCommand(water *scene.Water, camera camera.Camera) C
 func (planner *Planner) waterFloorCommand(water *scene.Water, camera camera.Camera) Command {
 	if planner.waterFloor == nil {
 		mesh := newWaterPlane(water.Size)
-		mesh.Material = &scene.Material{Name: "water floor", Kind: scene.KindUnlit, DoubleSided: true}
+		mesh.Material = &scene.Material{Name: "water floor", Kind: scene.UnlitKind, DoubleSided: true}
 		planner.waterFloor = &scene.Node{Name: "water floor", Mesh: mesh}
 	}
 	material := planner.waterFloor.Mesh.Material
@@ -200,7 +200,7 @@ func newWaterGrid(size float32, divisions int) *scene.Mesh {
 	half := size / 2
 	vertices := divisions + 1
 	mesh := &scene.Mesh{Name: "water",
-		Material: &scene.Material{Name: "water", Kind: scene.KindWater, Transparent: true, DoubleSided: true}}
+		Material: &scene.Material{Name: "water", Kind: scene.WaterKind, Transparent: true, DoubleSided: true}}
 	for row := 0; row < vertices; row++ {
 		for column := 0; column < vertices; column++ {
 			mesh.Positions = append(mesh.Positions, half*denseNearCentre(column, vertices), 0, half*denseNearCentre(row, vertices))
@@ -236,7 +236,7 @@ func newWaterPlane(size float32) *scene.Mesh {
 		Positions: []float32{-half, 0, -half, half, 0, -half, -half, 0, half, half, 0, half},
 		Normals:   []float32{0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0},
 		Indices:   []uint32{0, 2, 1, 1, 2, 3},
-		Material:  &scene.Material{Name: "water", Kind: scene.KindWater, Transparent: true, DoubleSided: true},
+		Material:  &scene.Material{Name: "water", Kind: scene.WaterKind, Transparent: true, DoubleSided: true},
 	}
 }
 

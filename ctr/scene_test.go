@@ -66,11 +66,11 @@ func TestAMeshWithoutIndicesIsAListOfTriangles(test *testing.T) {
 
 func TestEachMaterialKindPicksOneShading(test *testing.T) {
 	cases := map[scene.MaterialKind]graphics.Vector{
-		scene.KindLit:       {1, 0, 0, 0},
-		scene.KindUnlit:     {0, 1, 0, 0},
-		scene.KindWater:     {0, 0, 1, 0},
-		scene.KindWaterfall: {0, 1, 0, 0},
-		scene.KindGlow:      {1, 0, 0, 0.7},
+		scene.LitKind:       {1, 0, 0, 0},
+		scene.UnlitKind:     {0, 1, 0, 0},
+		scene.WaterKind:     {0, 0, 1, 0},
+		scene.WaterfallKind: {0, 1, 0, 0},
+		scene.GlowKind:      {1, 0, 0, 0.7},
 	}
 	for kind, want := range cases {
 		if got := materialWeights(kind, 0.5); got != want {

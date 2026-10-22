@@ -96,7 +96,7 @@ func TestLoadSceneGroundInstancesAndExtras(test *testing.T) {
 	if len(terrain.Indices) != 3 || len(terrain.Colors) != 12 || math.Abs(float64(terrain.Colors[0]-1)) > 1e-6 {
 		test.Fatalf("mesh not read correctly: %+v", terrain)
 	}
-	if terrain.Material == nil || terrain.Material.Kind != scene.KindWater || !terrain.Material.Transparent {
+	if terrain.Material == nil || terrain.Material.Kind != scene.WaterKind || !terrain.Material.Transparent {
 		test.Fatalf("material not read: %+v", terrain.Material)
 	}
 	trees := loaded.Nodes[1].Instances

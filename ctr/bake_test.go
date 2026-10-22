@@ -29,7 +29,7 @@ func bakedColour(baked []float32, vertex int) [4]uint32 {
 func TestALitSurfaceFacingTheSunGetsSkyAndSun(test *testing.T) {
 	// Facing up: sky and ground light 0.1 + 0.2, sun 0.5, on white: 0.8, to the screen's gamma.
 	mesh := &scene.Mesh{Positions: []float32{1, 2, 3}, Normals: []float32{0, 1, 0}}
-	baked := bakeVertices(nil, mesh, bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vector{1, 1, 1, 1}, kind: scene.KindLit, light: upwardLight()})
+	baked := bakeVertices(nil, mesh, bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vector{1, 1, 1, 1}, kind: scene.LitKind, light: upwardLight()})
 	if baked[0] != 1 || baked[1] != 2 || baked[2] != 3 {
 		test.Fatalf("position %v, want 1 2 3", baked[0:3])
 	}
@@ -41,7 +41,7 @@ func TestALitSurfaceFacingTheSunGetsSkyAndSun(test *testing.T) {
 
 func TestASurfaceFacingDownGetsOnlyTheGroundLight(test *testing.T) {
 	mesh := &scene.Mesh{Positions: []float32{0, 0, 0}, Normals: []float32{0, -1, 0}}
-	baked := bakeVertices(nil, mesh, bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vector{1, 1, 1, 1}, kind: scene.KindLit, light: upwardLight()})
+	baked := bakeVertices(nil, mesh, bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vector{1, 1, 1, 1}, kind: scene.LitKind, light: upwardLight()})
 	want := uint32(math.Round(math.Pow(0.1, 1/2.2) * 255))
 	if got := bakedColour(baked, 0); got[0] != want {
 		test.Fatalf("red %d, want %d", got[0], want)
@@ -50,7 +50,7 @@ func TestASurfaceFacingDownGetsOnlyTheGroundLight(test *testing.T) {
 
 func TestAnUnlitSurfaceTakesTheBrightness(test *testing.T) {
 	mesh := &scene.Mesh{Positions: []float32{0, 0, 0}, Normals: []float32{0, -1, 0}, Colors: []float32{1, 0, 0, 0.5}}
-	baked := bakeVertices(nil, mesh, bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vector{1, 1, 1, 1}, kind: scene.KindUnlit, light: upwardLight()})
+	baked := bakeVertices(nil, mesh, bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vector{1, 1, 1, 1}, kind: scene.UnlitKind, light: upwardLight()})
 	want := uint32(math.Round(math.Pow(0.5, 1/2.2) * 255))
 	if got := bakedColour(baked, 0); got != [4]uint32{want, 0, 0, 128} {
 		test.Fatalf("colour %v, want %d 0 0 128", got, want)
@@ -61,7 +61,7 @@ func TestATurnedNodeTurnsItsLight(test *testing.T) {
 	// A half turn around x: the normal that pointed up points down.
 	upsideDown := [9]float32{1, 0, 0, 0, -1, 0, 0, 0, -1}
 	mesh := &scene.Mesh{Positions: []float32{0, 0, 0}, Normals: []float32{0, 1, 0}}
-	baked := bakeVertices(nil, mesh, bakeKey{normalMatrix: upsideDown, baseColour: graphics.Vector{1, 1, 1, 1}, kind: scene.KindLit, light: upwardLight()})
+	baked := bakeVertices(nil, mesh, bakeKey{normalMatrix: upsideDown, baseColour: graphics.Vector{1, 1, 1, 1}, kind: scene.LitKind, light: upwardLight()})
 	want := uint32(math.Round(math.Pow(0.1, 1/2.2) * 255))
 	if got := bakedColour(baked, 0); got[0] != want {
 		test.Fatalf("red %d, want the ground light only, %d", got[0], want)
@@ -98,7 +98,7 @@ func TestTheGammaTableMatchesThePower(test *testing.T) {
 
 func TestBakingAgainReusesTheBuffer(test *testing.T) {
 	mesh := &scene.Mesh{Positions: []float32{0, 0, 0, 1, 0, 0, 0, 1, 0}, Normals: []float32{0, 1, 0, 0, 1, 0, 0, 1, 0}}
-	key := bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vector{1, 1, 1, 1}, kind: scene.KindLit, light: upwardLight()}
+	key := bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vector{1, 1, 1, 1}, kind: scene.LitKind, light: upwardLight()}
 	first := bakeVertices(nil, mesh, key)
 	again := bakeVertices(first, mesh, key)
 	if &again[0] != &first[0] {
@@ -116,7 +116,7 @@ func lampAbove() lampKey {
 func TestALampLightsTheVerticesItReaches(test *testing.T) {
 	// two vertices facing up: one under the lamp, one out of its reach
 	mesh := &scene.Mesh{Positions: []float32{0, 0, 0, 10, 0, 0}, Normals: []float32{0, 1, 0, 0, 1, 0}}
-	key := bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vector{0.5, 0.5, 0.5, 1}, kind: scene.KindLit, light: upwardLight()}
+	key := bakeKey{normalMatrix: identityNormals(), baseColour: graphics.Vector{0.5, 0.5, 0.5, 1}, kind: scene.LitKind, light: upwardLight()}
 	unlit := bakeVertices(nil, mesh, key)
 	key.lamps = lampAbove()
 	lit := bakeVertices(nil, mesh, key)

@@ -16,11 +16,11 @@ import (
 type MaterialKind int
 
 const (
-	KindLit       MaterialKind = iota // diffuse sun + sky ambient + fog
-	KindUnlit                         // flat color (+ fog)
-	KindWater                         // animated water surface
-	KindWaterfall                     // animated, translucent falling water
-	KindGlow                          // lit by day; shines with its own colour in the dark (glowing flowers, lamps)
+	LitKind       MaterialKind = iota // diffuse sun + sky ambient + fog
+	UnlitKind                         // flat color (+ fog)
+	WaterKind                         // animated water surface
+	WaterfallKind                     // animated, translucent falling water
+	GlowKind                          // lit by day; shines with its own colour in the dark (glowing flowers, lamps)
 )
 
 // Pattern is a procedural surface pattern that modulates a lit material's colour, computed from

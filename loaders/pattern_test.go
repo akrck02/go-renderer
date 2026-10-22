@@ -16,7 +16,7 @@ func TestMaterialPatternsAndGlow(test *testing.T) {
 	if materials[0].Pattern != scene.PatternCobbles || materials[0].PatternScale != 0.0004 {
 		test.Errorf("street: %+v", materials[0])
 	}
-	if materials[1].Kind != scene.KindGlow {
+	if materials[1].Kind != scene.GlowKind {
 		test.Errorf("flowers should glow: %+v", materials[1])
 	}
 	if materials[2].Pattern != scene.PatternNone {

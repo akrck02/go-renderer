@@ -122,7 +122,7 @@ func tide() *scene.LevelVariation {
 
 // riverMesh is a thin strip of water running down to the sea, drawn a little closer than the ground.
 func riverMesh() *scene.Mesh {
-	mesh := &scene.Mesh{Name: "river", Material: &scene.Material{Name: "river", Kind: scene.KindWater,
+	mesh := &scene.Mesh{Name: "river", Material: &scene.Material{Name: "river", Kind: scene.WaterKind,
 		BaseColor: graphics.Vector{0.12, 0.35, 0.42, 0.8}, Transparent: true, DoubleSided: true, DepthBias: 0.002}}
 	for step := 0; step <= 12; step++ {
 		x := float64(step) * 5
@@ -255,7 +255,7 @@ func lampNode() *scene.Node {
 	post := boxMesh("post", [3]float32{-0.1, 0, -0.1}, [3]float32{0.1, 3, 0.1},
 		&scene.Material{Name: "iron", BaseColor: graphics.Vector{0.15, 0.15, 0.16, 1}})
 	lantern := boxMesh("lantern", [3]float32{-0.3, 3, -0.3}, [3]float32{0.3, 3.6, 0.3},
-		&scene.Material{Name: "light", Kind: scene.KindGlow, BaseColor: graphics.Vector{1, 0.8, 0.4, 1}})
+		&scene.Material{Name: "light", Kind: scene.GlowKind, BaseColor: graphics.Vector{1, 0.8, 0.4, 1}})
 	lamp := &scene.Node{Name: "lamp", Transform: graphics.Translate(graphics.Vector{28, villageGround(), 20, 0}), Mesh: post}
 	lamp.Children = append(lamp.Children, &scene.Node{Name: "lantern", Transform: graphics.Identity(), Mesh: lantern})
 	return lamp
@@ -263,7 +263,7 @@ func lampNode() *scene.Node {
 
 // waterfallNode is a sheet of falling water down a cliff on the north side.
 func waterfallNode() *scene.Node {
-	sheet := &scene.Mesh{Name: "waterfall", Material: &scene.Material{Name: "falling water", Kind: scene.KindWaterfall,
+	sheet := &scene.Mesh{Name: "waterfall", Material: &scene.Material{Name: "falling water", Kind: scene.WaterfallKind,
 		BaseColor: graphics.Vector{0.8, 0.9, 0.95, 0.7}, Transparent: true, DoubleSided: true}}
 	top := float32(heightAt(0, -40))
 	sheet.Positions = []float32{-3, top, -40, 3, top, -40, 3, 0, -48, -3, top, -40, 3, 0, -48, -3, 0, -48}
@@ -274,7 +274,7 @@ func waterfallNode() *scene.Node {
 // flagNode is a flag in a flat colour on a pole by the harbour.
 func flagNode() *scene.Node {
 	flag := boxMesh("flag", [3]float32{0, 5, 0}, [3]float32{2, 6.2, 0.05},
-		&scene.Material{Name: "flag", Kind: scene.KindUnlit, BaseColor: graphics.Vector{0.8, 0.15, 0.12, 1}})
+		&scene.Material{Name: "flag", Kind: scene.UnlitKind, BaseColor: graphics.Vector{0.8, 0.15, 0.12, 1}})
 	return &scene.Node{Name: "flag", Transform: graphics.Translate(graphics.Vector{12, villageGround(), 24, 0}), Mesh: flag}
 }
 
