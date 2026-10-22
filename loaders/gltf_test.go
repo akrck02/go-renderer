@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/akrck02/go-renderer/scene"
@@ -131,14 +132,14 @@ func TestASceneIsReadFromTheBytesOfAGLB(test *testing.T) {
 	if err != nil {
 		test.Fatal(err)
 	}
-	loaded, err := ParseSceneGLB(content)
+	loaded, err := ReadScene(bytes.NewReader(content))
 	if err != nil {
 		test.Fatal(err)
 	}
 	if len(loaded.Nodes) != 1 || loaded.Nodes[0].Name != "triangle" || loaded.Nodes[0].Mesh.VertexCount() != 3 {
 		test.Fatalf("nodes = %+v, want the triangle", loaded.Nodes)
 	}
-	if _, err := ParseSceneGLB([]byte("{}")); err == nil {
+	if _, err := ReadScene(strings.NewReader("{}")); err == nil {
 		test.Fatal("a JSON glTF was taken for a .glb")
 	}
 }

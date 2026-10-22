@@ -2,7 +2,7 @@ package loaders
 
 import "github.com/akrck02/go-renderer/failure"
 
-// Codes of the errors LoadScene and ParseSceneGLB return. Their details say which file, buffer or
+// Codes of the errors LoadScene, ReadScene and LoadModel return. Their details say which file, buffer or
 // accessor; the error underneath, when there is one, is kept.
 var (
 	// FileNotRead is a scene, buffer or image file that could not be opened or read.

@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -142,10 +143,14 @@ func LoadScene(path string) (*scene.Scene, error) {
 	return file.buildScene()
 }
 
-// ParseSceneGLB reads a scene from the bytes of a .glb file, as LoadScene does from its path: for
+// ReadScene reads a scene from a .glb file's content, as LoadScene does from its path: for
 // programs with no file system (a web page) or that carry their scene inside them. Its buffers
 // must be in the file, as a .glb's are.
-func ParseSceneGLB(content []byte) (*scene.Scene, error) {
+func ReadScene(reader io.Reader) (*scene.Scene, error) {
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, failure.Wrap(FileNotRead, "the .glb's content", err)
+	}
 	if !isGLBContainer(content) {
 		return nil, failure.Wrap(InvalidGLTF, "not a .glb file", nil)
 	}
