@@ -60,6 +60,9 @@ The menu on the left (or the files in `docs/`) follows this order.
 - [On Android](4-guides/6-android.md)
 - [Metal](4-guides/7-metal.md)
 - [On the Nintendo 3DS](4-guides/8-3ds.md)
+- [Drawing in 2D](4-guides/9-drawing-in-2d.md): shapes, text, images, paths and strokes
+- [Scenes in areas of the window](4-guides/10-scenes-in-areas.md): two views, a radar
+- [Reading pads and keys, and filling the screen](4-guides/11-pads-keys-and-the-whole-screen.md)
 
 **Reference**
 
