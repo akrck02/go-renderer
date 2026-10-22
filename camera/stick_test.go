@@ -27,16 +27,16 @@ func TestTheStickUpMovesTheOrbitAwayFromTheCamera(test *testing.T) {
 	}
 }
 
-func TestTheStickRightMovesThePlanRight(test *testing.T) {
-	plan := NewPlan(graphics.Vector{0, 0, 0, 1}, 100)
+func TestTheStickRightMovesTheMapRight(test *testing.T) {
+	view := NewMap(graphics.Vector{0, 0, 0, 1}, 100)
 	var camera Camera
 	state := input.NewState()
 	state.WindowWidth, state.WindowHeight = 400, 240
-	plan.Update(state, 0.1, &camera)
-	before := plan.Target
+	view.Update(state, 0.1, &camera)
+	before := view.Target
 	state.Feed().SetStick(1, 0)
-	plan.Update(state, 0.5, &camera)
-	if plan.Target == before {
-		test.Fatalf("the stick did not move the plan from %v", before)
+	view.Update(state, 0.5, &camera)
+	if view.Target == before {
+		test.Fatalf("the stick did not move the map from %v", before)
 	}
 }

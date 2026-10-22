@@ -24,12 +24,26 @@ type Orbit struct {
 	VerticalScale   float32    // scale applied to ground heights (vertical exaggeration); 0 = 1
 }
 
-// NewOrbit returns an orbit controller with sensible defaults for a scene of the given size.
-func NewOrbit(target graphics.Vector, sceneSize float64) *Orbit {
+// The orbit's defaults: where it starts looking from and how fast it answers.
+const (
+	orbitStartYawRadians      = 0.4
+	orbitStartPitchRadians    = 0.95
+	orbitClosestToScene       = 0.002  // the closest distance, as a fraction of the scene
+	orbitFarthestToScene      = 3      // the farthest distance, in scene sizes
+	orbitRadiansPerCursorUnit = 0.006  // a drag turns the camera this much per cursor unit
+	orbitZoomPerScrollStep    = 0.12   // the fraction of the distance one scroll step zooms
+	orbitGroundClearanceScene = 0.0005 // how high above the ground the camera keeps, as a fraction of the scene
+)
+
+// NewOrbit returns an orbit controller with sensible defaults for a scene of the given size (in
+// world units).
+func NewOrbit(target graphics.Vector, sceneSize float32) *Orbit {
+	size := float64(sceneSize)
 	return &Orbit{
-		Target: target, Distance: sceneSize, Yaw: 0.4, Pitch: 0.95,
-		MinimumDistance: sceneSize * 0.002, MaximumDistance: sceneSize * 3,
-		RotationSpeed: 0.006, ZoomSpeed: 0.12, GroundClearance: float32(sceneSize * 0.0005),
+		Target: target, Distance: size, Yaw: orbitStartYawRadians, Pitch: orbitStartPitchRadians,
+		MinimumDistance: size * orbitClosestToScene, MaximumDistance: size * orbitFarthestToScene,
+		RotationSpeed: orbitRadiansPerCursorUnit, ZoomSpeed: orbitZoomPerScrollStep,
+		GroundClearance: sceneSize * orbitGroundClearanceScene,
 	}
 }
 
