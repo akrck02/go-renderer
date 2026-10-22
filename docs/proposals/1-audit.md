@@ -632,10 +632,13 @@ allocates.
 **Performance.** Every benchmark was run again ([*After C/D*](../6-project/1-optimization-plan.md#after-phases-c-and-d-2026-10-22)).
 Two had grown by 1–23 % from changes elsewhere in the binary, and were won back with real work:
 ordering a list's commands and moving a box's corners. Clipping quads now keeps those wholly
-inside the clip without copying them. No frame allocates, and the tests that say so pass.
+inside the clip without copying them, and a character is looked up once in its own face instead
+of twice: a busy application frame paints in 124 µs (149 at A/B). No frame allocates, and the
+tests that say so pass.
 
 **3DS size.** The `.3dsx` files, before → after: `triangle3ds` 458 444 → 412 712 bytes, `island3ds`
-518 028 → 472 140, `lamps3ds` 506 904 → 460 916, `lights3ds` 2 272 004 → 2 137 036.
+518 028 → 472 092, `lamps3ds` 506 904 → 460 868, `lights3ds` 2 272 004 → 2 137 272
+(43–135 KB less each, most of it `log/slog`).
 
 **Not done, and why.**
 
