@@ -106,6 +106,7 @@ type SceneRenderer struct {
 | `func NewSceneRenderer() (*SceneRenderer, error)` | NewSceneRenderer compiles the scene shaders. |
 | `func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int, seconds float64)` | Draw renders the scene from the camera into the current framebuffer of the given size, then its overlay on top. |
 | `func (renderer *SceneRenderer) DrawIn(world *scene.Scene, camera models.Camera, area Area, seconds float64)` | DrawIn renders the scene from the camera into an area of the current framebuffer, clearing only that area, and without the scene's overlay: several scenes can share a frame (a preview of a console's two screens), and an overlay over all of them is drawn once after (DrawOverlay). |
+| `func (renderer *SceneRenderer) DrawOver(world *scene.Scene, camera models.Camera, area Area, seconds float64)` | DrawOver renders the scene from the camera into an area over what the framebuffer holds there: it clears only the depth and draws no sky, so the scene floats over the one behind it (a radar in a corner of a game's view). |
 | `func (renderer *SceneRenderer) DrawOverlay(world *scene.Scene, width, height int)` | DrawOverlay draws a scene's overlay (its labels, notices and drawing) over the whole framebuffer, with the camera of the last DrawIn. |
 
 ### ShadowSettings
