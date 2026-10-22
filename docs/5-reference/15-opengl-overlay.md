@@ -26,6 +26,12 @@ var FontFolders = defaultFontFolders()
 FontFolders are where the system's fonts are looked for, for characters the program's fonts lack: Android's own, or the usual folders of the desktop's system.
 
 ```go
+var FontNotRead = failure.Define("overlay.font-not-read", "a font could not be read")
+```
+
+FontNotRead is returned by NewPainter and NewMeasurer when one of the fonts (the default ones or those given to UseFonts) is not a TrueType or OpenType font.
+
+```go
 var PrebuiltCharacters = prebuiltCharacters()
 ```
 
@@ -135,7 +141,8 @@ Painter lays out overlays frame after frame, keeping the atlas and the fonts bet
 ```go
 type Painter struct {
 
-	// Warn reports a problem once (an unknown icon name); nil = the standard logger.
+	// Warn hears of a problem once (an unknown icon name, lights a GPU cannot draw); nil = the
+	// default slog logger, which the program sets with slog.SetDefault.
 	Warn func(message string)
 
 	// Has unexported fields.
@@ -150,6 +157,7 @@ type Painter struct {
 | `func (painter *Painter) Lights() []LightQuad` | Lights are the lights Paint laid out, which the Lightings take in turn. |
 | `func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]graphics.Mat4, frame Frame) []Quad` | Paint lays out the whole overlay for a frame. |
 | `func (painter *Painter) Pictures() *Pictures` | Pictures returns the image pictured quads read their colours from. |
+| `func (painter *Painter) Report(message string)` | Report tells the program of a problem a frame works around: through Warn when the program set it, otherwise as a warning of the default slog logger. |
 | `func (painter *Painter) Snapshots() []Snapshot` | Snapshots lists where, in the quads Paint just gave, the backend takes and blurs a picture of the frame so far; empty when nothing on screen is frosted, which then costs nothing. |
 
 ### Pictures

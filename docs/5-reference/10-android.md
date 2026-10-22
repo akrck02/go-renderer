@@ -6,6 +6,14 @@ import "github.com/akrck02/go-renderer/android"
 
 > Built only with `GOOS=android`.
 
+### Constants and variables
+
+```go
+var VideoNotOpened = failure.Define("android.video-not-opened", "the video could not be opened")
+```
+
+VideoNotOpened is a film the phone's decoders cannot open; the details say what Android said.
+
 ### AccessibleNode
 
 AccessibleNode is one thing on the screen a screen reader (TalkBack) reads and acts on: a button, a switch, a line of text. The program's interface makes the list in every frame while a screen reader is on (ScreenReaderOn), and ShowAccessibleNodes hands it to Android.

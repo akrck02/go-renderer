@@ -29,10 +29,10 @@ root), so they say exactly what `go doc` says; for the whole comment of anything
 | [`camera`](4-camera.md) | Orbit, walking and map controllers; the ray through a pixel |
 | [`draw2d`](5-draw2d.md) | A list of flat shapes in layout pixels, which the backends paint over everything |
 | [`loaders`](6-loaders.md) | glTF 2.0 with the renderer's extras |
-| [`graphics`](7-graphics.md) | `Vec4`, `Mat4`, transformations and projections, the shaders' sources |
+| [`graphics`](7-graphics.md) | `Vec4`, `Mat4`, transformations and projections |
 | [`models`](8-models.md) | The application loop (`Application`), the camera, and the immediate-mode `Renderer` contract |
 | [`scene/sample`](9-scene-sample.md) | A made-up island that uses every feature, needing no files |
-| [`failure`](19-failure.md) | Error codes: `Define`, `Wrap`, checked with `errors.Is` |
+| [`failure`](18-failure.md) | Error codes: `Define`, `Wrap`, checked with `errors.Is` |
 
 ### Platforms and internals
 
@@ -46,10 +46,13 @@ Programs rarely use these directly: `viewer` and go-ui's `window` choose and dri
 | [`gles`](13-gles.md) | Renderers written once for OpenGL ES: WebGL2 in browsers, Android |
 | [`browser`](11-browser.md) | A canvas as the window, built with `GOOS=js GOARCH=wasm` |
 | [`android`](10-android.md) | The program as a NativeActivity: window, touches, keyboard, screen reader, built with `GOOS=android` |
-| [`windowloop`](18-windowloop.md) | The GLFW window loop OpenGL and Metal share |
+| [`windowloop`](17-windowloop.md) | The GLFW window loop OpenGL and Metal share |
 | [`frameloop`](12-frameloop.md) | The fixed-step clock every loop shares |
-| [`sceneplan`](17-sceneplan.md) | What a frame of a scene draws, worked out once for every backend |
-| [`software`](20-software.md), [`vulkan`](21-vulkan.md), [`webgpu`](22-webgpu.md) | Backends of the immediate-mode contract, to be built later: every function returns `<backend>.not-implemented` |
+| [`software`](19-software.md), [`vulkan`](20-vulkan.md), [`webgpu`](21-webgpu.md) | Backends of the immediate-mode contract, to be built later: every function returns `<backend>.not-implemented` |
+
+The backends also share two packages of the module's own, which programs cannot import:
+`internal/sceneplan` (what a frame of a scene draws, worked out once for every backend) and
+`internal/shading` (what every backend's shaders agree on).
 
 ## Conventions
 

@@ -33,13 +33,12 @@ PACKAGES = [
     ("gles", "13-gles.md", "", "", "platform"),
     ("browser", "11-browser.md", "js", "wasm", "platform"),
     ("android", "10-android.md", "android", "arm64", "platform"),
-    ("windowloop", "18-windowloop.md", "", "", "platform"),
+    ("windowloop", "17-windowloop.md", "", "", "platform"),
     ("frameloop", "12-frameloop.md", "", "", "platform"),
-    ("sceneplan", "17-sceneplan.md", "", "", "platform"),
-    ("failure", "19-failure.md", "", "", "core"),
-    ("software", "20-software.md", "", "", "platform"),
-    ("vulkan", "21-vulkan.md", "", "", "platform"),
-    ("webgpu", "22-webgpu.md", "", "", "platform"),
+    ("failure", "18-failure.md", "", "", "core"),
+    ("software", "19-software.md", "", "", "platform"),
+    ("vulkan", "20-vulkan.md", "", "", "platform"),
+    ("webgpu", "21-webgpu.md", "", "", "platform"),
 ]
 
 # Turns `go doc -all` of a package into a Markdown reference: functions, and each type with its

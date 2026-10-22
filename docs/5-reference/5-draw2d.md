@@ -21,6 +21,17 @@ easy to build and to check in tests.
 ### Constants and variables
 
 ```go
+var (
+	// InvalidColour is a colour that is not written as "#rrggbb" or "#rrggbbaa".
+	InvalidColour = failure.Define("draw2d.invalid-colour", "a colour must be written as #rrggbb or #rrggbbaa")
+	// ImageNotDecoded is a picture that is not a PNG, JPEG or GIF, or is damaged.
+	ImageNotDecoded = failure.Define("draw2d.image-not-decoded", "the picture could not be decoded")
+)
+```
+
+Codes of the errors draw2d returns.
+
+```go
 var Transparent = Color{}
 ```
 
@@ -37,7 +48,7 @@ type Color [4]float32
 | Function or method | |
 |---|---|
 | `func Hex(text string) Color` | Hex reads a colour written as "#rrggbb" or "#rrggbbaa". |
-| `func ParseHex(text string) (Color, error)` | ParseHex reads a colour written as "#rrggbb" or "#rrggbbaa". |
+| `func ParseHex(text string) (Color, error)` | ParseHex reads a colour written as "#rrggbb" or "#rrggbbaa"; InvalidColour otherwise. |
 | `func (color Color) IsVisible() bool` | IsVisible tells whether the colour paints anything. |
 | `func (color Color) Mix(other Color, amount float32) Color` | Mix blends towards another colour: 0 keeps this one, 1 gives the other. |
 | `func (color Color) WithAlpha(opacity float32) Color` | WithAlpha returns the colour with its alpha multiplied by an opacity. |

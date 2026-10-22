@@ -158,6 +158,8 @@ const (
 )
 ```
 
+The keys a State knows, named for what is printed on them on a US keyboard; KeyUnknown is any other key.
+
 ### MouseButton
 
 MouseButton is a backend-independent mouse button.
@@ -173,6 +175,8 @@ const (
 	MouseMiddle
 )
 ```
+
+The mouse buttons a State knows.
 
 ### PadButton
 
@@ -201,6 +205,8 @@ const (
 	PadLeft
 )
 ```
+
+The buttons of a game pad, in that one layout.
 
 ### PadLayout
 

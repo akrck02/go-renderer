@@ -13,6 +13,14 @@ import "github.com/akrck02/go-renderer/opengl"
 | `func LinkProgram(vertexShader, fragmentShader uint32) (uint32, error)` |  |
 | `func Wake()` | Wake makes a window that draws on demand draw a frame now: for a program whose data changes on another goroutine (a download finishing, a message arriving). |
 
+### Constants and variables
+
+```go
+var FramebufferIncomplete = failure.Define("opengl.framebuffer-incomplete", "OpenGL cannot draw into the framebuffer")
+```
+
+FramebufferIncomplete is a framebuffer OpenGL cannot draw into, such as the shadow map's on a driver that lacks depth textures.
+
 ### Area
 
 Area is a rectangle of the framebuffer, in its pixels, from its bottom-left corner as OpenGL counts.

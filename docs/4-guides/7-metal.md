@@ -28,7 +28,7 @@ with the display.
 | Packing the painter's quads into 36-byte instances | `metal/instances.go`, with tests |
 | The window's loop through Metal, and one-frame captures | `metal/flat_window_darwin.go` (`FlatWindow`) |
 | The loop both backends share | `windowloop` (moved out of `opengl`, which now calls it) |
-| `ErrUnavailable`, and a `FlatWindow` that returns it outside macOS | `metal/flat.go`, `metal/flat_other.go` |
+| The `metal.unavailable` code (`metal.Unavailable`; `ErrUnavailable` is its deprecated earlier name), and a `FlatWindow` that returns it outside macOS | `metal/errors.go`, `metal/flat_other.go` |
 | Choosing the backend: `Options.Backend`, `-backend automatic|metal|opengl`, falling back to OpenGL | Go UI `window` |
 
 Where it differs from the design below:
