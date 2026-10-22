@@ -4,7 +4,6 @@ import (
 	"strconv"
 
 	"github.com/akrck02/go-renderer/failure"
-	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/internal/sceneplan"
 	"github.com/akrck02/go-renderer/scene"
 	"github.com/go-gl/gl/v4.1-core/gl"
@@ -18,7 +17,7 @@ type shadowMap struct {
 }
 
 func newShadowMap(resolution int32) (*shadowMap, error) {
-	program, err := newShaderProgram(graphics.SceneVertexShader, graphics.DepthOnlyFragmentShader)
+	program, err := newShaderProgram(sceneVertexShader, depthOnlyFragmentShader)
 	if err != nil {
 		return nil, err
 	}

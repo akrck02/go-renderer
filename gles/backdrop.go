@@ -1,6 +1,6 @@
 package gles
 
-import "github.com/akrck02/go-renderer/graphics"
+import "github.com/akrck02/go-renderer/internal/shading"
 
 // blurredTextureUnit is where the blurred snapshot is bound for the quads that read it.
 const blurredTextureUnit = 2
@@ -47,7 +47,7 @@ func newBackdropBlur(functions Functions) (*backdropBlur, error) {
 // the caller sets its own program, buffer and textures up again.
 func (blur *backdropBlur) snapshot(target Framebuffer, width, height int, deviation float32) {
 	functions := blur.functions
-	halvings := graphics.BackdropHalvings(deviation)
+	halvings := shading.BackdropHalvings(deviation)
 	blur.prepare(width, height, halvings)
 
 	functions.ActiveTexture(Texture0)
@@ -62,10 +62,10 @@ func (blur *backdropBlur) snapshot(target Framebuffer, width, height int, deviat
 	functions.VertexAttribPointer(0, 2, Float, false, 2*4, 0)
 	smallest := blur.copy
 	for _, level := range blur.levels[:halvings] {
-		blur.pass(smallest, level, [graphics.BackdropTaps + 1]float32{1}, 0, 0)
+		blur.pass(smallest, level, [shading.BackdropTaps + 1]float32{1}, 0, 0)
 		smallest = level
 	}
-	weights := graphics.BackdropWeights(deviation / float32(int(1)<<halvings))
+	weights := shading.BackdropWeights(deviation / float32(int(1)<<halvings))
 	blur.pass(smallest, blur.spare, weights, 1/float32(smallest.width), 0)
 	blur.pass(blur.spare, smallest, weights, 0, 1/float32(smallest.height))
 
@@ -76,7 +76,7 @@ func (blur *backdropBlur) snapshot(target Framebuffer, width, height int, deviat
 }
 
 // pass draws a texture into a target through the blur shader, with these weights along step.
-func (blur *backdropBlur) pass(from, into target, weights [graphics.BackdropTaps + 1]float32, stepX, stepY float32) {
+func (blur *backdropBlur) pass(from, into target, weights [shading.BackdropTaps + 1]float32, stepX, stepY float32) {
 	functions := blur.functions
 	functions.BindFramebuffer(FramebufferTarget, into.framebuffer)
 	functions.Viewport(0, 0, into.width, into.height)
@@ -90,7 +90,7 @@ func (blur *backdropBlur) pass(from, into target, weights [graphics.BackdropTaps
 }
 
 // weightNames are the blur's weights as OpenGL ES 2 names each element of the array.
-var weightNames = [graphics.BackdropTaps + 1]string{"weights[0]", "weights[1]", "weights[2]", "weights[3]", "weights[4]"}
+var weightNames = [shading.BackdropTaps + 1]string{"weights[0]", "weights[1]", "weights[2]", "weights[3]", "weights[4]"}
 
 // prepare makes the textures for a screen of this size, when it changed, and enough halvings.
 func (blur *backdropBlur) prepare(width, height, halvings int) {

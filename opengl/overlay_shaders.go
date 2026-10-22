@@ -1,12 +1,12 @@
-package graphics
+package opengl
 
-// OverlayVertexShader places the overlay's rectangles, given in screen pixels from the top-left
+// overlayVertexShader places the overlay's rectangles, given in screen pixels from the top-left
 // corner, and passes on where they read the atlas and the pictures (in their pixels; a picture
 // position below zero reads no picture) and their colour.
 // Attributes: 0 screen position, 1 atlas position, 2 colour, 3 picture position, 4 backdrop (1 for
 // a quad that shows the blurred snapshot, 0 otherwise). A picture to read at the nearest pixel has
-// SharpPictureOffset added to its position's x.
-const OverlayVertexShader = `
+// shading.SharpPictureOffset added to its position's x.
+const overlayVertexShader = `
 #version 410
 layout(location = 0) in vec2 screenPosition;
 layout(location = 1) in vec2 atlasPosition;
@@ -35,16 +35,12 @@ void main() {
 }
 `
 
-// SharpPictureOffset marks a quad's picture position as one to read at the nearest pixel: a
-// picture atlas is never this wide, and the vertex layout stays as it is.
-const SharpPictureOffset = 65536
-
-// OverlayFragmentShader paints the colour where the atlas (a grey coverage mask: glyphs, icons,
+// overlayFragmentShader paints the colour where the atlas (a grey coverage mask: glyphs, icons,
 // rounded corners) covers. Colours are already the ones shown on screen, so they are not
 // gamma-corrected like the lit scene.
 // An image's quads take their colours from the pictures, tinted by the colour; a backdrop's take
 // them from the blurred snapshot of the frame, where the quad is on screen.
-const OverlayFragmentShader = `
+const overlayFragmentShader = `
 #version 410
 in vec2 atlasCoordinate;
 in vec2 pictureCoordinate;

@@ -1,8 +1,8 @@
 package opengl
 
 import (
-	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/internal/sceneplan"
+	"github.com/akrck02/go-renderer/internal/shading"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
 	"github.com/go-gl/gl/v4.1-core/gl"
@@ -42,7 +42,7 @@ func newOverlayRenderer() (*overlayRenderer, error) {
 	if err != nil {
 		return nil, err
 	}
-	program, err := newShaderProgram(graphics.OverlayVertexShader, graphics.OverlayFragmentShader)
+	program, err := newShaderProgram(overlayVertexShader, overlayFragmentShader)
 	if err != nil {
 		return nil, err
 	}
@@ -243,8 +243,8 @@ func (renderer *overlayRenderer) fillVertices(quads []overlay.Quad) {
 			picture = quad.Picture
 		}
 		if quad.Pictured && quad.Sharp {
-			picture[0] += graphics.SharpPictureOffset
-			picture[2] += graphics.SharpPictureOffset
+			picture[0] += shading.SharpPictureOffset
+			picture[2] += shading.SharpPictureOffset
 		}
 		backdrop := float32(0)
 		if quad.Backdrop {

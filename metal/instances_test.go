@@ -4,7 +4,7 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/internal/shading"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 )
 
@@ -69,11 +69,11 @@ func TestARendererThatDoesNotBlurLeavesBackdropsOut(test *testing.T) {
 
 func TestASnapshotCarriesItsHalvingsAndWeights(test *testing.T) {
 	packed := packSnapshots([]overlay.Snapshot{{At: 7, Blur: 24}}, nil)
-	halvings := graphics.BackdropHalvings(24)
+	halvings := shading.BackdropHalvings(24)
 	if len(packed) != 1 || packed[0].at != 7 || int(packed[0].halvings) != halvings {
 		test.Fatalf("got %+v", packed)
 	}
-	if packed[0].weights != graphics.BackdropWeights(24/float32(int(1)<<halvings)) {
+	if packed[0].weights != shading.BackdropWeights(24/float32(int(1)<<halvings)) {
 		test.Fatal("the weights are for the deviation at the halved size")
 	}
 	if unsafe.Sizeof(packed[0]) != 28 {

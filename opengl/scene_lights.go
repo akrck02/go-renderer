@@ -6,7 +6,7 @@ import (
 )
 
 // setDrawLights gives the scene shader the point lights a draw takes: their positions with the
-// outer radius, and their colours with the inner one (graphics.SceneFragmentShader's lampLight).
+// outer radius, and their colours with the inner one (sceneFragmentShader's lampLight).
 func (renderer *SceneRenderer) setDrawLights(lights sceneplan.DrawLights) {
 	program := renderer.sceneProgram
 	program.setInteger("lightCount", int32(lights.Count))

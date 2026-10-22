@@ -42,11 +42,11 @@ const (
 )
 
 func newSkyRenderer() (*skyRenderer, error) {
-	program, err := newShaderProgram(graphics.SkyVertexShader, graphics.SkyFragmentShader)
+	program, err := newShaderProgram(skyVertexShader, skyFragmentShader)
 	if err != nil {
 		return nil, err
 	}
-	constellationProgram, err := newShaderProgram(graphics.ConstellationVertexShader, graphics.ConstellationFragmentShader)
+	constellationProgram, err := newShaderProgram(constellationVertexShader, constellationFragmentShader)
 	if err != nil {
 		return nil, err
 	}

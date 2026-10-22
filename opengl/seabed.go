@@ -20,7 +20,7 @@ type seabedMap struct {
 const seabedResolution = 2048
 
 func newSeabedMap(resolution int32) (*seabedMap, error) {
-	program, err := newShaderProgram(graphics.SceneVertexShader, graphics.DepthOnlyFragmentShader)
+	program, err := newShaderProgram(sceneVertexShader, depthOnlyFragmentShader)
 	if err != nil {
 		return nil, err
 	}

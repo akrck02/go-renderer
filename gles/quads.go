@@ -4,6 +4,7 @@ import (
 	"image"
 
 	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/internal/shading"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
 )
@@ -271,8 +272,8 @@ func appendQuadVertices(vertices []float32, quads []overlay.Quad) []float32 {
 			picture = quad.Picture
 		}
 		if quad.Pictured && quad.Sharp {
-			picture[0] += graphics.SharpPictureOffset
-			picture[2] += graphics.SharpPictureOffset
+			picture[0] += shading.SharpPictureOffset
+			picture[2] += shading.SharpPictureOffset
 		}
 		backdrop := float32(0)
 		if quad.Backdrop {

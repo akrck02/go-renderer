@@ -1,16 +1,16 @@
-package graphics
+package opengl
 
 // 2D lights are drawn in two steps (see overlay.Lighting). First the lights are added into a
-// picture of light, cleared to the ambient colour: LightVertexShader and LightFragmentShader draw
-// each light as a square, added to what is there. Then LightMultiplyShader lays that picture over
+// picture of light, cleared to the ambient colour: lightVertexShader and lightFragmentShader draw
+// each light as a square, added to what is there. Then lightMultiplyShader lays that picture over
 // the frame with a blend that multiplies by twice the light, so light is kept at half: 0.5 leaves
 // a colour as it is, 0 makes it black, 1 makes it twice as bright.
 
-// LightVertexShader places a light's square, given in screen pixels from the top-left corner.
+// lightVertexShader places a light's square, given in screen pixels from the top-left corner.
 // Attributes: 0 screen position, 1 corner (from -1 to 1 across the square, to measure the
 // distance from its centre), 2 colour (alpha: intensity), 3 picture position (below zero for a
 // point light), 4 inner (the share of the half side the light is full within).
-const LightVertexShader = `
+const lightVertexShader = `
 #version 410
 layout(location = 0) in vec2 screenPosition;
 layout(location = 1) in vec2 cornerPosition;
@@ -34,10 +34,10 @@ void main() {
 }
 `
 
-// LightFragmentShader is how much light a light adds, at half: its colour times its intensity,
+// lightFragmentShader is how much light a light adds, at half: its colour times its intensity,
 // times its picture for a sprite light, or for a point light full inside inner and fading
 // smoothly to nothing at the square's inscribed circle.
-const LightFragmentShader = `
+const lightFragmentShader = `
 #version 410
 in vec2 offset;
 in vec4 color;
@@ -59,10 +59,10 @@ void main() {
 }
 `
 
-// LightAreaVertexShader covers the area a lighting lights (in screen pixels from the top-left
+// lightAreaVertexShader covers the area a lighting lights (in screen pixels from the top-left
 // corner: left, top, right, bottom) with two triangles made from the vertex number alone, and
 // passes on where the picture of light is read there.
-const LightAreaVertexShader = `
+const lightAreaVertexShader = `
 #version 410
 uniform vec4 area;
 uniform vec2 screenSize;
@@ -76,11 +76,11 @@ void main() {
 }
 `
 
-// LightMultiplyShader reads the picture of light over the area lit (drawn with
-// LightAreaVertexShader). The blend multiplies the frame by it twice over. Light is kept at half
+// lightMultiplyShader reads the picture of light over the area lit (drawn with
+// lightAreaVertexShader). The blend multiplies the frame by it twice over. Light is kept at half
 // in bytes, so a dark ambient leaves few steps for a fade: a noise of half a step, different at
 // every pixel, breaks the bands they would draw.
-const LightMultiplyShader = `
+const lightMultiplyShader = `
 #version 410
 in vec2 coordinate;
 uniform sampler2D light;
@@ -91,10 +91,3 @@ void main() {
     fragmentColor = vec4(texture(light, coordinate).rgb + noise / 255.0, 1.0);
 }
 `
-
-// AmbientLight is the colour a picture of light is cleared to for an ambient colour whose alpha is
-// its intensity: at half, as all light is kept.
-func AmbientLight(ambient [4]float32) [3]float32 {
-	const half = 0.5
-	return [3]float32{ambient[0] * ambient[3] * half, ambient[1] * ambient[3] * half, ambient[2] * ambient[3] * half}
-}

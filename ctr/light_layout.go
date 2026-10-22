@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/internal/shading"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 )
 
@@ -129,7 +130,7 @@ func writeRectangle(corners []float32, screen, texture [4]float32, colour *[4]fl
 
 // halfLight is a light's colour times its intensity, at half, opaque.
 func halfLight(colour [4]float32) [4]float32 {
-	ambient := graphics.AmbientLight(colour)
+	ambient := shading.AmbientLight(colour)
 	return [4]float32{min(ambient[0], 1), min(ambient[1], 1), min(ambient[2], 1), 1}
 }
 

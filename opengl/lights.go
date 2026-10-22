@@ -1,7 +1,7 @@
 package opengl
 
 import (
-	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/internal/shading"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
@@ -25,11 +25,11 @@ const floatsPerLightVertex = 11
 const lightTextureUnit = 11
 
 func newLightLayer() (*lightLayer, error) {
-	addProgram, err := newShaderProgram(graphics.LightVertexShader, graphics.LightFragmentShader)
+	addProgram, err := newShaderProgram(lightVertexShader, lightFragmentShader)
 	if err != nil {
 		return nil, err
 	}
-	multiplyProgram, err := newShaderProgram(graphics.LightAreaVertexShader, graphics.LightMultiplyShader)
+	multiplyProgram, err := newShaderProgram(lightAreaVertexShader, lightMultiplyShader)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (layer *lightLayer) light(lighting overlay.Lighting, drawn uint32, width, h
 func (layer *lightLayer) addLights(lighting overlay.Lighting, width, height int, picturesSize int) {
 	gl.BindFramebuffer(gl.FRAMEBUFFER, layer.target.framebuffer)
 	gl.Viewport(0, 0, layer.target.width, layer.target.height)
-	ambient := graphics.AmbientLight(lighting.Ambient)
+	ambient := shading.AmbientLight(lighting.Ambient)
 	gl.ClearColor(ambient[0], ambient[1], ambient[2], 1)
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 	if lighting.Last <= lighting.First {
