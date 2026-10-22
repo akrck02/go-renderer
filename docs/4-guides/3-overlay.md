@@ -162,7 +162,7 @@ and shadow pictures, cut into nine pieces), so a whole interface is still one dr
 is done on the processor: each rectangle is cut, and its atlas coordinates with it.
 
 To lay text out before drawing it, `overlay.NewMeasurer()` measures a line exactly as it will be
-painted (`MeasureText(text, size, weight, scale)`); it needs no graphics context. Interface
+painted (`MeasureText(text, size, weight, scale)`); it needs no graphics context. Every command, with paths and strokes, is in [drawing in 2D](9-drawing-in-2d.md). Interface
 libraries such as [Go UI](https://github.com/akrck02/go-ui) build on these two pieces.
 
 ### Pictures

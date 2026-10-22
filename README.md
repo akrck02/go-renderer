@@ -127,6 +127,9 @@ New here? Start with the [overview](docs/1-overview.md), then [get started](docs
 | [On Android](docs/4-guides/6-android.md) | A program as an Android app: its own activity, the keyboard, screen readers. |
 | [Metal](docs/4-guides/7-metal.md) | The Metal backend on macOS: why, how it fits, what was measured. |
 | [On the Nintendo 3DS](docs/4-guides/8-3ds.md) | Drawing through the 3DS's PICA200 with citro3d (`ctr`), built with TinyGo. |
+| [Drawing in 2D](docs/4-guides/9-drawing-in-2d.md) | Rectangles, text, icons, images, clips, layers, and paths drawn as strokes. |
+| [Scenes in areas](docs/4-guides/10-scenes-in-areas.md) | Several views in one frame, and a scene floating over another (a radar). |
+| [Pads, keys and the whole screen](docs/4-guides/11-pads-keys-and-the-whole-screen.md) | Keys, a game pad's buttons and sticks, its layout, and fullscreen. |
 | [Optimization plan](docs/6-project/1-optimization-plan.md) | Measurements and the plan that guided the performance work. |
 | [Roadmap](docs/6-project/2-roadmap.md) | Goals for the next versions. |
 
