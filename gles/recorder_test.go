@@ -7,6 +7,7 @@ import "strings"
 type recorder struct {
 	nextHandle         uint32
 	sources            []string
+	failLink           bool
 	uniforms           map[string]Uniform
 	matrixUploads      int
 	textureUploads     int
@@ -47,11 +48,16 @@ func (fake *recorder) ShaderCompiled(Shader) (bool, string) {
 	}
 	return true, ""
 }
-func (fake *recorder) DeleteShader(Shader)                  {}
-func (fake *recorder) CreateProgram() Program               { return Program(fake.handle()) }
-func (fake *recorder) AttachShader(Program, Shader)         {}
-func (fake *recorder) LinkProgram(Program)                  {}
-func (fake *recorder) ProgramLinked(Program) (bool, string) { return true, "" }
+func (fake *recorder) DeleteShader(Shader)          {}
+func (fake *recorder) CreateProgram() Program       { return Program(fake.handle()) }
+func (fake *recorder) AttachShader(Program, Shader) {}
+func (fake *recorder) LinkProgram(Program)          {}
+func (fake *recorder) ProgramLinked(Program) (bool, string) {
+	if fake.failLink {
+		return false, "linking broken on purpose"
+	}
+	return true, ""
+}
 func (fake *recorder) BindAttribLocation(_ Program, index uint32, name string) {
 	fake.attributes = append(fake.attributes, name)
 }
