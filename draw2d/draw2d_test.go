@@ -14,6 +14,9 @@ func TestMustHexReadsColoursWithAndWithoutAlpha(test *testing.T) {
 	if MustHex("#00000080")[3] != 128.0/255 {
 		test.Fatal("the alpha digits should be read")
 	}
+	if MustHex("#fff") != (Color{1, 1, 1, 1}) {
+		test.Fatal("the short form should be read")
+	}
 	if _, err := ParseHex("orange"); err == nil {
 		test.Fatal("a name is not a hex colour")
 	}

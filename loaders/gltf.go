@@ -381,15 +381,15 @@ func (file *gltfFile) buildMaterials() []*scene.Material {
 func materialKindFromExtras(extras map[string]any) scene.MaterialKind {
 	switch extras["kind"] {
 	case "unlit":
-		return scene.KindUnlit
+		return scene.UnlitKind
 	case "water":
-		return scene.KindWater
+		return scene.WaterKind
 	case "waterfall":
-		return scene.KindWaterfall
+		return scene.WaterfallKind
 	case "glow":
-		return scene.KindGlow
+		return scene.GlowKind
 	}
-	return scene.KindLit
+	return scene.LitKind
 }
 
 // buildMeshes returns, for every glTF mesh, one scene.Mesh per triangle primitive.

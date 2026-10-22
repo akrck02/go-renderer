@@ -51,20 +51,7 @@ func TestLabelsComeAndGo(test *testing.T) {
 	}
 }
 
-func TestColorFromHex(test *testing.T) {
-	color, valid := ColorFromHex("#ff8000")
-	if !valid || color != (graphics.Vector{1, float32(0x80) / 255, 0, 1}) {
-		test.Fatalf("got %v", color)
-	}
-	if short, _ := ColorFromHex("#fff"); short != (graphics.Vector{1, 1, 1, 1}) {
-		test.Fatalf("short form: %v", short)
-	}
-	if _, valid := ColorFromHex("blue"); valid {
-		test.Fatalf("names are not colours")
-	}
-}
-
-func TestWorldTransformsFollowParentsAndHiding(test *testing.T) {
+func TestWorldTransformsFollowTheirParentsAndHidingHidesChildren(test *testing.T) {
 	mast := &Node{Name: "mast", Transform: graphics.Translate(graphics.Vector{0, 2, 0, 0})}
 	boat := &Node{Name: "boat", Transform: graphics.Translate(graphics.Vector{10, 0, 0, 0}), Children: []*Node{mast}}
 	hidden := &Node{Name: "buoy", Hidden: true}
@@ -79,7 +66,7 @@ func TestWorldTransformsFollowParentsAndHiding(test *testing.T) {
 	}
 }
 
-func TestMeshTop(test *testing.T) {
+func TestAMeshTopIsItsHighestPoint(test *testing.T) {
 	mesh := &Mesh{Positions: []float32{0, 1, 0, 0, 3, 0, 0, -2, 0}}
 	if mesh.Top() != 3 || (*Mesh)(nil).Top() != 0 {
 		test.Fatalf("top %v", mesh.Top())

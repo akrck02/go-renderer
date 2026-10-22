@@ -319,7 +319,7 @@ func (renderer *SceneRenderer) drawCommands(commands []sceneplan.Command, view s
 
 func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view sceneplan.Viewpoint) {
 	draw := renderer.drawBaked
-	if command.Material.Kind == scene.KindWater || command.Node.Moving {
+	if command.Material.Kind == scene.WaterKind || command.Node.Moving {
 		// Water's light depends on the camera, and a moving node's on how it turns: both are lit
 		// on the GPU, from a copy of the mesh made once, instead of baked again and again.
 		draw = renderer.drawShaded

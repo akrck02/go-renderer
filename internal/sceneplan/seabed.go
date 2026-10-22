@@ -50,7 +50,7 @@ func (planner *Planner) planSeabed(world *scene.Scene, commands []Command) Seabe
 func (planner *Planner) seabedCasters(commands []Command) []Command {
 	ground, opaque := planner.ground[:0], planner.opaque[:0]
 	for _, command := range commands {
-		if command.Transparent || command.Material.Kind != scene.KindLit {
+		if command.Transparent || command.Material.Kind != scene.LitKind {
 			continue
 		}
 		opaque = append(opaque, command)

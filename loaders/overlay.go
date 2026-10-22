@@ -4,6 +4,7 @@ import (
 	"math"
 	"sort"
 
+	"github.com/akrck02/go-renderer/draw2d"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/scene"
 )
@@ -39,7 +40,9 @@ func labelFromTags(tags map[string]any) (*scene.Label, bool) {
 	label.Icon, _ = tags["icon"].(string)
 	label.Badge, _ = tags["badge"].(string)
 	if color, isText := tags["label_color"].(string); isText {
-		label.Tint, _ = scene.ColorFromHex(color)
+		if tint, err := draw2d.ParseHex(color); err == nil { // a colour that is not one leaves the label untinted
+			label.Tint = graphics.Vector(tint)
+		}
 	}
 	return label, !label.IsEmpty()
 }

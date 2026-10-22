@@ -12,7 +12,7 @@ func litTriangle() *scene.Mesh {
 	return &scene.Mesh{
 		Positions: []float32{0, 0, 0, 1, 0, 0, 0, 1, 0},
 		Normals:   []float32{0, 0, 1, 0, 0, 1, 0, 0, 1},
-		Material:  &scene.Material{Kind: scene.KindLit, BaseColor: graphics.Vector{1, 1, 1, 1}},
+		Material:  &scene.Material{Kind: scene.LitKind, BaseColor: graphics.Vector{1, 1, 1, 1}},
 	}
 }
 

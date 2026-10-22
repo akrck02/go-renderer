@@ -2,8 +2,6 @@ package scene
 
 import (
 	"slices"
-	"strconv"
-	"strings"
 
 	"github.com/akrck02/go-renderer/draw2d"
 	"github.com/akrck02/go-renderer/graphics"
@@ -26,14 +24,14 @@ type Overlay struct {
 	// Clock counts the seconds the overlay has been shown; the viewer advances it at every step.
 	// Notices remember the clock reading when they were added, so they fade on the viewer's time.
 	Clock float64
-	// NoticeDuration is how long a notice stays, in seconds, fading at the end; 0 = DefaultNoticeDuration.
+	// NoticeDuration is how long a notice stays, in seconds, fading at the end; 0 = DefaultNoticeSeconds.
 	NoticeDuration float64
 	// MaximumNotices is how many notices are shown at once, the newest; 0 = DefaultMaximumNotices.
 	MaximumNotices int
 }
 
-// DefaultNoticeDuration is how long a notice stays when the overlay does not say.
-const DefaultNoticeDuration = 6.0
+// DefaultNoticeSeconds is how long a notice stays, in seconds, when the overlay does not say.
+const DefaultNoticeSeconds = 6.0
 
 // DefaultMaximumNotices is how many notices are shown at once when the overlay does not say.
 const DefaultMaximumNotices = 5
@@ -53,7 +51,7 @@ type Label struct {
 	Text   string
 	Icon   string // name of a Lucide icon (https://lucide.dev), drawn before the text or alone
 	Badge  string // a short text in a small pill under the label
-	// Tint colours the icon and the badge, as a screen colour (see ColorFromHex); alpha 0 = the
+	// Tint colours the icon and the badge, as a screen colour (see draw2d.ParseHex); alpha 0 = the
 	// default text colour. The text itself stays dark on a light pill, so it always reads well.
 	Tint   graphics.Vector
 	Hidden bool
@@ -144,7 +142,7 @@ func (overlay *Overlay) noticeDuration() float64 {
 	if overlay.NoticeDuration > 0 {
 		return overlay.NoticeDuration
 	}
-	return DefaultNoticeDuration
+	return DefaultNoticeSeconds
 }
 
 func (overlay *Overlay) maximumNotices() int {
@@ -184,22 +182,4 @@ func (mesh *Mesh) Top() float32 {
 		top = max(top, mesh.Positions[index])
 	}
 	return top
-}
-
-// ColorFromHex reads a colour written as on a web page, "#rrggbb" (or "#rgb"), into the 0–1 range
-// with alpha 1. Overlay colours are screen colours, used as they are.
-func ColorFromHex(text string) (graphics.Vector, bool) {
-	digits := strings.TrimPrefix(strings.TrimSpace(text), "#")
-	if len(digits) == 3 {
-		digits = string([]byte{digits[0], digits[0], digits[1], digits[1], digits[2], digits[2]})
-	}
-	if len(digits) != 6 {
-		return graphics.Vector{}, false
-	}
-	value, err := strconv.ParseUint(digits, 16, 32)
-	if err != nil {
-		return graphics.Vector{}, false
-	}
-	channel := func(shift uint) float32 { return float32((value>>shift)&0xff) / 255 }
-	return graphics.Vector{channel(16), channel(8), channel(0), 1}, true
 }
