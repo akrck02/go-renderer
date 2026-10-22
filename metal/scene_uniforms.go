@@ -2,9 +2,9 @@ package metal
 
 import (
 	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/internal/sceneplan"
 	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/scene"
-	"github.com/akrck02/go-renderer/sceneplan"
 )
 
 // The uniform blocks of the scene shaders (scene_shaders.go), byte for byte: every field is four

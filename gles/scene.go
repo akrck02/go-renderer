@@ -4,9 +4,9 @@ import (
 	"math"
 
 	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/internal/sceneplan"
 	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/scene"
-	"github.com/akrck02/go-renderer/sceneplan"
 )
 
 // SceneRenderer draws a scene.Scene in its simplest form: lit meshes and instances, the light of

@@ -78,7 +78,7 @@ a translation layer over Metal, which keeps more buffers and caches of its own.
 Built after the flat path, in the same way:
 
 - **One plan, two backends.** What a frame draws (commands in order, culling, levels of detail,
-  instance batches, the shadow and seabed regions) moved out of `opengl` into `sceneplan`, which
+  instance batches, the shadow and seabed regions) moved out of `opengl` into `internal/sceneplan`, which
   makes no graphics calls. OpenGL's captures came out identical, pixel for pixel, before and after
   the move. `metal.SceneRenderer` draws the same plan.
 - **Shaders translated one to one** (`metal/scene_shaders.go`), compiled at start with precise

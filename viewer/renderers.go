@@ -1,10 +1,10 @@
 package viewer
 
 import (
+	"github.com/akrck02/go-renderer/internal/sceneplan"
 	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/opengl"
 	"github.com/akrck02/go-renderer/scene"
-	"github.com/akrck02/go-renderer/sceneplan"
 )
 
 // sceneDrawer is the scene renderer a session draws with: OpenGL's or Metal's.

@@ -2,8 +2,8 @@ package ctr
 
 import (
 	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/internal/sceneplan"
 	"github.com/akrck02/go-renderer/models"
-	"github.com/akrck02/go-renderer/sceneplan"
 )
 
 // openGLToPICA turns OpenGL's clip space into the PICA200's: a quarter turn, because the screens
