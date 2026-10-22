@@ -131,6 +131,7 @@ type State struct {
 	keysHeld           [keyCount]bool
 	keysPressedNow     [keyCount]bool
 	padHeld            [padButtonCount]bool // a game pad's buttons (pad.go)
+	padLayout          PadLayout            // which names the pad prints (padlayout.go)
 	padPressedNow      [padButtonCount]bool
 	keysTypedNow       [keyCount]bool // pressed or repeated by the system
 	buttonsHeld        [mouseButtonCount]bool

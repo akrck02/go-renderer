@@ -47,7 +47,7 @@ type Canvas struct {
 | Function or method | |
 |---|---|
 | `func OpenCanvas(id string) (*Canvas, error)` | OpenCanvas takes the page's canvas with this id (the first canvas when id is empty). |
-| `func (canvas *Canvas) Attach(state *input.State)` | Attach makes the canvas fill an input.State from now on: pointer, wheel, keyboard and size. |
+| `func (canvas *Canvas) Attach(state *input.State)` | Attach makes the canvas fill an input.State from now on: pointer, wheel, keyboard, size and the layout of a pad that connects. |
 | `func (canvas *Canvas) Detach()` | Detach takes off what Attach added: a program that stops, while the page goes on, leaves no listener behind (the document's would call into a program that has exited). |
 | `func (canvas *Canvas) WebGL(antialias bool) (*WebGL, error)` | WebGL returns the canvas's WebGL2 context as gles.Functions. |
 
