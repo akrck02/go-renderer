@@ -154,20 +154,35 @@ type Area struct{ X, Y, Width, Height int }
 // that area, and without the scene's overlay: several scenes can share a frame (a preview of a
 // console's two screens), and an overlay over all of them is drawn once after (DrawOverlay).
 func (renderer *SceneRenderer) DrawIn(world *scene.Scene, camera models.Camera, area Area, seconds float64) {
+	renderer.drawArea(world, camera, area, seconds, false)
+}
+
+// DrawOver renders the scene from the camera into an area over what the framebuffer holds there:
+// it clears only the depth and draws no sky, so the scene floats over the one behind it (a radar
+// in a corner of a game's view). Like DrawIn, it leaves the overlay to DrawOverlay.
+func (renderer *SceneRenderer) DrawOver(world *scene.Scene, camera models.Camera, area Area, seconds float64) {
+	renderer.drawArea(world, camera, area, seconds, true)
+}
+
+// drawArea renders the scene into an area: with its background (the horizon's colour and the sky),
+// or over what is there.
+func (renderer *SceneRenderer) drawArea(world *scene.Scene, camera models.Camera, area Area, seconds float64, over bool) {
 	started := time.Now()
 	frame := renderer.planner.Plan(world, camera, area.Width, area.Height, renderer.Shadows)
 	renderer.measurePass("seabed", func() { renderer.seabed.update(frame.Seabed) })
 	var err error
 	renderer.measurePass("shadows", func() { err = renderer.renderShadows(world, frame, seconds) })
 	shadowsReady := err == nil && frame.Shadow.Enabled
-	clearFrame(frame.Light, area)
+	clearFrame(frame.Light, area, over)
 	renderer.setFrameUniforms(world.Environment, frame.Light, camera, frame.Matrices, seconds)
 	renderer.shadow.bindForLighting(renderer.sceneProgram, frame.Shadow.Region, shadowsReady)
 	renderer.seabed.bindForWater(renderer.sceneProgram, world.Environment.Water)
 	renderer.levelVariation.bind(renderer.sceneProgram, world.Environment.Water)
 	renderer.frameLights = frame.Lights
 	renderer.measurePass("scene", func() { renderer.executeDrawCommands(frame.Opaque, frame.View) })
-	renderer.measurePass("sky", func() { renderer.sky.draw(world.Environment, frame.Light, camera, frame.Matrices, seconds) })
+	if !over {
+		renderer.measurePass("sky", func() { renderer.sky.draw(world.Environment, frame.Light, camera, frame.Matrices, seconds) })
+	}
 	renderer.measurePass("transparent", func() { renderer.executeDrawCommands(frame.Transparent, frame.View) })
 	renderer.matrices = frame.Matrices
 	renderer.recordStatistics(time.Since(started))
@@ -228,15 +243,19 @@ func (renderer *SceneRenderer) matchShadowResolution() error {
 	return nil
 }
 
-// clearFrame clears an area of the framebuffer to the horizon's colour and draws the next passes
-// into it.
-func clearFrame(light scene.Daylight, area Area) {
+// clearFrame clears an area of the framebuffer to the horizon's colour, or only its depth when the
+// scene is drawn over what is there, and draws the next passes into it.
+func clearFrame(light scene.Daylight, area Area, over bool) {
 	gl.Viewport(int32(area.X), int32(area.Y), int32(area.Width), int32(area.Height))
 	gl.Scissor(int32(area.X), int32(area.Y), int32(area.Width), int32(area.Height))
 	gl.Enable(gl.SCISSOR_TEST) // a clear ignores the viewport: only the scissor keeps it in the area
 	horizon := light.Horizon
 	gl.ClearColor(horizon[0], horizon[1], horizon[2], 1)
-	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+	cleared := uint32(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+	if over {
+		cleared = gl.DEPTH_BUFFER_BIT // what is behind stays: the scene floats over it
+	}
+	gl.Clear(cleared)
 	gl.Disable(gl.SCISSOR_TEST)
 	gl.Disable(gl.CULL_FACE)
 }
