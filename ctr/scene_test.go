@@ -8,26 +8,26 @@ import (
 	"github.com/akrck02/go-renderer/scene"
 )
 
-func TestOpenGLMatricesBecomePICAOnes(t *testing.T) {
+func TestOpenGLMatricesBecomePICAOnes(test *testing.T) {
 	openGL := graphics.OrthographicOpenGL(0, 400, 0, 240, 0, 1)
 	pica := PICAViewProjection(openGL)
 	want := OrthographicTilt(0, 400, 0, 240, 0, 1)
 	for index := range pica {
 		if !near(pica[index], want[index]) {
-			t.Fatalf("element %d is %v, want %v (OrthographicTilt)", index, pica[index], want[index])
+			test.Fatalf("element %d is %v, want %v (OrthographicTilt)", index, pica[index], want[index])
 		}
 	}
 }
 
-func TestASmallMeshStaysInOnePiece(t *testing.T) {
+func TestASmallMeshStaysInOnePiece(test *testing.T) {
 	vertices := make([]float32, 3*2)
 	pieces := splitForShortIndices(vertices, []uint32{0, 1, 2}, 2, nil)
 	if len(pieces) != 1 || len(pieces[0].indices) != 3 || pieces[0].indices[2] != 2 {
-		t.Fatalf("pieces %v", pieces)
+		test.Fatalf("pieces %v", pieces)
 	}
 }
 
-func TestALargeMeshIsCutIntoPiecesOfShortIndices(t *testing.T) {
+func TestALargeMeshIsCutIntoPiecesOfShortIndices(test *testing.T) {
 	// 30 000 separate triangles: 90 000 vertices, more than 16-bit indices reach.
 	const triangles = 30000
 	vertices := make([]float32, triangles*3)
@@ -38,33 +38,33 @@ func TestALargeMeshIsCutIntoPiecesOfShortIndices(t *testing.T) {
 	}
 	pieces := splitForShortIndices(vertices, indices, 1, nil)
 	if len(pieces) != 2 {
-		t.Fatalf("%d pieces, want 2", len(pieces))
+		test.Fatalf("%d pieces, want 2", len(pieces))
 	}
 	drawn := 0
 	for _, piece := range pieces {
 		if len(piece.vertices) > largestPieceVertices {
-			t.Fatalf("a piece has %d vertices", len(piece.vertices))
+			test.Fatalf("a piece has %d vertices", len(piece.vertices))
 		}
 		for position, local := range piece.indices {
 			if want := float32(drawn + position); piece.vertices[local] != want {
-				t.Fatalf("index %d reads vertex %v, want %v", position, piece.vertices[local], want)
+				test.Fatalf("index %d reads vertex %v, want %v", position, piece.vertices[local], want)
 			}
 		}
 		drawn += len(piece.indices)
 	}
 	if drawn != triangles*3 {
-		t.Fatalf("drew %d corners, want %d", drawn, triangles*3)
+		test.Fatalf("drew %d corners, want %d", drawn, triangles*3)
 	}
 }
 
-func TestAMeshWithoutIndicesIsAListOfTriangles(t *testing.T) {
+func TestAMeshWithoutIndicesIsAListOfTriangles(test *testing.T) {
 	pieces := splitForShortIndices(make([]float32, 6), nil, 1, nil)
 	if len(pieces) != 1 || len(pieces[0].indices) != 6 || pieces[0].indices[5] != 5 {
-		t.Fatalf("pieces %v", pieces)
+		test.Fatalf("pieces %v", pieces)
 	}
 }
 
-func TestEachMaterialKindPicksOneShading(t *testing.T) {
+func TestEachMaterialKindPicksOneShading(test *testing.T) {
 	cases := map[scene.MaterialKind]graphics.Vec4{
 		scene.KindLit:       {1, 0, 0, 0},
 		scene.KindUnlit:     {0, 1, 0, 0},
@@ -74,25 +74,25 @@ func TestEachMaterialKindPicksOneShading(t *testing.T) {
 	}
 	for kind, want := range cases {
 		if got := materialWeights(kind, 0.5); got != want {
-			t.Errorf("kind %d: %v, want %v", kind, got, want)
+			test.Errorf("kind %d: %v, want %v", kind, got, want)
 		}
 	}
 }
 
-func TestTheFogIsOffWithoutAFarDistance(t *testing.T) {
+func TestTheFogIsOffWithoutAFarDistance(test *testing.T) {
 	shading := shadingFor(scene.Environment{FogNear: 10, VerticalScale: 1}, scene.Daylight{LightDirection: graphics.Vec4{0, 1, 0, 0}}, cameraAt(0, 0, 0))
 	if shading.fog[1] != 0 {
-		t.Fatalf("fog %v, want no fog", shading.fog)
+		test.Fatalf("fog %v, want no fog", shading.fog)
 	}
 	shading = shadingFor(scene.Environment{FogNear: 10, FogFar: 20, VerticalScale: 1}, scene.Daylight{LightDirection: graphics.Vec4{0, 1, 0, 0}}, cameraAt(0, 0, 0))
 	if shading.fog[0] != 10 || shading.fog[1] != 0.1 {
-		t.Fatalf("fog %v, want near 10 and 1/10", shading.fog)
+		test.Fatalf("fog %v, want near 10 and 1/10", shading.fog)
 	}
 }
 
-func TestTheHorizonIsPackedInTheScreensGamma(t *testing.T) {
+func TestTheHorizonIsPackedInTheScreensGamma(test *testing.T) {
 	if got := screenColour(graphics.Vec4{1, 0, 0.2195, 1}); got != 0xFF0080FF {
-		t.Fatalf("%08X, want FF0080FF", got)
+		test.Fatalf("%08X, want FF0080FF", got)
 	}
 }
 
@@ -100,7 +100,7 @@ func cameraAt(x, y, z float32) models.Camera {
 	return models.Camera{Position: graphics.Vec4{x, y, z, 1}}
 }
 
-func TestBothEyesSeeTheFocalPointInTheSamePlace(t *testing.T) {
+func TestBothEyesSeeTheFocalPointInTheSamePlace(test *testing.T) {
 	camera := models.Camera{Position: graphics.Vec4{0, 0, 10, 1}, Target: graphics.Vec4{0, 0, 0, 1}, Up: graphics.Vec4{0, 1, 0, 0}}
 	screenX := func(eye Eye, point graphics.Vec4) float32 {
 		clip := EyeViewProjection(camera, eye, 1, 10, 400, 240).Apply(point)
@@ -108,46 +108,46 @@ func TestBothEyesSeeTheFocalPointInTheSamePlace(t *testing.T) {
 	}
 	focal := graphics.Vec4{0, 0, 0, 1}
 	if !near(screenX(LeftEye, focal), screenX(RightEye, focal)) {
-		t.Fatalf("the focal point is at %v and %v", screenX(LeftEye, focal), screenX(RightEye, focal))
+		test.Fatalf("the focal point is at %v and %v", screenX(LeftEye, focal), screenX(RightEye, focal))
 	}
 	// Nearer than the focal distance: the left eye sees it more to the right (it comes out).
 	nearer := graphics.Vec4{0, 0, 5, 1}
 	if screenX(LeftEye, nearer) <= screenX(RightEye, nearer) {
-		t.Fatalf("a nearer point is at %v (left) and %v (right)", screenX(LeftEye, nearer), screenX(RightEye, nearer))
+		test.Fatalf("a nearer point is at %v (left) and %v (right)", screenX(LeftEye, nearer), screenX(RightEye, nearer))
 	}
 	farther := graphics.Vec4{0, 0, -20, 1}
 	if screenX(LeftEye, farther) >= screenX(RightEye, farther) {
-		t.Fatalf("a farther point is at %v (left) and %v (right)", screenX(LeftEye, farther), screenX(RightEye, farther))
+		test.Fatalf("a farther point is at %v (left) and %v (right)", screenX(LeftEye, farther), screenX(RightEye, farther))
 	}
 }
 
-func TestTheEyesStandApartAlongTheCamerasRight(t *testing.T) {
+func TestTheEyesStandApartAlongTheCamerasRight(test *testing.T) {
 	camera := models.Camera{Position: graphics.Vec4{0, 0, 10, 1}, Target: graphics.Vec4{0, 0, 0, 1}, Up: graphics.Vec4{0, 1, 0, 0}}
 	left, right := EyeCamera(camera, LeftEye, 2), EyeCamera(camera, RightEye, 2)
 	if !near(left.Position[0], -1) || !near(right.Position[0], 1) || !near(right.Target[0], 1) {
-		t.Fatalf("left at %v, right at %v looking at %v", left.Position, right.Position, right.Target)
+		test.Fatalf("left at %v, right at %v looking at %v", left.Position, right.Position, right.Target)
 	}
 }
 
-func TestTheLeastRecentlyDrawnVariantIsTheOneReplaced(t *testing.T) {
+func TestTheLeastRecentlyDrawnVariantIsTheOneReplaced(test *testing.T) {
 	variants := []bakedVariant{{lastUsed: 9}, {lastUsed: 3}, {lastUsed: 7}, {lastUsed: 5}}
 	if got := placeFor(variants, false); got != 1 {
-		t.Fatalf("got %d, want 1", got)
+		test.Fatalf("got %d, want 1", got)
 	}
 	if got := placeFor(variants[:3], false); got != -1 {
-		t.Fatalf("with room, got %d, want -1: a new one is added", got)
+		test.Fatalf("with room, got %d, want -1: a new one is added", got)
 	}
 }
 
-func TestBakesUnderLampsKeepAPlaceForEachNode(t *testing.T) {
+func TestBakesUnderLampsKeepAPlaceForEachNode(test *testing.T) {
 	variants := []bakedVariant{{lastUsed: 9}, {lastUsed: 3}, {lastUsed: 7}, {lastUsed: 5}}
 	for range 10 {
 		variants = append(variants, bakedVariant{key: bakeKey{lamps: lampKey{count: 1}}, lastUsed: 1})
 	}
 	if got := placeFor(variants, true); got != -1 {
-		t.Fatalf("the eleventh crate under a lamp replaces bake %d; wanted a place of its own", got)
+		test.Fatalf("the eleventh crate under a lamp replaces bake %d; wanted a place of its own", got)
 	}
 	if got := placeFor(variants, false); got != 1 {
-		t.Fatalf("a new turn replaces bake %d; wanted the oldest without lamps, 1", got)
+		test.Fatalf("a new turn replaces bake %d; wanted the oldest without lamps, 1", got)
 	}
 }

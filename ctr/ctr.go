@@ -159,9 +159,9 @@ static void orthographicTiltFromCitro3D(float* out, float left, float right, flo
 import "C"
 
 import (
-	"errors"
 	"unsafe"
 
+	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/graphics"
 )
 
@@ -196,7 +196,7 @@ type Screen struct {
 func Open() (*Screen, error) {
 	target := C.openTopScreen()
 	if target == nil {
-		return nil, errors.New("ctr: cannot start citro3d on the top screen")
+		return nil, failure.Wrap(ScreenNotOpened, "the top screen", nil)
 	}
 	return &Screen{target: target}, nil
 }
@@ -310,12 +310,12 @@ type Shader struct {
 // LoadShader reads a .shbin binary. The bytes are copied, so the slice can be dropped.
 func LoadShader(binary []byte) (*Shader, error) {
 	if len(binary) == 0 {
-		return nil, errors.New("ctr: empty shader binary")
+		return nil, failure.Wrap(InvalidShader, "empty", nil)
 	}
 	shader := &Shader{}
 	shader.program = C.loadShader(unsafe.Pointer(&binary[0]), C.u32(len(binary)), &shader.parsed, &shader.copy)
 	if shader.program == nil {
-		return nil, errors.New("ctr: cannot read the shader binary")
+		return nil, InvalidShader
 	}
 	return shader, nil
 }
@@ -363,12 +363,12 @@ func NewVertexBuffer(values []float32, sizes []uint8) (*VertexBuffer, error) {
 		floatsPerVertex += int(size)
 	}
 	if floatsPerVertex == 0 || len(values) == 0 || len(values)%floatsPerVertex != 0 {
-		return nil, errors.New("ctr: the values do not make whole vertices")
+		return nil, InvalidVertices
 	}
 	bytes := len(values) * 4
 	data := C.copyToLinearMemory(unsafe.Pointer(&values[0]), C.u32(bytes))
 	if data == nil {
-		return nil, errors.New("ctr: out of linear memory")
+		return nil, OutOfLinearMemory
 	}
 	return &VertexBuffer{data: data, sizes: append([]uint8(nil), sizes...), stride: floatsPerVertex * 4, vertices: len(values) / floatsPerVertex}, nil
 }
