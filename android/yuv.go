@@ -6,10 +6,10 @@ import "image"
 // width and height, each with how far apart its rows are, and its chroma pixels (1 when a plane
 // holds only its own, 2 when the two are interleaved). Crop is the part that shows.
 type YUVPlanes struct {
-	Luma, Blue, Red         []byte
+	Luma, Blue, Red          []byte
 	LumaRow, BlueRow, RedRow int
-	BluePixel, RedPixel     int
-	Crop                    image.Rectangle
+	BluePixel, RedPixel      int
+	Crop                     image.Rectangle
 }
 
 // ToRGBA turns the picture into straight RGBA, as many pixels as fit into, from the top-left of

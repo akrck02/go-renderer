@@ -119,24 +119,36 @@ func LoadGLB(path string) (*models.Model, error) {
 			fmt.Printf("Mesh %d Primitive %d: %d vertices\n", mIdx, pIdx, posAccessor.Count)
 			posView := jsonChunk.BufferViews[posAccessor.BufferView]
 			posOffset := posView.ByteOffset + posAccessor.ByteOffset
-			
+
 			// Assuming float32 VEC3 for simplicity
 			for i := 0; i < posAccessor.Count; i++ {
 				offset := posOffset + i*12
 				ux := binary.LittleEndian.Uint32(binaryChunk[offset : offset+4])
 				uy := binary.LittleEndian.Uint32(binaryChunk[offset+4 : offset+8])
 				uz := binary.LittleEndian.Uint32(binaryChunk[offset+8 : offset+12])
-				
+
 				x := math.Float32frombits(ux)
 				y := math.Float32frombits(uy)
 				z := math.Float32frombits(uz)
 
-				if x < minX { minX = x }
-				if y < minY { minY = y }
-				if z < minZ { minZ = z }
-				if x > maxX { maxX = x }
-				if y > maxY { maxY = y }
-				if z > maxZ { maxZ = z }
+				if x < minX {
+					minX = x
+				}
+				if y < minY {
+					minY = y
+				}
+				if z < minZ {
+					minZ = z
+				}
+				if x > maxX {
+					maxX = x
+				}
+				if y > maxY {
+					maxY = y
+				}
+				if z > maxZ {
+					maxZ = z
+				}
 
 				mesh.Vertices = append(mesh.Vertices, graphics.Vec4{x, y, z, 1.0})
 			}
