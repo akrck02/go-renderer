@@ -1,7 +1,7 @@
 package gles
 
 // The shaders are GLSL ES 1.00, which OpenGL ES 2 and 3 and WebGL2 all read. They translate the
-// desktop ones in graphics (overlay_shaders.go, scene_shaders.go): the overlay exactly, the scene
+// desktop ones in opengl (overlay_shaders.go, scene_shaders.go): the overlay exactly, the scene
 // in its simplest form (sun and sky light, fog, translucent water; no shadows, patterns, waves or
 // wind). Attributes get their indices from the program (attributeNames), since GLSL ES 1.00 has
 // no layout qualifiers.
@@ -37,7 +37,7 @@ void main() {
     gl_Position = vec4(normalized.x * 2.0 - 1.0, 1.0 - normalized.y * 2.0, 0.0, 1.0);
     atlasCoordinate = atlasPosition / atlasSize;
     vec2 picture = picturePosition;
-    sharp = picture.x >= 65536.0 ? 1.0 : 0.0; // graphics.SharpPictureOffset: read at the nearest pixel
+    sharp = picture.x >= 65536.0 ? 1.0 : 0.0; // shading.SharpPictureOffset: read at the nearest pixel
     picture.x -= sharp * 65536.0;
     pictureCoordinate = picture.x < 0.0 ? vec2(-1.0) : picture / picturesSize;
     pictureTexel = 1.0 / picturesSize; // a uniform of the fragment shader would get another precision: the program would not link
@@ -132,7 +132,7 @@ uniform int lightCount;            // the point lights this draw takes, up to fo
 uniform vec4 lightPositions[4];    // xyz: where, w: the outer radius
 uniform vec4 lightColors[4];       // rgb: linear colour times intensity, w: the inner radius
 
-// lampLight is what the draw's point lights bring, as graphics.SceneFragmentShader's.
+// lampLight is what the draw's point lights bring, as opengl's sceneFragmentShader's.
 vec3 lampLight(vec3 normal) {
     vec3 total = vec3(0.0);
     for (int index = 0; index < 4; index++) {
@@ -192,7 +192,7 @@ void main() {
 `
 
 // backdropBlurShader is one pass of a separable Gaussian blur along step: a texel is the weighted
-// sum of itself and four texels on each side (graphics.BackdropTaps). With the centre's weight one
+// sum of itself and four texels on each side (shading.BackdropTaps). With the centre's weight one
 // and the others zero, read between texels, it averages four texels into one: a halving.
 const backdropBlurShader = `#version 100
 precision mediump float;
@@ -215,7 +215,7 @@ void main() {
 var lightAttributes = []string{"screenPosition", "cornerPosition", "lightColor", "picturePosition", "innerShare"}
 
 // lightVertexShader places a light's square, given in screen pixels from the top-left corner, as
-// graphics.LightVertexShader does.
+// opengl's lightVertexShader does.
 const lightVertexShader = `#version 100
 attribute vec2 screenPosition;
 attribute vec2 cornerPosition;
@@ -239,7 +239,7 @@ void main() {
 }
 `
 
-// lightFragmentShader is how much light a light adds, at half, as graphics.LightFragmentShader.
+// lightFragmentShader is how much light a light adds, at half, as opengl's lightFragmentShader.
 const lightFragmentShader = `#version 100
 precision mediump float;
 varying vec2 offset;

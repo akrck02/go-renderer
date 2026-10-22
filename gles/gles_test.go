@@ -7,6 +7,7 @@ import (
 
 	"github.com/akrck02/go-renderer/draw2d"
 	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/internal/shading"
 	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
@@ -295,7 +296,7 @@ func TestPanelsOfOneLayerShareOneSnapshot(test *testing.T) {
 		test.Fatalf("four panels of one layer copy the frame once, got %d", fake.snapshots)
 	}
 	// the ground; then the halvings and two blur passes; then the rest of the quads
-	halvings := graphics.BackdropHalvings(24)
+	halvings := shading.BackdropHalvings(24)
 	if len(fake.draws) != 1+halvings+2+1 {
 		test.Fatalf("got %d draws, wanted %d", len(fake.draws), 1+halvings+2+1)
 	}

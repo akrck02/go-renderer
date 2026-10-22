@@ -2,6 +2,7 @@ package gles
 
 import (
 	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/internal/shading"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 )
 
@@ -100,7 +101,7 @@ func (layer *lightLayer) addLights(lighting overlay.Lighting, width, height, pic
 	functions := layer.functions
 	functions.BindFramebuffer(FramebufferTarget, layer.target.framebuffer)
 	functions.Viewport(0, 0, layer.target.width, layer.target.height)
-	ambient := graphics.AmbientLight(lighting.Ambient)
+	ambient := shading.AmbientLight(lighting.Ambient)
 	functions.ClearColor(ambient[0], ambient[1], ambient[2], 1)
 	functions.Clear(ColorBufferBit)
 	if lighting.Last <= lighting.First {

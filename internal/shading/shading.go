@@ -1,43 +1,25 @@
-package graphics
+// Package shading holds what the backends' shaders agree on, whatever their language (GLSL in
+// opengl and gles, MSL in metal, the PICA200's in ctr): how a quad asks for a sharp picture, how
+// ambient light is kept, and the backdrop blur's weights. The shader sources themselves live in
+// the backend that compiles them.
+package shading
 
 import "math"
+
+// SharpPictureOffset marks a quad's picture position as one to read at the nearest pixel: a
+// picture atlas is never this wide, and the vertex layout stays as it is.
+const SharpPictureOffset = 65536
+
+// AmbientLight is the colour a picture of light is cleared to for an ambient colour whose alpha is
+// its intensity: at half, as all light is kept.
+func AmbientLight(ambient [4]float32) [3]float32 {
+	const half = 0.5
+	return [3]float32{ambient[0] * ambient[3] * half, ambient[1] * ambient[3] * half, ambient[2] * ambient[3] * half}
+}
 
 // BackdropTaps is how many texels each pass of the backdrop's blur reads on each side of a texel:
 // with the picture shrunk first (see the backends), a few taps blur as widely as many would.
 const BackdropTaps = 4
-
-// BackdropVertexShader covers the target with one triangle made from the vertex number alone, so a
-// blur pass needs no vertex buffer.
-const BackdropVertexShader = `
-#version 410
-out vec2 coordinate;
-
-void main() {
-    vec2 corner = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
-    coordinate = corner;
-    gl_Position = vec4(corner * 2.0 - 1.0, 0.0, 1.0);
-}
-`
-
-// BackdropBlurShader is one pass of a separable Gaussian blur: along step, a texel is the weighted
-// sum of itself and BackdropTaps texels on each side.
-const BackdropBlurShader = `
-#version 410
-in vec2 coordinate;
-uniform sampler2D source;
-uniform vec2 step;
-uniform float weights[5];
-out vec4 fragmentColor;
-
-void main() {
-    vec4 sum = texture(source, coordinate) * weights[0];
-    for (int tap = 1; tap <= 4; tap++) {
-        sum += texture(source, coordinate + step * float(tap)) * weights[tap];
-        sum += texture(source, coordinate - step * float(tap)) * weights[tap];
-    }
-    fragmentColor = sum;
-}
-`
 
 // BackdropWeights are the blur's weights for a standard deviation in texels: the centre's, then
 // each tap's on one side, adding up to one over the whole kernel.

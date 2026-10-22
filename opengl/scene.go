@@ -79,7 +79,7 @@ func firstFloat(values []float32) unsafe.Pointer {
 
 // NewSceneRenderer compiles the scene shaders. Call it after the OpenGL context exists.
 func NewSceneRenderer() (*SceneRenderer, error) {
-	sceneProgram, err := newShaderProgram(graphics.SceneVertexShader, graphics.SceneFragmentShader)
+	sceneProgram, err := newShaderProgram(sceneVertexShader, sceneFragmentShader)
 	if err != nil {
 		return nil, err
 	}

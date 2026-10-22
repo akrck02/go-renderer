@@ -1,10 +1,10 @@
-package graphics
+package opengl
 
-// SceneVertexShader transforms meshes and GPU instances. Attributes: 0 position, 1 normal,
+// sceneVertexShader transforms meshes and GPU instances. Attributes: 0 position, 1 normal,
 // 2 color, 3-6 instance matrix columns, 7 instance color. The vertical scale exaggerates
 // heights (and corrects normals) without touching the geometry. Meshes with sway (plants modelled
 // with height 1 and the base at the origin) bend with the wind, more at the top.
-const SceneVertexShader = `
+const sceneVertexShader = `
 #version 410
 layout(location = 0) in vec3 vertexPosition;
 layout(location = 1) in vec3 vertexNormal;
@@ -75,9 +75,9 @@ void main() {
 }
 ` + "\x00"
 
-// SceneFragmentShader shades by material kind: 0 lit, 1 unlit, 2 water, 3 waterfall, 4 glow; lit and
+// sceneFragmentShader shades by material kind: 0 lit, 1 unlit, 2 water, 3 waterfall, 4 glow; lit and
 // glowing materials can carry a procedural surface pattern (see scene.Pattern).
-const SceneFragmentShader = `
+const sceneFragmentShader = `
 #version 410
 in vec3 worldPosition;
 in vec3 worldNormal;
@@ -431,8 +431,8 @@ void main() {
 }
 ` + "\x00"
 
-// SkyVertexShader draws a full-screen triangle at the far plane.
-const SkyVertexShader = `
+// skyVertexShader draws a full-screen triangle at the far plane.
+const skyVertexShader = `
 #version 410
 out vec2 screenPosition;
 void main() {
@@ -442,10 +442,10 @@ void main() {
 }
 ` + "\x00"
 
-// SkyFragmentShader paints the sky for any time of day: a day gradient with the sun, a twilight
+// skyFragmentShader paints the sky for any time of day: a day gradient with the sun, a twilight
 // glow, a night with procedural stars and a moon with phases, and a cloud layer over both. A day
 // or night image (equirectangular or cube) can replace the procedural sky of that time.
-const SkyFragmentShader = `
+const skyFragmentShader = `
 #version 410
 in vec2 screenPosition;
 uniform mat4 inverseViewProjection;
@@ -635,9 +635,9 @@ void main() {
 }
 ` + "\x00"
 
-// ConstellationVertexShader places constellation stars and lines on the sky sphere: directions
+// constellationVertexShader places constellation stars and lines on the sky sphere: directions
 // turn with the night sky and are drawn at the far plane around the camera.
-const ConstellationVertexShader = `
+const constellationVertexShader = `
 #version 410
 layout(location = 0) in vec3 celestialDirection;
 uniform mat4 viewProjection;
@@ -653,8 +653,8 @@ void main() {
 }
 ` + "\x00"
 
-// ConstellationFragmentShader colors constellation lines and round stars, fading with daylight.
-const ConstellationFragmentShader = `
+// constellationFragmentShader colors constellation lines and round stars, fading with daylight.
+const constellationFragmentShader = `
 #version 410
 uniform vec4 lineColor;
 uniform float visibility;
@@ -670,9 +670,9 @@ void main() {
 }
 ` + "\x00"
 
-// DepthOnlyFragmentShader writes only depth; it pairs with SceneVertexShader for the shadow and
+// depthOnlyFragmentShader writes only depth; it pairs with sceneVertexShader for the shadow and
 // seabed passes.
-const DepthOnlyFragmentShader = `
+const depthOnlyFragmentShader = `
 #version 410
 void main() {
 }

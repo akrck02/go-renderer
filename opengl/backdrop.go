@@ -1,7 +1,7 @@
 package opengl
 
 import (
-	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/internal/shading"
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
@@ -21,7 +21,7 @@ type backdropBlur struct {
 	// drawn, samples and weights go to GL by pointer: fields, as GL's pointer would make locals
 	// escape to the heap every frame
 	drawn, samples int32
-	weights        [graphics.BackdropTaps + 1]float32
+	weights        [shading.BackdropTaps + 1]float32
 }
 
 // target is a texture with a framebuffer to draw into it.
@@ -31,7 +31,7 @@ type target struct {
 }
 
 func newBackdropBlur() (*backdropBlur, error) {
-	program, err := newShaderProgram(graphics.BackdropVertexShader, graphics.BackdropBlurShader)
+	program, err := newShaderProgram(backdropVertexShader, backdropBlurShader)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func newBackdropBlur() (*backdropBlur, error) {
 func (blur *backdropBlur) snapshot(width, height int, deviation float32, textureUnit uint32) {
 	gl.GetIntegerv(gl.DRAW_FRAMEBUFFER_BINDING, &blur.drawn)
 	drawn := blur.drawn
-	halvings := graphics.BackdropHalvings(deviation)
+	halvings := shading.BackdropHalvings(deviation)
 	blur.prepare(width, height, halvings)
 
 	// A multisampled framebuffer can only be copied at its own size, which resolves it; any other
@@ -89,7 +89,7 @@ func copyInto(source uint32, width, height int32, into target, filter uint32) {
 
 // blurInPlace blurs a target across, into the spare, then down, back into the target.
 func (blur *backdropBlur) blurInPlace(level target, deviation float32) {
-	blur.weights = graphics.BackdropWeights(deviation)
+	blur.weights = shading.BackdropWeights(deviation)
 	program := blur.program
 	gl.UseProgram(program.handle)
 	gl.Uniform1fv(program.location("weights"), int32(len(blur.weights)), &blur.weights[0])

@@ -1,7 +1,7 @@
 package metal
 
 import (
-	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/internal/shading"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 )
 
@@ -44,7 +44,7 @@ func packLights(lights []overlay.LightQuad, into []light) []light {
 func packLightings(lightings []overlay.Lighting, into []lighting) []lighting {
 	packed := into[:0]
 	for _, each := range lightings {
-		ambient := graphics.AmbientLight(each.Ambient)
+		ambient := shading.AmbientLight(each.Ambient)
 		packed = append(packed, lighting{at: int32(each.At), first: int32(each.First), last: int32(each.Last),
 			ambient: [4]float32{ambient[0], ambient[1], ambient[2], 1}, area: each.Area})
 	}
