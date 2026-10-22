@@ -2,7 +2,8 @@
 
 > Part of [proposal 1](1-towards-version-1.md), task T3 · Written 2026-10-22 · **Author's
 > approval:** phases A and B of the [order proposed](#order-proposed) ☑ (2026-10-22, "Si"), for
-> every package below; phases C and D await him.
+> every package below; phases C and D ☑ (2026-10-22, "arreglalas todas"), with the decisions in
+> [phases C and D](#phases-c-and-d-what-was-done-2026-10-22).
 
 ## How it was done
 
@@ -554,6 +555,98 @@ Android vetted; a go-engine game built for the 3DS).
   `main.go`. Two AI-written lines inside `opengl/opengl.go` were changed: `StartLoop`'s
   main-thread error (marked for codes above) and its calls of `windowloop`'s clock, now
   `frameloop`'s.
+
+## Phases C and D: what was done (2026-10-22)
+
+**The author's decisions** (2026-10-22, "arreglalas todas"): phase C in full; phase D on his own
+code, which he explicitly authorised: `Vec4`/`Mat4` (and any shorthand like them) become `Vector`
+and `Matrix` with x, y, z, w kept; one- and two-letter names become words; `models` is dissolved
+by meaning (`camera.Camera`; `Application` split into the window's options, the callbacks and the
+state, with the smallest API); the `Renderer` contract stays, cleaned (names, comments, coded
+errors), its four stubs returning their not-implemented codes; the panics, `log.Fatalf` and prints
+of `opengl.go`, `window.go`, `renderer.go` and `LoadGLB` become coded errors; `LoadGLB` is split;
+the root `main.go` loses its panic and gains a `-backend` flag; the Metal stub returns a code;
+every public name has a comment; `gles`'s GL vocabulary gets readable names, the GL name in each
+comment. On the 3DS the warning channel must not link `log/slog` (about 42 KB a `.3dsx`). And,
+over everything: never slower nor allocating more than the *After A/B* column, and no frame
+allocates.
+
+**C — breaking, AI-written.**
+
+- `overlay.UseFonts` and `FontFolders` are gone: `NewPainter(Fonts)`, `NewMeasurer(Fonts)` and every
+  renderer that paints text take an `overlay.Fonts`, whose zero value is the default and whose
+  `Folders` say where the system's fonts are (`DefaultFontFolders()`). Nothing is read or built at
+  import; two windows can draw in two fonts.
+- `draw2d.Hex` is `MustHex` (Go's name for "panics on a bad constant"); `draw2d.Rect` is `Rectangle`.
+  `scene.ColorFromHex` is gone (`draw2d.ParseHex` reads the short `#rgb` too).
+  `DefaultNoticeDuration` is `DefaultNoticeSeconds`; the material kinds end in `Kind`
+  (`LitKind`…), as `draw2d`'s do.
+- `input.State` keeps what programs read; what backends write is on `state.Feed()`, a value that
+  costs nothing (tested). The sticks are `Stick()` and `RightStick()`;
+  `MultiClickDistancePixels` says its unit.
+- `viewer.Run(world, options, title, update)`: no `loadingTime` (it is `Measure.LoadingTime`).
+  `Options` has `Start`, `Rendering` and `Measure`; a benchmark writes to `Measure.Output`; the
+  `Usage` constant is gone (the flag set lists the flags).
+- `ctr` is `nintendo3ds`, with generic names: `OpenScreen`, `OpenSecondScreen`,
+  `SecondScreenWidth`, `DepthSlider`, a reading's `Stick`/`RightStick`, `GPUMatrix`. One way each:
+  `Reading.Pressed` (no `ButtonsPressed` nor `Controls.Pressed`), `BeginFrame`/`EndFrame` (no
+  screen copies, no `BeginStereoFrame`). The 3DS examples' `main`s are split.
+- `windowloop.Run` is a loop of small steps, tested (the resize follower, drawing on demand, when a
+  frame is due, the title's count); the frames per second appear in the title only when the
+  application sets `ShowFramesPerSecond`.
+- `camera.Plan` is `camera.Map`; its numbers and the orbit's are named; the constructors take
+  `float32`.
+- `loaders.ParseSceneGLB` is `ReadScene(io.Reader)`.
+- `android.Notify` takes its `Channel` (`MessagesChannel()`); the palettes' tones are private.
+- Test names read as sentences where they did not.
+- On the 3DS the overlay warns with a line on the console instead of `log/slog`.
+
+**D — the author's code, refactored at his request.**
+
+- `graphics.Vector` and `graphics.Matrix`, whole words inside (`radians`, `column`, `result`,
+  `fieldOfViewRadians`); `Move` works in place; `Inverse` says when it fails; a test per
+  transform. The author's shader sources moved into `opengl`, unexported.
+- `models` is gone: `window.Application` (`Options`, `Callbacks`, and the state: `Input`,
+  `Renderer`, `Camera`, `Stop`, the matrices), `window.Backend` (`Run`, `Draw`; was `GraphicsApi`
+  with `StartLoop`), `immediate.Renderer`/`Mesh`/`Model`, `camera.Camera`
+  (`FieldOfViewRadians float32`, named defaults). The backend enumeration is gone: its only user
+  was `main.go`, which now maps the `-backend` flag to a backend.
+- The contract: `RenderObject` and `RenderModel` (were `Render3dObject`, `Render3dModel`),
+  `centre` for a rectangle's or picture's position, a comment on every method. Every backend is
+  `<backend>.Window` and `<backend>.Renderer`; the stubs, Metal's included
+  (`metal.not-implemented`), return their codes, tested.
+- OpenGL: `opengl.Window` returns `opengl.window-not-opened`, `context-not-started`,
+  `shader-not-compiled`, `program-not-linked`, `frame-not-saved`; no panic, `log` or print; the
+  hidden arrow-key and WASD camera is gone; the window fills the renderer and defaults itself;
+  `SaveFrame` reads, flips and encodes in three functions; the immediate renderer keeps its
+  buffers (a shape allocates nothing on the Go side) and says `opengl.not-implemented` for the
+  shapes it cannot draw yet, instead of drawing nothing silently. The unused `newTexture` (the
+  `log.Fatalf`) is gone.
+- `loaders.LoadModel` (was `LoadGLB`) is built on the glTF reader: small functions, every component
+  type, no prints, coded errors.
+- `main.go`: `-backend opengl|software|vulkan|metal|webgpu`, errors returned and shown; the camera
+  steps back so the triangle shows.
+- `gles.Functions` reads in words (`SetUniformInteger`, `SetTextureImage`,
+  `DescribeVertexAttribute`), each comment naming the OpenGL ES function.
+
+**Performance.** Every benchmark was run again ([*After C/D*](../6-project/1-optimization-plan.md#after-phases-c-and-d-2026-10-22)).
+Two had grown by 1–23 % from changes elsewhere in the binary, and were won back with real work:
+ordering a list's commands and moving a box's corners. Clipping quads now keeps those wholly
+inside the clip without copying them. No frame allocates, and the tests that say so pass.
+
+**3DS size.** The `.3dsx` files, before → after: `triangle3ds` 458 444 → 412 712 bytes, `island3ds`
+518 028 → 472 140, `lamps3ds` 506 904 → 460 916, `lights3ds` 2 272 004 → 2 137 036.
+
+**Not done, and why.**
+
+- *`android`'s platform services in a package of their own* (notifications, sharing, links,
+  haptics, video, palettes). Their C talks to the activity's JNI side; moving it across two cgo
+  packages means sharing C symbols and the Java VM between them, which builds but can only be
+  proved on a phone, and no device was at hand. The mutable globals the audit named are gone.
+- *Metal*: the darwin files were changed by hand and read twice, but they cannot be compiled here
+  (no macOS SDK): they need a build on the author's Mac.
+- *`draw2d.Command.Text` doubling as an icon's name* is documented, not split: a second field would
+  add 16 bytes to every command.
 
 ---
 

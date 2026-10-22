@@ -12,12 +12,6 @@ Backends upload meshes once and draw them every frame. Simulations can change
 geometry or instances later and mark them Dirty so the backend uploads them
 again.
 
-### Functions
-
-| Function | |
-|---|---|
-| `func ColorFromHex(text string) (graphics.Vector, bool)` | ColorFromHex reads a colour written as on a web page, "#rrggbb" (or "#rgb"), into the 0–1 range with alpha 1. |
-
 ### Constants and variables
 
 ```go
@@ -27,10 +21,10 @@ const DefaultMaximumNotices = 5
 DefaultMaximumNotices is how many notices are shown at once when the overlay does not say.
 
 ```go
-const DefaultNoticeDuration = 6.0
+const DefaultNoticeSeconds = 6.0
 ```
 
-DefaultNoticeDuration is how long a notice stays when the overlay does not say.
+DefaultNoticeSeconds is how long a notice stays, in seconds, when the overlay does not say.
 
 ### Clouds
 
@@ -40,8 +34,8 @@ Clouds is a procedural cloud layer.
 type Clouds struct {
 	Coverage float32 // share of the sky covered (0 = clear)
 	Color    graphics.Vector
-	Speed    float32       // drift in cloud-texture units per second
-	Scale    float32       // size of the cloud pattern (larger = bigger clouds)
+	Speed    float32         // drift in cloud-texture units per second
+	Scale    float32         // size of the cloud pattern (larger = bigger clouds)
 	Offset   graphics.Vector // how far the clouds have drifted (x, z), moved by a simulation
 }
 ```
@@ -54,7 +48,7 @@ Constellation is a figure of stars joined by lines, fixed to the night sky.
 type Constellation struct {
 	Name  string
 	Stars []graphics.Vector // directions as seen at midnight (the sun at the lowest point of its circle)
-	Lines [][2]int        // pairs of indices into Stars
+	Lines [][2]int          // pairs of indices into Stars
 	Color graphics.Vector
 }
 ```
@@ -72,12 +66,12 @@ type Daylight struct {
 	Fog            graphics.Vector
 	SkyLight       graphics.Vector // ambient light from the sky
 	GroundLight    graphics.Vector // ambient light bounced from the ground
-	SunVisible     float32       // how much of the sun disc is above the horizon
+	SunVisible     float32         // how much of the sun disc is above the horizon
 	LightDirection graphics.Vector // towards the light that shades the scene
 	LightColor     graphics.Vector
 	MoonDirection  graphics.Vector
 	StarRotation   graphics.Matrix // turns world directions into celestial directions
-	Brightness     float32       // overall light level (1 day, low at night) for materials that are not lit
+	Brightness     float32         // overall light level (1 day, low at night) for materials that are not lit
 }
 ```
 
@@ -111,7 +105,7 @@ type Environment struct {
 	VerticalScale float32 // vertical exaggeration applied to the whole scene (0 = 1)
 	Sky           *Sky    // sky over the day and night (nil = DefaultSky)
 	Wind          Wind
-	Snow          *Snow         // snow on the ground above a height (nil = none)
+	Snow          *Snow           // snow on the ground above a height (nil = none)
 	FoliageTint   graphics.Vector // colour foliage materials take (alpha = how much; zero = none): the season's
 }
 ```
@@ -168,7 +162,7 @@ type Label struct {
 	Text   string
 	Icon   string // name of a Lucide icon (https://lucide.dev), drawn before the text or alone
 	Badge  string // a short text in a small pill under the label
-	// Tint colours the icon and the badge, as a screen colour (see ColorFromHex); alpha 0 = the
+	// Tint colours the icon and the badge, as a screen colour (see draw2d.ParseHex); alpha 0 = the
 	// default text colour. The text itself stays dark on a light pill, so it always reads well.
 	Tint   graphics.Vector
 	Hidden bool
@@ -233,11 +227,11 @@ type MaterialKind int
 
 ```go
 const (
-	KindLit       MaterialKind = iota // diffuse sun + sky ambient + fog
-	KindUnlit                         // flat color (+ fog)
-	KindWater                         // animated water surface
-	KindWaterfall                     // animated, translucent falling water
-	KindGlow                          // lit by day; shines with its own colour in the dark (glowing flowers, lamps)
+	LitKind       MaterialKind = iota // diffuse sun + sky ambient + fog
+	UnlitKind                         // flat color (+ fog)
+	WaterKind                         // animated water surface
+	WaterfallKind                     // animated, translucent falling water
+	GlowKind                          // lit by day; shines with its own colour in the dark (glowing flowers, lamps)
 )
 ```
 
@@ -279,7 +273,7 @@ Moon is a disc with phases that also lights the scene at night.
 ```go
 type Moon struct {
 	Direction      graphics.Vector // towards the moon; zero = opposite the sun
-	AngularSize    float32       // apparent diameter in radians
+	AngularSize    float32         // apparent diameter in radians
 	Color          graphics.Vector
 	Phase          float32 // 0 new, 0.25 first quarter, 0.5 full, 0.75 last quarter
 	LightIntensity float32 // moonlight on the scene at full moon, relative to the sun
@@ -299,7 +293,7 @@ type Node struct {
 	Children  []*Node
 	Hidden    bool
 	// Moving says the node's transform changes often, turning as well as moving: a ship, a
-	// vehicle. Backends that work a mesh's light out once for each way it is turned (ctr, on the
+	// vehicle. Backends that work a mesh's light out once for each way it is turned (nintendo3ds, on the
 	// 3DS) light a moving node on the GPU every frame instead.
 	Moving bool
 	Tags   map[string]any // free data from the file (glTF extras) for the application
@@ -315,7 +309,7 @@ type Notice struct {
 	Icon  string
 	Text  string
 	Tint  graphics.Vector // colour of the icon (alpha 0 = the default text colour)
-	Added float64       // the overlay's Clock when the notice was added
+	Added float64         // the overlay's Clock when the notice was added
 }
 ```
 
@@ -334,7 +328,7 @@ type Overlay struct {
 	// Clock counts the seconds the overlay has been shown; the viewer advances it at every step.
 	// Notices remember the clock reading when they were added, so they fade on the viewer's time.
 	Clock float64
-	// NoticeDuration is how long a notice stays, in seconds, fading at the end; 0 = DefaultNoticeDuration.
+	// NoticeDuration is how long a notice stays, in seconds, fading at the end; 0 = DefaultNoticeSeconds.
 	NoticeDuration float64
 	// MaximumNotices is how many notices are shown at once, the newest; 0 = DefaultMaximumNotices.
 	MaximumNotices int
@@ -464,8 +458,8 @@ Snow covers the lit surfaces that face up above a height, blending over a band.
 
 ```go
 type Snow struct {
-	Level float32       // world units, before vertical scaling
-	Blend float32       // world units over which the snow fades in
+	Level float32         // world units, before vertical scaling
+	Blend float32         // world units over which the snow fades in
 	Color graphics.Vector // linear
 }
 ```
@@ -527,7 +521,7 @@ Wind moves clouds and bends plants (materials with Sway).
 ```go
 type Wind struct {
 	Direction graphics.Vector // horizontal direction the wind blows towards
-	Strength  float32       // 0 calm, 1 strong
+	Strength  float32         // 0 calm, 1 strong
 }
 ```
 

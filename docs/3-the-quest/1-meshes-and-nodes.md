@@ -27,7 +27,7 @@ A `scene.Mesh` keeps its numbers in flat slices, the way the graphics card wants
 | `Indices` | Three vertex numbers per triangle (optional: without them, every three vertices are one) | `{0, 2, 1}` |
 | `Normals` | The direction each vertex faces, for the light | Filled by `ComputeNormals()` |
 | `Colors` | r, g, b, a per vertex (optional) | Multiplied with the material's colour |
-| `Material` | How the surface is shaded | `&scene.Material{Kind: scene.KindLit, BaseColor: …}` |
+| `Material` | How the surface is shaded | `&scene.Material{Kind: scene.LitKind, BaseColor: …}` |
 | `Ground` | Whether people can walk on it | `true` for the hill |
 
 Triangles are **counter-clockwise when seen from the side they face**: the order of the three
@@ -46,7 +46,7 @@ func hill(side int, height float32) *scene.Mesh {
 		Name:   "hill",
 		Ground: true,
 		Material: &scene.Material{
-			Kind:         scene.KindLit,
+			Kind:         scene.LitKind,
 			BaseColor:    graphics.Vector{0.45, 0.6, 0.3, 1},
 			Pattern:      scene.PatternGrass,
 			PatternScale: 1,
@@ -92,7 +92,7 @@ func box(width, height, depth float32, color graphics.Vector) *scene.Mesh {
 		{-x, height, -z}, {x, height, -z}, {x, height, z}, {-x, height, z}, // top
 	}
 	faces := [6][4]int{{0, 1, 2, 3}, {7, 6, 5, 4}, {3, 2, 6, 7}, {1, 0, 4, 5}, {2, 1, 5, 6}, {0, 3, 7, 4}}
-	mesh := &scene.Mesh{Name: "box", Material: &scene.Material{Kind: scene.KindLit, BaseColor: color}}
+	mesh := &scene.Mesh{Name: "box", Material: &scene.Material{Kind: scene.LitKind, BaseColor: color}}
 	for _, face := range faces {
 		first := uint32(len(mesh.Positions) / 3)
 		for _, corner := range face {
@@ -128,7 +128,7 @@ func main() {
 	}
 	world.Nodes = append(world.Nodes, island, tower)
 
-	if err := viewer.Run(world, options, "Island", nil, 0); err != nil {
+	if err := viewer.Run(world, options, "Island", nil); err != nil {
 		log.Fatal(err)
 	}
 }

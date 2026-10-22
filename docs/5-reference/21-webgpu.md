@@ -16,32 +16,36 @@ var NotImplemented = failure.Define("webgpu.not-implemented", "the WebGPU backen
 
 NotImplemented is what every function of the WebGPU backend returns until it is built.
 
-### WebGPU
+### Renderer
+
+Renderer will draw the immediate-mode shapes (immediate.Renderer) with WebGPU. Until it is built, every method returns NotImplemented.
 
 ```go
-type WebGPU struct{}
+type Renderer struct{}
 ```
 
 | Function or method | |
 |---|---|
-| `func (webgpu *WebGPU) Draw(app *models.Application) error` |  |
-| `func (webgpu *WebGPU) StartLoop(app *models.Application) error` |  |
+| `func (Renderer) RenderImage(space graphics.CoordinateSpace, bytes []byte, centre graphics.Vector, width float32, height float32, shader *string) error` | RenderImage returns NotImplemented. |
+| `func (Renderer) RenderModel(space graphics.CoordinateSpace, model *immediate.Model, shader *string) error` | RenderModel returns NotImplemented. |
+| `func (Renderer) RenderObject(space graphics.CoordinateSpace, vertices []graphics.Vector, shader *string) error` | RenderObject returns NotImplemented. |
+| `func (Renderer) RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error` | RenderPolygon returns NotImplemented. |
+| `func (Renderer) RenderRectangle(space graphics.CoordinateSpace, centre graphics.Vector, width float32, height float32, shader *string, fill bool) error` | RenderRectangle returns NotImplemented. |
+| `func (Renderer) RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error` | RenderTriangle returns NotImplemented. |
+| `func (Renderer) SetMatrices(projection, view, model graphics.Matrix)` | SetMatrices does nothing yet: it has no error to return. |
 
-### WebGPURenderer
+### Window
+
+Window will open a window drawn with the WebGPU immediate-mode renderer. Until it is built, every method returns NotImplemented.
 
 ```go
-type WebGPURenderer struct{}
+type Window struct{}
 ```
 
 | Function or method | |
 |---|---|
-| `func (WebGPURenderer) Render3dModel(space graphics.CoordinateSpace, model *models.Model, shader *string) error` |  |
-| `func (WebGPURenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vector, shader *string) error` |  |
-| `func (WebGPURenderer) RenderImage(space graphics.CoordinateSpace, bytes []byte, coordinates graphics.Vector, width float32, height float32, shader *string) error` |  |
-| `func (WebGPURenderer) RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error` |  |
-| `func (WebGPURenderer) RenderRectangle(space graphics.CoordinateSpace, coordinates graphics.Vector, width float32, height float32, shader *string, fill bool) error` |  |
-| `func (WebGPURenderer) RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error` |  |
-| `func (WebGPURenderer) SetMatrices(projection, view, model graphics.Matrix)` |  |
+| `func (*Window) Draw(app *window.Application) error` | Draw returns NotImplemented. |
+| `func (*Window) Run(app *window.Application) error` | Run returns NotImplemented. |
 
 ---
 

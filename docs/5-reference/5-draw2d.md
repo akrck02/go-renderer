@@ -47,8 +47,8 @@ type Color [4]float32
 
 | Function or method | |
 |---|---|
-| `func Hex(text string) Color` | Hex reads a colour written as "#rrggbb" or "#rrggbbaa". |
-| `func ParseHex(text string) (Color, error)` | ParseHex reads a colour written as "#rrggbb" or "#rrggbbaa"; InvalidColour otherwise. |
+| `func MustHex(text string) Color` | Hex reads a colour written as "#rrggbb" or "#rrggbbaa". |
+| `func ParseHex(text string) (Color, error)` | ParseHex reads a colour written as on a web page, "#rrggbb", "#rrggbbaa" or the short "#rgb"; InvalidColour otherwise. |
 | `func (color Color) IsVisible() bool` | IsVisible tells whether the colour paints anything. |
 | `func (color Color) Mix(other Color, amount float32) Color` | Mix blends towards another colour: 0 keeps this one, 1 gives the other. |
 | `func (color Color) WithAlpha(opacity float32) Color` | WithAlpha returns the colour with its alpha multiplied by an opacity. |
@@ -60,9 +60,9 @@ Command is one shape of the list. Only the fields of its kind are used; keeping 
 ```go
 type Command struct {
 	Kind    Kind
-	Area    Rect // the rectangle, the shadow's caster, the icon's square
-	Layer   int  // higher layers cover lower ones; within a layer, later commands cover earlier ones
-	Clip    Rect // nothing is drawn outside it, when HasClip
+	Area    Rectangle // the rectangle, the shadow's caster, the icon's square
+	Layer   int       // higher layers cover lower ones; within a layer, later commands cover earlier ones
+	Clip    Rectangle // nothing is drawn outside it, when HasClip
 	HasClip bool
 
 	Radius      float32 // rectangle and shadow: corner radius
@@ -71,7 +71,7 @@ type Command struct {
 	BorderWidth float32 // rectangle: outline thickness, inside the area
 	Blur        float32 // shadow: how far it fades out; Area is the caster grown by it and moved down. Backdrop: how far what is behind spreads (a standard deviation, as CSS's blur())
 
-	Text     string  // text: the line; icon: the icon's name
+	Text     string  // text: the line; icon: the icon's name (one field for both keeps a Command small)
 	Size     float32 // text and icon: size in layout pixels (the font's em square)
 	Weight   Weight  // text
 	Baseline float32 // text: y of the baseline; the line starts at Area.X
@@ -142,20 +142,20 @@ type List struct {
 
 | Function or method | |
 |---|---|
-| `func (list *List) Backdrop(area Rect, radius, blur float32)` | Backdrop shows, inside a rounded rectangle, what was drawn behind it, blurred: the frosted glass under a translucent panel, whose Rectangle comes next, over it. |
+| `func (list *List) Backdrop(area Rectangle, radius, blur float32)` | Backdrop shows, inside a rounded rectangle, what was drawn behind it, blurred: the frosted glass under a translucent panel, whose Rectangle comes next, over it. |
 | `func (list *List) Fingerprint(seed maphash.Seed) uint64` | Fingerprint sums up everything the list draws in one number: two lists with the same fingerprint draw the same picture (barring a hash collision). |
 | `func (list *List) Icon(name string, x, y, size float32, color Color)` | Icon draws an icon by name (a Lucide icon, https://lucide.dev) filling a square of size pixels whose top-left corner is at (x, y). |
-| `func (list *List) Image(picture *Image, area Rect, radius float32, tint Color)` | Image draws a picture covering a rounded rectangle: scaled to fill it, and cropped evenly at the sides or at the top and bottom when their shapes differ, as photos fill cards and avatars. |
+| `func (list *List) Image(picture *Image, area Rectangle, radius float32, tint Color)` | Image draws a picture covering a rounded rectangle: scaled to fill it, and cropped evenly at the sides or at the top and bottom when their shapes differ, as photos fill cards and avatars. |
 | `func (list *List) IsEmpty() bool` | IsEmpty tells whether the list has nothing to draw. |
 | `func (list *List) Lighting(ambient Color)` | Lighting lights what was drawn before it in the list, in its layer and those under it, with the lights added since the last Lighting, over an ambient colour (its alpha, the ambient's intensity: 1 is plain daylight, less dims what no light reaches). |
 | `func (list *List) PointLight(x, y, inner, outer float32, color Color)` | PointLight adds a disc of light round a point (x, y): full inside inner, fading to nothing at outer, in layout pixels, of a colour whose alpha is its intensity. |
 | `func (list *List) PopClip()` | PopClip returns to the clip before the last PushClip. |
-| `func (list *List) PushClip(area Rect)` | PushClip limits the following commands to a rectangle, inside the current clip if there is one. |
-| `func (list *List) Rectangle(area Rect, radius float32, fill, border Color, borderWidth float32)` | Rectangle draws a rounded rectangle: fill inside, and a border of a width drawn inside the area. |
+| `func (list *List) PushClip(area Rectangle)` | PushClip limits the following commands to a rectangle, inside the current clip if there is one. |
+| `func (list *List) Rectangle(area Rectangle, radius float32, fill, border Color, borderWidth float32)` | Rectangle draws a rounded rectangle: fill inside, and a border of a width drawn inside the area. |
 | `func (list *List) Reset()` | Reset empties the list, keeping its memory for the next frame. |
 | `func (list *List) SetLayer(layer int)` | SetLayer makes the following commands go on a layer: for example 0 for panels, 1 for menus that open over them and 2 for tooltips. |
-| `func (list *List) Shadow(area Rect, radius, blur, offsetY float32, color Color)` | Shadow draws a soft shadow for a rounded rectangle, fading out over blur pixels on every side and falling offsetY pixels below it. |
-| `func (list *List) SpriteLight(picture *Image, area Rect, color Color)` | SpriteLight adds a picture shining as a light over an area, tinted by a colour whose alpha is its intensity: a lamp's glow, a sign that shines. |
+| `func (list *List) Shadow(area Rectangle, radius, blur, offsetY float32, color Color)` | Shadow draws a soft shadow for a rounded rectangle, fading out over blur pixels on every side and falling offsetY pixels below it. |
+| `func (list *List) SpriteLight(picture *Image, area Rectangle, color Color)` | SpriteLight adds a picture shining as a light over an area, tinted by a colour whose alpha is its intensity: a lamp's glow, a sign that shines. |
 | `func (list *List) Stroke(path *Path, x, y, scale, width float32, color Color)` | Stroke draws a path's line, width layout pixels wide, in a colour: the path's point (0, 0) goes at (x, y) of the screen and each of its units is scale layout pixels. |
 | `func (list *List) Text(text string, x, baseline, size float32, weight Weight, color Color)` | Text draws one line of text starting at x, with its baseline at baseline. |
 
@@ -183,7 +183,7 @@ type Path struct {
 
 | Function or method | |
 |---|---|
-| `func (path *Path) Bounds() Rect` | Bounds is the smallest rectangle, in the path's units, that holds every point of it. |
+| `func (path *Path) Bounds() Rectangle` | Bounds is the smallest rectangle, in the path's units, that holds every point of it. |
 | `func (path *Path) Circle(centreX, centreY, radius float32)` | Circle adds a circle about a centre, as a run of its own. |
 | `func (path *Path) Close()` | Close draws a straight piece back to where the run began. |
 | `func (path *Path) CurveTo(firstX, firstY, secondX, secondY, x, y float32)` | CurveTo draws a cubic Bézier curve from the last point to (x, y), pulled towards two control points, as SVG's C does. |
@@ -199,24 +199,24 @@ Point is a place in a path's units.
 type Point struct{ X, Y float32 }
 ```
 
-### Rect
+### Rectangle
 
-Rect is an area of the screen: its top-left corner and its size, in layout pixels.
+Rectangle is an area of the screen: its top-left corner and its size, in layout pixels.
 
 ```go
-type Rect struct {
+type Rectangle struct {
 	X, Y, Width, Height float32
 }
 ```
 
 | Function or method | |
 |---|---|
-| `func (rect Rect) Bottom() float32` | Bottom is the y of the rectangle's bottom edge. |
-| `func (rect Rect) Contains(x, y float32) bool` | Contains tells whether a point is inside the rectangle (left and top edges included). |
-| `func (rect Rect) Inset(amount float32) Rect` | Inset shrinks the rectangle by an amount on every side. |
-| `func (rect Rect) Intersect(other Rect) Rect` | Intersect returns the area two rectangles share; it is empty when they do not overlap. |
-| `func (rect Rect) IsEmpty() bool` | IsEmpty tells whether the rectangle covers no area. |
-| `func (rect Rect) Right() float32` | Right is the x of the rectangle's right edge. |
+| `func (rect Rectangle) Bottom() float32` | Bottom is the y of the rectangle's bottom edge. |
+| `func (rect Rectangle) Contains(x, y float32) bool` | Contains tells whether a point is inside the rectangle (left and top edges included). |
+| `func (rect Rectangle) Inset(amount float32) Rectangle` | Inset shrinks the rectangle by an amount on every side. |
+| `func (rect Rectangle) Intersect(other Rectangle) Rectangle` | Intersect returns the area two rectangles share; it is empty when they do not overlap. |
+| `func (rect Rectangle) IsEmpty() bool` | IsEmpty tells whether the rectangle covers no area. |
+| `func (rect Rectangle) Right() float32` | Right is the x of the rectangle's right edge. |
 
 ### TextMetrics
 

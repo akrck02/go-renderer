@@ -17,7 +17,7 @@ frame.
 | `func ApplyCursorLock(window *glfw.Window, state *input.State, currentlyLocked *bool)` | ApplyCursorLock captures or releases the cursor when the application changes its request. |
 | `func ForwardInput(window *glfw.Window, state *input.State)` | ForwardInput sends GLFW keyboard, mouse, scroll and text events into an input.State, and gives it the system clipboard. |
 | `func OnMainThread() bool` | OnMainThread is only checked on macOS, the one system that requires it. |
-| `func Run(window *glfw.Window, app *models.Application, clock *frameloop.Clock, drawFrame func() error) error` | Run calls the application's update steps and drawFrame until the window closes or the application stops. |
+| `func Run(glfwWindow *glfw.Window, app *window.Application, clock *frameloop.Clock, drawFrame func() error) error` | Run calls the application's update steps and drawFrame until the window closes or the application stops. |
 | `func UpdateSizes(window *glfw.Window, state *input.State)` | UpdateSizes copies the framebuffer and window sizes into the input state. |
 | `func Wake()` | Wake makes a window that draws on demand draw a frame now: for a program whose data changes on another goroutine (a download finishing, a message arriving). |
 

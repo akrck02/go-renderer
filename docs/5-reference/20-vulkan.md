@@ -16,32 +16,36 @@ var NotImplemented = failure.Define("vulkan.not-implemented", "the Vulkan backen
 
 NotImplemented is what every function of the Vulkan backend returns until it is built.
 
-### Vulkan
+### Renderer
+
+Renderer will draw the immediate-mode shapes (immediate.Renderer) with Vulkan. Until it is built, every method returns NotImplemented.
 
 ```go
-type Vulkan struct{}
+type Renderer struct{}
 ```
 
 | Function or method | |
 |---|---|
-| `func (vulkan *Vulkan) Draw(app *models.Application) error` |  |
-| `func (vulkan *Vulkan) StartLoop(app *models.Application) error` |  |
+| `func (Renderer) RenderImage(space graphics.CoordinateSpace, bytes []byte, centre graphics.Vector, width float32, height float32, shader *string) error` | RenderImage returns NotImplemented. |
+| `func (Renderer) RenderModel(space graphics.CoordinateSpace, model *immediate.Model, shader *string) error` | RenderModel returns NotImplemented. |
+| `func (Renderer) RenderObject(space graphics.CoordinateSpace, vertices []graphics.Vector, shader *string) error` | RenderObject returns NotImplemented. |
+| `func (Renderer) RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error` | RenderPolygon returns NotImplemented. |
+| `func (Renderer) RenderRectangle(space graphics.CoordinateSpace, centre graphics.Vector, width float32, height float32, shader *string, fill bool) error` | RenderRectangle returns NotImplemented. |
+| `func (Renderer) RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error` | RenderTriangle returns NotImplemented. |
+| `func (Renderer) SetMatrices(projection, view, model graphics.Matrix)` | SetMatrices does nothing yet: it has no error to return. |
 
-### VulkanRenderer
+### Window
+
+Window will open a window drawn with the Vulkan immediate-mode renderer. Until it is built, every method returns NotImplemented.
 
 ```go
-type VulkanRenderer struct{}
+type Window struct{}
 ```
 
 | Function or method | |
 |---|---|
-| `func (VulkanRenderer) Render3dModel(space graphics.CoordinateSpace, model *models.Model, shader *string) error` |  |
-| `func (VulkanRenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vector, shader *string) error` |  |
-| `func (VulkanRenderer) RenderImage(space graphics.CoordinateSpace, bytes []byte, coordinates graphics.Vector, width float32, height float32, shader *string) error` |  |
-| `func (VulkanRenderer) RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error` |  |
-| `func (VulkanRenderer) RenderRectangle(space graphics.CoordinateSpace, coordinates graphics.Vector, width float32, height float32, shader *string, fill bool) error` |  |
-| `func (VulkanRenderer) RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error` |  |
-| `func (VulkanRenderer) SetMatrices(projection, view, model graphics.Matrix)` |  |
+| `func (*Window) Draw(app *window.Application) error` | Draw returns NotImplemented. |
+| `func (*Window) Run(app *window.Application) error` | Run returns NotImplemented. |
 
 ---
 

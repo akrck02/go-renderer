@@ -8,9 +8,9 @@ import "github.com/akrck02/go-renderer/loaders"
 
 | Function | |
 |---|---|
-| `func LoadGLB(path string) (*models.Model, error)` |  |
+| `func LoadModel(path string) (*immediate.Model, error)` | LoadModel reads the meshes of a glTF 2.0 file (.glb, or .gltf with external buffers) into an immediate.Model, for the immediate-mode Renderer: each triangle primitive's positions and indices, in any of glTF's component types. |
 | `func LoadScene(path string) (*scene.Scene, error)` | LoadScene reads a glTF 2.0 file (.glb, or .gltf with external buffers) into a scene.Scene. |
-| `func ParseSceneGLB(content []byte) (*scene.Scene, error)` | ParseSceneGLB reads a scene from the bytes of a .glb file, as LoadScene does from its path: for programs with no file system (a web page) or that carry their scene inside them. |
+| `func ReadScene(reader io.Reader) (*scene.Scene, error)` | ReadScene reads a scene from a .glb file's content, as LoadScene does from its path: for programs with no file system (a web page) or that carry their scene inside them. |
 
 ### Constants and variables
 
@@ -28,7 +28,7 @@ var (
 )
 ```
 
-Codes of the errors LoadScene and ParseSceneGLB return.
+Codes of the errors LoadScene, ReadScene and LoadModel return.
 
 ---
 

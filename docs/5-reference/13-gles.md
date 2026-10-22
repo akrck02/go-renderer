@@ -60,13 +60,13 @@ const (
 	Blend     Enum = 0x0BE2
 	DepthTest Enum = 0x0B71
 
-	Zero             Enum = 0
-	One              Enum = 1
-	SourceColor      Enum = 0x0300
-	DestinationColor Enum = 0x0306
-	SourceAlpha      Enum = 0x0302
-	OneMinusSrcAlpha Enum = 0x0303
-	LessOrEqual      Enum = 0x0203
+	Zero                Enum = 0
+	One                 Enum = 1
+	SourceColor         Enum = 0x0300
+	DestinationColor    Enum = 0x0306
+	SourceAlpha         Enum = 0x0302
+	OneMinusSourceAlpha Enum = 0x0303
+	LessOrEqual         Enum = 0x0203
 
 	ArrayBuffer        Enum = 0x8892
 	ElementArrayBuffer Enum = 0x8893
@@ -80,7 +80,7 @@ const (
 	FragmentShader Enum = 0x8B30
 
 	Texture2D        Enum = 0x0DE1
-	Texture0         Enum = 0x84C0
+	TextureUnit0     Enum = 0x84C0
 	TextureMinFilter Enum = 0x2801
 	TextureMagFilter Enum = 0x2800
 	TextureWrapS     Enum = 0x2802
@@ -116,7 +116,7 @@ type FlatRenderer struct {
 
 | Function or method | |
 |---|---|
-| `func NewFlatRenderer(functions Functions) (*FlatRenderer, error)` | NewFlatRenderer compiles the shaders and prepares the atlas. |
+| `func NewFlatRenderer(functions Functions, fonts overlay.Fonts) (*FlatRenderer, error)` | NewFlatRenderer compiles the shaders and prepares the atlas; text is drawn in fonts (overlay.Fonts{} for the default ones). |
 | `func (renderer *FlatRenderer) Draw(list *draw2d.List, background draw2d.Color, width, height int, scale float32)` | Draw clears the target framebuffer (width × height pixels) to the background colour and paints the list. |
 
 ### Framebuffer
@@ -129,76 +129,124 @@ type Framebuffer uint32
 
 ### Functions
 
-Functions is the part of OpenGL ES 2.0 the renderers need. An implementation must be used from the goroutine (and thread) that owns the graphics context.
+Functions is the part of OpenGL ES 2.0 the renderers need. An implementation must be used from the goroutine (and thread) that owns the graphics context. Its methods are named in words (SetUniformInteger, SetTextureImage), so a reader new to OpenGL can follow the renderers; each comment gives the OpenGL ES function it stands for (glUniform1i, glTexImage2D), for a reader who knows OpenGL or looks it up.
 
 ```go
 type Functions interface {
+	// CreateShader is glCreateShader.
 	CreateShader(stage Enum) Shader
-	ShaderSource(shader Shader, source string)
+	// SetShaderSource is glShaderSource.
+	SetShaderSource(shader Shader, source string)
+	// CompileShader is glCompileShader.
 	CompileShader(shader Shader)
 	// ShaderCompiled reports whether the last compilation worked, and the compiler's log.
+	// (OpenGL ES: glGetShaderiv(GL_COMPILE_STATUS) and glGetShaderInfoLog.)
 	ShaderCompiled(shader Shader) (bool, string)
+	// DeleteShader is glDeleteShader.
 	DeleteShader(shader Shader)
 
+	// CreateProgram is glCreateProgram.
 	CreateProgram() Program
+	// AttachShader is glAttachShader.
 	AttachShader(program Program, shader Shader)
+	// LinkProgram is glLinkProgram.
 	LinkProgram(program Program)
 	// ProgramLinked reports whether the last link worked, and the linker's log.
+	// (OpenGL ES: glGetProgramiv(GL_LINK_STATUS) and glGetProgramInfoLog.)
 	ProgramLinked(program Program) (bool, string)
-	// BindAttribLocation gives an attribute its index; it takes effect at the next link.
-	BindAttribLocation(program Program, index uint32, name string)
+	// BindAttributeLocation gives an attribute its index; it takes effect at the next link.
+	// (OpenGL ES: glBindAttribLocation.)
+	BindAttributeLocation(program Program, index uint32, name string)
+	// UseProgram is glUseProgram.
 	UseProgram(program Program)
+	// UniformLocation is glGetUniformLocation.
 	UniformLocation(program Program, name string) Uniform
 
-	Uniform1i(location Uniform, value int32)
-	Uniform1f(location Uniform, value float32)
-	Uniform2f(location Uniform, first, second float32)
-	Uniform3f(location Uniform, first, second, third float32)
-	Uniform4f(location Uniform, first, second, third, fourth float32)
-	UniformMatrix3(location Uniform, matrix [9]float32)
-	UniformMatrix4(location Uniform, matrix [16]float32)
+	// SetUniformInteger is glUniform1i.
+	SetUniformInteger(location Uniform, value int32)
+	// SetUniformFloat is glUniform1f.
+	SetUniformFloat(location Uniform, value float32)
+	// SetUniformTwoFloats is glUniform2f.
+	SetUniformTwoFloats(location Uniform, first, second float32)
+	// SetUniformThreeFloats is glUniform3f.
+	SetUniformThreeFloats(location Uniform, first, second, third float32)
+	// SetUniformFourFloats is glUniform4f.
+	SetUniformFourFloats(location Uniform, first, second, third, fourth float32)
+	// SetUniformMatrix3By3 is glUniformMatrix3fv.
+	SetUniformMatrix3By3(location Uniform, matrix [9]float32)
+	// SetUniformMatrix4By4 is glUniformMatrix4fv.
+	SetUniformMatrix4By4(location Uniform, matrix [16]float32)
 
+	// CreateBuffer is glGenBuffers.
 	CreateBuffer() Buffer
+	// BindBuffer is glBindBuffer.
 	BindBuffer(target Enum, buffer Buffer)
-	// BufferData replaces a buffer's contents with these bytes.
-	BufferData(target Enum, data []byte, usage Enum)
+	// SetBufferData replaces a buffer's contents with these bytes.
+	// (OpenGL ES: glBufferData.)
+	SetBufferData(target Enum, data []byte, usage Enum)
 
-	EnableVertexAttribArray(index uint32)
-	DisableVertexAttribArray(index uint32)
-	// VertexAttribPointer describes attribute index in the bound array buffer: size values of
+	// EnableVertexAttribute is glEnableVertexAttribArray.
+	EnableVertexAttribute(index uint32)
+	// DisableVertexAttribute is glDisableVertexAttribArray.
+	DisableVertexAttribute(index uint32)
+	// DescribeVertexAttribute describes attribute index in the bound array buffer: size values of
 	// type kind each, stride bytes apart, the first offset bytes in.
-	VertexAttribPointer(index uint32, size int, kind Enum, normalized bool, stride, offset int)
+	// (OpenGL ES: glVertexAttribPointer.)
+	DescribeVertexAttribute(index uint32, size int, kind Enum, normalized bool, stride, offset int)
 
+	// CreateTexture is glGenTextures.
 	CreateTexture() Texture
-	ActiveTexture(unit Enum)
+	// SelectTextureUnit is glActiveTexture.
+	SelectTextureUnit(unit Enum)
+	// BindTexture is glBindTexture.
 	BindTexture(target Enum, texture Texture)
-	TexParameteri(target, name Enum, value int32)
-	PixelStorei(name Enum, value int32)
-	TexImage2D(target Enum, level int, internalFormat Enum, width, height int, format, kind Enum, pixels []byte)
-	// TexSubImage2D replaces a rectangle of the bound texture's pixels, given row after row.
-	TexSubImage2D(target Enum, level, x, y, width, height int, format, kind Enum, pixels []byte)
-	// CopyTexSubImage2D copies a rectangle of the bound framebuffer (x, y from its bottom left)
+	// SetTextureParameter is glTexParameteri.
+	SetTextureParameter(target, name Enum, value int32)
+	// SetPixelStorage is glPixelStorei.
+	SetPixelStorage(name Enum, value int32)
+	// SetTextureImage is glTexImage2D.
+	SetTextureImage(target Enum, level int, internalFormat Enum, width, height int, format, kind Enum, pixels []byte)
+	// ReplaceTexturePart replaces a rectangle of the bound texture's pixels, given row after row.
+	// (OpenGL ES: glTexSubImage2D.)
+	ReplaceTexturePart(target Enum, level, x, y, width, height int, format, kind Enum, pixels []byte)
+	// CopyFramebufferToTexture copies a rectangle of the bound framebuffer (x, y from its bottom left)
 	// into the bound texture at xOffset, yOffset.
-	CopyTexSubImage2D(target Enum, level, xOffset, yOffset, x, y, width, height int)
+	// (OpenGL ES: glCopyTexSubImage2D.)
+	CopyFramebufferToTexture(target Enum, level, xOffset, yOffset, x, y, width, height int)
+	// DeleteTexture is glDeleteTextures.
 	DeleteTexture(texture Texture)
 
-	// Framebuffers let a pass draw into a texture: the backdrop's blur. TexImage2D with no pixels
+	// Framebuffers let a pass draw into a texture: the backdrop's blur. SetTextureImage with no pixels
 	// makes the texture they draw into.
+	// (OpenGL ES: glGenFramebuffers.)
 	CreateFramebuffer() Framebuffer
+	// BindFramebuffer is glBindFramebuffer.
 	BindFramebuffer(target Enum, framebuffer Framebuffer)
-	FramebufferTexture2D(target, attachment, textureTarget Enum, texture Texture, level int)
+	// AttachTextureToFramebuffer is glFramebufferTexture2D.
+	AttachTextureToFramebuffer(target, attachment, textureTarget Enum, texture Texture, level int)
+	// DeleteFramebuffer is glDeleteFramebuffers.
 	DeleteFramebuffer(framebuffer Framebuffer)
 
-	Viewport(x, y, width, height int)
-	ClearColor(red, green, blue, alpha float32)
+	// SetViewport is glViewport.
+	SetViewport(x, y, width, height int)
+	// SetClearColor is glClearColor.
+	SetClearColor(red, green, blue, alpha float32)
+	// Clear is glClear.
 	Clear(mask Enum)
+	// Enable is glEnable.
 	Enable(capability Enum)
+	// Disable is glDisable.
 	Disable(capability Enum)
-	BlendFuncSeparate(sourceColor, destinationColor, sourceAlpha, destinationAlpha Enum)
-	DepthMask(write bool)
-	DepthFunc(function Enum)
+	// SetBlendFactors is glBlendFuncSeparate.
+	SetBlendFactors(sourceColor, destinationColor, sourceAlpha, destinationAlpha Enum)
+	// SetDepthWrite is glDepthMask.
+	SetDepthWrite(write bool)
+	// SetDepthFunction is glDepthFunc.
+	SetDepthFunction(function Enum)
 
+	// DrawArrays is glDrawArrays.
 	DrawArrays(mode Enum, first, count int)
+	// DrawElements is glDrawElements.
 	DrawElements(mode Enum, count int, kind Enum, offset int)
 }
 ```
@@ -230,8 +278,8 @@ type SceneRenderer struct {
 
 | Function or method | |
 |---|---|
-| `func NewSceneRenderer(functions Functions) (*SceneRenderer, error)` | NewSceneRenderer compiles the shaders and prepares the overlay's atlas. |
-| `func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int)` | Draw draws a frame of the scene seen by the camera, in the target framebuffer of width × height pixels. |
+| `func NewSceneRenderer(functions Functions, fonts overlay.Fonts) (*SceneRenderer, error)` | NewSceneRenderer compiles the shaders and prepares the overlay's atlas; the overlay's text is drawn in fonts (overlay.Fonts{} for the default ones). |
+| `func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Camera, width, height int)` | Draw draws a frame of the scene seen by the camera, in the target framebuffer of width × height pixels. |
 
 ### Shader
 

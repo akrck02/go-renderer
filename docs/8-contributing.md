@@ -9,15 +9,15 @@ Each folder is one idea, and dependencies point one way: the scene knows nothing
 
 | Folder | What lives there | Needs |
 |---|---|---|
-| `graphics`, `models` | Vectors, matrices, the application and the immediate-mode `Renderer` contract | plain Go |
+| `graphics`, `immediate`, `window` | Vectors and matrices, the immediate-mode `Renderer` contract, a program's window and loop | plain Go |
 | `scene`, `scene/sample`, `loaders` | The retained scene, glTF files, the sample island | plain Go |
 | `internal/shading` | What every backend's shaders agree on; the sources live in each backend | plain Go |
 | `internal/sceneplan` | What a frame draws, decided once for every backend; internal, as only the module's backends use it | plain Go |
-| `input`, `camera`, `draw2d`, `frameloop` | Input, cameras, 2D draw lists, the clock | plain Go |
+| `input`, `camera`, `draw2d`, `frameloop` | Input (what programs read, and the `Feed` backends write), the camera and its controllers, 2D draw lists, the clock | plain Go |
 | `opengl`, `opengl/overlay`, `windowloop` | The desktop backend: GLFW, OpenGL 4.1, the overlay | cgo |
 | `metal` | The Metal backend on macOS (Objective-C) | cgo, macOS |
 | `gles`, `browser`, `android` | OpenGL ES renderers, the web page, the Android activity | WebAssembly or the NDK |
-| `ctr` | The Nintendo 3DS, through citro3d | TinyGo |
+| `nintendo3ds` | The Nintendo 3DS, through citro3d | TinyGo |
 | `software`, `vulkan`, `webgpu` | Backends of the immediate-mode contract, to be built later: every function returns `<backend>.not-implemented` | — |
 | `failure` | Error codes shared by every package | — |
 | `viewer`, `cmd/…` | The viewer and the programs | cgo |
@@ -65,9 +65,11 @@ those parts is tried by hand: say what you tried.
 Part of this project is written by hand by its author, and part by an AI assistant under his
 direction. The README's *AI disclosure* lists which.
 
-- **Hand-written, not to change without asking the author:** the immediate-mode `Renderer`
-  contract (`models`), and the `software`, `vulkan`, `metal` (its hand-written stubs) and `webgpu`
-  backends.
+- **Hand-written by the author:** the immediate-mode `Renderer` contract (now `immediate`, with
+  `window`), the `graphics` maths, the first OpenGL work, and the `software`, `vulkan`, `metal`
+  (its stubs) and `webgpu` backends. On 2026-10-22 the author asked the AI to refactor them to the
+  guidelines (whole-word names, coded errors, no panics or prints); that refactoring is pending his
+  review. Do not change them further without asking him.
 - **AI-written work** goes on a `feature/…` branch, never on `main`. Its commits end with a
   `Co-Authored-By:` line, and the author merges it after review. Until then it is pending review.
 

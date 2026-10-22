@@ -30,7 +30,8 @@ I write most of my code by hand, so I want to be clear about where AI was used h
   the retained scene (`scene`), the glTF loader, the OpenGL scene renderer (sky, shadows, water,
   instancing, levels of detail, the overlay of labels and notices with its font and icon atlas in
   `opengl/overlay`, and the 2D draw lists of `draw2d` it paints), `camera`, `input`, `viewer`,
-  `cmd/visor` and the documentation in `docs/`. It also extended `graphics`, `loaders` and `models`.
+  `cmd/visor` and the documentation in `docs/`. It also extended `graphics`, `loaders` and the
+  first `models` package.
   Since October 2026 it also wrote the shared window loop (`windowloop`), the frame planning both
   scene renderers share (`internal/sceneplan`), the sample island (`scene/sample`) and the Metal renderers
   in `metal/` (flat and 3D: `FlatWindow`, `FlatRenderer`, `SceneWindow`, `SceneRenderer`, the
@@ -39,7 +40,12 @@ I write most of my code by hand, so I want to be clear about where AI was used h
   renderers (`gles`), the browser canvas and loop (`browser`), the Android activity and loop
   (`android`, with its C), the shared clock (`frameloop`) and `cmd/web-island`, and later the
   screen reader's side on Android (`android/screenreader*`, with the Java class in `android/java`),
-  and the first drawing on the Nintendo 3DS (`ctr`, with its C, and `cmd/triangle3ds`).
+  and the first drawing on the Nintendo 3DS (`nintendo3ds`, with its C, and `cmd/triangle3ds`).
+- **My hand-written parts, refactored by the AI at my request (2026-10-22):** the `Renderer`
+  contract and `models` (split into `immediate`, `window` and `camera.Camera`), the `graphics`
+  maths (`Vec4`/`Mat4` became `Vector`/`Matrix`), the first OpenGL work (`opengl.Window`,
+  `opengl.Renderer`), `loaders.LoadModel`, the root `main.go` and the stubs: whole-word names,
+  comments, coded errors instead of panics and prints. This refactoring is pending my review.
 
 Commits made with AI carry a `Co-Authored-By: Claude` line.
 
@@ -126,7 +132,7 @@ New here? Start with the [overview](docs/1-overview.md), then [get started](docs
 | [In a web browser](docs/4-guides/5-web.md) | The island through WebGL2, and the renderers shared with phones. |
 | [On Android](docs/4-guides/6-android.md) | A program as an Android app: its own activity, the keyboard, screen readers. |
 | [Metal](docs/4-guides/7-metal.md) | The Metal backend on macOS: why, how it fits, what was measured. |
-| [On the Nintendo 3DS](docs/4-guides/8-3ds.md) | Drawing through the 3DS's PICA200 with citro3d (`ctr`), built with TinyGo. |
+| [On the Nintendo 3DS](docs/4-guides/8-3ds.md) | Drawing through the 3DS's PICA200 with citro3d (`nintendo3ds`), built with TinyGo. |
 | [Drawing in 2D](docs/4-guides/9-drawing-in-2d.md) | Rectangles, text, icons, images, clips, layers, and paths drawn as strokes. |
 | [Scenes in areas](docs/4-guides/10-scenes-in-areas.md) | Several views in one frame, and a scene floating over another (a radar). |
 | [Pads, keys and the whole screen](docs/4-guides/11-pads-keys-and-the-whole-screen.md) | Keys, a game pad's buttons and sticks, its layout, and fullscreen. |

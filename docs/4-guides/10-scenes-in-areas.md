@@ -18,12 +18,14 @@ import (
 	"log"
 	"runtime"
 
+	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/input"
-	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/opengl"
+	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
 	"github.com/akrck02/go-renderer/scene/sample"
+	"github.com/akrck02/go-renderer/window"
 )
 
 func init() { runtime.LockOSThread() } // windows live on the main thread
@@ -33,15 +35,14 @@ func main() {
 	above, shore := mapCamera(world), shoreCamera(world)
 	var renderer *opengl.SceneRenderer
 
-	app := &models.Application{
-		Type: models.WindowApplication, Title: "Two views",
-		Width: 960, Height: 400, Input: input.NewState(),
-		Renderer: &opengl.OpenGLRenderer{}, // the window's own drawing, unused here
+	app := &window.Application{
+		Options: window.Options{Title: "Two views", Width: 960, Height: 400},
+		Input:   input.NewState(),
 	}
-	app.Draw = func(app *models.Application) error {
+	app.Draw = func(app *window.Application) error {
 		if renderer == nil {
 			var err error
-			if renderer, err = opengl.NewSceneRenderer(); err != nil {
+			if renderer, err = opengl.NewSceneRenderer(overlay.Fonts{}); err != nil {
 				return err
 			}
 		}
@@ -52,15 +53,15 @@ func main() {
 		renderer.DrawOverlay(world, width, height) // once, after every area
 		return nil
 	}
-	if err := (&opengl.OpenGL{}).StartLoop(app); err != nil {
+	if err := (&opengl.Window{}).Run(app); err != nil {
 		log.Fatal(err)
 	}
 }
 
 // mapCamera looks straight down on the whole scene, without perspective.
-func mapCamera(world *scene.Scene) models.Camera {
+func mapCamera(world *scene.Scene) camera.Camera {
 	centre, size := middleAndSize(world)
-	return models.Camera{
+	return camera.Camera{
 		Position:           graphics.Vector{centre[0], size, centre[2], 1},
 		Target:             centre,
 		Up:                 graphics.Vector{0, 0, -1, 0}, // north at the top
@@ -70,9 +71,9 @@ func mapCamera(world *scene.Scene) models.Camera {
 }
 
 // shoreCamera looks at the middle of the scene from above its southern shore.
-func shoreCamera(world *scene.Scene) models.Camera {
+func shoreCamera(world *scene.Scene) camera.Camera {
 	centre, size := middleAndSize(world)
-	return models.Camera{
+	return camera.Camera{
 		Position: graphics.Vector{centre[0], size / 4, centre[2] + size*0.7, 1},
 		Target:   centre,
 		Up:       graphics.Vector{0, 1, 0, 0},
