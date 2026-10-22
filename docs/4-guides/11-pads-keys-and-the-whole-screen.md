@@ -11,24 +11,25 @@ program gives the application a state and reads it in its update step:
 
 ```go
 state := input.NewState()
-state.SetKey(input.KeyF11, true) // the backend: F11 went down
+state.Feed().SetKey(input.KeyF11, true) // the backend: F11 went down
 
 if state.Pressed(input.KeyF11) {
 	state.SetFullscreen(!state.Fullscreen())
 }
 fmt.Println(state.Down(input.KeyF11), state.Fullscreen()) // true true
 
-state.EndFrame() // the backend, after the step: a press lasts one step
+state.Feed().EndFrame() // the backend, after the step: a press lasts one step
 fmt.Println(state.Down(input.KeyF11), state.Pressed(input.KeyF11)) // true false
 ```
 
-In a real program the first `SetKey` and the `EndFrame` belong to the backend; you write the
-`if`. This is `ExampleState_Pressed` in `input/example_test.go`, and `go test ./input` checks what
+In a real program the first `SetKey` and the `EndFrame` belong to the backend: they are on the
+state's `Feed()`, the side backends write, so `go doc input.State` shows only what a program
+reads. You write the `if`. This is `ExampleState_Pressed` in `input/example_test.go`, and `go test ./input` checks what
 it prints. In a window it looks like this:
 
 ```go
-app := &models.Application{Type: models.WindowApplication, Input: input.NewState()}
-app.Update = func(app *models.Application, seconds float64) error {
+app := &window.Application{Input: input.NewState()}
+app.Update = func(app *window.Application, seconds float64) error {
 	if app.Input.Pressed(input.KeyF11) {
 		app.Input.SetFullscreen(!app.Input.Fullscreen())
 	}
@@ -58,24 +59,25 @@ Buttons are read **by position**, like keys: `PadA` is always the bottom face bu
 
 ```go
 state := input.NewState()
-state.StickX, state.StickY = 0.5, 1 // the backend: half right, all the way up
-state.SetPadButton(input.PadA, true)
+state.Feed().SetStick(0.5, 1) // the backend: half right, all the way up
+state.Feed().SetPadButton(input.PadA, true)
 
 const metresPerSecond = 4
 const seconds = 0.5
-forward := state.StickY * metresPerSecond * seconds
-sideways := state.StickX * metresPerSecond * seconds
+stickX, stickY := state.Stick()
+forward := stickY * metresPerSecond * seconds
+sideways := stickX * metresPerSecond * seconds
 fmt.Println(forward, sideways, state.PadPressed(input.PadA)) // 2 1 true
 ```
 
-`PadDown(button)` and `PadPressed(button)` work like `Down` and `Pressed`. The sticks are fields,
-from -1 to 1, **right and up positive**, and 0 at rest. A small dead zone round the middle reads
+`PadDown(button)` and `PadPressed(button)` work like `Down` and `Pressed`. The sticks are read with
+`Stick()` and `RightStick()`, each giving x and y from -1 to 1, **right and up positive**, and 0 at rest. A small dead zone round the middle reads
 as 0, since a stick let go never sits exactly there.
 
-| Stick | Fields | On a pad | On a 3DS |
+| Stick | Read with | On a pad | On a 3DS |
 |---|---|---|---|
-| Main | `StickX`, `StickY` | the left stick | the circle pad |
-| Second | `RightStickX`, `RightStickY` | the right stick | a New 3DS's C-stick |
+| Main | `Stick()` | the left stick | the circle pad |
+| Second | `RightStick()` | the right stick | a New 3DS's C-stick |
 
 Multiply a stick by a speed and the step's `seconds` to move something smoothly, as above.
 
@@ -121,7 +123,7 @@ Leaving needs no such moment, anywhere.
 |---|---|---|---|---|---|
 | Desktop window (GLFW) | yes | first pad | first pad | from the GUID | yes |
 | Web page | yes, no F keys yet | not yet | not yet | from the pad's name | on the next press |
-| Nintendo 3DS (`ctr`) | its buttons, as keys | — | circle pad, C-stick | — | always |
+| Nintendo 3DS (`nintendo3ds`) | its buttons, as keys | — | circle pad, C-stick | — | always |
 
 On the desktop, GLFW gives every known pad Xbox's order, so one program reads them all the same
 way.

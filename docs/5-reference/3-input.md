@@ -19,12 +19,12 @@ so the camera does not move while a slider is dragged or a name typed.
 
 ```go
 const (
-	MultiClickInterval = 400 * time.Millisecond
-	MultiClickDistance = 4.0
+	MultiClickInterval       = 400 * time.Millisecond
+	MultiClickDistancePixels = 4.0
 )
 ```
 
-MultiClickInterval is the longest pause between the presses of a double click, and MultiClickDistance how far, in window coordinates, the pointer may move between them.
+MultiClickInterval is the longest pause between the presses of a double click, and MultiClickDistancePixels how far, in window coordinates, the pointer may move between them.
 
 ### Clipboard
 
@@ -55,6 +55,39 @@ const (
 	CursorMove                                // four arrows, over something to drag around
 )
 ```
+
+### Feed
+
+Feed is the side of a State that backends write: the keys, buttons, pointer, touches and pads they hear of, and the end of each frame. Programs read the State itself and only need Feed to play input to their own code in tests. It is a small value that holds the state, so calling state.Feed() for each event costs nothing.
+
+```go
+type Feed struct {
+	// Has unexported fields.
+}
+```
+
+| Function or method | |
+|---|---|
+| `func (feed Feed) AddCharacter(character rune)` | AddCharacter records a character typed, after the keyboard layout and dead keys (called by the backend): "ñ" is one character, whatever keys made it. |
+| `func (feed Feed) AddHorizontalScroll(delta float64)` | AddHorizontalScroll records sideways scroll movement (called by the backend). |
+| `func (feed Feed) AddScroll(delta float64)` | AddScroll records scroll movement (called by the backend). |
+| `func (feed Feed) BackUnanswered() bool` | BackUnanswered tells whether the last step had a back that nobody took, once, for the backend to leave the program. |
+| `func (feed Feed) ClearTouches()` | ClearTouches takes every finger off, when the system takes a gesture over (called by the backend). |
+| `func (feed Feed) EndFrame()` | EndFrame clears per-frame movement, presses, typed characters and claims; the backend calls it after each update step. |
+| `func (feed Feed) HasInput() bool` | HasInput tells whether anything arrived during this step: keys, characters, buttons, pointer movement or scrolling. |
+| `func (feed Feed) LiftTouch(finger int64)` | LiftTouch takes a finger off the screen (called by the backend). |
+| `func (feed Feed) MoveCursor(x, y float64)` | MoveCursor records a new cursor position (called by the backend). |
+| `func (feed Feed) PointerLeaves()` | PointerLeaves takes the pointer off the window once this frame ends: a finger lifted from a touch screen leaves nothing under it, so no control stays lit as if a mouse rested on it. |
+| `func (feed Feed) PressBack()` | PressBack records the system's back: a phone's back gesture or button (called by the backend). |
+| `func (feed Feed) RepeatKey(key Key)` | RepeatKey records that the system repeated a held key (called by the backend). |
+| `func (feed Feed) SetButton(button MouseButton, isDown bool)` | SetButton records a mouse button transition (called by the backend). |
+| `func (feed Feed) SetKey(key Key, isDown bool)` | SetKey records a key transition (called by the backend). |
+| `func (feed Feed) SetPadButton(button PadButton, isDown bool)` | SetPadButton records a game pad's button as held or let go; going down presses it this frame. |
+| `func (feed Feed) SetPadLayout(layout PadLayout)` | SetPadLayout records the layout of the pad being read; the backend sets it when a pad connects. |
+| `func (feed Feed) SetRightStick(x, y float64)` | SetRightStick sets a game pad's second stick (a New 3DS's C-stick, a pad's right one). |
+| `func (feed Feed) SetStick(x, y float64)` | SetStick sets a game pad's main stick (a console's circle pad, a pad's left stick), from -1 to 1 each way, right and up positive. |
+| `func (feed Feed) SetTouch(finger int64, x, y float64)` | SetTouch puts a finger down, or moves it (called by the backend). |
+| `func (feed Feed) TakeFrameRequest() (time.Duration, bool)` | TakeFrameRequest returns how long until the frame asked for with RequestFrame (0 when it is due) and forgets the request; false when none was made (called by the backend). |
 
 ### Gesture
 
@@ -244,12 +277,6 @@ type State struct {
 	CursorDeltaY     float64
 	ScrollDelta      float64 // vertical scroll since the previous frame
 	ScrollDeltaX     float64 // horizontal scroll since the previous frame (trackpads, tilting wheels)
-	// StickX and StickY are a game pad's main stick where there is one (a console's circle pad, a
-	// pad's left stick), from -1 to 1 each way, right and up positive; 0 at rest or without one.
-	// RightStickX and RightStickY are its second stick (a New 3DS's C-stick, a pad's right one).
-	// The backend sets them every frame.
-	StickX, StickY           float64
-	RightStickX, RightStickY float64
 
 	FramebufferWidth  int // updated by the backend
 	FramebufferHeight int
@@ -267,48 +294,33 @@ type State struct {
 | Function or method | |
 |---|---|
 | `func NewState() *State` | NewState returns an empty input state. |
-| `func (state *State) AddCharacter(character rune)` | AddCharacter records a character typed, after the keyboard layout and dead keys (called by the backend): "ñ" is one character, whatever keys made it. |
-| `func (state *State) AddHorizontalScroll(delta float64)` | AddHorizontalScroll records sideways scroll movement (called by the backend). |
-| `func (state *State) AddScroll(delta float64)` | AddScroll records scroll movement (called by the backend). |
 | `func (state *State) AnyHeld() bool` | AnyHeld tells whether a key or a mouse button is being held down: a program that draws on demand keeps drawing while one is, since holding a key (walking forward) sends no events. |
-| `func (state *State) BackUnanswered() bool` | BackUnanswered tells whether the last step had a back that nobody took, once, for the backend to leave the program. |
 | `func (state *State) Button(button MouseButton) bool` | Button reports whether a mouse button is held. |
 | `func (state *State) ButtonPressed(button MouseButton) bool` | ButtonPressed reports whether a mouse button went down during this step. |
 | `func (state *State) ButtonReleased(button MouseButton) bool` | ButtonReleased reports whether a mouse button went up during this step. |
 | `func (state *State) ClaimKeyboard()` | ClaimKeyboard marks the keyboard as used by an interface during this step (a text field has the focus). |
 | `func (state *State) ClaimMouse()` | ClaimMouse marks the mouse as used by an interface during this step (the pointer is over a panel, or dragging a slider): cameras and shortcuts should leave it alone. |
-| `func (state *State) ClearTouches()` | ClearTouches takes every finger off, when the system takes a gesture over (called by the backend). |
 | `func (state *State) Clicks(button MouseButton) int` | Clicks says which click a press during this step was: 1 for a single click, 2 for the second press of a double click, 3 for a triple click; 0 when the button was not pressed. |
 | `func (state *State) ClipboardText() string` | ClipboardText returns the text on the system clipboard, or "" without one. |
 | `func (state *State) CursorLocked() bool` | CursorLocked reports whether the application asked for a captured cursor. |
 | `func (state *State) CursorShape() CursorShape` | CursorShape is the pointer shape the application asked for. |
 | `func (state *State) Down(key Key) bool` | Down reports whether a key is held. |
-| `func (state *State) EndFrame()` | EndFrame clears per-frame movement, presses, typed characters and claims; the backend calls it after each update step. |
+| `func (state *State) Feed() Feed` | Feed returns the side of the state that backends write. |
 | `func (state *State) Fullscreen() bool` | Fullscreen reports whether the window is asked to be on the whole screen. |
-| `func (state *State) HasInput() bool` | HasInput tells whether anything arrived during this step: keys, characters, buttons, pointer movement or scrolling. |
 | `func (state *State) KeyboardClaimed() bool` | KeyboardClaimed tells whether an interface claimed the keyboard during this step. |
-| `func (state *State) LiftTouch(finger int64)` | LiftTouch takes a finger off the screen (called by the backend). |
 | `func (state *State) LockCursor(lock bool)` | LockCursor asks the backend to hide and capture the cursor (first-person look) or release it. |
 | `func (state *State) MouseClaimed() bool` | MouseClaimed tells whether an interface claimed the mouse during this step. |
-| `func (state *State) MoveCursor(x, y float64)` | MoveCursor records a new cursor position (called by the backend). |
 | `func (state *State) PadDown(button PadButton) bool` | PadDown tells whether a game pad's button is held. |
 | `func (state *State) PadLayout() PadLayout` | PadLayout is the layout of the pad being read; XboxLayout until the backend sets another. |
 | `func (state *State) PadPressed(button PadButton) bool` | PadPressed tells whether a game pad's button went down this frame. |
-| `func (state *State) PointerLeaves()` | PointerLeaves takes the pointer off the window once this frame ends: a finger lifted from a touch screen leaves nothing under it, so no control stays lit as if a mouse rested on it. |
-| `func (state *State) PressBack()` | PressBack records the system's back: a phone's back gesture or button (called by the backend). |
 | `func (state *State) Pressed(key Key) bool` | Pressed reports whether a key went down during this frame. |
-| `func (state *State) RepeatKey(key Key)` | RepeatKey records that the system repeated a held key (called by the backend). |
 | `func (state *State) RequestFrame(delay time.Duration)` | RequestFrame asks the backend for another frame within a delay, even if no input arrives: the next step of an animation, a caret's blink, a tooltip due. |
-| `func (state *State) SetButton(button MouseButton, isDown bool)` | SetButton records a mouse button transition (called by the backend). |
+| `func (state *State) RightStick() (x, y float64)` | RightStick is a game pad's second stick (a New 3DS's C-stick, a pad's right one), as Stick. |
 | `func (state *State) SetClipboardText(text string)` | SetClipboardText puts a text on the system clipboard, when there is one. |
 | `func (state *State) SetCursorShape(shape CursorShape)` | SetCursorShape asks the backend to show the pointer with a shape; it stays until changed. |
 | `func (state *State) SetFullscreen(on bool)` | SetFullscreen asks the backend to show the window on the whole screen, or in a window again. |
-| `func (state *State) SetKey(key Key, isDown bool)` | SetKey records a key transition (called by the backend). |
-| `func (state *State) SetPadButton(button PadButton, isDown bool)` | SetPadButton records a game pad's button as held or let go; going down presses it this frame. |
-| `func (state *State) SetPadLayout(layout PadLayout)` | SetPadLayout records the layout of the pad being read; the backend sets it when a pad connects. |
-| `func (state *State) SetTouch(finger int64, x, y float64)` | SetTouch puts a finger down, or moves it (called by the backend). |
+| `func (state *State) Stick() (x, y float64)` | Stick is a game pad's main stick where there is one (a console's circle pad, a pad's left stick), from -1 to 1 each way, right and up positive; 0 at rest or without one. |
 | `func (state *State) TakeBack() bool` | TakeBack answers the system's back in this step, and tells whether there was one to answer: the part of the program the person is in goes back (a dialog closes, a screen returns to the one before) and returns true; any other part asking after it gets false. |
-| `func (state *State) TakeFrameRequest() (time.Duration, bool)` | TakeFrameRequest returns how long until the frame asked for with RequestFrame (0 when it is due) and forgets the request; false when none was made (called by the backend). |
 | `func (state *State) Time() time.Time` | Time is the time now, by Now when it is set (a test's fake clock). |
 | `func (state *State) Touches() []Touch` | Touches returns the fingers on the screen now: for gestures of more than one finger (pinch, twist). |
 | `func (state *State) Typed(key Key) bool` | Typed reports whether a key went down or was repeated by the system during this step: what text fields use for Backspace or the arrows, so holding them keeps acting. |

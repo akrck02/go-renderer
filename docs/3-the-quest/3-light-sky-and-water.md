@@ -5,7 +5,7 @@ fog in the distance, wind in the trees, clouds, and the night, with a lamp that 
 
 | Mission | Pieces | Time |
 |---|---|---|
-| The sea, the wind, clouds and the night | `scene.Environment`, `Water`, `Sky`, `KindGlow` | 15 min |
+| The sea, the wind, clouds and the night | `scene.Environment`, `Water`, `Sky`, `GlowKind` | 15 min |
 
 #### The idea
 
@@ -71,7 +71,7 @@ A lighthouse should shine at night. A **glowing** material is lit like any other
 its own colour in the dark:
 
 ```go
-lamp.Mesh.Material.Kind = scene.KindGlow
+lamp.Mesh.Material.Kind = scene.GlowKind
 ```
 
 ```bash
@@ -108,11 +108,11 @@ into its colours with the sun (its guide).
 
 | Kind | Shading |
 |---|---|
-| `KindLit` | Sun or moon, sky light, point lights, shadows, fog: most things |
-| `KindUnlit` | Its colour as it is (plus fog): flags, markers, things that should not darken |
-| `KindGlow` | Lit by day, shining in the dark: lamps, windows, glowing flowers |
-| `KindWater` | An animated water surface: a river or a lake above the sea's level |
-| `KindWaterfall` | Translucent falling water |
+| `LitKind` | Sun or moon, sky light, point lights, shadows, fog: most things |
+| `UnlitKind` | Its colour as it is (plus fog): flags, markers, things that should not darken |
+| `GlowKind` | Lit by day, shining in the dark: lamps, windows, glowing flowers |
+| `WaterKind` | An animated water surface: a river or a lake above the sea's level |
+| `WaterfallKind` | Translucent falling water |
 
 #### Checkpoint
 
@@ -124,7 +124,7 @@ The hill rises out of a sea, turquoise at the shore and dark further out; the tr
 
 - `Environment` holds the sun, the sky, fog, water, wind and snow.
 - The sun's height is the time of day; the night comes with the moon and the stars.
-- `Sway` bends plants in the wind; `KindGlow` shines at night; `Lights` light around them.
+- `Sway` bends plants in the wind; `GlowKind` shines at night; `Lights` light around them.
 
 ## Bonus (optional)
 

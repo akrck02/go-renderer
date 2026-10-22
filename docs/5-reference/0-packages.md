@@ -17,7 +17,8 @@ root), so they say exactly what `go doc` says; for the whole comment of anything
 | Paint flat shapes, text, icons and pictures over the view | [`draw2d`](5-draw2d.md) |
 | Vectors, matrices, transforms | [`graphics`](7-graphics.md) |
 | A made-up island to test with | [`scene/sample`](9-scene-sample.md) |
-| Draw triangles myself every frame (immediate mode), or run my own loop | [`models`](8-models.md) |
+| Run my own program in a window: its options, update and draw | [`window`](8-window.md) |
+| Draw triangles myself every frame (immediate mode) | [`immediate`](22-immediate.md) |
 
 ### Core
 
@@ -26,11 +27,12 @@ root), so they say exactly what `go doc` says; for the whole comment of anything
 | [`scene`](1-scene.md) | The retained scene: nodes, meshes, materials, instances, levels of detail, the environment (sun, sky, fog, water, wind, snow) and the overlay (labels, header, notices, a free drawing) |
 | [`viewer`](2-viewer.md) | The interactive explorer: `Run` for programs that animate, `Edit` for programs that change the scene in answer to the person; options and flags |
 | [`input`](3-input.md) | A snapshot of the keyboard, mouse and touch screen at each step; claims, the clipboard, the pointer's shape, frames asked for |
-| [`camera`](4-camera.md) | Orbit, walking and map controllers; the ray through a pixel |
+| [`camera`](4-camera.md) | The `Camera`; orbit, walking and map controllers; the ray through a pixel |
 | [`draw2d`](5-draw2d.md) | A list of flat shapes in layout pixels, which the backends paint over everything |
 | [`loaders`](6-loaders.md) | glTF 2.0 with the renderer's extras |
 | [`graphics`](7-graphics.md) | `Vector`, `Matrix`, transformations and projections |
-| [`models`](8-models.md) | The application loop (`Application`), the camera, and the immediate-mode `Renderer` contract |
+| [`window`](8-window.md) | A program in a window: its `Options`, its `Callbacks` (update, draw) and the `Application` they make |
+| [`immediate`](22-immediate.md) | The immediate-mode `Renderer` contract: shapes drawn at once, every frame |
 | [`scene/sample`](9-scene-sample.md) | A made-up island that uses every feature, needing no files |
 | [`failure`](18-failure.md) | Error codes: `Define`, `Wrap`, checked with `errors.Is` |
 

@@ -28,7 +28,7 @@ A `scene.Label` floats above something in the world:
 | `Text` | A short text, cut with "…" when it is very long |
 | `Icon` | The name of a [Lucide](https://lucide.dev/icons) icon (`anchor`, `sailboat`, `clock`…), drawn before the text or alone in a circle |
 | `Badge` | A very short text in a small pill under the label: `7/10`, `open` |
-| `Tint` | Colour of the icon and the badge, as on a web page (`scene.ColorFromHex("#2563eb")`); the text stays dark |
+| `Tint` | Colour of the icon and the badge, as on a web page (`draw2d.ParseHex("#2563eb")`); the text stays dark |
 | `Hidden` | Keep it, but do not draw it |
 
 ```go
@@ -87,10 +87,16 @@ The overlay is the last pass of the OpenGL scene renderer, after the scene, the 
    one draw call, in screen pixels, with alpha blending and no depth test. Pills of any width are
    built from the disc as nine pieces: four corners that keep their size and stretched edges.
 
-**Other scripts.** The Go fonts (or a program's own, `UseFonts`) have Latin, Greek and Cyrillic.
+**Fonts.** Each painter, measurer and renderer that draws text is given an `overlay.Fonts` when it
+is made: a font file for each weight, and the folders of the system's fonts. Its zero value,
+`overlay.Fonts{}`, is the default: the Go fonts and the system's usual folders. A brand's fonts go
+in the same value, so two windows can draw in two fonts, and nothing is read when the package is
+imported. Give the measurer the fonts the renderer draws with, so what is measured is what is drawn.
+
+**Other scripts.** The Go fonts (or a program's own) have Latin, Greek and Cyrillic.
 A character they lack (Chinese, Arabic, Devanagari, a symbol) is drawn with one of the system's
-fonts, as a system's own text is: `FontFolders` are Android's `/system/fonts`, or the desktop's usual
-folders. The font is found by the name of its file, which names its script (`NotoNaskhArabic`,
+fonts, as a system's own text is: `Fonts.Folders`, by default `DefaultFontFolders()`, are
+Android's `/system/fonts`, or the desktop's usual folders. The font is found by the name of its file, which names its script (`NotoNaskhArabic`,
 `NotoSansCJK`, from Go's `unicode` tables); a character of no named font is looked for in every
 file under 8 MB, the last resort. Files are read the first time a character needs them, and a font
 found is kept, shared by every painter and measurer. Letters are drawn one after another, left to
@@ -133,11 +139,11 @@ world.Overlay.Drawing = &drawing
 
 // in the update function, every step:
 drawing.Reset()
-card := draw2d.Rect{X: 24, Y: 24, Width: 220, Height: 64}
-drawing.Shadow(card, 10, 10, 3, draw2d.Hex("#14202f2e"))
-drawing.Rectangle(card, 10, draw2d.Hex("#ffffff"), draw2d.Hex("#dde3ea"), 1)
-drawing.Icon("lightbulb", 40, 48, 16, draw2d.Hex("#4a5768"))
-drawing.Text("The lamp is lit", 64, 61, 13, draw2d.Regular, draw2d.Hex("#14202f"))
+card := draw2d.Rectangle{X: 24, Y: 24, Width: 220, Height: 64}
+drawing.Shadow(card, 10, 10, 3, draw2d.MustHex("#14202f2e"))
+drawing.Rectangle(card, 10, draw2d.MustHex("#ffffff"), draw2d.MustHex("#dde3ea"), 1)
+drawing.Icon("lightbulb", 40, 48, 16, draw2d.MustHex("#4a5768"))
+drawing.Text("The lamp is lit", 64, 61, 13, draw2d.Regular, draw2d.MustHex("#14202f"))
 ```
 
 | Command | What it draws |
@@ -161,7 +167,7 @@ and text is drawn at its real pixel size. Shapes use the same atlas as the label
 and shadow pictures, cut into nine pieces), so a whole interface is still one draw call. Clipping
 is done on the processor: each rectangle is cut, and its atlas coordinates with it.
 
-To lay text out before drawing it, `overlay.NewMeasurer()` measures a line exactly as it will be
+To lay text out before drawing it, `overlay.NewMeasurer(overlay.Fonts{})` measures a line exactly as it will be
 painted (`MeasureText(text, size, weight, scale)`); it needs no graphics context. Every command, with paths and strokes, is in [drawing in 2D](9-drawing-in-2d.md). Interface
 libraries such as [Go UI](https://github.com/akrck02/go-ui) build on these two pieces.
 
@@ -192,9 +198,9 @@ A translucent panel over a busy picture reads better when what is behind it is b
 glass. `Backdrop` asks for that, just before the panel's own rectangle:
 
 ```go
-panel := draw2d.Rect{X: 24, Y: 24, Width: 280, Height: 160}
+panel := draw2d.Rectangle{X: 24, Y: 24, Width: 280, Height: 160}
 drawing.Backdrop(panel, 12, 24)                                        // blur what is behind by 24 pixels
-drawing.Rectangle(panel, 12, draw2d.Hex("#ffffff10"), draw2d.Transparent, 0) // the pane over it
+drawing.Rectangle(panel, 12, draw2d.MustHex("#ffffff10"), draw2d.Transparent, 0) // the pane over it
 ```
 
 The panel's area now shows the frame behind it, blurred, with the pane's faint white on top.
@@ -248,9 +254,9 @@ does not reach. So lights work the way Unity's 2D lights do: they are added toge
 
 ```go
 white := draw2d.Color{1, 1, 1, 1}
-drawing.Image(room, draw2d.Rect{Width: 400, Height: 240}, 0, white)        // what is lit
-drawing.PointLight(200, 120, 20, 80, draw2d.Hex("#ffeeaa"))                // full within 20 px, gone at 80
-drawing.SpriteLight(signGlow, draw2d.Rect{X: 40, Y: 30, Width: 64, Height: 32}, white)
+drawing.Image(room, draw2d.Rectangle{Width: 400, Height: 240}, 0, white)        // what is lit
+drawing.PointLight(200, 120, 20, 80, draw2d.MustHex("#ffeeaa"))                // full within 20 px, gone at 80
+drawing.SpriteLight(signGlow, draw2d.Rectangle{X: 40, Y: 30, Width: 64, Height: 32}, white)
 drawing.Lighting(draw2d.Color{0.6, 0.6, 0.8, 0.7})                         // the ambient: a dim blue
 drawing.Text("Score 10", 8, 20, 16, draw2d.Medium, white)                  // after it: unlit
 ```

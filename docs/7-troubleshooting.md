@@ -71,7 +71,7 @@ XWayland instead, unset the variable for one run:
 env -u WAYLAND_DISPLAY go run ./cmd/visor -sample island
 ```
 
-### `StartLoop must run on the main thread`
+### `windowloop.not-on-main-thread: the window loop must run on the main thread`
 
 Windows only receive their events on the program's first thread (macOS insists). Lock it in
 package `main`:

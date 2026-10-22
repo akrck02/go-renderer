@@ -46,7 +46,7 @@ turnLamp := func(world *scene.Scene, state *input.State, step float64) {
 	angle += step * 1.5 // radians per second
 	lamp.Transform = graphics.Translate(graphics.Vector{0, 8, 0, 1}).Multiply(graphics.RotateY(angle))
 }
-if err := viewer.Run(world, options, "Island", turnLamp, 0); err != nil {
+if err := viewer.Run(world, options, "Island", turnLamp); err != nil {
 	log.Fatal(err)
 }
 ```
@@ -81,7 +81,7 @@ The tree is a cone:
 // cone is a tree: a cone of a radius and a height standing on the origin.
 func cone(radius, height float32, color graphics.Vector) *scene.Mesh {
 	const sides = 8
-	mesh := &scene.Mesh{Name: "tree", Material: &scene.Material{Kind: scene.KindLit, BaseColor: color}}
+	mesh := &scene.Mesh{Name: "tree", Material: &scene.Material{Kind: scene.LitKind, BaseColor: color}}
 	mesh.Positions = append(mesh.Positions, 0, height, 0) // the tip
 	for side := range sides {
 		angle := float64(side) / sides * 2 * math.Pi

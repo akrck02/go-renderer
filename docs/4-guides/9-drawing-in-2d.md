@@ -19,8 +19,9 @@ import (
 
 	"github.com/akrck02/go-renderer/draw2d"
 	"github.com/akrck02/go-renderer/input"
-	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/opengl"
+	"github.com/akrck02/go-renderer/opengl/overlay"
+	"github.com/akrck02/go-renderer/window"
 )
 
 func init() { runtime.LockOSThread() } // windows live on the main thread
@@ -35,31 +36,31 @@ func main() {
 	tower.LineTo(4, 10)
 	tower.Close()
 
-	app := &models.Application{
-		Type: models.WindowApplication, Title: "Drawing in 2D",
-		Width: 480, Height: 240, FlatOnly: true, Input: input.NewState(),
+	app := &window.Application{
+		Options: window.Options{Title: "Drawing in 2D", Width: 480, Height: 240, FlatOnly: true},
+		Input:   input.NewState(),
 	}
-	app.Draw = func(app *models.Application) error {
+	app.Draw = func(app *window.Application) error {
 		if renderer == nil { // the OpenGL context exists from the first frame
 			var err error
-			if renderer, err = opengl.NewFlatRenderer(); err != nil {
+			if renderer, err = opengl.NewFlatRenderer(overlay.Fonts{}); err != nil {
 				return err
 			}
 		}
 		drawing.Reset()
-		card := draw2d.Rect{X: 24, Y: 24, Width: 260, Height: 64}
-		drawing.Shadow(card, 12, 12, 4, draw2d.Hex("#14202f33"))
-		drawing.Rectangle(card, 12, draw2d.Hex("#ffffff"), draw2d.Hex("#dde3ea"), 1)
-		drawing.Icon("lightbulb", 44, 48, 16, draw2d.Hex("#e0a020"))
-		drawing.Text("The lighthouse is lit", 70, 61, 14, draw2d.Medium, draw2d.Hex("#14202f"))
-		drawing.Stroke(&tower, 360, 40, 14, 3, draw2d.Hex("#14202f"))
+		card := draw2d.Rectangle{X: 24, Y: 24, Width: 260, Height: 64}
+		drawing.Shadow(card, 12, 12, 4, draw2d.MustHex("#14202f33"))
+		drawing.Rectangle(card, 12, draw2d.MustHex("#ffffff"), draw2d.MustHex("#dde3ea"), 1)
+		drawing.Icon("lightbulb", 44, 48, 16, draw2d.MustHex("#e0a020"))
+		drawing.Text("The lighthouse is lit", 70, 61, 14, draw2d.Medium, draw2d.MustHex("#14202f"))
+		drawing.Stroke(&tower, 360, 40, 14, 3, draw2d.MustHex("#14202f"))
 
 		state := app.Input
 		scale := float32(state.FramebufferWidth) / float32(state.WindowWidth) // 2 on a high-density screen
-		renderer.Draw(&drawing, draw2d.Hex("#eef2f6"), state.FramebufferWidth, state.FramebufferHeight, scale)
+		renderer.Draw(&drawing, draw2d.MustHex("#eef2f6"), state.FramebufferWidth, state.FramebufferHeight, scale)
 		return nil
 	}
-	if err := (&opengl.OpenGL{}).StartLoop(app); err != nil {
+	if err := (&opengl.Window{}).Run(app); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -78,7 +79,7 @@ A few things to notice:
 
 Over a 3D scene, the same list goes in `world.Overlay.Drawing` instead (see
 [the overlay](3-overlay.md#free-drawing-overlaydrawing)). In a browser, `gles.FlatRenderer` paints
-it, and on the 3DS `ctr.FlatRenderer`.
+it, and on the 3DS `nintendo3ds.FlatRenderer`.
 
 ## Rectangles, shadows, text and icons
 
@@ -87,11 +88,11 @@ These four make most interfaces. The examples of this page are in `draw2d/exampl
 
 ```go
 var drawing draw2d.List
-card := draw2d.Rect{X: 24, Y: 24, Width: 240, Height: 64}
-drawing.Shadow(card, 12, 12, 4, draw2d.Hex("#14202f33"))
-drawing.Rectangle(card, 12, draw2d.Hex("#ffffff"), draw2d.Hex("#dde3ea"), 1)
-drawing.Icon("lightbulb", 44, 48, 16, draw2d.Hex("#e0a020"))
-drawing.Text("The lighthouse is lit", 70, 61, 14, draw2d.Medium, draw2d.Hex("#14202f"))
+card := draw2d.Rectangle{X: 24, Y: 24, Width: 240, Height: 64}
+drawing.Shadow(card, 12, 12, 4, draw2d.MustHex("#14202f33"))
+drawing.Rectangle(card, 12, draw2d.MustHex("#ffffff"), draw2d.MustHex("#dde3ea"), 1)
+drawing.Icon("lightbulb", 44, 48, 16, draw2d.MustHex("#e0a020"))
+drawing.Text("The lighthouse is lit", 70, 61, 14, draw2d.Medium, draw2d.MustHex("#14202f"))
 fmt.Println(len(drawing.Commands), "commands") // 4 commands
 ```
 
@@ -102,7 +103,7 @@ fmt.Println(len(drawing.Commands), "commands") // 4 commands
 | `Icon(name, x, y, size, colour)` | A [Lucide](https://lucide.dev) icon in a square |
 | `Text(text, x, baseline, size, weight, colour)` | One line of text; `y` is its baseline, not its top |
 
-Put the shadow first: later commands cover earlier ones. Colours come from `draw2d.Hex`, with an
+Put the shadow first: later commands cover earlier ones. Colours come from `draw2d.MustHex`, with an
 optional opacity as the last two digits.
 
 ## Clips and layers
@@ -112,16 +113,16 @@ order it was added in: menus and tooltips use it.
 
 ```go
 var drawing draw2d.List
-box := draw2d.Rect{X: 24, Y: 120, Width: 120, Height: 32}
-drawing.Rectangle(box, 6, draw2d.Hex("#f4f6f8"), draw2d.Transparent, 0)
+box := draw2d.Rectangle{X: 24, Y: 120, Width: 120, Height: 32}
+drawing.Rectangle(box, 6, draw2d.MustHex("#f4f6f8"), draw2d.Transparent, 0)
 drawing.PushClip(box.Inset(8))
-drawing.Text("A line too long for its box", 32, 141, 13, draw2d.Regular, draw2d.Hex("#14202f"))
+drawing.Text("A line too long for its box", 32, 141, 13, draw2d.Regular, draw2d.MustHex("#14202f"))
 drawing.PopClip()
 
 drawing.SetLayer(1) // drawn over layer 0, whatever comes after
-tip := draw2d.Rect{X: 100, Y: 100, Width: 90, Height: 26}
-drawing.Rectangle(tip, 4, draw2d.Hex("#14202f"), draw2d.Transparent, 0)
-drawing.Text("Lighthouse", 108, 117, 12, draw2d.Regular, draw2d.Hex("#ffffff"))
+tip := draw2d.Rectangle{X: 100, Y: 100, Width: 90, Height: 26}
+drawing.Rectangle(tip, 4, draw2d.MustHex("#14202f"), draw2d.Transparent, 0)
+drawing.Text("Lighthouse", 108, 117, 12, draw2d.Regular, draw2d.MustHex("#ffffff"))
 fmt.Println(drawing.Commands[1].HasClip, drawing.Commands[3].Layer) // true 1
 ```
 
@@ -147,7 +148,7 @@ for y := range side {
 
 var drawing draw2d.List
 white := draw2d.Color{1, 1, 1, 1} // a white tint shows the picture as it is
-drawing.Image(tiles, draw2d.Rect{X: 24, Y: 24, Width: 64, Height: 64}, 8, white)
+drawing.Image(tiles, draw2d.Rectangle{X: 24, Y: 24, Width: 64, Height: 64}, 8, white)
 ```
 
 After changing its pixels, call `tiles.Changed()` so the renderer uploads them again (a video's
@@ -171,8 +172,8 @@ var sun draw2d.Path
 sun.Circle(0, 0, 1)
 
 var drawing draw2d.List
-drawing.Stroke(&tower, 40, 30, 12, 3, draw2d.Hex("#14202f")) // 12 layout pixels a metre
-drawing.Stroke(&sun, 120, 40, 10, 2, draw2d.Hex("#e0a020"))
+drawing.Stroke(&tower, 40, 30, 12, 3, draw2d.MustHex("#14202f")) // 12 layout pixels a metre
+drawing.Stroke(&sun, 120, 40, 10, 2, draw2d.MustHex("#e0a020"))
 fmt.Println(tower.Bounds()) // {0 0 4 10}
 ```
 

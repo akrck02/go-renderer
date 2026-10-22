@@ -13,7 +13,7 @@ canvas) share them, so an application advances the same way everywhere.
 
 | Function | |
 |---|---|
-| `func RunUpdateStep(app *models.Application, step float64) error` | RunUpdateStep calls the application update once and clears the per-step input deltas. |
+| `func RunUpdateStep(app *window.Application, step float64) error` | RunUpdateStep calls the application update once and clears the per-step input deltas. |
 
 ### Clock
 
@@ -28,11 +28,11 @@ type Clock struct {
 | Function or method | |
 |---|---|
 | `func NewClock(step float64) *Clock` | NewClock makes a clock of step seconds (1/60 when 0). |
-| `func (clock *Clock) Advance(app *models.Application) error` | Advance runs as many update steps as the elapsed time requires (at most a quarter of a second worth, so a stall does not trigger a long catch-up). |
-| `func (clock *Clock) BorrowStep(app *models.Application) error` | BorrowStep runs one update step now, taken from the time of the next one: for a frame that has to be laid out again (the window changed size) before a step is due. |
+| `func (clock *Clock) Advance(app *window.Application) error` | Advance runs as many update steps as the elapsed time requires (at most a quarter of a second worth, so a stall does not trigger a long catch-up). |
+| `func (clock *Clock) BorrowStep(app *window.Application) error` | BorrowStep runs one update step now, taken from the time of the next one: for a frame that has to be laid out again (the window changed size) before a step is due. |
 | `func (clock *Clock) SleepUntilNextStep()` | SleepUntilNextStep waits until the next update step is due. |
 | `func (clock *Clock) Step() float64` | Step is the clock's time step in seconds. |
-| `func (clock *Clock) StepOnce(app *models.Application) error` | StepOnce runs exactly one update step and restarts the clock from now: a loop that draws on demand runs one step per frame, and after a long sleep the clock would otherwise catch up in a burst. |
+| `func (clock *Clock) StepOnce(app *window.Application) error` | StepOnce runs exactly one update step and restarts the clock from now: a loop that draws on demand runs one step per frame, and after a long sleep the clock would otherwise catch up in a burst. |
 | `func (clock *Clock) Steps() int` | Steps is the number of update steps run so far. |
 | `func (clock *Clock) UntilNextStep() time.Duration` | UntilNextStep is how long until the next update step is due. |
 

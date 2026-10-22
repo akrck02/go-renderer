@@ -201,7 +201,7 @@ func main() {
 	plantForest(world, forest.Instances, 300)
 
 	// Lesson 3: the sea, fog, wind and clouds; the lamp glows and the trees sway.
-	lamp.Mesh.Material.Kind = scene.KindGlow
+	lamp.Mesh.Material.Kind = scene.GlowKind
 	forest.Mesh.Material.Sway = 0.3
 	world.Environment.Water = &scene.Water{
 		Level:   1,
@@ -285,12 +285,12 @@ func treeCount(forest *scene.Instances) string {
 // drawWindCard paints a card in the bottom-left corner with the wind's strength.
 func drawWindCard(drawing *draw2d.List, strength float32) {
 	drawing.Reset()
-	card := draw2d.Rect{X: 16, Y: 380, Width: 180, Height: 52}
-	drawing.Shadow(card, 12, 10, 3, draw2d.Hex("#00000040"))
-	drawing.Rectangle(card, 12, draw2d.Hex("#ffffff"), draw2d.Transparent, 0)
-	drawing.Icon("wind", card.X+14, card.Y+14, 24, draw2d.Hex("#3b6ea5"))
-	drawing.Text("Wind", card.X+50, card.Y+22, 13, draw2d.Bold, draw2d.Hex("#1f2933"))
-	drawing.Text(fmt.Sprintf("strength %.1f", strength), card.X+50, card.Y+40, 12, draw2d.Regular, draw2d.Hex("#52606d"))
+	card := draw2d.Rectangle{X: 16, Y: 380, Width: 180, Height: 52}
+	drawing.Shadow(card, 12, 10, 3, draw2d.MustHex("#00000040"))
+	drawing.Rectangle(card, 12, draw2d.MustHex("#ffffff"), draw2d.Transparent, 0)
+	drawing.Icon("wind", card.X+14, card.Y+14, 24, draw2d.MustHex("#3b6ea5"))
+	drawing.Text("Wind", card.X+50, card.Y+22, 13, draw2d.Bold, draw2d.MustHex("#1f2933"))
+	drawing.Text(fmt.Sprintf("strength %.1f", strength), card.X+50, card.Y+40, 12, draw2d.Regular, draw2d.MustHex("#52606d"))
 }
 
 // hill is a round island: a grid of side × side cells, highest in the middle and under the sea at
@@ -300,7 +300,7 @@ func hill(side int, height float32) *scene.Mesh {
 		Name:   "hill",
 		Ground: true,
 		Material: &scene.Material{
-			Kind:         scene.KindLit,
+			Kind:         scene.LitKind,
 			BaseColor:    graphics.Vector{0.45, 0.6, 0.3, 1},
 			Pattern:      scene.PatternGrass,
 			PatternScale: 1,
@@ -335,7 +335,7 @@ func box(width, height, depth float32, color graphics.Vector) *scene.Mesh {
 		{-x, height, -z}, {x, height, -z}, {x, height, z}, {-x, height, z}, // top
 	}
 	faces := [6][4]int{{0, 1, 2, 3}, {7, 6, 5, 4}, {3, 2, 6, 7}, {1, 0, 4, 5}, {2, 1, 5, 6}, {0, 3, 7, 4}}
-	mesh := &scene.Mesh{Name: "box", Material: &scene.Material{Kind: scene.KindLit, BaseColor: color}}
+	mesh := &scene.Mesh{Name: "box", Material: &scene.Material{Kind: scene.LitKind, BaseColor: color}}
 	for _, face := range faces {
 		first := uint32(len(mesh.Positions) / 3)
 		for _, corner := range face {
@@ -350,7 +350,7 @@ func box(width, height, depth float32, color graphics.Vector) *scene.Mesh {
 // cone is a tree: a cone of a radius and a height standing on the origin.
 func cone(radius, height float32, color graphics.Vector) *scene.Mesh {
 	const sides = 8
-	mesh := &scene.Mesh{Name: "tree", Material: &scene.Material{Kind: scene.KindLit, BaseColor: color}}
+	mesh := &scene.Mesh{Name: "tree", Material: &scene.Material{Kind: scene.LitKind, BaseColor: color}}
 	mesh.Positions = append(mesh.Positions, 0, height, 0) // the tip
 	for side := range sides {
 		angle := float64(side) / sides * 2 * math.Pi

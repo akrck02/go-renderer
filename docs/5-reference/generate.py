@@ -25,7 +25,8 @@ PACKAGES = [
     ("draw2d", "5-draw2d.md", "", "", "core"),
     ("loaders", "6-loaders.md", "", "", "core"),
     ("graphics", "7-graphics.md", "", "", "core"),
-    ("models", "8-models.md", "", "", "core"),
+    ("window", "8-window.md", "", "", "core"),
+    ("immediate", "22-immediate.md", "", "", "core"),
     ("scene/sample", "9-scene-sample.md", "", "", "core"),
     ("opengl", "16-opengl.md", "", "", "platform"),
     ("opengl/overlay", "15-opengl-overlay.md", "", "", "platform"),
@@ -145,6 +146,7 @@ def write_page(folder, page, goos, goarch):
     environment = dict(os.environ)
     if goos:
         environment["GOOS"], environment["GOARCH"] = goos, goarch
+        environment["CGO_ENABLED"] = "1"  # without it, go doc leaves out the files that use cgo
     output = subprocess.run(["go", "doc", "-all", "./" + folder], capture_output=True, text=True,
                             check=True, env=environment).stdout
     body = render_output(output)
