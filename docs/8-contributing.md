@@ -17,7 +17,8 @@ Each folder is one idea, and dependencies point one way: the scene knows nothing
 | `metal` | The Metal backend on macOS (Objective-C) | cgo, macOS |
 | `gles`, `browser`, `android` | OpenGL ES renderers, the web page, the Android activity | WebAssembly or the NDK |
 | `ctr` | The Nintendo 3DS, through citro3d | TinyGo |
-| `software`, `vulkan`, `webgpu` | Backends of the immediate-mode contract, not finished | — |
+| `software`, `vulkan`, `webgpu` | Backends of the immediate-mode contract, to be built later: every function returns `<backend>.not-implemented` | — |
+| `failure` | Error codes shared by every package | — |
 | `viewer`, `cmd/…` | The viewer and the programs | cgo |
 | `docs/` | These pages; `docs/5-reference` is generated | — |
 

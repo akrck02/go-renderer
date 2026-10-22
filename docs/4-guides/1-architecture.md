@@ -22,7 +22,9 @@ scene, and it shows the result.
 |---|---|
 | `graphics` | Vectors, matrices, coordinate spaces and transformations; the shader sources |
 | `models` | The application loop (`Application`, a fixed time step before every frame), the `Renderer` contract and the backend enumeration |
-| `software`, `opengl`, `vulkan`, `metal`, `webgpu` | Backends behind the contract; OpenGL is the complete one. `metal` also has `FlatWindow` and `FlatRenderer`, which draw a flat interface through Metal on macOS ([design](7-metal.md)) |
+| `opengl`, `metal` | Backends behind the contract; OpenGL is the complete one. `metal` also has `FlatWindow` and `FlatRenderer`, which draw a flat interface through Metal on macOS ([design](7-metal.md)) |
+| `software`, `vulkan`, `webgpu` | Backends behind the contract that will be built later. Until then every function returns its package's `NotImplemented` code (`software.not-implemented`, `vulkan.not-implemented`, `webgpu.not-implemented`), checked with `errors.Is` |
+| `failure` | Error codes: `failure.Define` declares one, `failure.Wrap` adds details; check them with `errors.Is` |
 | `sceneplan` | Decides what a frame of a scene draws, for any backend: the draw commands in order, culling and levels of detail, instance batches, where the shadow and seabed maps look |
 | `scene/sample` | A made-up island that uses every feature the renderers draw, for tests and comparisons |
 | `gles` | Renderers written once for OpenGL ES (WebGL2 in browsers, Android): a flat `FlatRenderer` and a simple `SceneRenderer`, over a small interface each platform implements ([in a browser](5-web.md)) |

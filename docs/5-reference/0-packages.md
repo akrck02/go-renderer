@@ -32,6 +32,7 @@ root), so they say exactly what `go doc` says; for the whole comment of anything
 | [`graphics`](7-graphics.md) | `Vec4`, `Mat4`, transformations and projections, the shaders' sources |
 | [`models`](8-models.md) | The application loop (`Application`), the camera, and the immediate-mode `Renderer` contract |
 | [`scene/sample`](9-scene-sample.md) | A made-up island that uses every feature, needing no files |
+| [`failure`](19-failure.md) | Error codes: `Define`, `Wrap`, checked with `errors.Is` |
 
 ### Platforms and internals
 
@@ -48,6 +49,7 @@ Programs rarely use these directly: `viewer` and go-ui's `window` choose and dri
 | [`windowloop`](18-windowloop.md) | The GLFW window loop OpenGL and Metal share |
 | [`frameloop`](12-frameloop.md) | The fixed-step clock every loop shares |
 | [`sceneplan`](17-sceneplan.md) | What a frame of a scene draws, worked out once for every backend |
+| [`software`](20-software.md), [`vulkan`](21-vulkan.md), [`webgpu`](22-webgpu.md) | Backends of the immediate-mode contract, to be built later: every function returns `<backend>.not-implemented` |
 
 ## Conventions
 
