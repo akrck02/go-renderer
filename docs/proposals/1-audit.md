@@ -1,7 +1,8 @@
 # 1. The audit before 1.0
 
-> Part of [proposal 1](1-towards-version-1.md), task T3 · Written 2026-10-22 · **Awaits the
-> author:** each package's plan is approved (or changed) by him before T4 rewrites it.
+> Part of [proposal 1](1-towards-version-1.md), task T3 · Written 2026-10-22 · **Author's
+> approval:** phases A and B of the [order proposed](#order-proposed) ☑ (2026-10-22, "Si"), for
+> every package below; phases C and D await him.
 
 ## How it was done
 
@@ -118,6 +119,8 @@ outside.
 
 ## graphics ✋
 
+> **Phases A and B approved** (2026-10-22). The hand-written code here waits for phase D: A and B touch only its AI-written parts.
+
 Hand-written maths (`transformations.go`, `space.go`, `shaders.go`), extended by AI with shader
 sources for every backend (`scene_shaders.go`, `overlay_shaders.go`, `light_shaders.go`,
 `backdrop_shaders.go`). 46 % tested.
@@ -148,6 +151,8 @@ graphics.SceneVertexShader                  (inside opengl)
 
 ## models ✋
 
+> **Phases A and B approved** (2026-10-22). The hand-written code here waits for phase D: A and B touch only its AI-written parts.
+
 The immediate-mode contract (`Renderer`, `GraphicsApi`, `Mesh`, `Model`) and `Application` and
 `Camera`. Hand-written, extended by AI (`DrawOnDemand`, `Unchanged`, `FlatOnly`, `Input`…). 0 tests.
 
@@ -177,6 +182,8 @@ app := &models.Application{            app := &window.Application{
 
 ## Root `main.go` ✋
 
+> **Phases A and B approved** (2026-10-22). The hand-written code here waits for phase D: A and B touch only its AI-written parts.
+
 | Severity | Where | What and why | What to do |
 |---|---|---|---|
 | medium ✋ | `main.go:47,71` | `panic` where a `main` should print and exit | `log.Fatal` (allowed in `main`) |
@@ -187,11 +194,15 @@ app := &models.Application{            app := &window.Application{
 
 ## software, vulkan, webgpu ✋ (listed only)
 
+> **Phases A and B approved** (2026-10-22). The hand-written code here waits for phase D: A and B touch only its AI-written parts.
+
 Since T1 each function returns `<backend>.not-implemented`, tested. Not judged for rewrite. Note
 for the author: `SetMatrices` returns nothing, so it cannot say it is not implemented; and the
 empty `window.go` files could go.
 
 ## metal
+
+> **Phases A and B approved** (2026-10-22).
 
 AI-written renderers (`FlatWindow`, `FlatRenderer`, `SceneWindow`, `SceneRenderer`, the Objective-C
 and the shaders) beside the hand-written stubs `metal.go`, `renderer.go`, `window.go` ✋. 35 %
@@ -208,6 +219,8 @@ tested on Linux (the darwin files cannot run here).
 **Plan.** Codes (S), T6 (S, on the author's Mac). The stubs: the author's decision.
 
 ## opengl
+
+> **Phases A and B approved** (2026-10-22).
 
 The OpenGL 4.1 backend: the immediate-mode window (✋ `opengl.go`, `renderer.go`, `window.go`),
 the scene renderer, the flat renderer and the overlay's GPU side. 53 % tested (with a display).
@@ -233,6 +246,8 @@ names. Hand-written parts (M) wait for the author: they are where every panic an
 
 ## opengl/overlay
 
+> **Phases A and B approved** (2026-10-22).
+
 Lays out labels, notices and draw lists into quads of one atlas; fonts, emoji, icons, the measurer.
 84 % tested; the best-measured package (14 benchmarks).
 
@@ -250,6 +265,8 @@ Lays out labels, notices and draw lists into quads of one atlas; fonts, emoji, i
 
 ## sceneplan
 
+> **Phases A and B approved** (2026-10-22).
+
 What a frame of a scene draws, for every backend. 63 % tested.
 
 | Severity | Where | What and why | What to do |
@@ -265,6 +282,8 @@ What a frame of a scene draws, for every backend. 63 % tested.
 
 ## scene
 
+> **Phases A and B approved** (2026-10-22).
+
 The retained scene. 51 % tested.
 
 | Severity | Where | What and why | What to do |
@@ -279,9 +298,13 @@ The retained scene. 51 % tested.
 
 ## scene/sample
 
+> **Phases A and B approved** (2026-10-22).
+
 The made-up island. Its numbers are its content. No plan.
 
 ## draw2d
+
+> **Phases A and B approved** (2026-10-22).
 
 Flat draw lists. 90 % tested; building 300 controls costs 31 µs and allocates nothing.
 
@@ -299,6 +322,8 @@ churn.
 
 ## input
 
+> **Phases A and B approved** (2026-10-22).
+
 Keyboard, mouse, touch, pads, clipboard, cursor shape, back button. 96 % tested; reading a pad
 costs 19 ns and nothing.
 
@@ -313,6 +338,8 @@ costs 19 ns and nothing.
 
 ## camera
 
+> **Phases A and B approved** (2026-10-22).
+
 Orbit, walk and map controllers; rays through pixels. 66 % tested.
 
 | Severity | Where | What and why | What to do |
@@ -325,6 +352,8 @@ Orbit, walk and map controllers; rays through pixels. 66 % tested.
 **Plan (S).** Rename `Plan`, one float type, constants.
 
 ## loaders
+
+> **Phases A and B approved** (2026-10-22).
 
 glTF 2.0 with the renderer's extras (AI), and the first `LoadGLB` ✋. 64 % tested.
 
@@ -340,6 +369,8 @@ glTF 2.0 with the renderer's extras (AI), and the first `LoadGLB` ✋. 64 % test
 
 ## viewer
 
+> **Phases A and B approved** (2026-10-22).
+
 The explorer. 40 % tested.
 
 | Severity | Where | What and why | What to do |
@@ -354,6 +385,8 @@ The explorer. 40 % tested.
 
 ## windowloop
 
+> **Phases A and B approved** (2026-10-22).
+
 The GLFW loop OpenGL and Metal share. 5.5 % tested.
 
 | Severity | Where | What and why | What to do |
@@ -367,9 +400,13 @@ The GLFW loop OpenGL and Metal share. 5.5 % tested.
 
 ## frameloop
 
+> **Phases A and B approved** (2026-10-22).
+
 The fixed-step clock. Small, clear, tested. No plan.
 
 ## gles
+
+> **Phases A and B approved** (2026-10-22).
 
 Renderers written once for OpenGL ES (WebGL2, Android). 94 % tested.
 
@@ -379,6 +416,8 @@ Renderers written once for OpenGL ES (WebGL2, Android). 94 % tested.
 | low | `program.go` | 2 text errors | codes |
 
 ## android
+
+> **Phases A and B approved** (2026-10-22).
 
 The NativeActivity: window, touches, keyboard, screen reader, and platform services.
 
@@ -393,6 +432,8 @@ The NativeActivity: window, touches, keyboard, screen reader, and platform servi
 
 ## browser
 
+> **Phases A and B approved** (2026-10-22).
+
 The canvas and loop for WebAssembly.
 
 | Severity | Where | What and why | What to do |
@@ -402,6 +443,8 @@ The canvas and loop for WebAssembly.
 | low | `canvas.go:307` | `ClipboardText` without comment | comment |
 
 ## ctr
+
+> **Phases A and B approved** (2026-10-22).
 
 The 3DS: screens, controls, flat and scene renderers. 93 % tested on the host.
 
@@ -418,6 +461,8 @@ The 3DS: screens, controls, flat and scene renderers. 93 % tested on the host.
 
 ## cmd/*
 
+> **Phases A and B approved** (2026-10-22).
+
 | Severity | Where | What and why | What to do |
 |---|---|---|---|
 | low | `cmd/triangle3ds/main.go:36`, `island3ds/main.go:37` | `main` of 59 and 52 lines | split into `openScreens`, `loop` |
@@ -426,9 +471,13 @@ The 3DS: screens, controls, flat and scene renderers. 93 % tested on the host.
 
 ## failure
 
+> **Phases A and B approved** (2026-10-22).
+
 New in T1; copied from go-engine. Nothing to audit.
 
 ## The repository
+
+> **Phases A and B approved** (2026-10-22).
 
 | Severity | Where | What and why | What to do |
 |---|---|---|---|
@@ -437,14 +486,14 @@ New in T1; copied from go-engine. Nothing to audit.
 
 ## Order proposed
 
-1. **No breaking change, frame cost first** (S each): the four allocations to zero
+1. **A — No breaking change, frame cost first** ☑ approved (S each): the four allocations to zero
    (`sceneplan`, `opengl/overlay`, `opengl`), each with an `AllocsPerRun` test; error codes in
    every AI package; no prints in AI code; test names.
-2. **Shrink the API without breaking outside** (S–M): `internal/sceneplan`, shaders to their
+2. **B — Shrink the API without breaking outside** ☑ approved (S–M): `internal/sceneplan`, shaders to their
    backends, `windowloop`'s re-exports, `overlay` fonts as an option.
-3. **Breaking, AI-written** (M each): `viewer.Run`, `input`'s backend side, `ctr` → `nintendo3ds`,
+3. **C — Breaking, AI-written** (awaits the author) (M each): `viewer.Run`, `input`'s backend side, `ctr` → `nintendo3ds`,
    `camera.Plan` → `Map`, `loaders` names, `android` services.
-4. **The author's code** (✋): `Vec4`/`Mat4`, `models`, the panics and prints of the first OpenGL
+4. **D — The author's code** (✋, awaits the author): `Vec4`/`Mat4`, `models`, the panics and prints of the first OpenGL
    work, `LoadGLB`, the Metal stub. Decided by the author, ideally together, because they are
    1.0's largest break and go-ui and go-engine should move once.
 
