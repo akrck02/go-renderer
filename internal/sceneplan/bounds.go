@@ -52,11 +52,22 @@ func (bounds box) corners() [8]graphics.Vector {
 func (bounds box) transformed(matrix graphics.Matrix, verticalScale float32) box {
 	result := emptyBox()
 	for _, corner := range bounds.corners() {
-		point := matrix.Apply(corner)
+		point := movedPoint(matrix, corner)
 		point[1] *= verticalScale
 		result.include(point)
 	}
 	return result
+}
+
+// movedPoint is matrix.Apply for a point (w = 1) whose w is not needed afterwards: the fourth
+// row is left out, a quarter of the work, for the eight corners of every box of every frame.
+func movedPoint(matrix graphics.Matrix, point graphics.Vector) graphics.Vector {
+	return graphics.Vector{
+		matrix[0]*point[0] + matrix[4]*point[1] + matrix[8]*point[2] + matrix[12],
+		matrix[1]*point[0] + matrix[5]*point[1] + matrix[9]*point[2] + matrix[13],
+		matrix[2]*point[0] + matrix[6]*point[1] + matrix[10]*point[2] + matrix[14],
+		1,
+	}
 }
 
 // grown returns the box enlarged by a margin on every side.

@@ -3,6 +3,7 @@ package overlay
 import (
 	"image"
 	"math"
+	"slices"
 	"sort"
 
 	"github.com/akrck02/go-renderer/draw2d"
@@ -35,13 +36,15 @@ func (painter *Painter) paintDrawing(list *draw2d.List, scale float32) {
 
 // drawingOrder lists the commands by layer, keeping their order within a layer.
 func (painter *Painter) drawingOrder(list *draw2d.List) []int {
-	order := painter.order[:0]
+	commands := list.Commands
+	order := slices.Grow(painter.order[:0], len(commands))[:len(commands)]
 	sorted := true
-	for index := range list.Commands {
-		order = append(order, index)
-		if index > 0 && list.Commands[index].Layer < list.Commands[index-1].Layer {
-			sorted = false
-		}
+	previousLayer := math.MinInt
+	for index := range commands {
+		order[index] = index
+		layer := commands[index].Layer
+		sorted = sorted && layer >= previousLayer
+		previousLayer = layer
 	}
 	painter.order = order
 	if sorted {
