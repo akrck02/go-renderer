@@ -1,7 +1,6 @@
 package metal
 
 import (
-	"errors"
 	"fmt"
 	"image"
 	"image/png"
@@ -76,7 +75,7 @@ type metalWindow struct {
 // run opens the window, makes its renderer and runs the loop, or captures one frame.
 func (metal *metalWindow) run(app *models.Application, makeRenderer func(*glfw.Window, bool) (capturer, error)) error {
 	if !windowloop.OnMainThread() {
-		return errors.New("metal: StartLoop must run on the main thread; call runtime.LockOSThread in an init function of package main")
+		return windowloop.NotOnMainThread
 	}
 	if err := glfw.Init(); err != nil {
 		return err
@@ -150,7 +149,7 @@ func (metal *metalWindow) capture(app *models.Application, clock *windowloop.Clo
 	}
 	picture := renderer.capturedPicture()
 	if picture == nil {
-		return errors.New("metal: the capture drew nothing")
+		return NothingCaptured
 	}
 	path := app.CapturePath
 	if path == "" {

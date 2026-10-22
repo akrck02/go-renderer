@@ -9,12 +9,12 @@ package metal
 import "C"
 
 import (
-	"fmt"
 	"image"
 	"image/draw"
 	"time"
 	"unsafe"
 
+	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/opengl/overlay"
@@ -60,10 +60,10 @@ const seabedResolution = 2048
 // NewSceneRenderer puts a Metal layer in a window made with no OpenGL context and prepares the
 // shaders, the shadow and seabed maps.
 func NewSceneRenderer(window *glfw.Window, vsync bool) (*SceneRenderer, error) {
-	var failure *C.char
-	device := C.sceneDeviceCreate(window.GetCocoaWindow(), C.int(boolean(vsync)), &failure)
+	var problem *C.char
+	device := C.sceneDeviceCreate(window.GetCocoaWindow(), C.int(boolean(vsync)), &problem)
 	if device == nil {
-		return nil, takeFailure(failure)
+		return nil, takeFailure(problem)
 	}
 	painter, err := overlay.NewPainter()
 	if err != nil {
@@ -80,18 +80,18 @@ func NewSceneRenderer(window *glfw.Window, vsync bool) (*SceneRenderer, error) {
 }
 
 // takeFailure turns a message from the Objective-C side into an error, freeing it.
-func takeFailure(failure *C.char) error {
-	defer C.free(unsafe.Pointer(failure))
-	return fmt.Errorf("%w: %s", ErrUnavailable, C.GoString(failure))
+func takeFailure(problem *C.char) error {
+	defer C.free(unsafe.Pointer(problem))
+	return failure.Wrap(Unavailable, C.GoString(problem), nil)
 }
 
 func (renderer *SceneRenderer) preparePipelines() error {
 	source := C.CString(sceneShaderSource)
 	defer C.free(unsafe.Pointer(source))
-	var failure *C.char
-	library := C.sceneLibraryCreate(renderer.device, source, &failure)
+	var problem *C.char
+	library := C.sceneLibraryCreate(renderer.device, source, &problem)
 	if library == nil {
-		return takeFailure(failure)
+		return takeFailure(problem)
 	}
 	defer C.sceneRelease(library)
 	pipelines := &renderer.pipelines
@@ -132,10 +132,10 @@ func (renderer *SceneRenderer) makePipeline(library unsafe.Pointer, vertex, frag
 		fragmentName = C.CString(fragment)
 		defer C.free(unsafe.Pointer(fragmentName))
 	}
-	var failure *C.char
-	pipeline := C.scenePipelineCreate(renderer.device, library, vertexName, fragmentName, blending, &failure)
+	var problem *C.char
+	pipeline := C.scenePipelineCreate(renderer.device, library, vertexName, fragmentName, blending, &problem)
 	if pipeline == nil {
-		return nil, takeFailure(failure)
+		return nil, takeFailure(problem)
 	}
 	return pipeline, nil
 }
