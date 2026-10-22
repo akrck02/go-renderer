@@ -1,14 +1,15 @@
 package loaders
 
 import (
-	"fmt"
 	"image"
 	_ "image/jpeg" // sky images may be JPEG
 	_ "image/png"  // or PNG
 	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 
+	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/scene"
 )
@@ -150,7 +151,7 @@ func (file *gltfFile) skyImageFromExtras(value any) (*scene.SkyImage, error) {
 func (file *gltfFile) cubeFromExtras(definition map[string]any) (*scene.SkyImage, error) {
 	paths, _ := definition["faces"].([]any)
 	if len(paths) != 6 {
-		return nil, fmt.Errorf("sky cube needs 6 faces, found %d", len(paths))
+		return nil, failure.Wrap(InvalidGLTF, "a sky cube needs 6 faces, found "+strconv.Itoa(len(paths)), nil)
 	}
 	skyImage := &scene.SkyImage{}
 	for faceNumber, path := range paths {
@@ -171,12 +172,12 @@ func (file *gltfFile) readImage(name string) (image.Image, error) {
 	}
 	reader, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("sky image: %w", err)
+		return nil, failure.Wrap(FileNotRead, "sky image "+path, err)
 	}
 	defer reader.Close()
 	decoded, _, err := image.Decode(reader)
 	if err != nil {
-		return nil, fmt.Errorf("sky image %s: %w", name, err)
+		return nil, failure.Wrap(ImageNotDecoded, "sky image "+name, err)
 	}
 	return decoded, nil
 }

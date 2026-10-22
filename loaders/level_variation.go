@@ -3,6 +3,7 @@ package loaders
 import (
 	"fmt"
 
+	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/scene"
 )
@@ -42,14 +43,14 @@ func (file *gltfFile) applyLevelVariation(environment *scene.Environment, extras
 func (file *gltfFile) readGrid(definition map[string]any, key string, variation *scene.LevelVariation) ([]float32, error) {
 	accessor, isNumber := definition[key].(float64)
 	if !isNumber {
-		return nil, fmt.Errorf("water variation: %s needs an accessor", key)
+		return nil, failure.Wrap(InvalidGLTF, "water variation: "+key+" needs an accessor", nil)
 	}
 	values, _, err := file.readAccessor(int(accessor))
 	if err != nil {
-		return nil, fmt.Errorf("water variation %s: %w", key, err)
+		return nil, failure.Wrap(InvalidGLTF, "water variation "+key, err)
 	}
 	if len(values) != variation.Columns*variation.Rows {
-		return nil, fmt.Errorf("water variation %s: %d values for %d×%d cells", key, len(values), variation.Columns, variation.Rows)
+		return nil, failure.Wrap(InvalidGLTF, fmt.Sprintf("water variation %s: %d values for %d×%d cells", key, len(values), variation.Columns, variation.Rows), nil)
 	}
 	return values, nil
 }
