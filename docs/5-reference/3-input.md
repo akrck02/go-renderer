@@ -202,6 +202,31 @@ const (
 )
 ```
 
+### PadLayout
+
+PadLayout is the naming of a pad's buttons, after the maker of the pad.
+
+```go
+type PadLayout int
+```
+
+```go
+const (
+	// XboxLayout is the default: an Xbox pad's names, the layout most pads copy.
+	XboxLayout PadLayout = iota
+	// PlayStationLayout names the face buttons ✕ ○ □ △.
+	PlayStationLayout
+	// NintendoLayout swaps A with B and X with Y, as a Nintendo pad prints them.
+	NintendoLayout
+)
+```
+
+| Function or method | |
+|---|---|
+| `func PadLayoutFromGUID(guid string) PadLayout` | PadLayoutFromGUID is the layout of a pad from its SDL-style GUID (as GLFW gives it), whose bytes 4 and 5 are the vendor, little-endian: "030000004c05…" is a Sony pad. |
+| `func PadLayoutFromName(name string) PadLayout` | PadLayoutFromName is the layout of a pad from the name a browser gives it (the Gamepad API's id), which holds the vendor: Chrome writes "… Vendor: 054c Product: 09cc)", Firefox starts with "054c-09cc-…". |
+| `func PadLayoutFromVendor(vendor uint16) PadLayout` | PadLayoutFromVendor is the layout of a pad made by a USB vendor. |
+
 ### State
 
 State is the input state for the current frame.
@@ -261,6 +286,7 @@ type State struct {
 | `func (state *State) MouseClaimed() bool` | MouseClaimed tells whether an interface claimed the mouse during this step. |
 | `func (state *State) MoveCursor(x, y float64)` | MoveCursor records a new cursor position (called by the backend). |
 | `func (state *State) PadDown(button PadButton) bool` | PadDown tells whether a game pad's button is held. |
+| `func (state *State) PadLayout() PadLayout` | PadLayout is the layout of the pad being read; XboxLayout until the backend sets another. |
 | `func (state *State) PadPressed(button PadButton) bool` | PadPressed tells whether a game pad's button went down this frame. |
 | `func (state *State) PointerLeaves()` | PointerLeaves takes the pointer off the window once this frame ends: a finger lifted from a touch screen leaves nothing under it, so no control stays lit as if a mouse rested on it. |
 | `func (state *State) PressBack()` | PressBack records the system's back: a phone's back gesture or button (called by the backend). |
@@ -273,6 +299,7 @@ type State struct {
 | `func (state *State) SetFullscreen(on bool)` | SetFullscreen asks the backend to show the window on the whole screen, or in a window again. |
 | `func (state *State) SetKey(key Key, isDown bool)` | SetKey records a key transition (called by the backend). |
 | `func (state *State) SetPadButton(button PadButton, isDown bool)` | SetPadButton records a game pad's button as held or let go; going down presses it this frame. |
+| `func (state *State) SetPadLayout(layout PadLayout)` | SetPadLayout records the layout of the pad being read; the backend sets it when a pad connects. |
 | `func (state *State) SetTouch(finger int64, x, y float64)` | SetTouch puts a finger down, or moves it (called by the backend). |
 | `func (state *State) TakeBack() bool` | TakeBack answers the system's back in this step, and tells whether there was one to answer: the part of the program the person is in goes back (a dialog closes, a screen returns to the one before) and returns true; any other part asking after it gets false. |
 | `func (state *State) TakeFrameRequest() (time.Duration, bool)` | TakeFrameRequest returns how long until the frame asked for with RequestFrame (0 when it is due) and forgets the request; false when none was made (called by the backend). |
