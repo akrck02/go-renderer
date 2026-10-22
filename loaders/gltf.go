@@ -4,10 +4,13 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 
+	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/scene"
 )
@@ -140,12 +143,16 @@ func LoadScene(path string) (*scene.Scene, error) {
 	return file.buildScene()
 }
 
-// ParseSceneGLB reads a scene from the bytes of a .glb file, as LoadScene does from its path: for
+// ReadScene reads a scene from a .glb file's content, as LoadScene does from its path: for
 // programs with no file system (a web page) or that carry their scene inside them. Its buffers
 // must be in the file, as a .glb's are.
-func ParseSceneGLB(content []byte) (*scene.Scene, error) {
+func ReadScene(reader io.Reader) (*scene.Scene, error) {
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, failure.Wrap(FileNotRead, "the .glb's content", err)
+	}
 	if !isGLBContainer(content) {
-		return nil, fmt.Errorf("not a .glb file")
+		return nil, failure.Wrap(InvalidGLTF, "not a .glb file", nil)
 	}
 	file := &gltfFile{}
 	if err := file.parseGLBContainer(content); err != nil {
@@ -153,7 +160,7 @@ func ParseSceneGLB(content []byte) (*scene.Scene, error) {
 	}
 	for _, buffer := range file.document.Buffers {
 		if buffer.URI != "" {
-			return nil, fmt.Errorf("the .glb names an external buffer (%s), which needs its folder: use LoadScene", buffer.URI)
+			return nil, failure.Wrap(InvalidGLTF, "the .glb names an external buffer ("+buffer.URI+"), which needs its folder: use LoadScene", nil)
 		}
 	}
 	return file.buildScene()
@@ -162,13 +169,13 @@ func ParseSceneGLB(content []byte) (*scene.Scene, error) {
 func readGLTFFile(path string) (*gltfFile, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, failure.Wrap(FileNotRead, path, err)
 	}
 	file := &gltfFile{directory: filepath.Dir(path)}
 	if isGLBContainer(content) {
 		err = file.parseGLBContainer(content)
 	} else {
-		err = json.Unmarshal(content, &file.document)
+		err = readDocument(content, &file.document)
 	}
 	if err != nil {
 		return nil, err
@@ -187,7 +194,7 @@ func (file *gltfFile) parseGLBContainer(content []byte) error {
 		length := int(binary.LittleEndian.Uint32(content[offset:]))
 		chunkType := binary.LittleEndian.Uint32(content[offset+4:])
 		if offset+8+length > len(content) {
-			return fmt.Errorf("glb: truncated chunk")
+			return failure.Wrap(InvalidGLTF, "a .glb chunk is cut short", nil)
 		}
 		data := content[offset+8 : offset+8+length]
 		switch chunkType {
@@ -199,7 +206,15 @@ func (file *gltfFile) parseGLBContainer(content []byte) error {
 		offset += 8 + length
 	}
 	file.buffers = [][]byte{binaryChunk}
-	return json.Unmarshal(jsonChunk, &file.document)
+	return readDocument(jsonChunk, &file.document)
+}
+
+// readDocument reads a glTF document's JSON.
+func readDocument(content []byte, document *gltfDocument) error {
+	if err := json.Unmarshal(content, document); err != nil {
+		return failure.Wrap(InvalidGLTF, "its JSON", err)
+	}
+	return nil
 }
 
 // loadExternalBuffers reads buffers stored next to a .gltf file.
@@ -210,7 +225,7 @@ func (file *gltfFile) loadExternalBuffers(directory string) error {
 		}
 		data, err := os.ReadFile(filepath.Join(directory, buffer.URI))
 		if err != nil {
-			return fmt.Errorf("gltf buffer %d: %w", bufferNumber, err)
+			return failure.Wrap(FileNotRead, "buffer "+strconv.Itoa(bufferNumber)+" ("+buffer.URI+")", err)
 		}
 		for len(file.buffers) <= bufferNumber {
 			file.buffers = append(file.buffers, nil)
@@ -223,13 +238,13 @@ func (file *gltfFile) loadExternalBuffers(directory string) error {
 // readAccessor returns the accessor values as floats and the number of components per element.
 func (file *gltfFile) readAccessor(accessorNumber int) ([]float32, int, error) {
 	if accessorNumber < 0 || accessorNumber >= len(file.document.Accessors) {
-		return nil, 0, fmt.Errorf("accessor %d out of range", accessorNumber)
+		return nil, 0, failure.Wrap(InvalidGLTF, "accessor "+strconv.Itoa(accessorNumber)+" does not exist", nil)
 	}
 	accessor := file.document.Accessors[accessorNumber]
 	components := componentsPerElement[accessor.Type]
 	componentSize := bytesPerComponent[accessor.ComponentType]
 	if components == 0 || componentSize == 0 {
-		return nil, 0, fmt.Errorf("accessor %d: unsupported %s of component type %d", accessorNumber, accessor.Type, accessor.ComponentType)
+		return nil, 0, failure.Wrap(UnsupportedAccessor, fmt.Sprintf("accessor %d: %s of component type %d", accessorNumber, accessor.Type, accessor.ComponentType), nil)
 	}
 	values := make([]float32, accessor.Count*components)
 	if accessor.BufferView == nil {
@@ -246,7 +261,7 @@ func (file *gltfFile) readAccessor(accessorNumber int) ([]float32, int, error) {
 		for component := 0; component < components; component++ {
 			offset := start + element*stride + component*componentSize
 			if offset+componentSize > len(data) {
-				return nil, 0, fmt.Errorf("accessor %d: out of buffer bounds", accessorNumber)
+				return nil, 0, failure.Wrap(InvalidGLTF, "accessor "+strconv.Itoa(accessorNumber)+" runs past its buffer", nil)
 			}
 			values[element*components+component] = readComponent(data[offset:], accessor.ComponentType, accessor.Normalized)
 		}
@@ -348,7 +363,7 @@ func (file *gltfFile) buildMaterials() []*scene.Material {
 		materials[materialNumber] = &scene.Material{
 			Name:        definition.Name,
 			Kind:        materialKindFromExtras(definition.Extras),
-			BaseColor:   vectorOrDefault(definition.PbrMetallicRoughness.BaseColorFactor, graphics.Vec4{1, 1, 1, 1}),
+			BaseColor:   vectorOrDefault(definition.PbrMetallicRoughness.BaseColorFactor, graphics.Vector{1, 1, 1, 1}),
 			DoubleSided: definition.DoubleSided,
 			Transparent: definition.AlphaMode == "BLEND",
 			Sway:        extraNumber(definition.Extras, "sway", 0),
@@ -366,15 +381,15 @@ func (file *gltfFile) buildMaterials() []*scene.Material {
 func materialKindFromExtras(extras map[string]any) scene.MaterialKind {
 	switch extras["kind"] {
 	case "unlit":
-		return scene.KindUnlit
+		return scene.UnlitKind
 	case "water":
-		return scene.KindWater
+		return scene.WaterKind
 	case "waterfall":
-		return scene.KindWaterfall
+		return scene.WaterfallKind
 	case "glow":
-		return scene.KindGlow
+		return scene.GlowKind
 	}
-	return scene.KindLit
+	return scene.LitKind
 }
 
 // buildMeshes returns, for every glTF mesh, one scene.Mesh per triangle primitive.
@@ -490,16 +505,16 @@ func (file *gltfFile) buildNode(nodeNumber int, meshes [][]*scene.Mesh) (*scene.
 	return node, nil
 }
 
-func nodeTransform(definition gltfNodeDefinition) graphics.Mat4 {
+func nodeTransform(definition gltfNodeDefinition) graphics.Matrix {
 	if len(definition.Matrix) == 16 {
-		var matrix graphics.Mat4
+		var matrix graphics.Matrix
 		copy(matrix[:], definition.Matrix)
 		return matrix
 	}
 	return graphics.FromTranslationRotationScale(
-		vectorOrDefault(definition.Translation, graphics.Vec4{}),
-		vectorOrDefault(definition.Rotation, graphics.Vec4{0, 0, 0, 1}),
-		vectorOrDefault(definition.Scale, graphics.Vec4{1, 1, 1, 1}),
+		vectorOrDefault(definition.Translation, graphics.Vector{}),
+		vectorOrDefault(definition.Rotation, graphics.Vector{0, 0, 0, 1}),
+		vectorOrDefault(definition.Scale, graphics.Vector{1, 1, 1, 1}),
 	)
 }
 
@@ -550,38 +565,38 @@ func (file *gltfFile) readInstances(extension *gltfInstancingExtension) (*scene.
 	}, nil
 }
 
-func instanceTransforms(count int, translations, rotations, scales []float32) []graphics.Mat4 {
-	transforms := make([]graphics.Mat4, count)
+func instanceTransforms(count int, translations, rotations, scales []float32) []graphics.Matrix {
+	transforms := make([]graphics.Matrix, count)
 	for instance := 0; instance < count; instance++ {
 		transforms[instance] = graphics.FromTranslationRotationScale(
-			elementOrDefault(translations, instance, 3, graphics.Vec4{}),
-			elementOrDefault(rotations, instance, 4, graphics.Vec4{0, 0, 0, 1}),
-			elementOrDefault(scales, instance, 3, graphics.Vec4{1, 1, 1, 1}),
+			elementOrDefault(translations, instance, 3, graphics.Vector{}),
+			elementOrDefault(rotations, instance, 4, graphics.Vector{0, 0, 0, 1}),
+			elementOrDefault(scales, instance, 3, graphics.Vector{1, 1, 1, 1}),
 		)
 	}
 	return transforms
 }
 
-func instanceColors(count int, colors []float32, components int) []graphics.Vec4 {
+func instanceColors(count int, colors []float32, components int) []graphics.Vector {
 	if components < 3 || len(colors) < count*components {
 		return nil
 	}
-	result := make([]graphics.Vec4, count)
+	result := make([]graphics.Vector, count)
 	for instance := 0; instance < count; instance++ {
-		result[instance] = elementOrDefault(colors, instance, components, graphics.Vec4{1, 1, 1, 1})
+		result[instance] = elementOrDefault(colors, instance, components, graphics.Vector{1, 1, 1, 1})
 	}
 	return result
 }
 
 // elementOrDefault returns element number `index` of a flat array with `size` components per element.
-func elementOrDefault(values []float32, index, size int, fallback graphics.Vec4) graphics.Vec4 {
+func elementOrDefault(values []float32, index, size int, fallback graphics.Vector) graphics.Vector {
 	if (index+1)*size > len(values) {
 		return fallback
 	}
 	return vectorOrDefault(values[index*size:(index+1)*size], fallback)
 }
 
-func vectorOrDefault(values []float32, fallback graphics.Vec4) graphics.Vec4 {
+func vectorOrDefault(values []float32, fallback graphics.Vector) graphics.Vector {
 	result := fallback
 	for component := 0; component < len(values) && component < 4; component++ {
 		result[component] = values[component]
@@ -589,7 +604,7 @@ func vectorOrDefault(values []float32, fallback graphics.Vec4) graphics.Vec4 {
 	return result
 }
 
-func extraVector(extras map[string]any, key string, fallback graphics.Vec4) graphics.Vec4 {
+func extraVector(extras map[string]any, key string, fallback graphics.Vector) graphics.Vector {
 	values, found := extras[key].([]any)
 	if !found {
 		return fallback
@@ -628,7 +643,7 @@ func applyEnvironment(environment *scene.Environment, extras map[string]any) {
 	}
 	if snow, found := extras["snow"].(map[string]any); found {
 		environment.Snow = &scene.Snow{Level: extraNumber(snow, "level", 0), Blend: extraNumber(snow, "blend", 0),
-			Color: extraVector(snow, "color", graphics.Vec4{0.92, 0.94, 0.97, 1})}
+			Color: extraVector(snow, "color", graphics.Vector{0.92, 0.94, 0.97, 1})}
 	}
 	environment.FoliageTint = extraVector(extras, "foliageTint", environment.FoliageTint)
 	if wind, found := extras["wind"].(map[string]any); found {
@@ -646,8 +661,8 @@ func applyFog(environment *scene.Environment, fog map[string]any) {
 func waterFromExtras(water map[string]any) *scene.Water {
 	return &scene.Water{
 		Level:      extraNumber(water, "level", 0),
-		Deep:       extraVector(water, "deep", graphics.Vec4{0.05, 0.22, 0.28, 0.85}),
-		Shallow:    extraVector(water, "shallow", graphics.Vec4{0.3, 0.62, 0.6, 0.5}),
+		Deep:       extraVector(water, "deep", graphics.Vector{0.05, 0.22, 0.28, 0.85}),
+		Shallow:    extraVector(water, "shallow", graphics.Vector{0.3, 0.62, 0.6, 0.5}),
 		Size:       extraNumber(water, "size", 1000),
 		WaveLength: extraNumber(water, "waveLength", 0),
 		FloorDepth: extraNumber(water, "floorDepth", 0),

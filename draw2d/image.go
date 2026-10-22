@@ -1,7 +1,6 @@
 package draw2d
 
 import (
-	"fmt"
 	"image"
 	"image/draw"
 	_ "image/gif" // the formats DecodeImage reads
@@ -9,6 +8,8 @@ import (
 	_ "image/png"
 	"io"
 	"sync/atomic"
+
+	"github.com/akrck02/go-renderer/failure"
 )
 
 // Image is a picture a list draws: a photo, a map tile, a video's frame. A program makes one for
@@ -44,7 +45,7 @@ func NewImage(picture image.Image) *Image {
 func DecodeImage(reader io.Reader) (*Image, error) {
 	picture, _, err := image.Decode(reader)
 	if err != nil {
-		return nil, fmt.Errorf("draw2d: decoding a picture: %w", err)
+		return nil, failure.Wrap(ImageNotDecoded, "", err)
 	}
 	return NewImage(picture), nil
 }

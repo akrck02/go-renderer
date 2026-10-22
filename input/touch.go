@@ -13,7 +13,8 @@ type Touch struct {
 func (state *State) Touches() []Touch { return state.touches }
 
 // SetTouch puts a finger down, or moves it (called by the backend).
-func (state *State) SetTouch(finger int64, x, y float64) {
+func (feed Feed) SetTouch(finger int64, x, y float64) {
+	state := feed.state
 	for index := range state.touches {
 		if state.touches[index].Finger == finger {
 			state.touches[index].X, state.touches[index].Y = x, y
@@ -24,7 +25,8 @@ func (state *State) SetTouch(finger int64, x, y float64) {
 }
 
 // LiftTouch takes a finger off the screen (called by the backend).
-func (state *State) LiftTouch(finger int64) {
+func (feed Feed) LiftTouch(finger int64) {
+	state := feed.state
 	for index := range state.touches {
 		if state.touches[index].Finger == finger {
 			state.touches = append(state.touches[:index], state.touches[index+1:]...)
@@ -34,7 +36,7 @@ func (state *State) LiftTouch(finger int64) {
 }
 
 // ClearTouches takes every finger off, when the system takes a gesture over (called by the backend).
-func (state *State) ClearTouches() { state.touches = state.touches[:0] }
+func (feed Feed) ClearTouches() { feed.state.touches = feed.state.touches[:0] }
 
 // TouchPointer turns fingers into the pointer every interface already understands: one finger
 // down moves the cursor and presses the left button, lifting it releases the button. A second
@@ -51,43 +53,43 @@ type TouchPointer struct {
 // Begin puts a finger down: the first becomes the pointer, a second lets it go.
 func (pointer *TouchPointer) Begin(state *State, finger int64, x, y, scale float32) {
 	pointer.fingers++
-	state.SetTouch(finger, float64(x/scale), float64(y/scale))
+	state.Feed().SetTouch(finger, float64(x/scale), float64(y/scale))
 	if pointer.fingers > 1 {
 		pointer.letGo(state)
 		return
 	}
 	pointer.finger, pointer.down = finger, true
-	state.MoveCursor(float64(x/scale), float64(y/scale))
-	state.SetButton(MouseLeft, true)
+	state.Feed().MoveCursor(float64(x/scale), float64(y/scale))
+	state.Feed().SetButton(MouseLeft, true)
 }
 
 // Move follows a finger; the pointer follows its own.
 func (pointer *TouchPointer) Move(state *State, finger int64, x, y, scale float32) {
-	state.SetTouch(finger, float64(x/scale), float64(y/scale))
+	state.Feed().SetTouch(finger, float64(x/scale), float64(y/scale))
 	if !pointer.down || finger != pointer.finger {
 		return
 	}
-	state.MoveCursor(float64(x/scale), float64(y/scale))
+	state.Feed().MoveCursor(float64(x/scale), float64(y/scale))
 }
 
 // End lifts a finger: lifting the pointer's is a click where it was.
 func (pointer *TouchPointer) End(state *State, finger int64, x, y, scale float32) {
 	pointer.fingers = max(pointer.fingers-1, 0)
-	state.LiftTouch(finger)
+	state.Feed().LiftTouch(finger)
 	if !pointer.down || finger != pointer.finger {
 		return
 	}
 	pointer.down = false
-	state.MoveCursor(float64(x/scale), float64(y/scale))
-	state.SetButton(MouseLeft, false)
-	state.PointerLeaves()
+	state.Feed().MoveCursor(float64(x/scale), float64(y/scale))
+	state.Feed().SetButton(MouseLeft, false)
+	state.Feed().PointerLeaves()
 }
 
 // Cancel lets go of every finger, when the system takes the gesture over (a swipe from the
 // screen's edge): the button is released, so nothing stays pressed.
 func (pointer *TouchPointer) Cancel(state *State) {
 	pointer.fingers = 0
-	state.ClearTouches()
+	state.Feed().ClearTouches()
 	pointer.letGo(state)
 }
 
@@ -96,8 +98,8 @@ func (pointer *TouchPointer) letGo(state *State) {
 		return
 	}
 	pointer.down = false
-	state.SetButton(MouseLeft, false)
-	state.PointerLeaves()
+	state.Feed().SetButton(MouseLeft, false)
+	state.Feed().PointerLeaves()
 }
 
 // TwoFingers follows a gesture of two fingers from one step to the next: how much they spread

@@ -4,6 +4,7 @@ import (
 	"math"
 	"sort"
 
+	"github.com/akrck02/go-renderer/draw2d"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/scene"
 )
@@ -13,7 +14,7 @@ import (
 // "pinned" becomes a line of the header instead, in the order of the numbers.
 func readOverlay(loaded *scene.Scene) {
 	var pinned []pinnedLine
-	loaded.Walk(func(node *scene.Node, world graphics.Mat4) {
+	loaded.Walk(func(node *scene.Node, world graphics.Matrix) {
 		label, found := labelFromTags(node.Tags)
 		if !found {
 			return
@@ -39,7 +40,9 @@ func labelFromTags(tags map[string]any) (*scene.Label, bool) {
 	label.Icon, _ = tags["icon"].(string)
 	label.Badge, _ = tags["badge"].(string)
 	if color, isText := tags["label_color"].(string); isText {
-		label.Tint, _ = scene.ColorFromHex(color)
+		if tint, err := draw2d.ParseHex(color); err == nil { // a colour that is not one leaves the label untinted
+			label.Tint = graphics.Vector(tint)
+		}
 	}
 	return label, !label.IsEmpty()
 }
@@ -59,6 +62,6 @@ func pinnedFromTags(tags map[string]any, label *scene.Label) (pinnedLine, bool) 
 
 // verticalScaleOf returns how much a transform stretches heights, to turn a mesh's top into world
 // units.
-func verticalScaleOf(transform graphics.Mat4) float32 {
+func verticalScaleOf(transform graphics.Matrix) float32 {
 	return float32(math.Sqrt(float64(transform[4]*transform[4] + transform[5]*transform[5] + transform[6]*transform[6])))
 }

@@ -8,177 +8,69 @@ import "github.com/akrck02/go-renderer/graphics"
 
 | Function | |
 |---|---|
-| `func AmbientLight(ambient [4]float32) [3]float32` | AmbientLight is the colour a picture of light is cleared to for an ambient colour whose alpha is its intensity: at half, as all light is kept. |
-| `func BackdropHalvings(deviation float32) int` | BackdropHalvings is how many times a snapshot is halved before it is blurred, for a standard deviation in screen pixels: until the deviation is a couple of texels, which the taps cover. |
-| `func BackdropWeights(deviation float32) [BackdropTaps + 1]float32` | BackdropWeights are the blur's weights for a standard deviation in texels: the centre's, then each tap's on one side, adding up to one over the whole kernel. |
-
-### Constants and variables
-
-```go
-const (
-	LocalSpace  = 0
-	WorldSpace  = 1
-	CameraSpace = 2
-)
-```
-
-```go
-const BackdropBlurShader = …
-```
-
-BackdropBlurShader is one pass of a separable Gaussian blur: along step, a texel is the weighted sum of itself and BackdropTaps texels on each side.
-
-```go
-const BackdropTaps = 4
-```
-
-BackdropTaps is how many texels each pass of the backdrop's blur reads on each side of a texel: with the picture shrunk first (see the backends), a few taps blur as widely as many would.
-
-```go
-const BackdropVertexShader = …
-```
-
-BackdropVertexShader covers the target with one triangle made from the vertex number alone, so a blur pass needs no vertex buffer.
-
-```go
-const ConstellationFragmentShader = …
-```
-
-ConstellationFragmentShader colors constellation lines and round stars, fading with daylight.
-
-```go
-const ConstellationVertexShader = …
-```
-
-ConstellationVertexShader places constellation stars and lines on the sky sphere: directions turn with the night sky and are drawn at the far plane around the camera.
-
-```go
-const DepthOnlyFragmentShader = …
-```
-
-DepthOnlyFragmentShader writes only depth; it pairs with SceneVertexShader for the shadow and seabed passes.
-
-```go
-const FragmentShaderSource = …
-```
-
-```go
-const LightAreaVertexShader = …
-```
-
-LightAreaVertexShader covers the area a lighting lights (in screen pixels from the top-left corner: left, top, right, bottom) with two triangles made from the vertex number alone, and passes on where the picture of light is read there.
-
-```go
-const LightFragmentShader = …
-```
-
-LightFragmentShader is how much light a light adds, at half: its colour times its intensity, times its picture for a sprite light, or for a point light full inside inner and fading smoothly to nothing at the square's inscribed circle.
-
-```go
-const LightMultiplyShader = …
-```
-
-LightMultiplyShader reads the picture of light over the area lit (drawn with LightAreaVertexShader).
-
-```go
-const LightVertexShader = …
-```
-
-LightVertexShader places a light's square, given in screen pixels from the top-left corner.
-
-```go
-const OverlayFragmentShader = …
-```
-
-OverlayFragmentShader paints the colour where the atlas (a grey coverage mask: glyphs, icons, rounded corners) covers.
-
-```go
-const OverlayVertexShader = …
-```
-
-OverlayVertexShader places the overlay's rectangles, given in screen pixels from the top-left corner, and passes on where they read the atlas and the pictures (in their pixels; a picture position below zero reads no picture) and their colour.
-
-```go
-const SceneFragmentShader = …
-```
-
-SceneFragmentShader shades by material kind: 0 lit, 1 unlit, 2 water, 3 waterfall, 4 glow; lit and glowing materials can carry a procedural surface pattern (see scene.Pattern).
-
-```go
-const SceneVertexShader = …
-```
-
-SceneVertexShader transforms meshes and GPU instances.
-
-```go
-const SharpPictureOffset = 65536
-```
-
-SharpPictureOffset marks a quad's picture position as one to read at the nearest pixel: a picture atlas is never this wide, and the vertex layout stays as it is.
-
-```go
-const SkyFragmentShader = …
-```
-
-SkyFragmentShader paints the sky for any time of day: a day gradient with the sun, a twilight glow, a night with procedural stars and a moon with phases, and a cloud layer over both.
-
-```go
-const SkyVertexShader = …
-```
-
-SkyVertexShader draws a full-screen triangle at the far plane.
-
-```go
-const VertexShaderSource = …
-```
+| `func Move(vertices []Vector, offset Vector)` | Move adds offset to every vertex, in place: it allocates nothing. |
 
 ### CoordinateSpace
+
+CoordinateSpace says which space a shape's coordinates are in.
 
 ```go
 type CoordinateSpace int
 ```
 
-### Mat4
+```go
+const (
+	// LocalSpace is the shape's own space, before the model matrix places it.
+	LocalSpace CoordinateSpace = iota
+	// WorldSpace is the scene's space, shared by every shape.
+	WorldSpace
+	// CameraSpace is the space seen from the camera, after the view matrix.
+	CameraSpace
+)
+```
 
-Mat4 represents a 4x4 matrix flattened into a column-major 16-element array. Allows direct, zero-allocation memory copying into Vulkan, OpenGL, or Metal buffers.
+The spaces a shape can be given in.
+
+### Matrix
+
+Matrix is a 4 × 4 matrix flattened into 16 values, column after column (column-major), the order OpenGL, Vulkan and Metal read. Element (row, column) is at index column*4 + row.
 
 ```go
-type Mat4 [16]float32
+type Matrix [16]float32
 ```
 
 | Function or method | |
 |---|---|
-| `func FromTranslationRotationScale(translation Vec4, rotation Vec4, scale Vec4) Mat4` | FromTranslationRotationScale builds a matrix from a translation, a rotation quaternion (x, y, z, w) and a scale. |
-| `func Identity() Mat4` | Identity returns a 4x4 identity matrix. |
-| `func LookAt(eye, center, up Vec4) Mat4` | LookAt creates a Right-Handed View Matrix. |
-| `func OrthographicOpenGL(left, right, bottom, top, near, far float32) Mat4` | OrthographicOpenGL creates an orthographic projection for OpenGL (depth mapped to [-1, 1]). |
-| `func PerspectiveMetal(fovyRad, aspect, near, far float64) Mat4` | PerspectiveMetal creates a Projection Matrix tailored for Apple's Metal API. |
-| `func PerspectiveOpenGL(fovyRad, aspect, near, far float64) Mat4` | PerspectiveOpenGL creates a Projection Matrix tailored for OpenGL. |
-| `func PerspectiveVulkan(fovyRad, aspect, near, far float64) Mat4` | PerspectiveVulkan creates a Projection Matrix tailored for Vulkan. |
-| `func Rotate(axis Vec4, rad float64) Mat4` | Rotate returns a rotation matrix around an arbitrary axis. |
-| `func RotateX(rad float64) Mat4` | RotateX returns a rotation matrix around the X axis (in radians). |
-| `func RotateY(rad float64) Mat4` | RotateY returns a rotation matrix around the Y axis (in radians). |
-| `func Scale(v Vec4) Mat4` | Scale returns a scaling matrix using a Vec4. |
-| `func Translate(v Vec4) Mat4` | Translate returns a translation matrix using a Vec4 (ignoring W component). |
-| `func (m Mat4) Apply(v Vec4) Vec4` | Apply transforms a Vec4 using the matrix (m * v). |
-| `func (m Mat4) Inverse() (Mat4, bool)` | Inverse returns the inverse of a 4x4 matrix and false when it is singular. |
-| `func (a Mat4) Multiply(b Mat4) Mat4` | Multiply multiplies two 4x4 matrices (A * B). |
+| `func FromTranslationRotationScale(translation Vector, rotation Vector, scale Vector) Matrix` | FromTranslationRotationScale returns the matrix that scales, then rotates by the quaternion rotation (x, y, z, w), then moves by translation: the order glTF nodes use. |
+| `func Identity() Matrix` | Identity returns the matrix that changes nothing: ones on the diagonal, zeros elsewhere. |
+| `func LookAt(eye, target, up Vector) Matrix` | LookAt returns the view matrix of an eye looking at target, with up saying which way is up (right-handed). |
+| `func OrthographicOpenGL(left, right, bottom, top, near, far float32) Matrix` | OrthographicOpenGL returns a projection without perspective for OpenGL: the box from (left, bottom, -near) to (right, top, -far) fills the screen, depth mapped to [-1, 1]. |
+| `func PerspectiveMetal(fieldOfViewRadians, aspect, near, far float64) Matrix` | PerspectiveMetal returns a perspective projection for Metal: y points up, as in OpenGL, and depth runs from 0 (near) to 1 (far), as in Vulkan. |
+| `func PerspectiveOpenGL(fieldOfViewRadians, aspect, near, far float64) Matrix` | PerspectiveOpenGL returns a perspective projection for OpenGL: y points up and depth runs from -1 (near) to 1 (far). |
+| `func PerspectiveVulkan(fieldOfViewRadians, aspect, near, far float64) Matrix` | PerspectiveVulkan returns a perspective projection for Vulkan: y points down and depth runs from 0 (near) to 1 (far). |
+| `func Rotate(axis Vector, radians float64) Matrix` | Rotate returns the matrix that turns points around axis (any length but zero) by radians, counter-clockwise when the axis points at the viewer. |
+| `func RotateX(radians float64) Matrix` | RotateX returns the matrix that turns points around the x axis by radians. |
+| `func RotateY(radians float64) Matrix` | RotateY returns the matrix that turns points around the y axis by radians. |
+| `func Scale(factors Vector) Matrix` | Scale returns the matrix that stretches x, y and z by the factors of factors (its w is ignored). |
+| `func Translate(offset Vector) Matrix` | Translate returns the matrix that moves points by offset (its w is ignored). |
+| `func (matrix Matrix) Apply(vector Vector) Vector` | Apply returns vector transformed by the matrix (matrix × vector). |
+| `func (matrix Matrix) Inverse() (Matrix, bool)` | Inverse returns the matrix that undoes this one, and false for a matrix that cannot be undone (its determinant is zero, as when a scale squashes an axis to nothing). |
+| `func (matrix Matrix) Multiply(other Matrix) Matrix` | Multiply returns matrix × other: the transform that applies other first, then matrix. |
 
-### Vec4
+### Vector
 
-Vec4 represents a 4D vector or 3D coordinate with padding [X, Y, Z, W]. Aligns perfectly to 16 bytes, matching GPU hardware expectations across all APIs.
+Vector is a point or a direction in 3D with a fourth value, w: [x, y, z, w]. Points carry w = 1 and directions w = 0, so one matrix can both move points and turn directions. Sixteen bytes, the size GPUs expect, so it copies into OpenGL, Vulkan or Metal buffers as it is.
 
 ```go
-type Vec4 [4]float32
+type Vector [4]float32
 ```
 
 | Function or method | |
 |---|---|
-| `func Move(vertices []Vec4, delta Vec4) []Vec4` | Move applies a translation to a slice of Vec4 vertices. |
-| `func (v Vec4) Add(other Vec4) Vec4` | Add returns a new Vec4 that is the sum of v and other. |
-| `func (v Vec4) Cross(other Vec4) Vec4` | Cross computes the 3D cross product of two Vec4 vectors (W component is ignored). |
-| `func (v Vec4) Dot(other Vec4) float32` | Dot computes the 3D dot product of two vectors (ignoring W). |
-| `func (v Vec4) Normalize() Vec4` | Normalize returns the unit vector of a Vec4. |
+| `func (vector Vector) Add(other Vector) Vector` | Add returns the sum of the two vectors, w included. |
+| `func (vector Vector) Cross(other Vector) Vector` | Cross returns the cross product of the two vectors' x, y and z: a direction square to both (w is ignored and the result's is 0). |
+| `func (vector Vector) Dot(other Vector) float32` | Dot returns the dot product of the two vectors' x, y and z (w is ignored). |
+| `func (vector Vector) Normalize() Vector` | Normalize returns the direction of the vector with a length of 1 (w becomes 0); the zero vector stays zero. |
 
 ---
 

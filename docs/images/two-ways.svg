@@ -44,10 +44,10 @@
   <text class="text" x="119.0" y="163" text-anchor="middle">models</text>
   <path class="arrow" d="M214,124 H262" marker-end="url(#arrow)"/>
   <rect class="hand" x="266" y="76" width="220" height="96" rx="10" stroke-width="1.2"/>
-  <text class="code" x="376.0" y="102" text-anchor="middle">models.Renderer</text>
+  <text class="code" x="376.0" y="102" text-anchor="middle">immediate.Renderer</text>
   <text class="title" x="376.0" y="124" text-anchor="middle">The contract</text>
   <text class="text" x="376.0" y="146" text-anchor="middle">RenderTriangle, RenderImage,</text>
-  <text class="text" x="376.0" y="163" text-anchor="middle">Render3dModel, SetMatrices</text>
+  <text class="text" x="376.0" y="163" text-anchor="middle">RenderModel, SetMatrices</text>
   <path class="arrow" d="M486,124 H534" marker-end="url(#arrow)"/>
   <rect class="hand" x="538" y="76" width="318" height="96" rx="10" stroke-width="1.2"/>
   <text class="title" x="556" y="102" text-anchor="start">Backends</text>

@@ -7,17 +7,18 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/akrck02/go-renderer/scene"
 )
 
 // writeGLB packs a glTF JSON document and a binary buffer into a .glb file.
-func writeGLB(t *testing.T, document map[string]any, binaryData []byte) string {
-	t.Helper()
+func writeGLB(test *testing.T, document map[string]any, binaryData []byte) string {
+	test.Helper()
 	jsonData, err := json.Marshal(document)
 	if err != nil {
-		t.Fatal(err)
+		test.Fatal(err)
 	}
 	for len(jsonData)%4 != 0 {
 		jsonData = append(jsonData, ' ')
@@ -32,9 +33,9 @@ func writeGLB(t *testing.T, document map[string]any, binaryData []byte) string {
 	container.Write(jsonData)
 	binary.Write(&container, binary.LittleEndian, []uint32{uint32(len(binaryData)), glbBinaryChunk})
 	container.Write(binaryData)
-	path := filepath.Join(t.TempDir(), "test.glb")
+	path := filepath.Join(test.TempDir(), "test.glb")
 	if err := os.WriteFile(path, container.Bytes(), 0o644); err != nil {
-		t.Fatal(err)
+		test.Fatal(err)
 	}
 	return path
 }
@@ -53,7 +54,7 @@ func totalLength(parts ...[]byte) int {
 	return length
 }
 
-func TestLoadSceneGroundInstancesAndExtras(t *testing.T) {
+func TestLoadSceneReadsTheGroundInstancesAndExtras(test *testing.T) {
 	// triangle on the XZ plane rising to y=10 at the far corner
 	positions := littleEndianFloats(0, 0, 0, 10, 0, 0, 0, 10, 10)
 	colors := []byte{255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255}
@@ -84,38 +85,38 @@ func TestLoadSceneGroundInstancesAndExtras(t *testing.T) {
 		},
 		"buffers": []any{map[string]any{"byteLength": len(binaryData)}},
 	}
-	loaded, err := LoadScene(writeGLB(t, document, binaryData))
+	loaded, err := LoadScene(writeGLB(test, document, binaryData))
 	if err != nil {
-		t.Fatal(err)
+		test.Fatal(err)
 	}
 	if len(loaded.Nodes) != 2 || loaded.Nodes[0].Mesh == nil {
-		t.Fatalf("unexpected nodes: %+v", loaded.Nodes)
+		test.Fatalf("unexpected nodes: %+v", loaded.Nodes)
 	}
 	terrain := loaded.Nodes[0].Mesh
 	if len(terrain.Indices) != 3 || len(terrain.Colors) != 12 || math.Abs(float64(terrain.Colors[0]-1)) > 1e-6 {
-		t.Fatalf("mesh not read correctly: %+v", terrain)
+		test.Fatalf("mesh not read correctly: %+v", terrain)
 	}
-	if terrain.Material == nil || terrain.Material.Kind != scene.KindWater || !terrain.Material.Transparent {
-		t.Fatalf("material not read: %+v", terrain.Material)
+	if terrain.Material == nil || terrain.Material.Kind != scene.WaterKind || !terrain.Material.Transparent {
+		test.Fatalf("material not read: %+v", terrain.Material)
 	}
 	trees := loaded.Nodes[1].Instances
 	if trees == nil || len(trees.Transforms) != 2 || trees.Transforms[1][12] != 2 {
-		t.Fatalf("instances not read: %+v", trees)
+		test.Fatalf("instances not read: %+v", trees)
 	}
 	if loaded.Environment.VerticalScale != 2 || loaded.Environment.Water == nil || loaded.Environment.Water.Level != 0.5 {
-		t.Fatalf("environment not read: %+v", loaded.Environment)
+		test.Fatalf("environment not read: %+v", loaded.Environment)
 	}
 	// ground height inside the triangle (the instanced node is not ground)
 	height, found := loaded.GroundHeight(1, 5)
 	if !found || math.Abs(float64(height-5)) > 1e-4 {
-		t.Fatalf("ground height = %v %v, want 5", height, found)
+		test.Fatalf("ground height = %v %v, want 5", height, found)
 	}
 	if _, found := loaded.GroundHeight(9, 9); found {
-		t.Fatal("point outside the triangle should have no ground")
+		test.Fatal("point outside the triangle should have no ground")
 	}
 }
 
-func TestASceneIsReadFromTheBytesOfAGLB(t *testing.T) {
+func TestASceneIsReadFromTheBytesOfAGLB(test *testing.T) {
 	positions := littleEndianFloats(0, 0, 0, 10, 0, 0, 0, 10, 10)
 	document := map[string]any{
 		"asset":       map[string]any{"version": "2.0"},
@@ -127,18 +128,18 @@ func TestASceneIsReadFromTheBytesOfAGLB(t *testing.T) {
 		"bufferViews": []any{map[string]any{"buffer": 0, "byteOffset": 0, "byteLength": len(positions)}},
 		"buffers":     []any{map[string]any{"byteLength": len(positions)}},
 	}
-	content, err := os.ReadFile(writeGLB(t, document, positions))
+	content, err := os.ReadFile(writeGLB(test, document, positions))
 	if err != nil {
-		t.Fatal(err)
+		test.Fatal(err)
 	}
-	loaded, err := ParseSceneGLB(content)
+	loaded, err := ReadScene(bytes.NewReader(content))
 	if err != nil {
-		t.Fatal(err)
+		test.Fatal(err)
 	}
 	if len(loaded.Nodes) != 1 || loaded.Nodes[0].Name != "triangle" || loaded.Nodes[0].Mesh.VertexCount() != 3 {
-		t.Fatalf("nodes = %+v, want the triangle", loaded.Nodes)
+		test.Fatalf("nodes = %+v, want the triangle", loaded.Nodes)
 	}
-	if _, err := ParseSceneGLB([]byte("{}")); err == nil {
-		t.Fatal("a JSON glTF was taken for a .glb")
+	if _, err := ReadScene(strings.NewReader("{}")); err == nil {
+		test.Fatal("a JSON glTF was taken for a .glb")
 	}
 }

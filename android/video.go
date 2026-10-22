@@ -10,10 +10,11 @@ package android
 import "C"
 
 import (
-	"errors"
 	"image"
 	"time"
 	"unsafe"
+
+	"github.com/akrck02/go-renderer/failure"
 )
 
 // Video decodes a film's pictures with the phone's own decoders (the NDK's MediaCodec), a step at
@@ -29,11 +30,11 @@ type Video struct {
 func OpenVideo(path string) (*Video, error) {
 	name := C.CString(path)
 	defer C.free(unsafe.Pointer(name))
-	var failure *C.char
-	handle := C.video_open(name, &failure)
+	var problem *C.char
+	handle := C.video_open(name, &problem)
 	if handle == nil {
-		defer C.free(unsafe.Pointer(failure))
-		return nil, errors.New(C.GoString(failure))
+		defer C.free(unsafe.Pointer(problem))
+		return nil, failure.Wrap(VideoNotOpened, path+": "+C.GoString(problem), nil)
 	}
 	var width, height C.int
 	C.video_size(handle, &width, &height)

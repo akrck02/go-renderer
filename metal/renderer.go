@@ -1,36 +1,43 @@
 package metal
 
 import (
-	"errors"
-
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
+	"github.com/akrck02/go-renderer/immediate"
 )
 
-type MetalRenderer struct{}
+// Renderer will draw the immediate-mode shapes (immediate.Renderer) with Metal. Until it is
+// built, every method returns NotImplemented.
+type Renderer struct{}
 
-func (MetalRenderer) RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vec4, shader *string, fill bool) error {
-	return errors.New("Graphics API not implemented yet!")
+// RenderPolygon returns NotImplemented.
+func (Renderer) RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error {
+	return NotImplemented
 }
 
-func (MetalRenderer) RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vec4, shader *string, fill bool) error {
-	return errors.New("Graphics API not implemented yet!")
+// RenderTriangle returns NotImplemented.
+func (Renderer) RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error {
+	return NotImplemented
 }
 
-func (MetalRenderer) RenderRectangle(space graphics.CoordinateSpace, coordinates graphics.Vec4, width float32, height float32, shader *string, fill bool) error {
-	return errors.New("Graphics API not implemented yet!")
+// RenderRectangle returns NotImplemented.
+func (Renderer) RenderRectangle(space graphics.CoordinateSpace, centre graphics.Vector, width float32, height float32, shader *string, fill bool) error {
+	return NotImplemented
 }
 
-func (MetalRenderer) RenderImage(space graphics.CoordinateSpace, bytes []byte, coordinates graphics.Vec4, width float32, height float32, shader *string) error {
-	return errors.New("Graphics API not implemented yet!")
+// RenderImage returns NotImplemented.
+func (Renderer) RenderImage(space graphics.CoordinateSpace, bytes []byte, centre graphics.Vector, width float32, height float32, shader *string) error {
+	return NotImplemented
 }
 
-func (MetalRenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vec4, shader *string) error {
-	return errors.New("Graphics API not implemented yet!")
+// RenderObject returns NotImplemented.
+func (Renderer) RenderObject(space graphics.CoordinateSpace, vertices []graphics.Vector, shader *string) error {
+	return NotImplemented
 }
 
-func (MetalRenderer) Render3dModel(space graphics.CoordinateSpace, model *models.Model, shader *string) error {
-	return errors.New("Graphics API not implemented yet!")
+// RenderModel returns NotImplemented.
+func (Renderer) RenderModel(space graphics.CoordinateSpace, model *immediate.Model, shader *string) error {
+	return NotImplemented
 }
 
-func (MetalRenderer) SetMatrices(projection, view, model graphics.Mat4) {}
+// SetMatrices does nothing yet: it has no error to return.
+func (Renderer) SetMatrices(projection, view, model graphics.Matrix) {}

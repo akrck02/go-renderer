@@ -7,7 +7,7 @@ program.
 
 | Mission | Pieces | Time |
 |---|---|---|
-| The island from a file | `loaders.LoadScene`, extras, `ParseSceneGLB` | 10 min |
+| The island from a file | `loaders.LoadScene`, extras, `ReadScene` | 10 min |
 
 #### The idea
 
@@ -27,7 +27,7 @@ world, err := loaders.LoadScene("island.glb")
 if err != nil {
 	log.Fatal(err)
 }
-viewer.Run(world, options, "Island", nil, 0)
+viewer.Run(world, options, "Island", nil)
 ```
 
 That is the whole of `cmd/visor`, give or take its flags: `go run ./cmd/visor island.glb` opens
@@ -89,13 +89,14 @@ lamp := findNode(world.Nodes, "lamp")
 
 ## Carrying the scene inside the program
 
-A program for a web page or a phone has no files beside it. Embed the `.glb` and parse its bytes:
+A program for a web page or a phone has no files beside it. Embed the `.glb` and read it from its
+bytes (`ReadScene` takes any `io.Reader`):
 
 ```go
 //go:embed island.glb
 var islandFile []byte
 
-world, err := loaders.ParseSceneGLB(islandFile)
+world, err := loaders.ReadScene(bytes.NewReader(islandFile))
 ```
 
 The buffers must be inside the file, as a `.glb`'s are; a `.gltf` with separate `.bin` files needs
@@ -109,7 +110,7 @@ The buffers must be inside the file, as a `.glb`'s are; a `.gltf` with separate 
 
 ## What you learnt
 
-- `loaders.LoadScene` opens a `.glb` or `.gltf`; `ParseSceneGLB` reads embedded bytes.
+- `loaders.LoadScene` opens a `.glb` or `.gltf`; `ReadScene` reads embedded bytes.
 - Extras carry what glTF cannot: the environment, the ground, material kinds, labels.
 - A loaded scene is an ordinary `scene.Scene`: find nodes by name and change them.
 
@@ -128,17 +129,17 @@ Try it on your own first, then compare with the solution.
 
 ```go
 height, _ := world.GroundHeight(18, 0)
-second := &scene.Node{Name: "east lighthouse", Transform: graphics.Translate(graphics.Vec4{18, height, 0, 1}),
-	Mesh: box(1.5, 5, 1.5, graphics.Vec4{0.75, 0.2, 0.15, 1})}
-secondLamp := &scene.Node{Name: "east lamp", Transform: graphics.Translate(graphics.Vec4{0, 5, 0, 1}),
-	Mesh: box(2, 0.4, 0.4, graphics.Vec4{1, 0.85, 0.3, 1})}
-secondLamp.Mesh.Material.Kind = scene.KindGlow
+second := &scene.Node{Name: "east lighthouse", Transform: graphics.Translate(graphics.Vector{18, height, 0, 1}),
+	Mesh: box(1.5, 5, 1.5, graphics.Vector{0.75, 0.2, 0.15, 1})}
+secondLamp := &scene.Node{Name: "east lamp", Transform: graphics.Translate(graphics.Vector{0, 5, 0, 1}),
+	Mesh: box(2, 0.4, 0.4, graphics.Vector{1, 0.85, 0.3, 1})}
+secondLamp.Mesh.Material.Kind = scene.GlowKind
 second.Children = append(second.Children, secondLamp)
 world.Nodes = append(world.Nodes, second)
 world.Overlay.AddLabel(&scene.Label{Node: second, Height: 6, Icon: "lightbulb", Text: "East Light"})
 
 // in the edit function, after the first lamp:
-secondLamp.Transform = graphics.Translate(graphics.Vec4{0, 5, 0, 1}).Multiply(graphics.RotateY(-angle))
+secondLamp.Transform = graphics.Translate(graphics.Vector{0, 5, 0, 1}).Multiply(graphics.RotateY(-angle))
 ```
 
 </details>

@@ -43,18 +43,22 @@ import (
 // Use it only from that thread, inside the drawing function Run calls.
 type GL struct{}
 
+// CreateShader implements gles.Functions.
 func (GL) CreateShader(stage gles.Enum) gles.Shader {
 	return gles.Shader(C.glCreateShader(C.GLenum(stage)))
 }
 
-func (GL) ShaderSource(shader gles.Shader, source string) {
+// SetShaderSource implements gles.Functions.
+func (GL) SetShaderSource(shader gles.Shader, source string) {
 	text := C.CString(source)
 	defer C.free(unsafe.Pointer(text))
 	C.shader_source(C.GLuint(shader), text, C.GLint(len(source)))
 }
 
+// CompileShader implements gles.Functions.
 func (GL) CompileShader(shader gles.Shader) { C.glCompileShader(C.GLuint(shader)) }
 
+// ShaderCompiled implements gles.Functions.
 func (GL) ShaderCompiled(shader gles.Shader) (bool, string) {
 	if C.shader_status(C.GLuint(shader), C.GL_COMPILE_STATUS) != 0 {
 		return true, ""
@@ -63,16 +67,21 @@ func (GL) ShaderCompiled(shader gles.Shader) (bool, string) {
 	return false, readLog(int(size), func(buffer *C.char) { C.shader_log(C.GLuint(shader), buffer, C.GLsizei(size)) })
 }
 
+// DeleteShader implements gles.Functions.
 func (GL) DeleteShader(shader gles.Shader) { C.glDeleteShader(C.GLuint(shader)) }
 
+// CreateProgram implements gles.Functions.
 func (GL) CreateProgram() gles.Program { return gles.Program(C.glCreateProgram()) }
 
+// AttachShader implements gles.Functions.
 func (GL) AttachShader(program gles.Program, shader gles.Shader) {
 	C.glAttachShader(C.GLuint(program), C.GLuint(shader))
 }
 
+// LinkProgram implements gles.Functions.
 func (GL) LinkProgram(program gles.Program) { C.glLinkProgram(C.GLuint(program)) }
 
+// ProgramLinked implements gles.Functions.
 func (GL) ProgramLinked(program gles.Program) (bool, string) {
 	if C.program_status(C.GLuint(program), C.GL_LINK_STATUS) != 0 {
 		return true, ""
@@ -92,55 +101,68 @@ func readLog(size int, read func(buffer *C.char)) string {
 	return C.GoString(buffer)
 }
 
-func (GL) BindAttribLocation(program gles.Program, index uint32, name string) {
+// BindAttributeLocation implements gles.Functions.
+func (GL) BindAttributeLocation(program gles.Program, index uint32, name string) {
 	text := C.CString(name)
 	defer C.free(unsafe.Pointer(text))
 	C.glBindAttribLocation(C.GLuint(program), C.GLuint(index), text)
 }
 
+// UseProgram implements gles.Functions.
 func (GL) UseProgram(program gles.Program) { C.glUseProgram(C.GLuint(program)) }
 
+// UniformLocation implements gles.Functions.
 func (GL) UniformLocation(program gles.Program, name string) gles.Uniform {
 	text := C.CString(name)
 	defer C.free(unsafe.Pointer(text))
 	return gles.Uniform(C.glGetUniformLocation(C.GLuint(program), text))
 }
 
-func (GL) Uniform1i(location gles.Uniform, value int32) {
+// SetUniformInteger implements gles.Functions.
+func (GL) SetUniformInteger(location gles.Uniform, value int32) {
 	C.glUniform1i(C.GLint(location), C.GLint(value))
 }
 
-func (GL) Uniform1f(location gles.Uniform, value float32) {
+// SetUniformFloat implements gles.Functions.
+func (GL) SetUniformFloat(location gles.Uniform, value float32) {
 	C.glUniform1f(C.GLint(location), C.GLfloat(value))
 }
 
-func (GL) Uniform2f(location gles.Uniform, first, second float32) {
+// SetUniformTwoFloats implements gles.Functions.
+func (GL) SetUniformTwoFloats(location gles.Uniform, first, second float32) {
 	C.glUniform2f(C.GLint(location), C.GLfloat(first), C.GLfloat(second))
 }
 
-func (GL) Uniform3f(location gles.Uniform, first, second, third float32) {
+// SetUniformThreeFloats implements gles.Functions.
+func (GL) SetUniformThreeFloats(location gles.Uniform, first, second, third float32) {
 	C.glUniform3f(C.GLint(location), C.GLfloat(first), C.GLfloat(second), C.GLfloat(third))
 }
 
-func (GL) Uniform4f(location gles.Uniform, first, second, third, fourth float32) {
+// SetUniformFourFloats implements gles.Functions.
+func (GL) SetUniformFourFloats(location gles.Uniform, first, second, third, fourth float32) {
 	C.glUniform4f(C.GLint(location), C.GLfloat(first), C.GLfloat(second), C.GLfloat(third), C.GLfloat(fourth))
 }
 
-func (GL) UniformMatrix3(location gles.Uniform, matrix [9]float32) {
+// SetUniformMatrix3By3 implements gles.Functions.
+func (GL) SetUniformMatrix3By3(location gles.Uniform, matrix [9]float32) {
 	C.glUniformMatrix3fv(C.GLint(location), 1, C.GL_FALSE, (*C.GLfloat)(unsafe.Pointer(&matrix[0])))
 }
 
-func (GL) UniformMatrix4(location gles.Uniform, matrix [16]float32) {
+// SetUniformMatrix4By4 implements gles.Functions.
+func (GL) SetUniformMatrix4By4(location gles.Uniform, matrix [16]float32) {
 	C.glUniformMatrix4fv(C.GLint(location), 1, C.GL_FALSE, (*C.GLfloat)(unsafe.Pointer(&matrix[0])))
 }
 
+// CreateBuffer implements gles.Functions.
 func (GL) CreateBuffer() gles.Buffer { return gles.Buffer(C.one_buffer()) }
 
+// BindBuffer implements gles.Functions.
 func (GL) BindBuffer(target gles.Enum, buffer gles.Buffer) {
 	C.glBindBuffer(C.GLenum(target), C.GLuint(buffer))
 }
 
-func (GL) BufferData(target gles.Enum, data []byte, usage gles.Enum) {
+// SetBufferData implements gles.Functions.
+func (GL) SetBufferData(target gles.Enum, data []byte, usage gles.Enum) {
 	C.glBufferData(C.GLenum(target), C.GLsizeiptr(len(data)), bytesOf(data), C.GLenum(usage))
 }
 
@@ -152,11 +174,14 @@ func bytesOf(data []byte) unsafe.Pointer {
 	return unsafe.Pointer(&data[0])
 }
 
-func (GL) EnableVertexAttribArray(index uint32) { C.glEnableVertexAttribArray(C.GLuint(index)) }
+// EnableVertexAttribute implements gles.Functions.
+func (GL) EnableVertexAttribute(index uint32) { C.glEnableVertexAttribArray(C.GLuint(index)) }
 
-func (GL) DisableVertexAttribArray(index uint32) { C.glDisableVertexAttribArray(C.GLuint(index)) }
+// DisableVertexAttribute implements gles.Functions.
+func (GL) DisableVertexAttribute(index uint32) { C.glDisableVertexAttribArray(C.GLuint(index)) }
 
-func (GL) VertexAttribPointer(index uint32, size int, kind gles.Enum, normalized bool, stride, offset int) {
+// DescribeVertexAttribute implements gles.Functions.
+func (GL) DescribeVertexAttribute(index uint32, size int, kind gles.Enum, normalized bool, stride, offset int) {
 	flag := C.GLboolean(C.GL_FALSE)
 	if normalized {
 		flag = C.GL_TRUE
@@ -164,70 +189,92 @@ func (GL) VertexAttribPointer(index uint32, size int, kind gles.Enum, normalized
 	C.attribute_layout(C.GLuint(index), C.GLint(size), C.GLenum(kind), flag, C.GLsizei(stride), C.GLintptr(offset))
 }
 
+// CreateTexture implements gles.Functions.
 func (GL) CreateTexture() gles.Texture { return gles.Texture(C.one_texture()) }
 
-func (GL) ActiveTexture(unit gles.Enum) { C.glActiveTexture(C.GLenum(unit)) }
+// SelectTextureUnit implements gles.Functions.
+func (GL) SelectTextureUnit(unit gles.Enum) { C.glActiveTexture(C.GLenum(unit)) }
 
+// BindTexture implements gles.Functions.
 func (GL) BindTexture(target gles.Enum, texture gles.Texture) {
 	C.glBindTexture(C.GLenum(target), C.GLuint(texture))
 }
 
-func (GL) TexParameteri(target, name gles.Enum, value int32) {
+// SetTextureParameter implements gles.Functions.
+func (GL) SetTextureParameter(target, name gles.Enum, value int32) {
 	C.glTexParameteri(C.GLenum(target), C.GLenum(name), C.GLint(value))
 }
 
-func (GL) PixelStorei(name gles.Enum, value int32) { C.glPixelStorei(C.GLenum(name), C.GLint(value)) }
+// SetPixelStorage implements gles.Functions.
+func (GL) SetPixelStorage(name gles.Enum, value int32) {
+	C.glPixelStorei(C.GLenum(name), C.GLint(value))
+}
 
-func (GL) TexImage2D(target gles.Enum, level int, internalFormat gles.Enum, width, height int, format, kind gles.Enum, pixels []byte) {
+// SetTextureImage implements gles.Functions.
+func (GL) SetTextureImage(target gles.Enum, level int, internalFormat gles.Enum, width, height int, format, kind gles.Enum, pixels []byte) {
 	C.glTexImage2D(C.GLenum(target), C.GLint(level), C.GLint(internalFormat), C.GLsizei(width), C.GLsizei(height), 0,
 		C.GLenum(format), C.GLenum(kind), bytesOf(pixels))
 }
 
-func (GL) CopyTexSubImage2D(target gles.Enum, level, xOffset, yOffset, x, y, width, height int) {
+// CopyFramebufferToTexture implements gles.Functions.
+func (GL) CopyFramebufferToTexture(target gles.Enum, level, xOffset, yOffset, x, y, width, height int) {
 	C.glCopyTexSubImage2D(C.GLenum(target), C.GLint(level), C.GLint(xOffset), C.GLint(yOffset), C.GLint(x), C.GLint(y),
 		C.GLsizei(width), C.GLsizei(height))
 }
 
+// DeleteTexture implements gles.Functions.
 func (GL) DeleteTexture(texture gles.Texture) { C.delete_texture(C.GLuint(texture)) }
 
+// CreateFramebuffer implements gles.Functions.
 func (GL) CreateFramebuffer() gles.Framebuffer { return gles.Framebuffer(C.one_framebuffer()) }
 
+// BindFramebuffer implements gles.Functions.
 func (GL) BindFramebuffer(target gles.Enum, framebuffer gles.Framebuffer) {
 	C.glBindFramebuffer(C.GLenum(target), C.GLuint(framebuffer))
 }
 
-func (GL) FramebufferTexture2D(target, attachment, textureTarget gles.Enum, texture gles.Texture, level int) {
+// AttachTextureToFramebuffer implements gles.Functions.
+func (GL) AttachTextureToFramebuffer(target, attachment, textureTarget gles.Enum, texture gles.Texture, level int) {
 	C.glFramebufferTexture2D(C.GLenum(target), C.GLenum(attachment), C.GLenum(textureTarget), C.GLuint(texture), C.GLint(level))
 }
 
+// DeleteFramebuffer implements gles.Functions.
 func (GL) DeleteFramebuffer(framebuffer gles.Framebuffer) {
 	C.delete_framebuffer(C.GLuint(framebuffer))
 }
 
-func (GL) TexSubImage2D(target gles.Enum, level, x, y, width, height int, format, kind gles.Enum, pixels []byte) {
+// ReplaceTexturePart implements gles.Functions.
+func (GL) ReplaceTexturePart(target gles.Enum, level, x, y, width, height int, format, kind gles.Enum, pixels []byte) {
 	C.glTexSubImage2D(C.GLenum(target), C.GLint(level), C.GLint(x), C.GLint(y), C.GLsizei(width), C.GLsizei(height),
 		C.GLenum(format), C.GLenum(kind), bytesOf(pixels))
 }
 
-func (GL) Viewport(x, y, width, height int) {
+// SetViewport implements gles.Functions.
+func (GL) SetViewport(x, y, width, height int) {
 	C.glViewport(C.GLint(x), C.GLint(y), C.GLsizei(width), C.GLsizei(height))
 }
 
-func (GL) ClearColor(red, green, blue, alpha float32) {
+// SetClearColor implements gles.Functions.
+func (GL) SetClearColor(red, green, blue, alpha float32) {
 	C.glClearColor(C.GLfloat(red), C.GLfloat(green), C.GLfloat(blue), C.GLfloat(alpha))
 }
 
+// Clear implements gles.Functions.
 func (GL) Clear(mask gles.Enum) { C.glClear(C.GLbitfield(mask)) }
 
+// Enable implements gles.Functions.
 func (GL) Enable(capability gles.Enum) { C.glEnable(C.GLenum(capability)) }
 
+// Disable implements gles.Functions.
 func (GL) Disable(capability gles.Enum) { C.glDisable(C.GLenum(capability)) }
 
-func (GL) BlendFuncSeparate(sourceColor, destinationColor, sourceAlpha, destinationAlpha gles.Enum) {
+// SetBlendFactors implements gles.Functions.
+func (GL) SetBlendFactors(sourceColor, destinationColor, sourceAlpha, destinationAlpha gles.Enum) {
 	C.glBlendFuncSeparate(C.GLenum(sourceColor), C.GLenum(destinationColor), C.GLenum(sourceAlpha), C.GLenum(destinationAlpha))
 }
 
-func (GL) DepthMask(write bool) {
+// SetDepthWrite implements gles.Functions.
+func (GL) SetDepthWrite(write bool) {
 	flag := C.GLboolean(C.GL_FALSE)
 	if write {
 		flag = C.GL_TRUE
@@ -235,12 +282,15 @@ func (GL) DepthMask(write bool) {
 	C.glDepthMask(flag)
 }
 
-func (GL) DepthFunc(function gles.Enum) { C.glDepthFunc(C.GLenum(function)) }
+// SetDepthFunction implements gles.Functions.
+func (GL) SetDepthFunction(function gles.Enum) { C.glDepthFunc(C.GLenum(function)) }
 
+// DrawArrays implements gles.Functions.
 func (GL) DrawArrays(mode gles.Enum, first, count int) {
 	C.glDrawArrays(C.GLenum(mode), C.GLint(first), C.GLsizei(count))
 }
 
+// DrawElements implements gles.Functions.
 func (GL) DrawElements(mode gles.Enum, count int, kind gles.Enum, offset int) {
 	C.draw_elements(C.GLenum(mode), C.GLsizei(count), C.GLenum(kind), C.GLintptr(offset))
 }

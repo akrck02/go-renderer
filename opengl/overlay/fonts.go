@@ -1,11 +1,13 @@
 package overlay
 
 import (
-	"fmt"
 	"image"
 	"image/draw"
 	"math"
+	"strconv"
+	"sync"
 
+	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/opengl/overlay/lucide"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/gofont/gobold"
@@ -27,18 +29,26 @@ const (
 	monoFace                    // Go Mono Bold: codes and keys (draw2d.Mono)
 )
 
-// Fonts are the TrueType or OpenType fonts text is drawn with, one per weight; an empty one keeps
-// the default (the Go fonts).
+// Fonts are what a Painter or a Measurer draws text with: the TrueType or OpenType fonts, one per
+// weight, and where the system's fonts are, for the characters they lack. The zero value is the
+// default: the Go fonts and the system's usual folders.
 type Fonts struct {
+	// Regular, Medium, Bold and Mono are a font file's bytes each; an empty one keeps the Go font
+	// of that weight.
 	Regular, Medium, Bold, Mono []byte
+	// Folders are where the system's fonts and colour emoji are looked for, for characters the
+	// fonts lack. nil is DefaultFontFolders(); an empty, non-nil list looks nowhere, and such
+	// characters are drawn as a question mark.
+	Folders []string
 }
 
-// chosen are the fonts UseFonts set.
-var chosen Fonts
-
-// UseFonts makes text draw in other fonts, such as a brand's. Call it before the first window or
-// measurer is made: painters and measurers read the fonts when they are created.
-func UseFonts(fonts Fonts) { chosen = fonts }
+// folders returns the folders to look for system fonts in.
+func (chosen Fonts) folders() []string {
+	if chosen.Folders == nil {
+		return DefaultFontFolders()
+	}
+	return chosen.Folders
+}
 
 func orDefault(chosen, fallback []byte) []byte {
 	if len(chosen) > 0 {
@@ -47,11 +57,12 @@ func orDefault(chosen, fallback []byte) []byte {
 	return fallback
 }
 
-// PrebuiltCharacters are drawn into the atlas as soon as a face is first used, so the first frames
-// with text do not stop to draw them one by one: ASCII, Latin-1 and a few common signs.
-var PrebuiltCharacters = prebuiltCharacters()
+// prebuiltCharacters are drawn into the atlas as soon as a face is first used, so the first frames
+// with text do not stop to draw them one by one: ASCII, Latin-1 and a few common signs. The list is
+// made the first time it is needed, not when the package is imported.
+var prebuiltCharacters = sync.OnceValue(listPrebuiltCharacters)
 
-func prebuiltCharacters() []rune {
+func listPrebuiltCharacters() []rune {
 	var characters []rune
 	for character := rune(0x20); character <= 0x7e; character++ {
 		characters = append(characters, character)
@@ -68,6 +79,10 @@ type fonts struct {
 	faces  map[faceKey]font.Face
 	// fallbackFaces are faces of the system's fonts, for characters the program's fonts lack
 	fallbackFaces map[fallbackKey]font.Face
+	// system and emoji are the system's fonts and colour emoji in the chosen folders, shared with
+	// every painter and measurer that looks in the same folders
+	system *fallbackFonts
+	emoji  *emojiFont
 }
 
 type fallbackKey struct {
@@ -80,14 +95,16 @@ type faceKey struct {
 	size int
 }
 
-func loadFonts() (*fonts, error) {
+func loadFonts(chosen Fonts) (*fonts, error) {
 	sources := map[faceName][]byte{textFace: orDefault(chosen.Medium, gomedium.TTF), strongFace: orDefault(chosen.Bold, gobold.TTF),
 		iconFace: lucide.Font(), regularFace: orDefault(chosen.Regular, goregular.TTF), monoFace: orDefault(chosen.Mono, gomonobold.TTF)}
-	loaded := &fonts{parsed: map[faceName]*opentype.Font{}, faces: map[faceKey]font.Face{}, fallbackFaces: map[fallbackKey]font.Face{}}
+	system, emoji := systemFontsIn(chosen.folders())
+	loaded := &fonts{parsed: map[faceName]*opentype.Font{}, faces: map[faceKey]font.Face{}, fallbackFaces: map[fallbackKey]font.Face{},
+		system: system, emoji: emoji}
 	for name, data := range sources {
 		parsed, err := opentype.Parse(data)
 		if err != nil {
-			return nil, fmt.Errorf("overlay font %d: %w", name, err)
+			return nil, failure.Wrap(FontNotRead, "face "+strconv.Itoa(int(name)), err)
 		}
 		loaded.parsed[name] = parsed
 	}
@@ -124,7 +141,7 @@ func (loaded *fonts) faceFor(name faceName, size int, character rune) font.Face 
 	if _, found := face.GlyphAdvance(character); found || name == iconFace {
 		return face
 	}
-	system := systemFonts.fontFor(character)
+	system := loaded.system.fontFor(character)
 	if system == nil {
 		return face
 	}
@@ -156,7 +173,7 @@ func (loaded *fonts) colourFor(name faceName, size int, character rune, asked bo
 			return nil, false
 		}
 	}
-	return systemEmoji.glyph(character, size)
+	return loaded.emoji.glyph(character, size)
 }
 
 // faceMetrics are the vertical measures of a face, in pixels.
@@ -219,18 +236,30 @@ func (painter *Painter) prebuild(name faceName, size int) {
 		return
 	}
 	painter.prebuilt[key] = true
-	for _, character := range PrebuiltCharacters {
+	for _, character := range prebuiltCharacters() {
 		painter.glyph(name, size, character)
 	}
 }
 
-// hasGlyph tells whether a face, or the system's fonts for it, can draw a character.
+// hasGlyph tells whether a face, or the system's fonts for it, can draw a character. The face's
+// own glyphs, nearly every character drawn, are looked up once; only a character it lacks goes on
+// to the system's fonts.
 func (loaded *fonts) hasGlyph(name faceName, size int, character rune) bool {
-	face := loaded.faceFor(name, size, character)
+	face := loaded.face(name, size)
 	if face == nil {
 		return false
 	}
-	_, found := face.GlyphAdvance(character)
+	if _, found := face.GlyphAdvance(character); found {
+		return true
+	}
+	if name == iconFace {
+		return false
+	}
+	fallback := loaded.faceFor(name, size, character)
+	if fallback == nil || fallback == face {
+		return false
+	}
+	_, found := fallback.GlyphAdvance(character)
 	return found
 }
 

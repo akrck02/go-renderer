@@ -20,8 +20,8 @@ func Island() *scene.Scene {
 	world := &scene.Scene{Environment: scene.DefaultEnvironment()}
 	environment := &world.Environment
 	environment.FogNear, environment.FogFar = 250, 900
-	environment.Snow = &scene.Snow{Level: 31.5, Blend: 1.5, Color: graphics.Vec4{0.92, 0.94, 0.98, 1}}
-	environment.FoliageTint = graphics.Vec4{0.75, 0.55, 0.2, 0.25}
+	environment.Snow = &scene.Snow{Level: 31.5, Blend: 1.5, Color: graphics.Vector{0.92, 0.94, 0.98, 1}}
+	environment.FoliageTint = graphics.Vector{0.75, 0.55, 0.2, 0.25}
 	environment.Water = &scene.Water{Level: 0, Size: 2000, Variation: tide()}
 	environment.Sky.Clouds.Coverage = 0.45
 	environment.Sky.Constellations = []scene.Constellation{plough()}
@@ -29,7 +29,7 @@ func Island() *scene.Scene {
 	terrain := terrainMesh()
 	world.Nodes = append(world.Nodes,
 		&scene.Node{Name: "terrain", Transform: graphics.Identity(), Mesh: terrain},
-		&scene.Node{Name: "river", Transform: graphics.Translate(graphics.Vec4{-30, 0, 0, 0}), Mesh: riverMesh()},
+		&scene.Node{Name: "river", Transform: graphics.Translate(graphics.Vector{-30, 0, 0, 0}), Mesh: riverMesh()},
 		&scene.Node{Name: "trees", Transform: graphics.Identity(), Mesh: treeMesh(), Instances: forest(terrain)},
 	)
 	house := houseNode()
@@ -42,7 +42,7 @@ func Island() *scene.Scene {
 // Night returns the island an hour before midnight, under the moon and the stars.
 func Night() *scene.Scene {
 	world := Island()
-	world.Environment.SunDirection = graphics.Vec4{0.3, -0.45, -0.8, 0}.Normalize()
+	world.Environment.SunDirection = graphics.Vector{0.3, -0.45, -0.8, 0}.Normalize()
 	return world
 }
 
@@ -73,7 +73,7 @@ func smoothStep(low, high, value float64) float64 {
 func terrainMesh() *scene.Mesh {
 	const divisions, size = 96, 2.4 * islandRadius
 	mesh := &scene.Mesh{Name: "terrain", Ground: true,
-		Material: &scene.Material{Name: "ground", BaseColor: graphics.Vec4{1, 1, 1, 1}, Pattern: scene.PatternGrass, PatternScale: 1.5}}
+		Material: &scene.Material{Name: "ground", BaseColor: graphics.Vector{1, 1, 1, 1}, Pattern: scene.PatternGrass, PatternScale: 1.5}}
 	for row := 0; row <= divisions; row++ {
 		for column := 0; column <= divisions; column++ {
 			x := (float64(column)/divisions - 0.5) * size
@@ -122,8 +122,8 @@ func tide() *scene.LevelVariation {
 
 // riverMesh is a thin strip of water running down to the sea, drawn a little closer than the ground.
 func riverMesh() *scene.Mesh {
-	mesh := &scene.Mesh{Name: "river", Material: &scene.Material{Name: "river", Kind: scene.KindWater,
-		BaseColor: graphics.Vec4{0.12, 0.35, 0.42, 0.8}, Transparent: true, DoubleSided: true, DepthBias: 0.002}}
+	mesh := &scene.Mesh{Name: "river", Material: &scene.Material{Name: "river", Kind: scene.WaterKind,
+		BaseColor: graphics.Vector{0.12, 0.35, 0.42, 0.8}, Transparent: true, DoubleSided: true, DepthBias: 0.002}}
 	for step := 0; step <= 12; step++ {
 		x := float64(step) * 5
 		height := float32(heightAt(x-30, 0) + 0.3)
@@ -139,7 +139,7 @@ func riverMesh() *scene.Mesh {
 
 // treeMesh is a tree one unit high with its base at the origin, with a coarser version for distance.
 func treeMesh() *scene.Mesh {
-	material := &scene.Material{Name: "leaves", BaseColor: graphics.Vec4{0.22, 0.45, 0.2, 1}, Sway: 0.25, Foliage: true}
+	material := &scene.Material{Name: "leaves", BaseColor: graphics.Vector{0.22, 0.45, 0.2, 1}, Sway: 0.25, Foliage: true}
 	fine := coneMesh("tree", 12, material)
 	coarse := coneMesh("tree far", 4, material)
 	fine.Details = []scene.DetailLevel{{Mesh: coarse, ScreenSize: 0.02}}
@@ -174,11 +174,11 @@ func forest(terrain *scene.Mesh) *scene.Instances {
 				continue // beach, rock, and the village
 			}
 			size := float32(4 + 2*math.Abs(math.Sin(x*z)))
-			transform := graphics.Translate(graphics.Vec4{float32(x), float32(height), float32(z), 0}).
-				Multiply(graphics.Scale(graphics.Vec4{size, size * 1.6, size, 1}))
+			transform := graphics.Translate(graphics.Vector{float32(x), float32(height), float32(z), 0}).
+				Multiply(graphics.Scale(graphics.Vector{size, size * 1.6, size, 1}))
 			shade := float32(0.85 + 0.3*math.Abs(math.Cos(x+z)))
 			instances.Transforms = append(instances.Transforms, transform)
-			instances.Colors = append(instances.Colors, graphics.Vec4{shade, shade, shade * 0.9, 1})
+			instances.Colors = append(instances.Colors, graphics.Vector{shade, shade, shade * 0.9, 1})
 		}
 	}
 	return instances
@@ -221,17 +221,17 @@ func villageGround() float32 { return float32(heightAt(villageX, villageZ)) }
 // houseNode is a stone house with a shingle roof and a wooden door, as children of one node.
 func houseNode() *scene.Node {
 	walls := boxMesh("walls", [3]float32{-4, 0, -3}, [3]float32{4, 5, 3},
-		&scene.Material{Name: "stone", BaseColor: graphics.Vec4{0.7, 0.66, 0.6, 1}, Pattern: scene.PatternMasonry, PatternScale: 0.5})
+		&scene.Material{Name: "stone", BaseColor: graphics.Vector{0.7, 0.66, 0.6, 1}, Pattern: scene.PatternMasonry, PatternScale: 0.5})
 	roof := &scene.Mesh{Name: "roof", Material: &scene.Material{Name: "slate",
-		BaseColor: graphics.Vec4{0.35, 0.3, 0.32, 1}, Pattern: scene.PatternShingles, PatternScale: 0.4, DoubleSided: true}}
+		BaseColor: graphics.Vector{0.35, 0.3, 0.32, 1}, Pattern: scene.PatternShingles, PatternScale: 0.4, DoubleSided: true}}
 	roof.Positions = []float32{
 		-4.4, 5, 3.4, 4.4, 5, 3.4, 4.4, 8, 0, -4.4, 5, 3.4, 4.4, 8, 0, -4.4, 8, 0,
 		4.4, 5, -3.4, -4.4, 5, -3.4, -4.4, 8, 0, 4.4, 5, -3.4, -4.4, 8, 0, 4.4, 8, 0,
 	}
 	roof.ComputeNormals()
 	door := boxMesh("door", [3]float32{-0.8, 0, 3}, [3]float32{0.8, 2.4, 3.1},
-		&scene.Material{Name: "wood", BaseColor: graphics.Vec4{0.45, 0.3, 0.18, 1}, Pattern: scene.PatternPlanks, PatternScale: 0.2})
-	house := &scene.Node{Name: "house", Transform: graphics.Translate(graphics.Vec4{20, villageGround(), 10, 0})}
+		&scene.Material{Name: "wood", BaseColor: graphics.Vector{0.45, 0.3, 0.18, 1}, Pattern: scene.PatternPlanks, PatternScale: 0.2})
+	house := &scene.Node{Name: "house", Transform: graphics.Translate(graphics.Vector{20, villageGround(), 10, 0})}
 	for _, mesh := range []*scene.Mesh{walls, roof, door} {
 		house.Children = append(house.Children, &scene.Node{Name: mesh.Name, Transform: graphics.Identity(), Mesh: mesh})
 	}
@@ -241,30 +241,30 @@ func houseNode() *scene.Node {
 // squareNode is a paved square in front of the house, plastered benches around it.
 func squareNode() *scene.Node {
 	paving := boxMesh("square", [3]float32{-8, 0, -6}, [3]float32{8, 0.2, 6},
-		&scene.Material{Name: "cobbles", BaseColor: graphics.Vec4{0.6, 0.58, 0.55, 1}, Pattern: scene.PatternCobbles, PatternScale: 0.35})
+		&scene.Material{Name: "cobbles", BaseColor: graphics.Vector{0.6, 0.58, 0.55, 1}, Pattern: scene.PatternCobbles, PatternScale: 0.35})
 	bench := boxMesh("bench", [3]float32{-3, 0, -0.4}, [3]float32{3, 0.8, 0.4},
-		&scene.Material{Name: "plaster", BaseColor: graphics.Vec4{0.85, 0.8, 0.7, 1}, Pattern: scene.PatternPlaster, PatternScale: 0.5})
-	square := &scene.Node{Name: "square", Transform: graphics.Translate(graphics.Vec4{20, villageGround() - 0.1, 20, 0}),
+		&scene.Material{Name: "plaster", BaseColor: graphics.Vector{0.85, 0.8, 0.7, 1}, Pattern: scene.PatternPlaster, PatternScale: 0.5})
+	square := &scene.Node{Name: "square", Transform: graphics.Translate(graphics.Vector{20, villageGround() - 0.1, 20, 0}),
 		Mesh: paving}
-	square.Children = append(square.Children, &scene.Node{Name: "bench", Transform: graphics.Translate(graphics.Vec4{0, 0.2, 4, 0}), Mesh: bench})
+	square.Children = append(square.Children, &scene.Node{Name: "bench", Transform: graphics.Translate(graphics.Vector{0, 0.2, 4, 0}), Mesh: bench})
 	return square
 }
 
 // lampNode is a post with a glowing lantern.
 func lampNode() *scene.Node {
 	post := boxMesh("post", [3]float32{-0.1, 0, -0.1}, [3]float32{0.1, 3, 0.1},
-		&scene.Material{Name: "iron", BaseColor: graphics.Vec4{0.15, 0.15, 0.16, 1}})
+		&scene.Material{Name: "iron", BaseColor: graphics.Vector{0.15, 0.15, 0.16, 1}})
 	lantern := boxMesh("lantern", [3]float32{-0.3, 3, -0.3}, [3]float32{0.3, 3.6, 0.3},
-		&scene.Material{Name: "light", Kind: scene.KindGlow, BaseColor: graphics.Vec4{1, 0.8, 0.4, 1}})
-	lamp := &scene.Node{Name: "lamp", Transform: graphics.Translate(graphics.Vec4{28, villageGround(), 20, 0}), Mesh: post}
+		&scene.Material{Name: "light", Kind: scene.GlowKind, BaseColor: graphics.Vector{1, 0.8, 0.4, 1}})
+	lamp := &scene.Node{Name: "lamp", Transform: graphics.Translate(graphics.Vector{28, villageGround(), 20, 0}), Mesh: post}
 	lamp.Children = append(lamp.Children, &scene.Node{Name: "lantern", Transform: graphics.Identity(), Mesh: lantern})
 	return lamp
 }
 
 // waterfallNode is a sheet of falling water down a cliff on the north side.
 func waterfallNode() *scene.Node {
-	sheet := &scene.Mesh{Name: "waterfall", Material: &scene.Material{Name: "falling water", Kind: scene.KindWaterfall,
-		BaseColor: graphics.Vec4{0.8, 0.9, 0.95, 0.7}, Transparent: true, DoubleSided: true}}
+	sheet := &scene.Mesh{Name: "waterfall", Material: &scene.Material{Name: "falling water", Kind: scene.WaterfallKind,
+		BaseColor: graphics.Vector{0.8, 0.9, 0.95, 0.7}, Transparent: true, DoubleSided: true}}
 	top := float32(heightAt(0, -40))
 	sheet.Positions = []float32{-3, top, -40, 3, top, -40, 3, 0, -48, -3, top, -40, 3, 0, -48, -3, 0, -48}
 	sheet.ComputeNormals()
@@ -274,24 +274,24 @@ func waterfallNode() *scene.Node {
 // flagNode is a flag in a flat colour on a pole by the harbour.
 func flagNode() *scene.Node {
 	flag := boxMesh("flag", [3]float32{0, 5, 0}, [3]float32{2, 6.2, 0.05},
-		&scene.Material{Name: "flag", Kind: scene.KindUnlit, BaseColor: graphics.Vec4{0.8, 0.15, 0.12, 1}})
-	return &scene.Node{Name: "flag", Transform: graphics.Translate(graphics.Vec4{12, villageGround(), 24, 0}), Mesh: flag}
+		&scene.Material{Name: "flag", Kind: scene.UnlitKind, BaseColor: graphics.Vector{0.8, 0.15, 0.12, 1}})
+	return &scene.Node{Name: "flag", Transform: graphics.Translate(graphics.Vector{12, villageGround(), 24, 0}), Mesh: flag}
 }
 
 // glassNode is a translucent glass box, a greenhouse.
 func glassNode() *scene.Node {
 	glass := boxMesh("greenhouse", [3]float32{-2, 0, -2}, [3]float32{2, 3, 2},
-		&scene.Material{Name: "glass", BaseColor: graphics.Vec4{0.7, 0.85, 0.9, 0.35}, Transparent: true})
-	return &scene.Node{Name: "greenhouse", Transform: graphics.Translate(graphics.Vec4{34, villageGround(), 8, 0}), Mesh: glass}
+		&scene.Material{Name: "glass", BaseColor: graphics.Vector{0.7, 0.85, 0.9, 0.35}, Transparent: true})
+	return &scene.Node{Name: "greenhouse", Transform: graphics.Translate(graphics.Vector{34, villageGround(), 8, 0}), Mesh: glass}
 }
 
 // plough is a made-up constellation of seven stars.
 func plough() scene.Constellation {
-	stars := []graphics.Vec4{{0.2, 0.9, -0.3, 0}, {0.3, 0.88, -0.32, 0}, {0.38, 0.85, -0.3, 0}, {0.45, 0.82, -0.25, 0},
+	stars := []graphics.Vector{{0.2, 0.9, -0.3, 0}, {0.3, 0.88, -0.32, 0}, {0.38, 0.85, -0.3, 0}, {0.45, 0.82, -0.25, 0},
 		{0.5, 0.78, -0.33, 0}, {0.42, 0.78, -0.4, 0}, {0.36, 0.8, -0.38, 0}}
 	for index := range stars {
 		stars[index] = stars[index].Normalize()
 	}
 	return scene.Constellation{Name: "Plough", Stars: stars,
-		Lines: [][2]int{{0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5}, {5, 6}, {6, 3}}, Color: graphics.Vec4{0.7, 0.8, 1, 1}}
+		Lines: [][2]int{{0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5}, {5, 6}, {6, 3}}, Color: graphics.Vector{0.7, 0.8, 1, 1}}
 }

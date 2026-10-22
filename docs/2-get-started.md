@@ -72,14 +72,14 @@ func main() {
 	ground := &scene.Mesh{
 		Positions: []float32{-20, 0, -20, 20, 0, -20, 20, 0, 20, -20, 0, 20}, // x, y, z of four corners
 		Indices:   []uint32{0, 2, 1, 0, 3, 2},                                 // two triangles
-		Material:  &scene.Material{Kind: scene.KindLit, BaseColor: graphics.Vec4{0.3, 0.6, 0.25, 1}},
+		Material:  &scene.Material{Kind: scene.LitKind, BaseColor: graphics.Vector{0.3, 0.6, 0.25, 1}},
 		Ground:    true, // the walker can stand on it
 	}
 	ground.ComputeNormals()
 
 	world.Nodes = append(world.Nodes, &scene.Node{Name: "ground", Transform: graphics.Identity(), Mesh: ground})
 
-	if err := viewer.Run(world, viewer.DefaultOptions(), "First scene", nil, 0); err != nil {
+	if err := viewer.Run(world, viewer.DefaultOptions(), "First scene", nil); err != nil {
 		log.Fatal(err)
 	}
 }

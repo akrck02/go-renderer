@@ -15,21 +15,15 @@ the OpenGL scene renderer uploads its atlas and draws its quads.
 
 | Function | |
 |---|---|
-| `func UseFonts(fonts Fonts)` | UseFonts makes text draw in other fonts, such as a brand's. |
+| `func DefaultFontFolders() []string` | DefaultFontFolders are where the system's fonts are looked for by default, for characters the program's fonts lack: Android's own, or the usual folders of the desktop's system. |
 
 ### Constants and variables
 
 ```go
-var FontFolders = defaultFontFolders()
+var FontNotRead = failure.Define("overlay.font-not-read", "a font could not be read")
 ```
 
-FontFolders are where the system's fonts are looked for, for characters the program's fonts lack: Android's own, or the usual folders of the desktop's system.
-
-```go
-var PrebuiltCharacters = prebuiltCharacters()
-```
-
-PrebuiltCharacters are drawn into the atlas as soon as a face is first used, so the first frames with text do not stop to draw them one by one: ASCII, Latin-1 and a few common signs.
+FontNotRead is returned by NewPainter and NewMeasurer when one of the fonts (the default ones or those given in Fonts) is not a TrueType or OpenType font.
 
 ### Atlas
 
@@ -63,11 +57,17 @@ type Entry struct {
 
 ### Fonts
 
-Fonts are the TrueType or OpenType fonts text is drawn with, one per weight; an empty one keeps the default (the Go fonts).
+Fonts are what a Painter or a Measurer draws text with: the TrueType or OpenType fonts, one per weight, and where the system's fonts are, for the characters they lack. The zero value is the default: the Go fonts and the system's usual folders.
 
 ```go
 type Fonts struct {
+	// Regular, Medium, Bold and Mono are a font file's bytes each; an empty one keeps the Go font
+	// of that weight.
 	Regular, Medium, Bold, Mono []byte
+	// Folders are where the system's fonts and colour emoji are looked for, for characters the
+	// fonts lack. nil is DefaultFontFolders(); an empty, non-nil list looks nowhere, and such
+	// characters are drawn as a question mark.
+	Folders []string
 }
 ```
 
@@ -77,10 +77,10 @@ Frame is what the layout needs to know about the frame being drawn.
 
 ```go
 type Frame struct {
-	ViewProjection graphics.Mat4 // the camera's projection times its view
-	Width, Height  int           // framebuffer size in pixels
-	Scale          float32       // framebuffer pixels per layout pixel: 2 on a high-density screen; 0 = 1
-	VerticalScale  float32       // the scene's vertical exaggeration; 0 = 1
+	ViewProjection graphics.Matrix // the camera's projection times its view
+	Width, Height  int             // framebuffer size in pixels
+	Scale          float32         // framebuffer pixels per layout pixel: 2 on a high-density screen; 0 = 1
+	VerticalScale  float32         // the scene's vertical exaggeration; 0 = 1
 }
 ```
 
@@ -124,7 +124,7 @@ type Measurer struct {
 
 | Function or method | |
 |---|---|
-| `func NewMeasurer() (*Measurer, error)` | NewMeasurer parses the embedded fonts. |
+| `func NewMeasurer(chosen Fonts) (*Measurer, error)` | NewMeasurer reads the fonts (Fonts{} for the default ones). |
 | `func (measurer *Measurer) HasIcon(name string) bool` | HasIcon tells whether Lucide has an icon of this name. |
 | `func (measurer *Measurer) MeasureText(text string, size float32, weight draw2d.Weight, scale float32) draw2d.TextMetrics` | MeasureText measures a line at a size in layout pixels on a screen of a density (see draw2d.Measurer). |
 
@@ -135,7 +135,9 @@ Painter lays out overlays frame after frame, keeping the atlas and the fonts bet
 ```go
 type Painter struct {
 
-	// Warn reports a problem once (an unknown icon name); nil = the standard logger.
+	// Warn hears of a problem once (an unknown icon name, lights a GPU cannot draw); nil = the
+	// default slog logger, which the program sets with slog.SetDefault (on the Nintendo 3DS, a line
+	// on the console).
 	Warn func(message string)
 
 	// Has unexported fields.
@@ -144,12 +146,13 @@ type Painter struct {
 
 | Function or method | |
 |---|---|
-| `func NewPainter() (*Painter, error)` | NewPainter parses the embedded fonts and prepares an empty atlas. |
+| `func NewPainter(chosen Fonts) (*Painter, error)` | NewPainter reads the fonts (Fonts{} for the default ones) and prepares an empty atlas. |
 | `func (painter *Painter) Atlas() *Atlas` | Atlas returns the image the quads point into. |
 | `func (painter *Painter) Lightings() []Lighting` | Lightings list where, in the quads Paint just gave, the backend lights what it drew so far; empty when nothing is lit, which then costs nothing. |
 | `func (painter *Painter) Lights() []LightQuad` | Lights are the lights Paint laid out, which the Lightings take in turn. |
-| `func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]graphics.Mat4, frame Frame) []Quad` | Paint lays out the whole overlay for a frame. |
+| `func (painter *Painter) Paint(overlay *scene.Overlay, anchors map[*scene.Node]graphics.Matrix, frame Frame) []Quad` | Paint lays out the whole overlay for a frame. |
 | `func (painter *Painter) Pictures() *Pictures` | Pictures returns the image pictured quads read their colours from. |
+| `func (painter *Painter) Report(message string)` | Report tells the program of a problem a frame works around: through Warn when the program set it, otherwise through warnByDefault (the default slog logger; a line on the console on the Nintendo 3DS, where slog would cost about 42 KB of every program). |
 | `func (painter *Painter) Snapshots() []Snapshot` | Snapshots lists where, in the quads Paint just gave, the backend takes and blurs a picture of the frame so far; empty when nothing on screen is frosted, which then costs nothing. |
 
 ### Pictures
@@ -185,7 +188,7 @@ type Projection struct {
 
 | Function or method | |
 |---|---|
-| `func Project(point graphics.Vec4, frame Frame) Projection` | Project places a world point on screen, applying the vertical exaggeration as the scene shaders do. |
+| `func Project(point graphics.Vector, frame Frame) Projection` | Project places a world point on screen, applying the vertical exaggeration as the scene shaders do. |
 
 ### Quad
 

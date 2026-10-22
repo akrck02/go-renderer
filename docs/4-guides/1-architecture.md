@@ -13,17 +13,21 @@ The renderer only draws. It does not know what a town or a season is: other prog
 scene, and it shows the result.
 
 <p align="center">
-  <img alt="Immediate mode: your program's Update and Draw call the hand-written models.Renderer contract, drawn by the software, opengl, vulkan, metal or webgpu backend. A retained scene: glTF 2.0 through loaders into scene and sceneplan, drawn by the scene renderers: opengl and metal on the desktop, gles in browsers and on Android" src="../images/two-ways.svg" width="880">
+  <img alt="Immediate mode: your program's Update and Draw call the hand-written immediate.Renderer contract, drawn by the software, opengl, vulkan, metal or webgpu backend. A retained scene: glTF 2.0 through loaders into scene and sceneplan, drawn by the scene renderers: opengl and metal on the desktop, gles in browsers and on Android" src="../images/two-ways.svg" width="880">
 </p>
 
 ## Packages
 
 | Package | Role |
 |---|---|
-| `graphics` | Vectors, matrices, coordinate spaces and transformations; the shader sources |
-| `models` | The application loop (`Application`, a fixed time step before every frame), the `Renderer` contract and the backend enumeration |
-| `software`, `opengl`, `vulkan`, `metal`, `webgpu` | Backends behind the contract; OpenGL is the complete one. `metal` also has `FlatWindow` and `FlatRenderer`, which draw a flat interface through Metal on macOS ([design](7-metal.md)) |
-| `sceneplan` | Decides what a frame of a scene draws, for any backend: the draw commands in order, culling and levels of detail, instance batches, where the shadow and seabed maps look |
+| `graphics` | Vectors, matrices, coordinate spaces and transformations |
+| `window` | A program in a window: what the window is (`Options`), what runs every frame (`Callbacks`: a fixed-step `Update`, `Draw`) and what both share (`Application`) |
+| `immediate` | The hand-written immediate-mode contract: `Renderer`, `Mesh`, `Model` |
+| `opengl`, `metal` | Backends behind the contract (`opengl.Window` and `opengl.Renderer`); OpenGL is the complete one. `metal` also has `FlatWindow` and `FlatRenderer`, which draw a flat interface through Metal on macOS ([design](7-metal.md)) |
+| `software`, `vulkan`, `webgpu` | Backends behind the contract that will be built later. Until then every function returns its package's `NotImplemented` code (`software.not-implemented`, `vulkan.not-implemented`, `webgpu.not-implemented`), checked with `errors.Is` |
+| `failure` | Error codes: `failure.Define` declares one, `failure.Wrap` adds details; check them with `errors.Is` |
+| `internal/shading` | What the backends' shaders agree on (a sharp picture's offset, ambient light, the backdrop blur's weights); each backend keeps its own shader sources (the OpenGL ones in `opengl/*_shaders.go`) |
+| `internal/sceneplan` | Decides what a frame of a scene draws, for any backend: the draw commands in order, culling and levels of detail, instance batches, where the shadow and seabed maps look |
 | `scene/sample` | A made-up island that uses every feature the renderers draw, for tests and comparisons |
 | `gles` | Renderers written once for OpenGL ES (WebGL2 in browsers, Android): a flat `FlatRenderer` and a simple `SceneRenderer`, over a small interface each platform implements ([in a browser](5-web.md)) |
 | `browser` | Built only for WebAssembly: a canvas as the window, its events as input, WebGL2, and the loop over `requestAnimationFrame` |
@@ -35,7 +39,7 @@ scene, and it shows the result.
 | `opengl/overlay` | Lays out the overlay as rectangles of one atlas of glyphs, icons and rounded corners (no graphics context needed) |
 | `draw2d` | A list of flat shapes (rounded rectangles, shadows, text, icons, pictures, clips, layers) to paint over the view, filled by a program or an interface library |
 | `input` | A backend-independent snapshot of keyboard and mouse state: held keys and buttons, presses and releases, double clicks, typed characters, clipboard, pointer shape, and what an interface claimed |
-| `camera` | Camera controllers: orbit, walk and map; the ray through a point of the window (`RayThrough`) and where it meets a plane or the ground |
+| `camera` | The `Camera` and its controllers: orbit, walk and map; the ray through a point of the window (`RayThrough`) and where it meets a plane or the ground |
 | `viewer` | The interactive explorer behind `cmd/visor` |
 | `cmd/visor` | The viewer as a program |
 
@@ -45,18 +49,18 @@ An application implements an update and a draw, and calls the renderer every fra
 
 ```go
 type Renderer interface {
-	RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vec4, shader *string, fill bool) error
-	RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vec4, shader *string, fill bool) error
-	RenderRectangle(space graphics.CoordinateSpace, coordinates graphics.Vec4, width, height float32, shader *string, fill bool) error
-	RenderImage(space graphics.CoordinateSpace, bytes []byte, coordinates graphics.Vec4, width, height float32, shader *string) error
-	Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vec4, shader *string) error
-	Render3dModel(space graphics.CoordinateSpace, model *Model, shader *string) error
-	SetMatrices(projection, view, model graphics.Mat4)
+	RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error
+	RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error
+	RenderRectangle(space graphics.CoordinateSpace, centre graphics.Vector, width, height float32, shader *string, fill bool) error
+	RenderImage(space graphics.CoordinateSpace, bytes []byte, centre graphics.Vector, width, height float32, shader *string) error
+	RenderObject(space graphics.CoordinateSpace, vertices []graphics.Vector, shader *string) error
+	RenderModel(space graphics.CoordinateSpace, model *Model, shader *string) error
+	SetMatrices(projection, view, model graphics.Matrix)
 }
 ```
 
 Coordinates can be given in local, world or viewport space; the backend does the transformations.
-`models.Application.Update` runs at a fixed time step before every frame, so motion does not
+`window.Application.Update` runs at a fixed time step before every frame, so motion does not
 depend on the frame rate.
 
 An application that is mostly still (a window of controls) sets `DrawOnDemand`: the loop then
@@ -101,14 +105,14 @@ attributes (`KHR_mesh_quantization`: integer positions, normals, colours and ind
 [extras](4-gltf-extras.md): environment, sky, water, material kinds, levels of detail and walkable
 ground.
 
-`loaders.ParseSceneGLB` reads the same from the bytes of a `.glb`, for programs with no file system
+`loaders.ReadScene` reads the same from a `.glb`'s content (any `io.Reader`), for programs with no file system
 (a web page) or that carry their scene inside them.
 
 ## The scene renderers
 
 There are two, which draw the same frame: `opengl.SceneRenderer` and, on macOS, `metal.SceneRenderer`
 (the viewer chooses with `-backend`; Metal by default on macOS). What a frame draws is decided once,
-in `sceneplan`, which makes no graphics calls; each backend only uploads and draws that plan, with
+in `internal/sceneplan`, which makes no graphics calls; each backend only uploads and draws that plan, with
 shaders that are faithful translations of each other. Their captures of the sample island match
 except for rounding and where two surfaces lie in the same plane (`cmd/visor`'s
 `TestMetalDrawsTheSceneLikeOpenGL`; [measurements](7-metal.md)).
@@ -154,7 +158,7 @@ the system, characters typed, which click of a double click a press was). An int
 the view can **claim** the mouse or the keyboard for a step (`ClaimMouse`, `ClaimKeyboard`); the
 viewer gives its cameras and shortcuts `State.Unclaimed()`, a copy without what was claimed, so a
 slider being dragged does not turn the camera. `camera.Orbit`
-(drag, pan, zoom), `camera.Walk` (first person on the ground) and `camera.Plan` (a flat map, from
+(drag, pan, zoom), `camera.Walk` (first person on the ground) and `camera.Map` (a flat map, from
 above or isometric) turn it into a camera placement.
 
 A game pad is read by position, whatever its maker: `PadA` is always the bottom face button. What

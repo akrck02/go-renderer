@@ -3,7 +3,7 @@ package metal
 import (
 	"math"
 
-	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/internal/shading"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 )
 
@@ -61,18 +61,18 @@ func colourByte(channel float32) uint8 {
 type snapshot struct {
 	at       int32
 	halvings int32
-	weights  [graphics.BackdropTaps + 1]float32
+	weights  [shading.BackdropTaps + 1]float32
 }
 
 // packSnapshots turns the painter's snapshots into the Objective-C side's, reusing into's memory.
 func packSnapshots(snapshots []overlay.Snapshot, into []snapshot) []snapshot {
 	packed := into[:0]
 	for _, taken := range snapshots {
-		halvings := graphics.BackdropHalvings(taken.Blur)
+		halvings := shading.BackdropHalvings(taken.Blur)
 		packed = append(packed, snapshot{
 			at:       int32(taken.At),
 			halvings: int32(halvings),
-			weights:  graphics.BackdropWeights(taken.Blur / float32(int(1)<<halvings)),
+			weights:  shading.BackdropWeights(taken.Blur / float32(int(1)<<halvings)),
 		})
 	}
 	return packed

@@ -25,7 +25,8 @@ PACKAGES = [
     ("draw2d", "5-draw2d.md", "", "", "core"),
     ("loaders", "6-loaders.md", "", "", "core"),
     ("graphics", "7-graphics.md", "", "", "core"),
-    ("models", "8-models.md", "", "", "core"),
+    ("window", "8-window.md", "", "", "core"),
+    ("immediate", "22-immediate.md", "", "", "core"),
     ("scene/sample", "9-scene-sample.md", "", "", "core"),
     ("opengl", "16-opengl.md", "", "", "platform"),
     ("opengl/overlay", "15-opengl-overlay.md", "", "", "platform"),
@@ -33,9 +34,12 @@ PACKAGES = [
     ("gles", "13-gles.md", "", "", "platform"),
     ("browser", "11-browser.md", "js", "wasm", "platform"),
     ("android", "10-android.md", "android", "arm64", "platform"),
-    ("windowloop", "18-windowloop.md", "", "", "platform"),
+    ("windowloop", "17-windowloop.md", "", "", "platform"),
     ("frameloop", "12-frameloop.md", "", "", "platform"),
-    ("sceneplan", "17-sceneplan.md", "", "", "platform"),
+    ("failure", "18-failure.md", "", "", "core"),
+    ("software", "19-software.md", "", "", "platform"),
+    ("vulkan", "20-vulkan.md", "", "", "platform"),
+    ("webgpu", "21-webgpu.md", "", "", "platform"),
 ]
 
 # Turns `go doc -all` of a package into a Markdown reference: functions, and each type with its
@@ -142,6 +146,7 @@ def write_page(folder, page, goos, goarch):
     environment = dict(os.environ)
     if goos:
         environment["GOOS"], environment["GOARCH"] = goos, goarch
+        environment["CGO_ENABLED"] = "1"  # without it, go doc leaves out the files that use cgo
     output = subprocess.run(["go", "doc", "-all", "./" + folder], capture_output=True, text=True,
                             check=True, env=environment).stdout
     body = render_output(output)

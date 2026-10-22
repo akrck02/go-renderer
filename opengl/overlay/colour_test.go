@@ -16,14 +16,14 @@ const wave = '🌊'
 // colourTestFont makes a small colour emoji font, as Android's is made: a cmap of format 12 with
 // one character, a CBLC strike of 8 pixels per em listing one glyph (index format 1), and its
 // picture in CBDT (image format 17): a red PNG with small metrics.
-func colourTestFont(t *testing.T) []byte {
-	t.Helper()
-	return colourTestFontOf(t, wave)
+func colourTestFont(test *testing.T) []byte {
+	test.Helper()
+	return colourTestFontOf(test, wave)
 }
 
 // colourTestFontOf makes the font with one character's picture.
-func colourTestFontOf(t *testing.T, character rune) []byte {
-	t.Helper()
+func colourTestFontOf(test *testing.T, character rune) []byte {
+	test.Helper()
 	picture := image.NewNRGBA(image.Rect(0, 0, 4, 4))
 	for y := range 4 {
 		for x := range 4 {
@@ -32,7 +32,7 @@ func colourTestFontOf(t *testing.T, character rune) []byte {
 	}
 	var encoded bytes.Buffer
 	if err := png.Encode(&encoded, picture); err != nil {
-		t.Fatal(err)
+		test.Fatal(err)
 	}
 	big := binary.BigEndian
 	// cmap: one record for Unicode's full repertoire, one group
@@ -90,44 +90,44 @@ func fontFileOf(tables map[string][]byte) []byte {
 	return data
 }
 
-func TestAColourFontsPictureIsFoundWithItsMetrics(t *testing.T) {
-	font, err := parseColourFont(colourTestFont(t))
+func TestAColourFontsPictureIsFoundWithItsMetrics(test *testing.T) {
+	font, err := parseColourFont(colourTestFont(test))
 	if err != nil {
-		t.Fatal(err)
+		test.Fatal(err)
 	}
 	picture, found := font.picture(wave)
 	if !found || picture.width != 1 || picture.height != 1 || picture.top != 7.0/8 || picture.advance != 9.0/8 {
-		t.Fatalf("the wave, an em square from 7/8 above the baseline: %+v", picture)
+		test.Fatalf("the wave, an em square from 7/8 above the baseline: %+v", picture)
 	}
 	decoded, err := picture.decode()
 	if err != nil {
-		t.Fatal(err)
+		test.Fatal(err)
 	}
 	if red, _, _, _ := decoded.At(1, 1).RGBA(); red != 0xffff {
-		t.Fatal("its own colours")
+		test.Fatal("its own colours")
 	}
 	if _, found := font.picture('😀'); found {
-		t.Fatal("a character the font lacks has no picture")
+		test.Fatal("a character the font lacks has no picture")
 	}
 	if _, err := parseColourFont(fontFileOf(map[string][]byte{"cmap": nil})); err == nil {
-		t.Fatal("a font without bitmap tables is no colour font")
+		test.Fatal("a font without bitmap tables is no colour font")
 	}
 }
 
-func TestAnEmojiIsMeasuredAndDrawnInItsColours(t *testing.T) {
-	withFontFolder(t, map[string][]byte{"NotoColorEmoji.ttf": colourTestFont(t)})
-	measurer, err := NewMeasurer()
+func TestAnEmojiIsMeasuredAndDrawnInItsColours(test *testing.T) {
+	fonts := withFontFolder(test, map[string][]byte{"NotoColorEmoji.ttf": colourTestFont(test)})
+	measurer, err := NewMeasurer(fonts)
 	if err != nil {
-		t.Fatal(err)
+		test.Fatal(err)
 	}
 	letter := measurer.MeasureText("a", 16, draw2d.Regular, 1).Width
 	// the variation selector asking for the picture is not drawn
 	if width := measurer.MeasureText("a🌊️", 16, draw2d.Regular, 1).Width; width != letter+18 {
-		t.Fatalf("the wave moves the pen 9/8 of an em: %v, want %v", width, letter+18)
+		test.Fatalf("the wave moves the pen 9/8 of an em: %v, want %v", width, letter+18)
 	}
 	var list draw2d.List
 	list.Text("🌊", 10, 30, 16, draw2d.Regular, white)
-	quads := paintList(t, &list, 1)
+	quads := paintListIn(test, fonts, &list, 1)
 	var pictured []Quad
 	for _, quad := range quads {
 		if quad.Pictured {
@@ -135,27 +135,28 @@ func TestAnEmojiIsMeasuredAndDrawnInItsColours(t *testing.T) {
 		}
 	}
 	if bounds := covered(pictured); len(pictured) == 0 || bounds != [4]float32{10, 16, 26, 32} {
-		t.Fatalf("a 16-pixel picture from 14 pixels above the baseline: %v", bounds)
+		test.Fatalf("a 16-pixel picture from 14 pixels above the baseline: %v", bounds)
 	}
 }
 
-func TestEveryColourFontIsLookedIn(t *testing.T) {
-	flags := colourTestFontOf(t, '🇦') // a font that reads, with a flag's letter only
-	withFontFolder(t, map[string][]byte{"NotoColorEmojiFlags.ttf": flags, "NotoColorEmojiLegacy.ttf": colourTestFont(t)})
+func TestEveryColourFontIsLookedIn(test *testing.T) {
+	flags := colourTestFontOf(test, '🇦') // a font that reads, with a flag's letter only
+	fonts := withFontFolder(test, map[string][]byte{"NotoColorEmojiFlags.ttf": flags, "NotoColorEmojiLegacy.ttf": colourTestFont(test)})
+	_, systemEmoji := systemFontsIn(fonts.Folders)
 	if _, found := systemEmoji.glyph(wave, 16); !found {
-		t.Fatal("the wave is in the second colour font")
+		test.Fatal("the wave is in the second colour font")
 	}
 }
 
-func TestASelectorAsksForThePictureOverAnOutline(t *testing.T) {
+func TestASelectorAsksForThePictureOverAnOutline(test *testing.T) {
 	// a character the Go fonts draw, with a picture in the colour font too
-	withFontFolder(t, map[string][]byte{"NotoColorEmoji.ttf": colourTestFontOf(t, '©')})
-	measurer, err := NewMeasurer()
+	fonts := withFontFolder(test, map[string][]byte{"NotoColorEmoji.ttf": colourTestFontOf(test, '©')})
+	measurer, err := NewMeasurer(fonts)
 	if err != nil {
-		t.Fatal(err)
+		test.Fatal(err)
 	}
 	outline := measurer.MeasureText("©", 16, draw2d.Regular, 1).Width
 	if picture := measurer.MeasureText("©️", 16, draw2d.Regular, 1).Width; picture == outline || picture != 18 {
-		t.Fatalf("followed by U+FE0F it is the picture: %v, the outline %v", picture, outline)
+		test.Fatalf("followed by U+FE0F it is the picture: %v, the outline %v", picture, outline)
 	}
 }

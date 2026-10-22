@@ -2,6 +2,7 @@ package gles
 
 import (
 	"github.com/akrck02/go-renderer/graphics"
+	"github.com/akrck02/go-renderer/internal/shading"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 )
 
@@ -43,7 +44,7 @@ func newLightLayer(functions Functions) (*lightLayer, error) {
 	layer := &lightLayer{functions: functions, addProgram: addProgram, multiplyProgram: multiplyProgram,
 		vertexBuffer: functions.CreateBuffer(), corners: functions.CreateBuffer()}
 	functions.BindBuffer(ArrayBuffer, layer.corners)
-	functions.BufferData(ArrayBuffer, floatBytes(cornerFloats), StaticDraw)
+	functions.SetBufferData(ArrayBuffer, floatBytes(cornerFloats), StaticDraw)
 	return layer, nil
 }
 
@@ -66,7 +67,7 @@ func (layer *lightLayer) fillVertices(lights []overlay.LightQuad) {
 		return
 	}
 	layer.functions.BindBuffer(ArrayBuffer, layer.vertexBuffer)
-	layer.functions.BufferData(ArrayBuffer, floatBytes(vertices), StreamDraw)
+	layer.functions.SetBufferData(ArrayBuffer, floatBytes(vertices), StreamDraw)
 }
 
 // light lights what the target framebuffer (width × height pixels) shows with one lighting. The
@@ -79,18 +80,18 @@ func (layer *lightLayer) light(lighting overlay.Lighting, target Framebuffer, wi
 	layer.addLights(lighting, width, height, picturesSize)
 
 	functions.BindFramebuffer(FramebufferTarget, target)
-	functions.Viewport(0, 0, width, height)
+	functions.SetViewport(0, 0, width, height)
 	layer.multiplyProgram.use()
-	functions.ActiveTexture(Texture0 + lightTextureUnit)
+	functions.SelectTextureUnit(TextureUnit0 + lightTextureUnit)
 	functions.BindTexture(Texture2D, layer.target.texture)
 	layer.multiplyProgram.setInteger("light", lightTextureUnit)
-	layer.multiplyProgram.setVector4("area", graphics.Vec4(lighting.Area))
+	layer.multiplyProgram.setVector4("area", graphics.Vector(lighting.Area))
 	layer.multiplyProgram.setVector2("screenSize", float32(width), float32(height))
 	functions.Enable(Blend)
 	// screen × light + light × screen: twice the light, so half is neutral; the screen's alpha stays
-	functions.BlendFuncSeparate(DestinationColor, SourceColor, Zero, One)
+	functions.SetBlendFactors(DestinationColor, SourceColor, Zero, One)
 	functions.BindBuffer(ArrayBuffer, layer.corners)
-	functions.VertexAttribPointer(0, 2, Float, false, 2*4, 0)
+	functions.DescribeVertexAttribute(0, 2, Float, false, 2*4, 0)
 	functions.DrawArrays(Triangles, 0, len(cornerFloats)/2)
 	functions.Disable(Blend)
 }
@@ -99,9 +100,9 @@ func (layer *lightLayer) light(lighting overlay.Lighting, target Framebuffer, wi
 func (layer *lightLayer) addLights(lighting overlay.Lighting, width, height, picturesSize int) {
 	functions := layer.functions
 	functions.BindFramebuffer(FramebufferTarget, layer.target.framebuffer)
-	functions.Viewport(0, 0, layer.target.width, layer.target.height)
-	ambient := graphics.AmbientLight(lighting.Ambient)
-	functions.ClearColor(ambient[0], ambient[1], ambient[2], 1)
+	functions.SetViewport(0, 0, layer.target.width, layer.target.height)
+	ambient := shading.AmbientLight(lighting.Ambient)
+	functions.SetClearColor(ambient[0], ambient[1], ambient[2], 1)
 	functions.Clear(ColorBufferBit)
 	if lighting.Last <= lighting.First {
 		return
@@ -112,12 +113,12 @@ func (layer *lightLayer) addLights(lighting overlay.Lighting, width, height, pic
 	program.setVector2("picturesSize", float32(picturesSize), float32(picturesSize))
 	program.setInteger("pictures", picturesTextureUnit)
 	functions.Enable(Blend)
-	functions.BlendFuncSeparate(One, One, One, One)
+	functions.SetBlendFactors(One, One, One, One)
 	functions.BindBuffer(ArrayBuffer, layer.vertexBuffer)
 	layer.describeVertexLayout()
 	functions.DrawArrays(Triangles, lighting.First*cornersPerQuad, (lighting.Last-lighting.First)*cornersPerQuad)
-	functions.DisableVertexAttribArray(lightPictureAttribute)
-	functions.DisableVertexAttribArray(lightInnerAttribute)
+	functions.DisableVertexAttribute(lightPictureAttribute)
+	functions.DisableVertexAttribute(lightInnerAttribute)
 	functions.Disable(Blend)
 }
 
@@ -125,13 +126,13 @@ func (layer *lightLayer) addLights(lighting overlay.Lighting, width, height, pic
 func (layer *lightLayer) describeVertexLayout() {
 	functions := layer.functions
 	stride := floatsPerLightVertex * 4
-	functions.VertexAttribPointer(0, 2, Float, false, stride, 0)
-	functions.VertexAttribPointer(1, 2, Float, false, stride, 2*4)
-	functions.VertexAttribPointer(2, 4, Float, false, stride, 4*4)
-	functions.EnableVertexAttribArray(lightPictureAttribute)
-	functions.VertexAttribPointer(lightPictureAttribute, 2, Float, false, stride, 8*4)
-	functions.EnableVertexAttribArray(lightInnerAttribute)
-	functions.VertexAttribPointer(lightInnerAttribute, 1, Float, false, stride, 10*4)
+	functions.DescribeVertexAttribute(0, 2, Float, false, stride, 0)
+	functions.DescribeVertexAttribute(1, 2, Float, false, stride, 2*4)
+	functions.DescribeVertexAttribute(2, 4, Float, false, stride, 4*4)
+	functions.EnableVertexAttribute(lightPictureAttribute)
+	functions.DescribeVertexAttribute(lightPictureAttribute, 2, Float, false, stride, 8*4)
+	functions.EnableVertexAttribute(lightInnerAttribute)
+	functions.DescribeVertexAttribute(lightInnerAttribute, 1, Float, false, stride, 10*4)
 }
 
 // prepare makes the picture of light for a screen of this size, when it changed.

@@ -3,7 +3,6 @@
 package browser
 
 import (
-	"errors"
 	"syscall/js"
 	"unsafe"
 
@@ -35,16 +34,13 @@ type WebGL struct {
 	matrix3Bytes  js.Value
 }
 
-// ErrNoWebGL2 is returned when the browser cannot give the canvas a WebGL2 context.
-var ErrNoWebGL2 = errors.New("browser: this browser has no WebGL2")
-
 // newWebGL asks the canvas for a WebGL2 context. antialias smooths the edges of 3D geometry; flat
 // interfaces do not need it (their shapes are smoothed by the atlas).
 func newWebGL(canvas js.Value, antialias bool) (*WebGL, error) {
 	options := map[string]any{"antialias": antialias, "alpha": false, "depth": true, "premultipliedAlpha": false}
 	context := canvas.Call("getContext", "webgl2", options)
 	if context.IsNull() || context.IsUndefined() {
-		return nil, ErrNoWebGL2
+		return nil, WebGL2Missing
 	}
 	matrix := js.Global().Get("Float32Array").New(16)
 	matrix3 := js.Global().Get("Float32Array").New(9)
@@ -84,18 +80,22 @@ func (webgl *WebGL) bytes(data []byte) js.Value {
 	return view
 }
 
+// CreateShader implements gles.Functions.
 func (webgl *WebGL) CreateShader(stage gles.Enum) gles.Shader {
 	return gles.Shader(webgl.keep(webgl.context.Call("createShader", uint32(stage))))
 }
 
-func (webgl *WebGL) ShaderSource(shader gles.Shader, source string) {
+// SetShaderSource implements gles.Functions.
+func (webgl *WebGL) SetShaderSource(shader gles.Shader, source string) {
 	webgl.context.Call("shaderSource", webgl.object(uint32(shader)), source)
 }
 
+// CompileShader implements gles.Functions.
 func (webgl *WebGL) CompileShader(shader gles.Shader) {
 	webgl.context.Call("compileShader", webgl.object(uint32(shader)))
 }
 
+// ShaderCompiled implements gles.Functions.
 func (webgl *WebGL) ShaderCompiled(shader gles.Shader) (bool, string) {
 	object := webgl.object(uint32(shader))
 	if webgl.context.Call("getShaderParameter", object, compileStatus).Truthy() {
@@ -104,23 +104,28 @@ func (webgl *WebGL) ShaderCompiled(shader gles.Shader) (bool, string) {
 	return false, webgl.context.Call("getShaderInfoLog", object).String()
 }
 
+// DeleteShader implements gles.Functions.
 func (webgl *WebGL) DeleteShader(shader gles.Shader) {
 	webgl.context.Call("deleteShader", webgl.object(uint32(shader)))
 	delete(webgl.objects, uint32(shader))
 }
 
+// CreateProgram implements gles.Functions.
 func (webgl *WebGL) CreateProgram() gles.Program {
 	return gles.Program(webgl.keep(webgl.context.Call("createProgram")))
 }
 
+// AttachShader implements gles.Functions.
 func (webgl *WebGL) AttachShader(program gles.Program, shader gles.Shader) {
 	webgl.context.Call("attachShader", webgl.object(uint32(program)), webgl.object(uint32(shader)))
 }
 
+// LinkProgram implements gles.Functions.
 func (webgl *WebGL) LinkProgram(program gles.Program) {
 	webgl.context.Call("linkProgram", webgl.object(uint32(program)))
 }
 
+// ProgramLinked implements gles.Functions.
 func (webgl *WebGL) ProgramLinked(program gles.Program) (bool, string) {
 	object := webgl.object(uint32(program))
 	if webgl.context.Call("getProgramParameter", object, linkStatus).Truthy() {
@@ -129,14 +134,17 @@ func (webgl *WebGL) ProgramLinked(program gles.Program) (bool, string) {
 	return false, webgl.context.Call("getProgramInfoLog", object).String()
 }
 
-func (webgl *WebGL) BindAttribLocation(program gles.Program, index uint32, name string) {
+// BindAttributeLocation implements gles.Functions.
+func (webgl *WebGL) BindAttributeLocation(program gles.Program, index uint32, name string) {
 	webgl.context.Call("bindAttribLocation", webgl.object(uint32(program)), index, name)
 }
 
+// UseProgram implements gles.Functions.
 func (webgl *WebGL) UseProgram(program gles.Program) {
 	webgl.context.Call("useProgram", webgl.object(uint32(program)))
 }
 
+// UniformLocation implements gles.Functions.
 func (webgl *WebGL) UniformLocation(program gles.Program, name string) gles.Uniform {
 	location := webgl.context.Call("getUniformLocation", webgl.object(uint32(program)), name)
 	if location.IsNull() {
@@ -154,27 +162,33 @@ func (webgl *WebGL) uniform(location gles.Uniform) js.Value {
 	return webgl.uniforms[location]
 }
 
-func (webgl *WebGL) Uniform1i(location gles.Uniform, value int32) {
+// SetUniformInteger implements gles.Functions.
+func (webgl *WebGL) SetUniformInteger(location gles.Uniform, value int32) {
 	webgl.context.Call("uniform1i", webgl.uniform(location), value)
 }
 
-func (webgl *WebGL) Uniform1f(location gles.Uniform, value float32) {
+// SetUniformFloat implements gles.Functions.
+func (webgl *WebGL) SetUniformFloat(location gles.Uniform, value float32) {
 	webgl.context.Call("uniform1f", webgl.uniform(location), value)
 }
 
-func (webgl *WebGL) Uniform2f(location gles.Uniform, first, second float32) {
+// SetUniformTwoFloats implements gles.Functions.
+func (webgl *WebGL) SetUniformTwoFloats(location gles.Uniform, first, second float32) {
 	webgl.context.Call("uniform2f", webgl.uniform(location), first, second)
 }
 
-func (webgl *WebGL) Uniform3f(location gles.Uniform, first, second, third float32) {
+// SetUniformThreeFloats implements gles.Functions.
+func (webgl *WebGL) SetUniformThreeFloats(location gles.Uniform, first, second, third float32) {
 	webgl.context.Call("uniform3f", webgl.uniform(location), first, second, third)
 }
 
-func (webgl *WebGL) Uniform4f(location gles.Uniform, first, second, third, fourth float32) {
+// SetUniformFourFloats implements gles.Functions.
+func (webgl *WebGL) SetUniformFourFloats(location gles.Uniform, first, second, third, fourth float32) {
 	webgl.context.Call("uniform4f", webgl.uniform(location), first, second, third, fourth)
 }
 
-func (webgl *WebGL) UniformMatrix3(location gles.Uniform, matrix [9]float32) {
+// SetUniformMatrix3By3 implements gles.Functions.
+func (webgl *WebGL) SetUniformMatrix3By3(location gles.Uniform, matrix [9]float32) {
 	if location < 0 {
 		return
 	}
@@ -182,7 +196,8 @@ func (webgl *WebGL) UniformMatrix3(location gles.Uniform, matrix [9]float32) {
 	webgl.context.Call("uniformMatrix3fv", webgl.uniform(location), false, webgl.matrix3)
 }
 
-func (webgl *WebGL) UniformMatrix4(location gles.Uniform, matrix [16]float32) {
+// SetUniformMatrix4By4 implements gles.Functions.
+func (webgl *WebGL) SetUniformMatrix4By4(location gles.Uniform, matrix [16]float32) {
 	if location < 0 {
 		return
 	}
@@ -190,51 +205,63 @@ func (webgl *WebGL) UniformMatrix4(location gles.Uniform, matrix [16]float32) {
 	webgl.context.Call("uniformMatrix4fv", webgl.uniform(location), false, webgl.matrix)
 }
 
+// CreateBuffer implements gles.Functions.
 func (webgl *WebGL) CreateBuffer() gles.Buffer {
 	return gles.Buffer(webgl.keep(webgl.context.Call("createBuffer")))
 }
 
+// BindBuffer implements gles.Functions.
 func (webgl *WebGL) BindBuffer(target gles.Enum, buffer gles.Buffer) {
 	webgl.context.Call("bindBuffer", uint32(target), webgl.object(uint32(buffer)))
 }
 
-func (webgl *WebGL) BufferData(target gles.Enum, data []byte, usage gles.Enum) {
+// SetBufferData implements gles.Functions.
+func (webgl *WebGL) SetBufferData(target gles.Enum, data []byte, usage gles.Enum) {
 	webgl.context.Call("bufferData", uint32(target), webgl.bytes(data), uint32(usage))
 }
 
-func (webgl *WebGL) EnableVertexAttribArray(index uint32) {
+// EnableVertexAttribute implements gles.Functions.
+func (webgl *WebGL) EnableVertexAttribute(index uint32) {
 	webgl.context.Call("enableVertexAttribArray", index)
 }
 
-func (webgl *WebGL) DisableVertexAttribArray(index uint32) {
+// DisableVertexAttribute implements gles.Functions.
+func (webgl *WebGL) DisableVertexAttribute(index uint32) {
 	webgl.context.Call("disableVertexAttribArray", index)
 }
 
-func (webgl *WebGL) VertexAttribPointer(index uint32, size int, kind gles.Enum, normalized bool, stride, offset int) {
+// DescribeVertexAttribute implements gles.Functions.
+func (webgl *WebGL) DescribeVertexAttribute(index uint32, size int, kind gles.Enum, normalized bool, stride, offset int) {
 	webgl.context.Call("vertexAttribPointer", index, size, uint32(kind), normalized, stride, offset)
 }
 
+// CreateTexture implements gles.Functions.
 func (webgl *WebGL) CreateTexture() gles.Texture {
 	return gles.Texture(webgl.keep(webgl.context.Call("createTexture")))
 }
 
-func (webgl *WebGL) ActiveTexture(unit gles.Enum) {
+// SelectTextureUnit implements gles.Functions.
+func (webgl *WebGL) SelectTextureUnit(unit gles.Enum) {
 	webgl.context.Call("activeTexture", uint32(unit))
 }
 
+// BindTexture implements gles.Functions.
 func (webgl *WebGL) BindTexture(target gles.Enum, texture gles.Texture) {
 	webgl.context.Call("bindTexture", uint32(target), webgl.object(uint32(texture)))
 }
 
-func (webgl *WebGL) TexParameteri(target, name gles.Enum, value int32) {
+// SetTextureParameter implements gles.Functions.
+func (webgl *WebGL) SetTextureParameter(target, name gles.Enum, value int32) {
 	webgl.context.Call("texParameteri", uint32(target), uint32(name), value)
 }
 
-func (webgl *WebGL) PixelStorei(name gles.Enum, value int32) {
+// SetPixelStorage implements gles.Functions.
+func (webgl *WebGL) SetPixelStorage(name gles.Enum, value int32) {
 	webgl.context.Call("pixelStorei", uint32(name), value)
 }
 
-func (webgl *WebGL) TexImage2D(target gles.Enum, level int, internalFormat gles.Enum, width, height int, format, kind gles.Enum, pixels []byte) {
+// SetTextureImage implements gles.Functions.
+func (webgl *WebGL) SetTextureImage(target gles.Enum, level int, internalFormat gles.Enum, width, height int, format, kind gles.Enum, pixels []byte) {
 	source := js.Null() // no pixels: an empty texture to draw into, which WebGL wants as null
 	if pixels != nil {
 		source = webgl.bytes(pixels)
@@ -243,64 +270,83 @@ func (webgl *WebGL) TexImage2D(target gles.Enum, level int, internalFormat gles.
 		uint32(format), uint32(kind), source)
 }
 
-func (webgl *WebGL) CopyTexSubImage2D(target gles.Enum, level, xOffset, yOffset, x, y, width, height int) {
+// CopyFramebufferToTexture implements gles.Functions.
+func (webgl *WebGL) CopyFramebufferToTexture(target gles.Enum, level, xOffset, yOffset, x, y, width, height int) {
 	webgl.context.Call("copyTexSubImage2D", uint32(target), level, xOffset, yOffset, x, y, width, height)
 }
 
+// DeleteTexture implements gles.Functions.
 func (webgl *WebGL) DeleteTexture(texture gles.Texture) {
 	webgl.context.Call("deleteTexture", webgl.object(uint32(texture)))
 	delete(webgl.objects, uint32(texture))
 }
 
+// CreateFramebuffer implements gles.Functions.
 func (webgl *WebGL) CreateFramebuffer() gles.Framebuffer {
 	return gles.Framebuffer(webgl.keep(webgl.context.Call("createFramebuffer")))
 }
 
+// BindFramebuffer implements gles.Functions.
 func (webgl *WebGL) BindFramebuffer(target gles.Enum, framebuffer gles.Framebuffer) {
 	webgl.context.Call("bindFramebuffer", uint32(target), webgl.object(uint32(framebuffer)))
 }
 
-func (webgl *WebGL) FramebufferTexture2D(target, attachment, textureTarget gles.Enum, texture gles.Texture, level int) {
+// AttachTextureToFramebuffer implements gles.Functions.
+func (webgl *WebGL) AttachTextureToFramebuffer(target, attachment, textureTarget gles.Enum, texture gles.Texture, level int) {
 	webgl.context.Call("framebufferTexture2D", uint32(target), uint32(attachment), uint32(textureTarget),
 		webgl.object(uint32(texture)), level)
 }
 
+// DeleteFramebuffer implements gles.Functions.
 func (webgl *WebGL) DeleteFramebuffer(framebuffer gles.Framebuffer) {
 	webgl.context.Call("deleteFramebuffer", webgl.object(uint32(framebuffer)))
 	delete(webgl.objects, uint32(framebuffer))
 }
 
-func (webgl *WebGL) TexSubImage2D(target gles.Enum, level, x, y, width, height int, format, kind gles.Enum, pixels []byte) {
+// ReplaceTexturePart implements gles.Functions.
+func (webgl *WebGL) ReplaceTexturePart(target gles.Enum, level, x, y, width, height int, format, kind gles.Enum, pixels []byte) {
 	webgl.context.Call("texSubImage2D", uint32(target), level, x, y, width, height,
 		uint32(format), uint32(kind), webgl.bytes(pixels))
 }
 
-func (webgl *WebGL) Viewport(x, y, width, height int) {
+// SetViewport implements gles.Functions.
+func (webgl *WebGL) SetViewport(x, y, width, height int) {
 	webgl.context.Call("viewport", x, y, width, height)
 }
 
-func (webgl *WebGL) ClearColor(red, green, blue, alpha float32) {
+// SetClearColor implements gles.Functions.
+func (webgl *WebGL) SetClearColor(red, green, blue, alpha float32) {
 	webgl.context.Call("clearColor", red, green, blue, alpha)
 }
 
+// Clear implements gles.Functions.
 func (webgl *WebGL) Clear(mask gles.Enum) { webgl.context.Call("clear", uint32(mask)) }
 
+// Enable implements gles.Functions.
 func (webgl *WebGL) Enable(capability gles.Enum) { webgl.context.Call("enable", uint32(capability)) }
 
+// Disable implements gles.Functions.
 func (webgl *WebGL) Disable(capability gles.Enum) { webgl.context.Call("disable", uint32(capability)) }
 
-func (webgl *WebGL) BlendFuncSeparate(sourceColor, destinationColor, sourceAlpha, destinationAlpha gles.Enum) {
+// SetBlendFactors implements gles.Functions.
+func (webgl *WebGL) SetBlendFactors(sourceColor, destinationColor, sourceAlpha, destinationAlpha gles.Enum) {
 	webgl.context.Call("blendFuncSeparate", uint32(sourceColor), uint32(destinationColor), uint32(sourceAlpha), uint32(destinationAlpha))
 }
 
-func (webgl *WebGL) DepthMask(write bool) { webgl.context.Call("depthMask", write) }
+// SetDepthWrite implements gles.Functions.
+func (webgl *WebGL) SetDepthWrite(write bool) { webgl.context.Call("depthMask", write) }
 
-func (webgl *WebGL) DepthFunc(function gles.Enum) { webgl.context.Call("depthFunc", uint32(function)) }
+// SetDepthFunction implements gles.Functions.
+func (webgl *WebGL) SetDepthFunction(function gles.Enum) {
+	webgl.context.Call("depthFunc", uint32(function))
+}
 
+// DrawArrays implements gles.Functions.
 func (webgl *WebGL) DrawArrays(mode gles.Enum, first, count int) {
 	webgl.context.Call("drawArrays", uint32(mode), first, count)
 }
 
+// DrawElements implements gles.Functions.
 func (webgl *WebGL) DrawElements(mode gles.Enum, count int, kind gles.Enum, offset int) {
 	webgl.context.Call("drawElements", uint32(mode), count, uint32(kind), offset)
 }

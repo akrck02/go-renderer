@@ -32,8 +32,8 @@ transform first, so its own `Translate` is measured from the tower's foot:
 ```go
 lamp := &scene.Node{
 	Name:      "lamp",
-	Transform: graphics.Translate(graphics.Vec4{0, 8, 0, 1}), // eight metres up the tower
-	Mesh:      box(3, 0.5, 0.5, graphics.Vec4{1, 0.85, 0.3, 1}),
+	Transform: graphics.Translate(graphics.Vector{0, 8, 0, 1}), // eight metres up the tower
+	Mesh:      box(3, 0.5, 0.5, graphics.Vector{1, 0.85, 0.3, 1}),
 }
 tower.Children = append(tower.Children, lamp)
 ```
@@ -44,9 +44,9 @@ Turning it is a new transform at every step:
 angle := 0.0
 turnLamp := func(world *scene.Scene, state *input.State, step float64) {
 	angle += step * 1.5 // radians per second
-	lamp.Transform = graphics.Translate(graphics.Vec4{0, 8, 0, 1}).Multiply(graphics.RotateY(angle))
+	lamp.Transform = graphics.Translate(graphics.Vector{0, 8, 0, 1}).Multiply(graphics.RotateY(angle))
 }
-if err := viewer.Run(world, options, "Island", turnLamp, 0); err != nil {
+if err := viewer.Run(world, options, "Island", turnLamp); err != nil {
 	log.Fatal(err)
 }
 ```
@@ -68,7 +68,7 @@ tint:
 forest := &scene.Node{
 	Name:      "forest",
 	Transform: graphics.Identity(),
-	Mesh:      cone(1, 3, graphics.Vec4{0.2, 0.45, 0.2, 1}),
+	Mesh:      cone(1, 3, graphics.Vector{0.2, 0.45, 0.2, 1}),
 	Instances: &scene.Instances{},
 }
 world.Nodes = append(world.Nodes, forest)
@@ -79,9 +79,9 @@ The tree is a cone:
 
 ```go
 // cone is a tree: a cone of a radius and a height standing on the origin.
-func cone(radius, height float32, color graphics.Vec4) *scene.Mesh {
+func cone(radius, height float32, color graphics.Vector) *scene.Mesh {
 	const sides = 8
-	mesh := &scene.Mesh{Name: "tree", Material: &scene.Material{Kind: scene.KindLit, BaseColor: color}}
+	mesh := &scene.Mesh{Name: "tree", Material: &scene.Material{Kind: scene.LitKind, BaseColor: color}}
 	mesh.Positions = append(mesh.Positions, 0, height, 0) // the tip
 	for side := range sides {
 		angle := float64(side) / sides * 2 * math.Pi
@@ -102,12 +102,12 @@ and a scale, and a colour that multiplies the mesh's own (white leaves it as it 
 // plant adds a tree of a size to the forest, standing at a point.
 func plant(forest *scene.Instances, x, y, z, size float32) {
 	placement := graphics.FromTranslationRotationScale(
-		graphics.Vec4{x, y, z, 1},          // where
-		graphics.Vec4{0, 0, 0, 1},          // no rotation (a quaternion)
-		graphics.Vec4{size, size, size, 1}, // how big
+		graphics.Vector{x, y, z, 1},          // where
+		graphics.Vector{0, 0, 0, 1},          // no rotation (a quaternion)
+		graphics.Vector{size, size, size, 1}, // how big
 	)
 	forest.Transforms = append(forest.Transforms, placement)
-	forest.Colors = append(forest.Colors, graphics.Vec4{1, 1, 1, 1}) // white keeps the mesh's colour
+	forest.Colors = append(forest.Colors, graphics.Vector{1, 1, 1, 1}) // white keeps the mesh's colour
 	forest.Dirty = true                                              // added one: upload them all again
 }
 ```
@@ -174,9 +174,9 @@ cos(angle/2)}`:
 
 ```go
 turn := random.Float64() * 2 * math.Pi
-rotation := graphics.Vec4{0, float32(math.Sin(turn / 2)), 0, float32(math.Cos(turn / 2))}
+rotation := graphics.Vector{0, float32(math.Sin(turn / 2)), 0, float32(math.Cos(turn / 2))}
 shade := 0.8 + random.Float32()*0.4
-forest.Colors = append(forest.Colors, graphics.Vec4{shade, 1, shade, 1})
+forest.Colors = append(forest.Colors, graphics.Vector{shade, 1, shade, 1})
 ```
 
 </details>

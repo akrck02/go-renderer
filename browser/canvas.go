@@ -7,10 +7,10 @@
 package browser
 
 import (
-	"errors"
 	"math"
 	"syscall/js"
 
+	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/input"
 )
 
@@ -27,9 +27,6 @@ type Canvas struct {
 	changed func()
 }
 
-// ErrNoCanvas is returned when the page has no canvas with the given id.
-var ErrNoCanvas = errors.New("browser: no canvas with that id in the page")
-
 // OpenCanvas takes the page's canvas with this id (the first canvas when id is empty).
 func OpenCanvas(id string) (*Canvas, error) {
 	document := js.Global().Get("document")
@@ -40,7 +37,7 @@ func OpenCanvas(id string) (*Canvas, error) {
 		element = document.Call("getElementById", id)
 	}
 	if element.IsNull() || element.IsUndefined() {
-		return nil, ErrNoCanvas
+		return nil, failure.Wrap(CanvasNotFound, id, nil)
 	}
 	// the canvas takes keyboard focus, and touches on it are the program's, not the page's scroll
 	element.Set("tabIndex", 0)
@@ -103,7 +100,7 @@ func (canvas *Canvas) Detach() {
 
 // padConnected sets the pad's layout from the vendor in the name the browser gives it.
 func (canvas *Canvas) padConnected(event js.Value) {
-	canvas.state.SetPadLayout(input.PadLayoutFromName(event.Get("gamepad").Get("id").String()))
+	canvas.state.Feed().SetPadLayout(input.PadLayoutFromName(event.Get("gamepad").Get("id").String()))
 }
 
 // isFinger tells a touch from a mouse or a pen: fingers can be several, and make gestures.
@@ -120,7 +117,7 @@ func (canvas *Canvas) pointerMoved(event js.Value) {
 		canvas.fingers.Move(canvas.state, finger, x, y, 1)
 		return
 	}
-	canvas.state.MoveCursor(event.Get("offsetX").Float(), event.Get("offsetY").Float())
+	canvas.state.Feed().MoveCursor(event.Get("offsetX").Float(), event.Get("offsetY").Float())
 }
 
 func (canvas *Canvas) pointerPressed(event js.Value) {
@@ -136,7 +133,7 @@ func (canvas *Canvas) pointerPressed(event js.Value) {
 	}
 	canvas.pointerMoved(event)
 	if button, known := mouseButtonFrom(event.Get("button").Int()); known {
-		canvas.state.SetButton(button, true)
+		canvas.state.Feed().SetButton(button, true)
 	}
 }
 
@@ -148,7 +145,7 @@ func (canvas *Canvas) pointerReleased(event js.Value) {
 	}
 	canvas.pointerMoved(event)
 	if button, known := mouseButtonFrom(event.Get("button").Int()); known {
-		canvas.state.SetButton(button, false)
+		canvas.state.Feed().SetButton(button, false)
 	}
 }
 
@@ -163,8 +160,8 @@ func (canvas *Canvas) pointerCancelled(event js.Value) {
 
 func (canvas *Canvas) wheelTurned(event js.Value) {
 	mode := event.Get("deltaMode").Int()
-	canvas.state.AddScroll(wheelLines(event.Get("deltaY").Float(), mode))
-	canvas.state.AddHorizontalScroll(wheelLines(event.Get("deltaX").Float(), mode))
+	canvas.state.Feed().AddScroll(wheelLines(event.Get("deltaY").Float(), mode))
+	canvas.state.Feed().AddHorizontalScroll(wheelLines(event.Get("deltaX").Float(), mode))
 	event.Call("preventDefault")
 }
 
@@ -173,13 +170,13 @@ func (canvas *Canvas) keyPressed(event js.Value) {
 	shortcut := event.Get("ctrlKey").Bool() || event.Get("metaKey").Bool()
 	if key, known := keyFromCode(event.Get("code").String()); known {
 		if event.Get("repeat").Bool() {
-			canvas.state.RepeatKey(key)
+			canvas.state.Feed().RepeatKey(key)
 		} else {
-			canvas.state.SetKey(key, true)
+			canvas.state.Feed().SetKey(key, true)
 		}
 	}
 	if character, typed := typedCharacter(event.Get("key").String(), shortcut); typed {
-		canvas.state.AddCharacter(character)
+		canvas.state.Feed().AddCharacter(character)
 	}
 	if !keepsDefault(event, shortcut) {
 		event.Call("preventDefault")
@@ -201,7 +198,7 @@ func keepsDefault(event js.Value, shortcut bool) bool {
 
 func (canvas *Canvas) keyReleased(event js.Value) {
 	if key, known := keyFromCode(event.Get("code").String()); known {
-		canvas.state.SetKey(key, false)
+		canvas.state.Feed().SetKey(key, false)
 	}
 }
 
@@ -210,12 +207,12 @@ func (canvas *Canvas) keyReleased(event js.Value) {
 func (canvas *Canvas) releaseEverything() {
 	for key := input.KeyUnknown + 1; key <= input.KeySuper; key++ { // KeySuper is the last key
 		if canvas.state.Down(key) {
-			canvas.state.SetKey(key, false)
+			canvas.state.Feed().SetKey(key, false)
 		}
 	}
 	for _, button := range []input.MouseButton{input.MouseLeft, input.MouseMiddle, input.MouseRight} {
 		if canvas.state.Button(button) {
-			canvas.state.SetButton(button, false)
+			canvas.state.Feed().SetButton(button, false)
 		}
 	}
 }

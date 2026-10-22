@@ -9,18 +9,19 @@ package metal
 import "C"
 
 import (
-	"fmt"
 	"image"
 	"image/draw"
 	"time"
 	"unsafe"
 
+	"github.com/go-gl/glfw/v3.4/glfw"
+
+	"github.com/akrck02/go-renderer/camera"
+	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
+	"github.com/akrck02/go-renderer/internal/sceneplan"
 	"github.com/akrck02/go-renderer/opengl/overlay"
 	"github.com/akrck02/go-renderer/scene"
-	"github.com/akrck02/go-renderer/sceneplan"
-	"github.com/go-gl/glfw/v3.4/glfw"
 )
 
 // SceneRenderer draws a scene.Scene through Metal: the same frame as the OpenGL scene renderer
@@ -58,14 +59,15 @@ type SceneRenderer struct {
 const seabedResolution = 2048
 
 // NewSceneRenderer puts a Metal layer in a window made with no OpenGL context and prepares the
-// shaders, the shadow and seabed maps.
-func NewSceneRenderer(window *glfw.Window, vsync bool) (*SceneRenderer, error) {
-	var failure *C.char
-	device := C.sceneDeviceCreate(window.GetCocoaWindow(), C.int(boolean(vsync)), &failure)
+// shaders, the shadow and seabed maps; the overlay's text is drawn in fonts (overlay.Fonts{} for
+// the default ones).
+func NewSceneRenderer(window *glfw.Window, vsync bool, fonts overlay.Fonts) (*SceneRenderer, error) {
+	var problem *C.char
+	device := C.sceneDeviceCreate(window.GetCocoaWindow(), C.int(boolean(vsync)), &problem)
 	if device == nil {
-		return nil, takeFailure(failure)
+		return nil, takeFailure(problem)
 	}
-	painter, err := overlay.NewPainter()
+	painter, err := overlay.NewPainter(fonts)
 	if err != nil {
 		return nil, err
 	}
@@ -80,18 +82,18 @@ func NewSceneRenderer(window *glfw.Window, vsync bool) (*SceneRenderer, error) {
 }
 
 // takeFailure turns a message from the Objective-C side into an error, freeing it.
-func takeFailure(failure *C.char) error {
-	defer C.free(unsafe.Pointer(failure))
-	return fmt.Errorf("%w: %s", ErrUnavailable, C.GoString(failure))
+func takeFailure(problem *C.char) error {
+	defer C.free(unsafe.Pointer(problem))
+	return failure.Wrap(Unavailable, C.GoString(problem), nil)
 }
 
 func (renderer *SceneRenderer) preparePipelines() error {
 	source := C.CString(sceneShaderSource)
 	defer C.free(unsafe.Pointer(source))
-	var failure *C.char
-	library := C.sceneLibraryCreate(renderer.device, source, &failure)
+	var problem *C.char
+	library := C.sceneLibraryCreate(renderer.device, source, &problem)
 	if library == nil {
-		return takeFailure(failure)
+		return takeFailure(problem)
 	}
 	defer C.sceneRelease(library)
 	pipelines := &renderer.pipelines
@@ -132,10 +134,10 @@ func (renderer *SceneRenderer) makePipeline(library unsafe.Pointer, vertex, frag
 		fragmentName = C.CString(fragment)
 		defer C.free(unsafe.Pointer(fragmentName))
 	}
-	var failure *C.char
-	pipeline := C.scenePipelineCreate(renderer.device, library, vertexName, fragmentName, blending, &failure)
+	var problem *C.char
+	pipeline := C.scenePipelineCreate(renderer.device, library, vertexName, fragmentName, blending, &problem)
 	if pipeline == nil {
-		return nil, takeFailure(failure)
+		return nil, takeFailure(problem)
 	}
 	return pipeline, nil
 }
@@ -189,7 +191,7 @@ func (renderer *SceneRenderer) Close() {
 // Draw renders the scene from the camera into the window (width × height framebuffer pixels),
 // then its overlay on top, and shows the frame. seconds is the elapsed time, which animates water
 // and waterfalls.
-func (renderer *SceneRenderer) Draw(world *scene.Scene, camera models.Camera, width, height int, seconds float64) {
+func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Lens, width, height int, seconds float64) {
 	if width <= 0 || height <= 0 {
 		return
 	}
@@ -436,7 +438,7 @@ func (renderer *SceneRenderer) levelVariationTexture(water *scene.Water) (unsafe
 
 // drawSky paints the sky where the opaque scene left the far plane uncovered, then the
 // constellations, as the OpenGL sky renderer does.
-func (renderer *SceneRenderer) drawSky(encoder unsafe.Pointer, environment scene.Environment, plan sceneplan.Frame, camera models.Camera, seconds float64) {
+func (renderer *SceneRenderer) drawSky(encoder unsafe.Pointer, environment scene.Environment, plan sceneplan.Frame, camera camera.Lens, seconds float64) {
 	inverse, invertible := plan.Matrices.ViewProjection.Inverse()
 	if !invertible {
 		return
@@ -503,7 +505,7 @@ type constellationBuffer struct {
 }
 
 // drawConstellations draws the lines and stars of every constellation, fading them with daylight.
-func (renderer *SceneRenderer) drawConstellations(encoder unsafe.Pointer, sky *scene.Sky, plan sceneplan.Frame, camera models.Camera) {
+func (renderer *SceneRenderer) drawConstellations(encoder unsafe.Pointer, sky *scene.Sky, plan sceneplan.Frame, camera camera.Lens) {
 	if len(sky.Constellations) == 0 {
 		return
 	}
@@ -522,7 +524,7 @@ func (renderer *SceneRenderer) drawConstellations(encoder unsafe.Pointer, sky *s
 			C.sceneEncoderDraw(encoder, C.scenePrimitiveLines, C.int(lines.First), C.int(lines.Count), 0)
 		}
 	}
-	uniforms.lineColor = graphics.Vec4{1, 1, 1, 1}
+	uniforms.lineColor = graphics.Vector{1, 1, 1, 1}
 	C.sceneEncoderSetPipeline(encoder, renderer.pipelines.constellationPoints)
 	C.sceneEncoderSetVertexBytes(encoder, unsafe.Pointer(&uniforms), size, 1)
 	C.sceneEncoderSetFragmentBytes(encoder, unsafe.Pointer(&uniforms), size, 0)

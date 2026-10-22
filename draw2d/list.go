@@ -25,9 +25,9 @@ const (
 // one flat struct lets a list be reused frame after frame without allocating.
 type Command struct {
 	Kind    Kind
-	Area    Rect // the rectangle, the shadow's caster, the icon's square
-	Layer   int  // higher layers cover lower ones; within a layer, later commands cover earlier ones
-	Clip    Rect // nothing is drawn outside it, when HasClip
+	Area    Rectangle // the rectangle, the shadow's caster, the icon's square
+	Layer   int       // higher layers cover lower ones; within a layer, later commands cover earlier ones
+	Clip    Rectangle // nothing is drawn outside it, when HasClip
 	HasClip bool
 
 	Radius      float32 // rectangle and shadow: corner radius
@@ -36,7 +36,7 @@ type Command struct {
 	BorderWidth float32 // rectangle: outline thickness, inside the area
 	Blur        float32 // shadow: how far it fades out; Area is the caster grown by it and moved down. Backdrop: how far what is behind spreads (a standard deviation, as CSS's blur())
 
-	Text     string  // text: the line; icon: the icon's name
+	Text     string  // text: the line; icon: the icon's name (one field for both keeps a Command small)
 	Size     float32 // text and icon: size in layout pixels (the font's em square)
 	Weight   Weight  // text
 	Baseline float32 // text: y of the baseline; the line starts at Area.X
@@ -47,7 +47,7 @@ type Command struct {
 // List collects the commands of a frame. The zero value is an empty list ready to use.
 type List struct {
 	Commands []Command
-	clips    []Rect
+	clips    []Rectangle
 	layer    int
 }
 
@@ -66,7 +66,7 @@ func (list *List) IsEmpty() bool { return list == nil || len(list.Commands) == 0
 func (list *List) SetLayer(layer int) { list.layer = layer }
 
 // PushClip limits the following commands to a rectangle, inside the current clip if there is one.
-func (list *List) PushClip(area Rect) {
+func (list *List) PushClip(area Rectangle) {
 	if clip, clipped := list.currentClip(); clipped {
 		area = area.Intersect(clip)
 	}
@@ -80,9 +80,9 @@ func (list *List) PopClip() {
 	}
 }
 
-func (list *List) currentClip() (Rect, bool) {
+func (list *List) currentClip() (Rectangle, bool) {
 	if len(list.clips) == 0 {
-		return Rect{}, false
+		return Rectangle{}, false
 	}
 	return list.clips[len(list.clips)-1], true
 }
@@ -151,7 +151,7 @@ func boolNumber(value bool) float32 {
 
 // Rectangle draws a rounded rectangle: fill inside, and a border of a width drawn inside the area.
 // A transparent fill or border is skipped.
-func (list *List) Rectangle(area Rect, radius float32, fill, border Color, borderWidth float32) {
+func (list *List) Rectangle(area Rectangle, radius float32, fill, border Color, borderWidth float32) {
 	if area.IsEmpty() || (!fill.IsVisible() && (!border.IsVisible() || borderWidth <= 0)) {
 		return
 	}
@@ -160,11 +160,11 @@ func (list *List) Rectangle(area Rect, radius float32, fill, border Color, borde
 
 // Shadow draws a soft shadow for a rounded rectangle, fading out over blur pixels on every side
 // and falling offsetY pixels below it. Draw it before the rectangle that casts it.
-func (list *List) Shadow(area Rect, radius, blur, offsetY float32, color Color) {
+func (list *List) Shadow(area Rectangle, radius, blur, offsetY float32, color Color) {
 	if area.IsEmpty() || !color.IsVisible() {
 		return
 	}
-	shadowed := Rect{X: area.X - blur, Y: area.Y - blur + offsetY, Width: area.Width + 2*blur, Height: area.Height + 2*blur}
+	shadowed := Rectangle{X: area.X - blur, Y: area.Y - blur + offsetY, Width: area.Width + 2*blur, Height: area.Height + 2*blur}
 	list.add(Command{Kind: ShadowKind, Area: shadowed, Radius: radius, Blur: blur, Fill: color})
 }
 
@@ -173,7 +173,7 @@ func (list *List) Shadow(area Rect, radius, blur, offsetY float32, color Color) 
 // spreads, in layout pixels. The first backdrop of a layer takes a picture of everything drawn so
 // far, and every backdrop of that layer reads it, so a layer of many panels costs one blur; a
 // panel does not blur another of its own layer. A backend that cannot blur leaves it out.
-func (list *List) Backdrop(area Rect, radius, blur float32) {
+func (list *List) Backdrop(area Rectangle, radius, blur float32) {
 	if area.IsEmpty() || blur <= 0 {
 		return
 	}
@@ -193,13 +193,13 @@ func (list *List) PointLight(x, y, inner, outer float32, color Color) {
 	if outer <= 0 || color[3] <= 0 {
 		return
 	}
-	area := Rect{X: x - outer, Y: y - outer, Width: 2 * outer, Height: 2 * outer}
+	area := Rectangle{X: x - outer, Y: y - outer, Width: 2 * outer, Height: 2 * outer}
 	list.add(Command{Kind: PointLightKind, Area: area, Radius: min(max(inner, 0), outer), Fill: color})
 }
 
 // SpriteLight adds a picture shining as a light over an area, tinted by a colour whose alpha is
 // its intensity: a lamp's glow, a sign that shines.
-func (list *List) SpriteLight(picture *Image, area Rect, color Color) {
+func (list *List) SpriteLight(picture *Image, area Rectangle, color Color) {
 	if picture == nil || picture.Pixels == nil || area.IsEmpty() || color[3] <= 0 {
 		return
 	}
@@ -222,7 +222,7 @@ func (list *List) Text(text string, x, baseline, size float32, weight Weight, co
 	if text == "" || size <= 0 || !color.IsVisible() {
 		return
 	}
-	list.add(Command{Kind: TextKind, Text: text, Area: Rect{X: x, Y: baseline - size, Width: 0, Height: size},
+	list.add(Command{Kind: TextKind, Text: text, Area: Rectangle{X: x, Y: baseline - size, Width: 0, Height: size},
 		Baseline: baseline, Size: size, Weight: weight, Fill: color})
 }
 
@@ -232,13 +232,13 @@ func (list *List) Icon(name string, x, y, size float32, color Color) {
 	if name == "" || size <= 0 || !color.IsVisible() {
 		return
 	}
-	list.add(Command{Kind: IconKind, Text: name, Area: Rect{X: x, Y: y, Width: size, Height: size}, Size: size, Fill: color})
+	list.add(Command{Kind: IconKind, Text: name, Area: Rectangle{X: x, Y: y, Width: size, Height: size}, Size: size, Fill: color})
 }
 
 // Image draws a picture covering a rounded rectangle: scaled to fill it, and cropped evenly at the
 // sides or at the top and bottom when their shapes differ, as photos fill cards and avatars. tint
 // multiplies its colours; white draws it as it is, and a lower opacity fades it.
-func (list *List) Image(picture *Image, area Rect, radius float32, tint Color) {
+func (list *List) Image(picture *Image, area Rectangle, radius float32, tint Color) {
 	if picture == nil || picture.Pixels == nil || area.IsEmpty() || !tint.IsVisible() {
 		return
 	}

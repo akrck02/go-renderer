@@ -4,25 +4,24 @@ import (
 	"math"
 
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
 )
 
 // Ray is a half-line in the scene as it is drawn: from Origin along Direction (of length 1).
 // Heights are drawn heights, already multiplied by the scene's vertical exaggeration.
 type Ray struct {
-	Origin, Direction graphics.Vec4
+	Origin, Direction graphics.Vector
 }
 
 // RayThrough returns the ray from the camera through a point of the window: x and y in window
 // pixels from the top-left corner of a window width × height pixels (where the pointer is). It
 // is false when the camera's matrices cannot be inverted (a window of no size).
-func RayThrough(view models.Camera, width, height int, x, y float64) (Ray, bool) {
+func RayThrough(view Lens, width, height int, x, y float64) (Ray, bool) {
 	if width <= 0 || height <= 0 {
 		return Ray{}, false
 	}
 	up := view.Up
-	if up == (graphics.Vec4{}) {
-		up = graphics.Vec4{0, 1, 0, 0}
+	if up == (graphics.Vector{}) {
+		up = graphics.Vector{0, 1, 0, 0}
 	}
 	projection := view.ProjectionMatrix(float64(width) / float64(height))
 	viewProjection := projection.Multiply(graphics.LookAt(view.Position, view.Target, up))
@@ -34,24 +33,24 @@ func RayThrough(view models.Camera, width, height int, x, y float64) (Ray, bool)
 	screenY := float32(1 - 2*y/float64(height))
 	near := unproject(inverse, screenX, screenY, -1)
 	far := unproject(inverse, screenX, screenY, 1)
-	direction := graphics.Vec4{far[0] - near[0], far[1] - near[1], far[2] - near[2], 0}
+	direction := graphics.Vector{far[0] - near[0], far[1] - near[1], far[2] - near[2], 0}
 	length := float32(math.Sqrt(float64(direction.Dot(direction))))
 	if length == 0 {
 		return Ray{}, false
 	}
-	direction = graphics.Vec4{direction[0] / length, direction[1] / length, direction[2] / length, 0}
+	direction = graphics.Vector{direction[0] / length, direction[1] / length, direction[2] / length, 0}
 	return Ray{Origin: near, Direction: direction}, true
 }
 
 // unproject turns a point of the screen (from -1 to 1 on each axis, depth too) into the scene.
-func unproject(inverse graphics.Mat4, x, y, depth float32) graphics.Vec4 {
-	point := inverse.Apply(graphics.Vec4{x, y, depth, 1})
-	return graphics.Vec4{point[0] / point[3], point[1] / point[3], point[2] / point[3], 1}
+func unproject(inverse graphics.Matrix, x, y, depth float32) graphics.Vector {
+	point := inverse.Apply(graphics.Vector{x, y, depth, 1})
+	return graphics.Vector{point[0] / point[3], point[1] / point[3], point[2] / point[3], 1}
 }
 
 // At returns the point at a distance along the ray.
-func (ray Ray) At(distance float32) graphics.Vec4 {
-	return graphics.Vec4{
+func (ray Ray) At(distance float32) graphics.Vector {
+	return graphics.Vector{
 		ray.Origin[0] + ray.Direction[0]*distance,
 		ray.Origin[1] + ray.Direction[1]*distance,
 		ray.Origin[2] + ray.Direction[2]*distance,
@@ -61,13 +60,13 @@ func (ray Ray) At(distance float32) graphics.Vec4 {
 
 // PointAtHeight returns where the ray meets the horizontal plane at a drawn height: a flat floor,
 // a table top. It is false when the ray runs parallel to the plane or away from it.
-func (ray Ray) PointAtHeight(height float32) (graphics.Vec4, bool) {
+func (ray Ray) PointAtHeight(height float32) (graphics.Vector, bool) {
 	if math.Abs(float64(ray.Direction[1])) < 1e-9 {
-		return graphics.Vec4{}, false
+		return graphics.Vector{}, false
 	}
 	distance := (height - ray.Origin[1]) / ray.Direction[1]
 	if distance < 0 {
-		return graphics.Vec4{}, false
+		return graphics.Vector{}, false
 	}
 	return ray.At(distance), true
 }
@@ -81,13 +80,13 @@ const groundSamples = 512
 // none), verticalScale is the exaggeration it is drawn with, and lowest and highest bound the
 // ground's true heights (the scene's bounds), so the search only covers where it can be. The
 // point returned has the true height. It is false when the ray misses the ground.
-func (ray Ray) PointOnGround(ground func(x, z float32) (float32, bool), verticalScale, lowest, highest float32) (graphics.Vec4, bool) {
+func (ray Ray) PointOnGround(ground func(x, z float32) (float32, bool), verticalScale, lowest, highest float32) (graphics.Vector, bool) {
 	if verticalScale <= 0 {
 		verticalScale = 1
 	}
 	start, end, crosses := ray.slab(lowest*verticalScale, highest*verticalScale)
 	if !crosses {
-		return graphics.Vec4{}, false
+		return graphics.Vector{}, false
 	}
 	above := func(distance float32) (bool, bool) {
 		point := ray.At(distance)
@@ -104,7 +103,7 @@ func (ray Ray) PointOnGround(ground func(x, z float32) (float32, bool), vertical
 		}
 		previous, wasAbove = distance, isAbove || !found
 	}
-	return graphics.Vec4{}, false
+	return graphics.Vector{}, false
 }
 
 // slab returns the part of the ray between two drawn heights.
@@ -121,7 +120,7 @@ func (ray Ray) slab(lowest, highest float32) (start, end float32, crosses bool) 
 }
 
 // refine narrows the crossing between a distance above the ground and one below it.
-func (ray Ray) refine(above func(float32) (bool, bool), over, under, verticalScale float32) graphics.Vec4 {
+func (ray Ray) refine(above func(float32) (bool, bool), over, under, verticalScale float32) graphics.Vector {
 	for step := 0; step < 40; step++ {
 		middle := (over + under) / 2
 		if isAbove, _ := above(middle); isAbove {

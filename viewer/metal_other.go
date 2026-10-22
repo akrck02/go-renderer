@@ -4,10 +4,10 @@ package viewer
 
 import (
 	"github.com/akrck02/go-renderer/metal"
-	"github.com/akrck02/go-renderer/models"
+	"github.com/akrck02/go-renderer/window"
 )
 
 // runMetal fails everywhere but macOS, and the session falls back to OpenGL.
-func runMetal(session *viewer, app *models.Application) error {
-	return (&metal.SceneWindow{}).StartLoop(app)
+func runMetal(session *viewer, app *window.Application) error {
+	return (&metal.SceneWindow{}).Run(app)
 }

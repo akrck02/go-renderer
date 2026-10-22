@@ -5,13 +5,12 @@ import (
 
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/input"
-	"github.com/akrck02/go-renderer/models"
 )
 
 // Orbit rotates around a target: left drag rotates, right drag (or shift + left drag) pans,
 // scroll zooms. Arrow keys rotate and +/- zoom from the keyboard.
 type Orbit struct {
-	Target          graphics.Vec4
+	Target          graphics.Vector
 	Distance        float64
 	Yaw             float64 // radians around the vertical axis
 	Pitch           float64 // radians; 0 looks from the horizon, pi/2 from straight above
@@ -25,17 +24,31 @@ type Orbit struct {
 	VerticalScale   float32    // scale applied to ground heights (vertical exaggeration); 0 = 1
 }
 
-// NewOrbit returns an orbit controller with sensible defaults for a scene of the given size.
-func NewOrbit(target graphics.Vec4, sceneSize float64) *Orbit {
+// The orbit's defaults: where it starts looking from and how fast it answers.
+const (
+	orbitStartYawRadians      = 0.4
+	orbitStartPitchRadians    = 0.95
+	orbitClosestToScene       = 0.002  // the closest distance, as a fraction of the scene
+	orbitFarthestToScene      = 3      // the farthest distance, in scene sizes
+	orbitRadiansPerCursorUnit = 0.006  // a drag turns the camera this much per cursor unit
+	orbitZoomPerScrollStep    = 0.12   // the fraction of the distance one scroll step zooms
+	orbitGroundClearanceScene = 0.0005 // how high above the ground the camera keeps, as a fraction of the scene
+)
+
+// NewOrbit returns an orbit controller with sensible defaults for a scene of the given size (in
+// world units).
+func NewOrbit(target graphics.Vector, sceneSize float32) *Orbit {
+	size := float64(sceneSize)
 	return &Orbit{
-		Target: target, Distance: sceneSize, Yaw: 0.4, Pitch: 0.95,
-		MinimumDistance: sceneSize * 0.002, MaximumDistance: sceneSize * 3,
-		RotationSpeed: 0.006, ZoomSpeed: 0.12, GroundClearance: float32(sceneSize * 0.0005),
+		Target: target, Distance: size, Yaw: orbitStartYawRadians, Pitch: orbitStartPitchRadians,
+		MinimumDistance: size * orbitClosestToScene, MaximumDistance: size * orbitFarthestToScene,
+		RotationSpeed: orbitRadiansPerCursorUnit, ZoomSpeed: orbitZoomPerScrollStep,
+		GroundClearance: sceneSize * orbitGroundClearanceScene,
 	}
 }
 
 // Update applies this frame's input and places the camera.
-func (orbit *Orbit) Update(state *input.State, seconds float64, camera *models.Camera) {
+func (orbit *Orbit) Update(state *input.State, seconds float64, camera *Lens) {
 	if state != nil {
 		orbit.applyMouse(state)
 		orbit.applyKeyboard(state, seconds)
@@ -46,7 +59,7 @@ func (orbit *Orbit) Update(state *input.State, seconds float64, camera *models.C
 	orbit.placeTargetOnGround()
 	camera.Position = orbit.cameraPositionAboveGround()
 	camera.Target = orbit.Target
-	camera.Up = graphics.Vec4{0, 1, 0, 0}
+	camera.Up = graphics.Vector{0, 1, 0, 0}
 }
 
 // Gesture applies what two fingers did (input.TwoFingers), as a map does: the ground that was
@@ -125,11 +138,12 @@ func (orbit *Orbit) applyKeyboard(state *input.State, seconds float64) {
 // applyStick moves the target over the ground the way the stick leans, as a game moves its
 // player: up goes away from the camera, right to its right, half a screen's height a second at most.
 func (orbit *Orbit) applyStick(state *input.State, seconds float64) {
-	if state.StickX == 0 && state.StickY == 0 {
+	stickX, stickY := state.Stick()
+	if stickX == 0 && stickY == 0 {
 		return
 	}
 	pixels := float64(max(state.WindowHeight, 1)) * seconds / 2
-	moveX, moveZ := orbit.groundOffset(state.StickX*pixels, -state.StickY*pixels, state.WindowHeight)
+	moveX, moveZ := orbit.groundOffset(stickX*pixels, -stickY*pixels, state.WindowHeight)
 	orbit.Target[0] += float32(moveX)
 	orbit.Target[2] += float32(moveZ)
 }
@@ -157,9 +171,9 @@ func (orbit *Orbit) placeTargetOnGround() {
 	}
 }
 
-func (orbit *Orbit) cameraPositionAboveGround() graphics.Vec4 {
+func (orbit *Orbit) cameraPositionAboveGround() graphics.Vector {
 	cosinePitch, sinePitch := math.Cos(orbit.Pitch), math.Sin(orbit.Pitch)
-	position := graphics.Vec4{
+	position := graphics.Vector{
 		orbit.Target[0] + float32(orbit.Distance*cosinePitch*math.Sin(orbit.Yaw)),
 		orbit.Target[1] + float32(orbit.Distance*sinePitch),
 		orbit.Target[2] + float32(orbit.Distance*cosinePitch*math.Cos(orbit.Yaw)),

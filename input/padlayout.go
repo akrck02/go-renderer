@@ -37,7 +37,7 @@ const browserVendorLabel = "Vendor: "
 func (state *State) PadLayout() PadLayout { return state.padLayout }
 
 // SetPadLayout records the layout of the pad being read; the backend sets it when a pad connects.
-func (state *State) SetPadLayout(layout PadLayout) { state.padLayout = layout }
+func (feed Feed) SetPadLayout(layout PadLayout) { feed.state.padLayout = layout }
 
 // PadLayoutFromVendor is the layout of a pad made by a USB vendor.
 func PadLayoutFromVendor(vendor uint16) PadLayout {

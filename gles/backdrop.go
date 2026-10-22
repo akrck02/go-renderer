@@ -1,6 +1,6 @@
 package gles
 
-import "github.com/akrck02/go-renderer/graphics"
+import "github.com/akrck02/go-renderer/internal/shading"
 
 // blurredTextureUnit is where the blurred snapshot is bound for the quads that read it.
 const blurredTextureUnit = 2
@@ -38,7 +38,7 @@ func newBackdropBlur(functions Functions) (*backdropBlur, error) {
 	}
 	blur := &backdropBlur{functions: functions, program: shaders, corners: functions.CreateBuffer()}
 	functions.BindBuffer(ArrayBuffer, blur.corners)
-	functions.BufferData(ArrayBuffer, floatBytes(cornerFloats), StaticDraw)
+	functions.SetBufferData(ArrayBuffer, floatBytes(cornerFloats), StaticDraw)
 	return blur, nil
 }
 
@@ -47,40 +47,40 @@ func newBackdropBlur(functions Functions) (*backdropBlur, error) {
 // the caller sets its own program, buffer and textures up again.
 func (blur *backdropBlur) snapshot(target Framebuffer, width, height int, deviation float32) {
 	functions := blur.functions
-	halvings := graphics.BackdropHalvings(deviation)
+	halvings := shading.BackdropHalvings(deviation)
 	blur.prepare(width, height, halvings)
 
-	functions.ActiveTexture(Texture0)
+	functions.SelectTextureUnit(TextureUnit0)
 	functions.BindTexture(Texture2D, blur.copy.texture)
-	functions.CopyTexSubImage2D(Texture2D, 0, 0, 0, 0, 0, width, height)
+	functions.CopyFramebufferToTexture(Texture2D, 0, 0, 0, 0, 0, width, height)
 
 	blur.program.use()
 	blur.program.setInteger("source", 0)
 	functions.Disable(Blend)
 	functions.Disable(DepthTest)
 	functions.BindBuffer(ArrayBuffer, blur.corners)
-	functions.VertexAttribPointer(0, 2, Float, false, 2*4, 0)
+	functions.DescribeVertexAttribute(0, 2, Float, false, 2*4, 0)
 	smallest := blur.copy
 	for _, level := range blur.levels[:halvings] {
-		blur.pass(smallest, level, [graphics.BackdropTaps + 1]float32{1}, 0, 0)
+		blur.pass(smallest, level, [shading.BackdropTaps + 1]float32{1}, 0, 0)
 		smallest = level
 	}
-	weights := graphics.BackdropWeights(deviation / float32(int(1)<<halvings))
+	weights := shading.BackdropWeights(deviation / float32(int(1)<<halvings))
 	blur.pass(smallest, blur.spare, weights, 1/float32(smallest.width), 0)
 	blur.pass(blur.spare, smallest, weights, 0, 1/float32(smallest.height))
 
 	functions.BindFramebuffer(FramebufferTarget, target)
-	functions.Viewport(0, 0, width, height)
-	functions.ActiveTexture(Texture0 + blurredTextureUnit)
+	functions.SetViewport(0, 0, width, height)
+	functions.SelectTextureUnit(TextureUnit0 + blurredTextureUnit)
 	functions.BindTexture(Texture2D, smallest.texture)
 }
 
 // pass draws a texture into a target through the blur shader, with these weights along step.
-func (blur *backdropBlur) pass(from, into target, weights [graphics.BackdropTaps + 1]float32, stepX, stepY float32) {
+func (blur *backdropBlur) pass(from, into target, weights [shading.BackdropTaps + 1]float32, stepX, stepY float32) {
 	functions := blur.functions
 	functions.BindFramebuffer(FramebufferTarget, into.framebuffer)
-	functions.Viewport(0, 0, into.width, into.height)
-	functions.ActiveTexture(Texture0)
+	functions.SetViewport(0, 0, into.width, into.height)
+	functions.SelectTextureUnit(TextureUnit0)
 	functions.BindTexture(Texture2D, from.texture)
 	blur.program.setVector2("step", stepX, stepY)
 	for tap, weight := range weights {
@@ -90,7 +90,7 @@ func (blur *backdropBlur) pass(from, into target, weights [graphics.BackdropTaps
 }
 
 // weightNames are the blur's weights as OpenGL ES 2 names each element of the array.
-var weightNames = [graphics.BackdropTaps + 1]string{"weights[0]", "weights[1]", "weights[2]", "weights[3]", "weights[4]"}
+var weightNames = [shading.BackdropTaps + 1]string{"weights[0]", "weights[1]", "weights[2]", "weights[3]", "weights[4]"}
 
 // prepare makes the textures for a screen of this size, when it changed, and enough halvings.
 func (blur *backdropBlur) prepare(width, height, halvings int) {
@@ -129,15 +129,15 @@ func (blur *backdropBlur) release() {
 // are RGBA, which every OpenGL ES 2 can draw into. It binds the texture on the first unit.
 func newTarget(functions Functions, width, height int, format Enum) target {
 	made := target{texture: functions.CreateTexture(), framebuffer: functions.CreateFramebuffer(), width: width, height: height}
-	functions.ActiveTexture(Texture0)
+	functions.SelectTextureUnit(TextureUnit0)
 	functions.BindTexture(Texture2D, made.texture)
-	functions.TexImage2D(Texture2D, 0, format, width, height, format, UnsignedByte, nil)
-	functions.TexParameteri(Texture2D, TextureMinFilter, int32(Linear))
-	functions.TexParameteri(Texture2D, TextureMagFilter, int32(Linear))
-	functions.TexParameteri(Texture2D, TextureWrapS, int32(ClampToEdge))
-	functions.TexParameteri(Texture2D, TextureWrapT, int32(ClampToEdge))
+	functions.SetTextureImage(Texture2D, 0, format, width, height, format, UnsignedByte, nil)
+	functions.SetTextureParameter(Texture2D, TextureMinFilter, int32(Linear))
+	functions.SetTextureParameter(Texture2D, TextureMagFilter, int32(Linear))
+	functions.SetTextureParameter(Texture2D, TextureWrapS, int32(ClampToEdge))
+	functions.SetTextureParameter(Texture2D, TextureWrapT, int32(ClampToEdge))
 	functions.BindFramebuffer(FramebufferTarget, made.framebuffer)
-	functions.FramebufferTexture2D(FramebufferTarget, ColorAttachment0, Texture2D, made.texture, 0)
+	functions.AttachTextureToFramebuffer(FramebufferTarget, ColorAttachment0, Texture2D, made.texture, 0)
 	functions.BindFramebuffer(FramebufferTarget, 0)
 	return made
 }

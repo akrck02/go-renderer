@@ -1,8 +1,9 @@
 package windowloop
 
 import (
-	"github.com/akrck02/go-renderer/input"
 	"github.com/go-gl/glfw/v3.4/glfw"
+
+	"github.com/akrck02/go-renderer/input"
 )
 
 var keysFromGLFW = map[glfw.Key]input.Key{
@@ -55,21 +56,21 @@ func ForwardInput(window *glfw.Window, state *input.State) {
 			return
 		}
 		if action == glfw.Repeat {
-			state.RepeatKey(mapped)
+			state.Feed().RepeatKey(mapped)
 			return
 		}
-		state.SetKey(mapped, action == glfw.Press)
+		state.Feed().SetKey(mapped, action == glfw.Press)
 	})
-	window.SetCharCallback(func(_ *glfw.Window, character rune) { state.AddCharacter(character) })
+	window.SetCharCallback(func(_ *glfw.Window, character rune) { state.Feed().AddCharacter(character) })
 	window.SetMouseButtonCallback(func(_ *glfw.Window, button glfw.MouseButton, action glfw.Action, _ glfw.ModifierKey) {
 		if mapped, known := mouseButtonsFromGLFW[button]; known {
-			state.SetButton(mapped, action == glfw.Press)
+			state.Feed().SetButton(mapped, action == glfw.Press)
 		}
 	})
-	window.SetCursorPosCallback(func(_ *glfw.Window, x, y float64) { state.MoveCursor(x, y) })
+	window.SetCursorPosCallback(func(_ *glfw.Window, x, y float64) { state.Feed().MoveCursor(x, y) })
 	window.SetScrollCallback(func(_ *glfw.Window, horizontalScroll, verticalScroll float64) {
-		state.AddScroll(verticalScroll)
-		state.AddHorizontalScroll(horizontalScroll)
+		state.Feed().AddScroll(verticalScroll)
+		state.Feed().AddHorizontalScroll(horizontalScroll)
 	})
 	state.Clipboard = windowClipboard{window}
 	UpdateSizes(window, state)
@@ -110,6 +111,7 @@ type CursorShapes struct {
 	cursors map[input.CursorShape]*glfw.Cursor
 }
 
+// Apply shows the pointer shape the state asks for, if it is not already shown.
 func (shapes *CursorShapes) Apply(window *glfw.Window, state *input.State) {
 	wanted := state.CursorShape()
 	if wanted == shapes.current {

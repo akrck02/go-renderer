@@ -12,12 +12,6 @@ Backends upload meshes once and draw them every frame. Simulations can change
 geometry or instances later and mark them Dirty so the backend uploads them
 again.
 
-### Functions
-
-| Function | |
-|---|---|
-| `func ColorFromHex(text string) (graphics.Vec4, bool)` | ColorFromHex reads a colour written as on a web page, "#rrggbb" (or "#rgb"), into the 0–1 range with alpha 1. |
-
 ### Constants and variables
 
 ```go
@@ -27,10 +21,10 @@ const DefaultMaximumNotices = 5
 DefaultMaximumNotices is how many notices are shown at once when the overlay does not say.
 
 ```go
-const DefaultNoticeDuration = 6.0
+const DefaultNoticeSeconds = 6.0
 ```
 
-DefaultNoticeDuration is how long a notice stays when the overlay does not say.
+DefaultNoticeSeconds is how long a notice stays, in seconds, when the overlay does not say.
 
 ### Clouds
 
@@ -39,10 +33,10 @@ Clouds is a procedural cloud layer.
 ```go
 type Clouds struct {
 	Coverage float32 // share of the sky covered (0 = clear)
-	Color    graphics.Vec4
-	Speed    float32       // drift in cloud-texture units per second
-	Scale    float32       // size of the cloud pattern (larger = bigger clouds)
-	Offset   graphics.Vec4 // how far the clouds have drifted (x, z), moved by a simulation
+	Color    graphics.Vector
+	Speed    float32         // drift in cloud-texture units per second
+	Scale    float32         // size of the cloud pattern (larger = bigger clouds)
+	Offset   graphics.Vector // how far the clouds have drifted (x, z), moved by a simulation
 }
 ```
 
@@ -53,9 +47,9 @@ Constellation is a figure of stars joined by lines, fixed to the night sky.
 ```go
 type Constellation struct {
 	Name  string
-	Stars []graphics.Vec4 // directions as seen at midnight (the sun at the lowest point of its circle)
-	Lines [][2]int        // pairs of indices into Stars
-	Color graphics.Vec4
+	Stars []graphics.Vector // directions as seen at midnight (the sun at the lowest point of its circle)
+	Lines [][2]int          // pairs of indices into Stars
+	Color graphics.Vector
 }
 ```
 
@@ -67,17 +61,17 @@ Daylight is the state of the sky at the current sun height: the colors to paint 
 type Daylight struct {
 	DayAmount      float32 // 1 in full day, 0 at night
 	TwilightAmount float32 // 1 with the sun on the horizon, 0 far from it
-	Zenith         graphics.Vec4
-	Horizon        graphics.Vec4
-	Fog            graphics.Vec4
-	SkyLight       graphics.Vec4 // ambient light from the sky
-	GroundLight    graphics.Vec4 // ambient light bounced from the ground
-	SunVisible     float32       // how much of the sun disc is above the horizon
-	LightDirection graphics.Vec4 // towards the light that shades the scene
-	LightColor     graphics.Vec4
-	MoonDirection  graphics.Vec4
-	StarRotation   graphics.Mat4 // turns world directions into celestial directions
-	Brightness     float32       // overall light level (1 day, low at night) for materials that are not lit
+	Zenith         graphics.Vector
+	Horizon        graphics.Vector
+	Fog            graphics.Vector
+	SkyLight       graphics.Vector // ambient light from the sky
+	GroundLight    graphics.Vector // ambient light bounced from the ground
+	SunVisible     float32         // how much of the sun disc is above the horizon
+	LightDirection graphics.Vector // towards the light that shades the scene
+	LightColor     graphics.Vector
+	MoonDirection  graphics.Vector
+	StarRotation   graphics.Matrix // turns world directions into celestial directions
+	Brightness     float32         // overall light level (1 day, low at night) for materials that are not lit
 }
 ```
 
@@ -98,21 +92,21 @@ Environment holds the lighting and atmosphere.
 
 ```go
 type Environment struct {
-	SunDirection  graphics.Vec4 // towards the sun, normalized
-	SunColor      graphics.Vec4
-	SkyZenith     graphics.Vec4
-	SkyHorizon    graphics.Vec4
-	GroundAmbient graphics.Vec4
+	SunDirection  graphics.Vector // towards the sun, normalized
+	SunColor      graphics.Vector
+	SkyZenith     graphics.Vector
+	SkyHorizon    graphics.Vector
+	GroundAmbient graphics.Vector
 	Ambient       float32
-	FogColor      graphics.Vec4
+	FogColor      graphics.Vector
 	FogNear       float32
 	FogFar        float32 // 0 = no fog
 	Water         *Water
 	VerticalScale float32 // vertical exaggeration applied to the whole scene (0 = 1)
 	Sky           *Sky    // sky over the day and night (nil = DefaultSky)
 	Wind          Wind
-	Snow          *Snow         // snow on the ground above a height (nil = none)
-	FoliageTint   graphics.Vec4 // colour foliage materials take (alpha = how much; zero = none): the season's
+	Snow          *Snow           // snow on the ground above a height (nil = none)
+	FoliageTint   graphics.Vector // colour foliage materials take (alpha = how much; zero = none): the season's
 }
 ```
 
@@ -131,7 +125,7 @@ HeaderLine is one line of the header in the top-left corner of the screen.
 type HeaderLine struct {
 	Icon string
 	Text string
-	Tint graphics.Vec4 // colour of the icon (alpha 0 = the default text colour)
+	Tint graphics.Vector // colour of the icon (alpha 0 = the default text colour)
 }
 ```
 
@@ -141,8 +135,8 @@ Instances draws a mesh many times with a transform and a color per instance. Aft
 
 ```go
 type Instances struct {
-	Transforms []graphics.Mat4
-	Colors     []graphics.Vec4
+	Transforms []graphics.Matrix
+	Colors     []graphics.Vector
 	Dirty      bool
 	Changed    []int // indices changed since the last draw
 	GPU        any
@@ -162,15 +156,15 @@ type Label struct {
 	// Node anchors the label to a node: it follows the node's world transform and hides with it.
 	// When nil, the label stands at Point.
 	Node  *Node
-	Point graphics.Vec4 // world position of the anchor when there is no Node
+	Point graphics.Vector // world position of the anchor when there is no Node
 	// Height lifts the label above its anchor, in world units (the top of a box, for example).
 	Height float32
 	Text   string
 	Icon   string // name of a Lucide icon (https://lucide.dev), drawn before the text or alone
 	Badge  string // a short text in a small pill under the label
-	// Tint colours the icon and the badge, as a screen colour (see ColorFromHex); alpha 0 = the
+	// Tint colours the icon and the badge, as a screen colour (see draw2d.ParseHex); alpha 0 = the
 	// default text colour. The text itself stays dark on a light pill, so it always reads well.
-	Tint   graphics.Vec4
+	Tint   graphics.Vector
 	Hidden bool
 }
 ```
@@ -208,7 +202,7 @@ Material describes how a mesh is shaded.
 type Material struct {
 	Name        string
 	Kind        MaterialKind
-	BaseColor   graphics.Vec4 // linear RGBA multiplied with vertex colors
+	BaseColor   graphics.Vector // linear RGBA multiplied with vertex colors
 	DoubleSided bool
 	Transparent bool
 	// Additive adds the surface's light to what is behind it instead of covering it: beams, sparks,
@@ -233,11 +227,11 @@ type MaterialKind int
 
 ```go
 const (
-	KindLit       MaterialKind = iota // diffuse sun + sky ambient + fog
-	KindUnlit                         // flat color (+ fog)
-	KindWater                         // animated water surface
-	KindWaterfall                     // animated, translucent falling water
-	KindGlow                          // lit by day; shines with its own colour in the dark (glowing flowers, lamps)
+	LitKind       MaterialKind = iota // diffuse sun + sky ambient + fog
+	UnlitKind                         // flat color (+ fog)
+	WaterKind                         // animated water surface
+	WaterfallKind                     // animated, translucent falling water
+	GlowKind                          // lit by day; shines with its own colour in the dark (glowing flowers, lamps)
 )
 ```
 
@@ -262,14 +256,14 @@ type Mesh struct {
 
 | Function or method | |
 |---|---|
-| `func (mesh *Mesh) Bounds() (minimum, maximum graphics.Vec4)` | Bounds returns the box around the mesh positions in its own coordinates. |
+| `func (mesh *Mesh) Bounds() (minimum, maximum graphics.Vector)` | Bounds returns the box around the mesh positions in its own coordinates. |
 | `func (mesh *Mesh) ComputeNormals()` | ComputeNormals fills smooth vertex normals from the triangles (weighted by triangle area). |
 | `func (mesh *Mesh) ForEachTriangle(visit func(first, second, third uint32))` | ForEachTriangle calls visit with the vertex indices of every triangle. |
 | `func (mesh *Mesh) Level(index int) *Mesh` | Level returns a version of the mesh: 0 is the mesh itself, 1 the first detail level, and so on. |
 | `func (mesh *Mesh) LevelCount() int` | LevelCount returns how many versions the mesh has, itself included. |
 | `func (mesh *Mesh) LevelForScreenSize(screenSize float32) int` | LevelForScreenSize returns the index of the version to draw for a model of this apparent size: the coarsest level whose ScreenSize is still larger than it. |
 | `func (mesh *Mesh) Top() float32` | Top returns the highest y of the mesh's vertices (0 for an empty mesh), to lift a label above it. |
-| `func (mesh *Mesh) Vertex(index uint32) graphics.Vec4` | Vertex returns the position of a vertex. |
+| `func (mesh *Mesh) Vertex(index uint32) graphics.Vector` | Vertex returns the position of a vertex. |
 | `func (mesh *Mesh) VertexCount() int` | VertexCount returns the number of vertices. |
 
 ### Moon
@@ -278,9 +272,9 @@ Moon is a disc with phases that also lights the scene at night.
 
 ```go
 type Moon struct {
-	Direction      graphics.Vec4 // towards the moon; zero = opposite the sun
-	AngularSize    float32       // apparent diameter in radians
-	Color          graphics.Vec4
+	Direction      graphics.Vector // towards the moon; zero = opposite the sun
+	AngularSize    float32         // apparent diameter in radians
+	Color          graphics.Vector
 	Phase          float32 // 0 new, 0.25 first quarter, 0.5 full, 0.75 last quarter
 	LightIntensity float32 // moonlight on the scene at full moon, relative to the sun
 }
@@ -293,13 +287,13 @@ Node places a mesh (optionally instanced) in the world; children inherit the tra
 ```go
 type Node struct {
 	Name      string
-	Transform graphics.Mat4
+	Transform graphics.Matrix
 	Mesh      *Mesh
 	Instances *Instances
 	Children  []*Node
 	Hidden    bool
 	// Moving says the node's transform changes often, turning as well as moving: a ship, a
-	// vehicle. Backends that work a mesh's light out once for each way it is turned (ctr, on the
+	// vehicle. Backends that work a mesh's light out once for each way it is turned (nintendo3ds, on the
 	// 3DS) light a moving node on the GPU every frame instead.
 	Moving bool
 	Tags   map[string]any // free data from the file (glTF extras) for the application
@@ -314,8 +308,8 @@ Notice is a short message shown under the header for a few seconds, newest first
 type Notice struct {
 	Icon  string
 	Text  string
-	Tint  graphics.Vec4 // colour of the icon (alpha 0 = the default text colour)
-	Added float64       // the overlay's Clock when the notice was added
+	Tint  graphics.Vector // colour of the icon (alpha 0 = the default text colour)
+	Added float64         // the overlay's Clock when the notice was added
 }
 ```
 
@@ -334,7 +328,7 @@ type Overlay struct {
 	// Clock counts the seconds the overlay has been shown; the viewer advances it at every step.
 	// Notices remember the clock reading when they were added, so they fade on the viewer's time.
 	Clock float64
-	// NoticeDuration is how long a notice stays, in seconds, fading at the end; 0 = DefaultNoticeDuration.
+	// NoticeDuration is how long a notice stays, in seconds, fading at the end; 0 = DefaultNoticeSeconds.
 	NoticeDuration float64
 	// MaximumNotices is how many notices are shown at once, the newest; 0 = DefaultMaximumNotices.
 	MaximumNotices int
@@ -344,7 +338,7 @@ type Overlay struct {
 | Function or method | |
 |---|---|
 | `func (overlay *Overlay) AddLabel(label *Label)` | AddLabel shows a label; the caller keeps the pointer to change or remove it later. |
-| `func (overlay *Overlay) AddNotice(icon, text string, tint graphics.Vec4)` | AddNotice shows a message now; it fades after the notice duration. |
+| `func (overlay *Overlay) AddNotice(icon, text string, tint graphics.Vector)` | AddNotice shows a message now; it fades after the notice duration. |
 | `func (overlay *Overlay) Advance(seconds float64)` | Advance moves the overlay's clock on and forgets the notices that have faded out. |
 | `func (overlay *Overlay) IsEmpty() bool` | IsEmpty tells whether there is nothing to draw on the overlay. |
 | `func (overlay *Overlay) RemoveLabel(label *Label)` | RemoveLabel stops showing a label. |
@@ -370,6 +364,8 @@ const (
 )
 ```
 
+The patterns; PatternNone leaves the material's colour as it is.
+
 | Function or method | |
 |---|---|
 | `func PatternNamed(name string) Pattern` | PatternNamed returns the pattern with a name (cobbles, masonry, plaster, shingles, planks, grass); PatternNone for any other name. |
@@ -380,9 +376,9 @@ PointLight is a light that shines from a point all around, as a lamp: full withi
 
 ```go
 type PointLight struct {
-	Position graphics.Vec4 // in the world, before the vertical scale
+	Position graphics.Vector // in the world, before the vertical scale
 	// Color is linear, like the materials'; its alpha is the intensity (1 a plain lamp, up to a few).
-	Color        graphics.Vec4
+	Color        graphics.Vector
 	Inner, Outer float32
 }
 ```
@@ -408,11 +404,11 @@ type Scene struct {
 | Function or method | |
 |---|---|
 | `func New() *Scene` | New returns an empty scene with the default environment. |
-| `func (scene *Scene) Bounds() (minimum, maximum graphics.Vec4)` | Bounds returns the world-space bounding box of all meshes (instances counted by their origin). |
+| `func (scene *Scene) Bounds() (minimum, maximum graphics.Vector)` | Bounds returns the world-space bounding box of all meshes (instances counted by their origin). |
 | `func (scene *Scene) GroundHeight(x, z float32) (float32, bool)` | GroundHeight returns the highest walkable surface at (x, z), before vertical scaling. |
 | `func (scene *Scene) InvalidateGround()` | InvalidateGround drops the ground index; call it after changing walkable meshes. |
-| `func (scene *Scene) Walk(visit func(node *Node, world graphics.Mat4))` | Walk visits every visible node with its world transform. |
-| `func (scene *Scene) WorldTransforms(wanted map[*Node]bool) map[*Node]graphics.Mat4` | WorldTransforms returns the world transform of every visible node, for anchoring labels. |
+| `func (scene *Scene) Walk(visit func(node *Node, world graphics.Matrix))` | Walk visits every visible node with its world transform. |
+| `func (scene *Scene) WorldTransforms(wanted map[*Node]bool) map[*Node]graphics.Matrix` | WorldTransforms returns the world transform of every visible node, for anchoring labels. |
 
 ### Sky
 
@@ -420,11 +416,11 @@ Sky describes what is drawn behind the scene over a whole day and how it lights 
 
 ```go
 type Sky struct {
-	NightZenith   graphics.Vec4 // sky color straight up at night (linear)
-	NightHorizon  graphics.Vec4 // sky color at the horizon at night
-	NightAmbient  graphics.Vec4 // sky light that reaches the scene at night
-	TwilightColor graphics.Vec4 // horizon glow at dawn and dusk
-	CelestialPole graphics.Vec4 // axis the night sky turns around (towards the visible pole)
+	NightZenith   graphics.Vector // sky color straight up at night (linear)
+	NightHorizon  graphics.Vector // sky color at the horizon at night
+	NightAmbient  graphics.Vector // sky light that reaches the scene at night
+	TwilightColor graphics.Vector // horizon glow at dawn and dusk
+	CelestialPole graphics.Vector // axis the night sky turns around (towards the visible pole)
 
 	Stars          Stars
 	Moon           *Moon // nil = no moon
@@ -462,9 +458,9 @@ Snow covers the lit surfaces that face up above a height, blending over a band.
 
 ```go
 type Snow struct {
-	Level float32       // world units, before vertical scaling
-	Blend float32       // world units over which the snow fades in
-	Color graphics.Vec4 // linear
+	Level float32         // world units, before vertical scaling
+	Blend float32         // world units over which the snow fades in
+	Color graphics.Vector // linear
 }
 ```
 
@@ -499,8 +495,8 @@ Water is an infinite animated water plane.
 ```go
 type Water struct {
 	Level      float32
-	Shallow    graphics.Vec4
-	Deep       graphics.Vec4
+	Shallow    graphics.Vector
+	Deep       graphics.Vector
 	Size       float32         // extent of the plane (world units)
 	WaveLength float32         // length of the main wave (world units); 0 = Size / 2000
 	FloorDepth float32         // depth of an opaque floor drawn under the water; 0 = Size / 500
@@ -524,8 +520,8 @@ Wind moves clouds and bends plants (materials with Sway).
 
 ```go
 type Wind struct {
-	Direction graphics.Vec4 // horizontal direction the wind blows towards
-	Strength  float32       // 0 calm, 1 strong
+	Direction graphics.Vector // horizontal direction the wind blows towards
+	Strength  float32         // 0 calm, 1 strong
 }
 ```
 

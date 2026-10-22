@@ -2,19 +2,19 @@ package input
 
 import "testing"
 
-func TestAPadButtonIsPressedOnceAndHeldUntilLetGo(t *testing.T) {
+func TestAPadButtonIsPressedOnceAndHeldUntilLetGo(test *testing.T) {
 	state := NewState()
-	state.SetPadButton(PadA, true)
+	state.Feed().SetPadButton(PadA, true)
 	if !state.PadPressed(PadA) || !state.PadDown(PadA) {
-		t.Fatal("a pad button going down is not pressed and held")
+		test.Fatal("a pad button going down is not pressed and held")
 	}
-	state.EndFrame()
-	state.SetPadButton(PadA, true)
+	state.Feed().EndFrame()
+	state.Feed().SetPadButton(PadA, true)
 	if state.PadPressed(PadA) || !state.PadDown(PadA) {
-		t.Fatal("a pad button held is pressed again")
+		test.Fatal("a pad button held is pressed again")
 	}
-	state.SetPadButton(PadA, false)
+	state.Feed().SetPadButton(PadA, false)
 	if state.PadDown(PadA) {
-		t.Fatal("a pad button let go is still held")
+		test.Fatal("a pad button let go is still held")
 	}
 }

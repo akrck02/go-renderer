@@ -10,7 +10,7 @@ import (
 
 // A triangle written as KHR_mesh_quantization does: 16-bit positions (padded to 8 bytes) with the
 // center and scale in the node, 8-bit normals (padded to 4 bytes), 8-bit colors and 16-bit indices.
-func TestLoadSceneReadsQuantizedMeshes(t *testing.T) {
+func TestLoadSceneReadsQuantizedMeshes(test *testing.T) {
 	var data []byte
 	for _, position := range [][3]int16{{-32767, -32767, 0}, {32767, -32767, 0}, {0, 32767, 0}} {
 		for _, component := range position {
@@ -43,25 +43,25 @@ func TestLoadSceneReadsQuantizedMeshes(t *testing.T) {
 		"meshes": [{"primitives": [{"attributes": {"POSITION": 0, "NORMAL": 1, "COLOR_0": 2}, "indices": 3}]}],
 		"nodes": [{"mesh": 0, "translation": [10, 0, 0], "scale": [0.0001, 0.0001, 0.0001]}],
 		"scenes": [{"nodes": [0]}]}`
-	directory := t.TempDir()
+	directory := test.TempDir()
 	if err := os.WriteFile(filepath.Join(directory, "triangle.bin"), data, 0o644); err != nil {
-		t.Fatal(err)
+		test.Fatal(err)
 	}
 	path := filepath.Join(directory, "quantized.gltf")
 	if err := os.WriteFile(path, []byte(document), 0o644); err != nil {
-		t.Fatal(err)
+		test.Fatal(err)
 	}
 	world, err := LoadScene(path)
 	if err != nil {
-		t.Fatal(err)
+		test.Fatal(err)
 	}
 	node := world.Nodes[0]
 	mesh := node.Mesh
 	corner := node.Transform.Apply(mesh.Vertex(1))
 	if math.Abs(float64(corner[0]-13.2767)) > 1e-3 || math.Abs(float64(corner[1]+3.2767)) > 1e-3 {
-		t.Fatalf("dequantized corner %v", corner)
+		test.Fatalf("dequantized corner %v", corner)
 	}
 	if mesh.Normals[1] != 1 || math.Abs(float64(mesh.Colors[1]-128.0/255)) > 1e-6 || len(mesh.Indices) != 3 || mesh.Indices[2] != 2 {
-		t.Fatalf("normals %v colors %v indices %v", mesh.Normals[:3], mesh.Colors[:4], mesh.Indices)
+		test.Fatalf("normals %v colors %v indices %v", mesh.Normals[:3], mesh.Colors[:4], mesh.Indices)
 	}
 }

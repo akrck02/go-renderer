@@ -1,14 +1,15 @@
 package loaders
 
 import (
-	"fmt"
 	"image"
 	_ "image/jpeg" // sky images may be JPEG
 	_ "image/png"  // or PNG
 	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 
+	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/scene"
 )
@@ -103,17 +104,17 @@ func constellationsFromExtras(value any) []scene.Constellation {
 			Name:  name,
 			Stars: directionsFromExtras(values["stars"]),
 			Lines: linesFromExtras(values["lines"]),
-			Color: extraVector(values, "color", graphics.Vec4{0.75, 0.85, 1, 1}),
+			Color: extraVector(values, "color", graphics.Vector{0.75, 0.85, 1, 1}),
 		})
 	}
 	return constellations
 }
 
-func directionsFromExtras(value any) []graphics.Vec4 {
+func directionsFromExtras(value any) []graphics.Vector {
 	list, _ := value.([]any)
-	directions := make([]graphics.Vec4, 0, len(list))
+	directions := make([]graphics.Vector, 0, len(list))
 	for _, entry := range list {
-		directions = append(directions, extraVector(map[string]any{"direction": entry}, "direction", graphics.Vec4{}).Normalize())
+		directions = append(directions, extraVector(map[string]any{"direction": entry}, "direction", graphics.Vector{}).Normalize())
 	}
 	return directions
 }
@@ -150,7 +151,7 @@ func (file *gltfFile) skyImageFromExtras(value any) (*scene.SkyImage, error) {
 func (file *gltfFile) cubeFromExtras(definition map[string]any) (*scene.SkyImage, error) {
 	paths, _ := definition["faces"].([]any)
 	if len(paths) != 6 {
-		return nil, fmt.Errorf("sky cube needs 6 faces, found %d", len(paths))
+		return nil, failure.Wrap(InvalidGLTF, "a sky cube needs 6 faces, found "+strconv.Itoa(len(paths)), nil)
 	}
 	skyImage := &scene.SkyImage{}
 	for faceNumber, path := range paths {
@@ -171,12 +172,12 @@ func (file *gltfFile) readImage(name string) (image.Image, error) {
 	}
 	reader, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("sky image: %w", err)
+		return nil, failure.Wrap(FileNotRead, "sky image "+path, err)
 	}
 	defer reader.Close()
 	decoded, _, err := image.Decode(reader)
 	if err != nil {
-		return nil, fmt.Errorf("sky image %s: %w", name, err)
+		return nil, failure.Wrap(ImageNotDecoded, "sky image "+name, err)
 	}
 	return decoded, nil
 }
