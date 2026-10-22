@@ -17,9 +17,9 @@ import (
 	"github.com/akrck02/go-renderer/gles"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/input"
-	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/scene"
 	"github.com/akrck02/go-renderer/scene/sample"
+	"github.com/akrck02/go-renderer/window"
 )
 
 func main() {
@@ -43,10 +43,10 @@ func run() error {
 	}
 	world := sample.Island()
 	orbit, size := orbitAround(world)
-	app := &models.Application{Input: input.NewState(), DrawOnDemand: true,
-		Camera: models.Camera{Near: size * 0.001, Far: size * 10}}
-	var shown models.Camera
-	app.Update = func(app *models.Application, step float64) error {
+	app := &window.Application{Input: input.NewState(), Options: window.Options{DrawOnDemand: true},
+		Camera: camera.Camera{Near: size * 0.001, Far: size * 10}}
+	var shown camera.Camera
+	app.Update = func(app *window.Application, step float64) error {
 		orbit.Update(app.Input, step, &app.Camera)
 		if app.Camera != shown {
 			// the camera is still moving (it eases to a stop): draw the next frame too

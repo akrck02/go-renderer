@@ -3,8 +3,8 @@ package ctr
 import (
 	"math"
 
+	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/scene"
 )
 
@@ -26,7 +26,7 @@ type frameShading struct {
 	fog           graphics.Vector // fog near, 1 / (far - near) (0 without fog), -, -
 }
 
-func shadingFor(environment scene.Environment, light scene.Daylight, camera models.Camera) frameShading {
+func shadingFor(environment scene.Environment, light scene.Daylight, camera camera.Camera) frameShading {
 	sunDirection := light.LightDirection.Normalize()
 	ambient := environment.Ambient
 	verticalScale := environment.EffectiveVerticalScale()

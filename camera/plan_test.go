@@ -6,14 +6,13 @@ import (
 
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/input"
-	"github.com/akrck02/go-renderer/models"
 )
 
 func near(first, second float32) bool { return math.Abs(float64(first-second)) < 1e-4 }
 
 func TestThePlanLooksStraightDownWithNorthUp(test *testing.T) {
 	plan := NewPlan(graphics.Vector{2, 0, 3, 1}, 10)
-	var view models.Camera
+	var view Camera
 	plan.Update(nil, 0, &view)
 	if !near(view.Position[0], 2) || !near(view.Position[2], 3) || view.Position[1] <= 0 {
 		test.Errorf("camera at %v, want straight above the target (2, ·, 3)", view.Position)
@@ -32,7 +31,7 @@ func TestThePlanLooksStraightDownWithNorthUp(test *testing.T) {
 func TestTheIsometricViewIsAt35DegreesAnd45ToTheAxes(test *testing.T) {
 	plan := NewPlan(graphics.Vector{0, 0, 0, 1}, 10)
 	plan.Isometric = true
-	var view models.Camera
+	var view Camera
 	plan.Update(nil, 0, &view)
 	horizontal := math.Hypot(float64(view.Position[0]), float64(view.Position[2]))
 	elevation := math.Atan2(float64(view.Position[1]), horizontal) * 180 / math.Pi
@@ -54,7 +53,7 @@ func TestDraggingMovesTheMapWithTheCursor(test *testing.T) {
 	state.WindowHeight = 100
 	state.SetButton(input.MouseLeft, true)
 	state.CursorDeltaX = 10 // a tenth of the window to the right: the map follows, so the centre moves west
-	var view models.Camera
+	var view Camera
 	plan.Update(state, 0, &view)
 	if !near(plan.Target[0], -1) || !near(plan.Target[2], 0) {
 		test.Errorf("target %v, want 1 unit west", plan.Target)
@@ -70,7 +69,7 @@ func TestScrollZoomsAndQuarterTurnsRotate(test *testing.T) {
 	plan := NewPlan(graphics.Vector{0, 0, 0, 1}, 10)
 	state := input.NewState()
 	state.AddScroll(1)
-	var view models.Camera
+	var view Camera
 	plan.Update(state, 0, &view)
 	if plan.Span >= 10 {
 		test.Errorf("span %v after scrolling in, want less than 10", plan.Span)

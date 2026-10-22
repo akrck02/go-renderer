@@ -3,8 +3,8 @@ package sceneplan
 import (
 	"math"
 
+	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
 )
 
 // box is an axis-aligned box.
@@ -137,14 +137,14 @@ type Viewpoint struct {
 }
 
 // newViewpoint builds the viewpoint of a camera.
-func newViewpoint(viewProjection graphics.Matrix, camera models.Camera) Viewpoint {
+func newViewpoint(viewProjection graphics.Matrix, camera camera.Camera) Viewpoint {
 	view := Viewpoint{volume: frustumFromMatrix(viewProjection), eye: camera.Position}
 	if camera.IsOrthographic() {
 		view.orthographic, view.screenScale = true, 1/camera.OrthographicHeight
 		return view
 	}
 	fieldOfView, _, _ := camera.Projection()
-	view.screenScale = float32(1 / (2 * math.Tan(fieldOfView/2)))
+	view.screenScale = float32(1 / (2 * math.Tan(float64(fieldOfView)/2)))
 	return view
 }
 

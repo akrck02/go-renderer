@@ -3,15 +3,15 @@ package viewer
 import (
 	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/scene"
+	"github.com/akrck02/go-renderer/window"
 )
 
 // View is what an editing program knows about the view at a step: the camera that drew the frame
 // the user sees, and the window's size. The pointer's position (input.State.CursorX and CursorY)
 // is in the same window pixels.
 type View struct {
-	Camera        models.Camera
+	Camera        camera.Camera
 	Width, Height int // window pixels
 	world         *scene.Scene
 	lowest        float32
@@ -22,7 +22,7 @@ type View struct {
 }
 
 // view returns the view of this step.
-func (session *viewer) view(app *models.Application) View {
+func (session *viewer) view(app *window.Application) View {
 	width, height := app.Input.WindowWidth, app.Input.WindowHeight
 	if width == 0 || height == 0 {
 		width, height = app.Width, app.Height
@@ -69,7 +69,7 @@ func (view View) FrameGround(minimumX, minimumZ, maximumX, maximumZ float32) {
 }
 
 // applyFraming moves the cameras to the rectangle the program asked to show, if it asked.
-func (session *viewer) applyFraming(app *models.Application) {
+func (session *viewer) applyFraming(app *window.Application) {
 	framing := session.framing
 	if framing == nil {
 		return
@@ -109,7 +109,7 @@ func (view View) ZoomBy(factor float64) {
 func (view View) Span() float64 { return view.span }
 
 // applyZoom moves the cameras by the zoom the program asked for, if it asked.
-func (session *viewer) applyZoom(app *models.Application) {
+func (session *viewer) applyZoom(app *window.Application) {
 	factor := session.zooming
 	if factor == 0 {
 		return

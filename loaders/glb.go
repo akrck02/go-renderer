@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
+	"github.com/akrck02/go-renderer/immediate"
 )
 
 type glbHeader struct {
@@ -57,7 +57,7 @@ type gltfPrimitive struct {
 	Indices    *int           `json:"indices"`
 }
 
-func LoadGLB(path string) (*models.Model, error) {
+func LoadGLB(path string) (*immediate.Model, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -99,7 +99,7 @@ func LoadGLB(path string) (*models.Model, error) {
 		}
 	}
 
-	model := &models.Model{}
+	model := &immediate.Model{}
 	fmt.Printf("GLB: Found %d meshes\n", len(jsonChunk.Meshes))
 
 	minX, minY, minZ := float32(math.MaxFloat32), float32(math.MaxFloat32), float32(math.MaxFloat32)
@@ -107,7 +107,7 @@ func LoadGLB(path string) (*models.Model, error) {
 
 	for mIdx, gMesh := range jsonChunk.Meshes {
 		for pIdx, primitive := range gMesh.Primitives {
-			mesh := models.Mesh{}
+			mesh := immediate.Mesh{}
 
 			// Load Positions
 			posIdx, ok := primitive.Attributes["POSITION"]

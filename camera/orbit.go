@@ -5,7 +5,6 @@ import (
 
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/input"
-	"github.com/akrck02/go-renderer/models"
 )
 
 // Orbit rotates around a target: left drag rotates, right drag (or shift + left drag) pans,
@@ -35,7 +34,7 @@ func NewOrbit(target graphics.Vector, sceneSize float64) *Orbit {
 }
 
 // Update applies this frame's input and places the camera.
-func (orbit *Orbit) Update(state *input.State, seconds float64, camera *models.Camera) {
+func (orbit *Orbit) Update(state *input.State, seconds float64, camera *Camera) {
 	if state != nil {
 		orbit.applyMouse(state)
 		orbit.applyKeyboard(state, seconds)

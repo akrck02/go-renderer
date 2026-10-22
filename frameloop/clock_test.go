@@ -5,13 +5,15 @@ import (
 	"time"
 
 	"github.com/akrck02/go-renderer/input"
-	"github.com/akrck02/go-renderer/models"
+	"github.com/akrck02/go-renderer/window"
 )
 
-func countingApplication(updates *int) *models.Application {
-	return &models.Application{Input: input.NewState(), Update: func(*models.Application, float64) error {
-		*updates++
-		return nil
+func countingApplication(updates *int) *window.Application {
+	return &window.Application{Input: input.NewState(), Callbacks: window.Callbacks{
+		Update: func(*window.Application, float64) error {
+			*updates++
+			return nil
+		},
 	}}
 }
 

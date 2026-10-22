@@ -1,15 +1,13 @@
 package webgpu
 
-import (
-	"github.com/akrck02/go-renderer/models"
-)
+import "github.com/akrck02/go-renderer/window"
 
-type WebGPU struct{}
+// Window will open a window drawn with the WebGPU immediate-mode renderer. Until it is built,
+// every method returns NotImplemented.
+type Window struct{}
 
-func (webgpu *WebGPU) StartLoop(app *models.Application) error {
-	return NotImplemented
-}
+// Run returns NotImplemented.
+func (*Window) Run(app *window.Application) error { return NotImplemented }
 
-func (webgpu *WebGPU) Draw(app *models.Application) error {
-	return NotImplemented
-}
+// Draw returns NotImplemented.
+func (*Window) Draw(app *window.Application) error { return NotImplemented }

@@ -16,7 +16,7 @@ func TestTheSceneShadersCompile(test *testing.T) {
 		"overlayVertex", "overlayFragment",
 	}
 	err := compileShaderSource(sceneShaderSource, functions)
-	if errors.Is(err, ErrUnavailable) {
+	if errors.Is(err, Unavailable) {
 		test.Skip(err)
 	}
 	if err != nil {

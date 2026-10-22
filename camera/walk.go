@@ -5,7 +5,6 @@ import (
 
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/input"
-	"github.com/akrck02/go-renderer/models"
 )
 
 // Walk is a first-person controller that stays on the ground: WASD or arrows move, the mouse
@@ -29,7 +28,7 @@ func NewWalk(x, z, eyeHeight, speed float32) *Walk {
 }
 
 // Update applies this frame's input and places the camera at eye height.
-func (walk *Walk) Update(state *input.State, seconds float64, camera *models.Camera) {
+func (walk *Walk) Update(state *input.State, seconds float64, camera *Camera) {
 	if state != nil {
 		walk.look(state)
 		walk.turnWithArrows(state, seconds)

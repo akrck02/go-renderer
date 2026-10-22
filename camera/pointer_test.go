@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
 )
 
 func closeTo(first, second graphics.Vector, tolerance float32) bool {
@@ -20,7 +19,7 @@ func closeTo(first, second graphics.Vector, tolerance float32) bool {
 // A camera straight above, without perspective, like the map: the middle of the window is the
 // target, and a corner lies half the shown height (times the aspect) away.
 func TestTheMapsRayFallsStraightDown(test *testing.T) {
-	view := models.Camera{Position: graphics.Vector{10, 100, 20, 1}, Target: graphics.Vector{10, 0, 20, 1},
+	view := Camera{Position: graphics.Vector{10, 100, 20, 1}, Target: graphics.Vector{10, 0, 20, 1},
 		Up: graphics.Vector{0, 0, -1, 0}, OrthographicHeight: 40, Near: 1, Far: 500}
 	ray, ok := RayThrough(view, 800, 400, 400, 200)
 	if !ok {
@@ -38,7 +37,7 @@ func TestTheMapsRayFallsStraightDown(test *testing.T) {
 }
 
 func TestAPerspectiveRayFindsWhereTheCameraLooks(test *testing.T) {
-	view := models.Camera{Position: graphics.Vector{0, 30, 40, 1}, Target: graphics.Vector{5, 0, -3, 1}}
+	view := Camera{Position: graphics.Vector{0, 30, 40, 1}, Target: graphics.Vector{5, 0, -3, 1}}
 	ray, ok := RayThrough(view, 1280, 800, 640, 400)
 	if !ok {
 		test.Fatal("no ray")
@@ -59,7 +58,7 @@ func TestTheRayStopsAtTheFirstHill(test *testing.T) {
 		return float32(math.Max(0, 15-math.Abs(float64(z)))), true
 	}
 	for _, scale := range []float32{1, 3} {
-		view := models.Camera{Position: graphics.Vector{0, 20 * scale, 60, 1}, Target: graphics.Vector{0, 0, -60, 1}}
+		view := Camera{Position: graphics.Vector{0, 20 * scale, 60, 1}, Target: graphics.Vector{0, 0, -60, 1}}
 		ray, _ := RayThrough(view, 1000, 1000, 500, 500)
 		point, hit := ray.PointOnGround(hill, scale, 0, 15)
 		if !hit {
@@ -74,7 +73,7 @@ func TestTheRayStopsAtTheFirstHill(test *testing.T) {
 
 func TestARayAboveTheGroundMissesIt(test *testing.T) {
 	flat := func(x, z float32) (float32, bool) { return 0, true }
-	view := models.Camera{Position: graphics.Vector{0, 5, 0, 1}, Target: graphics.Vector{0, 50, -10, 1}}
+	view := Camera{Position: graphics.Vector{0, 5, 0, 1}, Target: graphics.Vector{0, 50, -10, 1}}
 	ray, _ := RayThrough(view, 100, 100, 50, 50)
 	if _, hit := ray.PointOnGround(flat, 1, 0, 0); hit {
 		test.Error("a ray looking up should miss the ground")

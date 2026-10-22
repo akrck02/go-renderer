@@ -4,12 +4,12 @@ import (
 	"testing"
 
 	"github.com/akrck02/go-renderer/input"
-	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/scene"
 	"github.com/akrck02/go-renderer/scene/sample"
+	"github.com/akrck02/go-renderer/window"
 )
 
-func newOnDemandSession(test *testing.T) (*viewer, *models.Application) {
+func newOnDemandSession(test *testing.T) (*viewer, *window.Application) {
 	test.Helper()
 	session := newViewer(sample.Island(), false)
 	app := newApplication(session, DefaultOptions(), "test")
@@ -21,7 +21,7 @@ func newOnDemandSession(test *testing.T) (*viewer, *models.Application) {
 }
 
 // step runs one update step and says whether it asked for another frame at once.
-func step(test *testing.T, session *viewer, app *models.Application) bool {
+func step(test *testing.T, session *viewer, app *window.Application) bool {
 	test.Helper()
 	if err := session.advance(app, 1.0/60); err != nil {
 		test.Fatal(err)

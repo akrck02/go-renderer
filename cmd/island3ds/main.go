@@ -21,9 +21,9 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/ctr"
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/scene/sample"
 )
 
@@ -53,7 +53,7 @@ func main() {
 	}
 	println("press START to exit")
 
-	camera := models.Camera{Target: graphics.Vector{0, 0, 0, 1}, Up: graphics.Vector{0, 1, 0, 0}, Far: 20000}
+	camera := camera.Camera{Target: graphics.Vector{0, 0, 0, 1}, Up: graphics.Vector{0, 1, 0, 0}, Far: 20000}
 	started := time.Now()
 	lastReport := started
 	frames := 0

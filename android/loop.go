@@ -22,7 +22,7 @@ import (
 	"github.com/akrck02/go-renderer/frameloop"
 	"github.com/akrck02/go-renderer/gles"
 	"github.com/akrck02/go-renderer/input"
-	"github.com/akrck02/go-renderer/models"
+	"github.com/akrck02/go-renderer/window"
 )
 
 // Options tune the window.
@@ -81,8 +81,8 @@ func Wake() {
 }
 
 // window is the drawing thread's state.
-type window struct {
-	app      *models.Application
+type activityWindow struct {
+	app      *window.Application
 	draw     func(gl GL, fresh bool) error
 	hidden   func() // the program's, when it leaves the screen (Options.Hidden)
 	shown    func() // and when it comes back (Options.Shown)
@@ -104,7 +104,7 @@ type window struct {
 // draw paints one frame with gl; fresh says the graphics context is new (the first frame, or the
 // first after coming back from the background), when renderers must be made again. It must be
 // called from main.
-func Run(app *models.Application, options Options, draw func(gl GL, fresh bool) error) error {
+func Run(app *window.Application, options Options, draw func(gl GL, fresh bool) error) error {
 	keepCrashReports()
 	if app.Input == nil {
 		app.Input = input.NewState()
@@ -116,7 +116,7 @@ func Run(app *models.Application, options Options, draw func(gl GL, fresh bool) 
 	if app.Input.Clipboard == nil {
 		app.Input.Clipboard = systemClipboard{}
 	}
-	current := &window{app: app, draw: draw, clock: frameloop.NewClock(app.FixedStep), asked: true,
+	current := &activityWindow{app: app, draw: draw, clock: frameloop.NewClock(app.FixedStepSeconds), asked: true,
 		interval: time.Second / time.Duration(rate), hidden: options.Hidden, shown: options.Shown}
 	current.reader.state = app.Input
 	drawing = current
@@ -126,10 +126,10 @@ func Run(app *models.Application, options Options, draw func(gl GL, fresh bool) 
 }
 
 // drawing is the window being run: the program's steps, which run on its thread, reach it.
-var drawing *window
+var drawing *activityWindow
 
 // run is the drawing thread: it waits on its looper for touches and news, and draws.
-func (current *window) run() error {
+func (current *activityWindow) run() error {
 	runtime.LockOSThread() // the graphics context and the looper belong to this thread
 	waking.Lock()
 	// the input queue is attached with no callback: the looper must accept that, and pollOnce then
@@ -163,7 +163,7 @@ func (current *window) run() error {
 }
 
 // timeout is how long the looper may sleep, in milliseconds: -1 until something happens.
-func (current *window) timeout() C.int {
+func (current *activityWindow) timeout() C.int {
 	if !current.open {
 		return -1
 	}
@@ -185,7 +185,7 @@ func milliseconds(wait time.Duration) C.int {
 }
 
 // takeNews acts on what the activity said.
-func (current *window) takeNews() {
+func (current *activityWindow) takeNews() {
 	for {
 		select {
 		case news := <-events:
@@ -199,7 +199,7 @@ func (current *window) takeNews() {
 	}
 }
 
-func (current *window) act(news event) {
+func (current *activityWindow) act(news event) {
 	switch news.kind {
 	case windowCreated:
 		current.openSurface(news.window)
@@ -228,7 +228,7 @@ func (current *window) act(news event) {
 	}
 }
 
-func (current *window) openSurface(native *C.ANativeWindow) {
+func (current *activityWindow) openSurface(native *C.ANativeWindow) {
 	if C.surface_open(native, &current.surface) == 0 {
 		failure := "could not make an OpenGL ES context for the window"
 		graphics.Store(&failure)
@@ -242,7 +242,7 @@ func (current *window) openSurface(native *C.ANativeWindow) {
 // showPlainBackground shows the theme's plain white or black at once: the program's first frame
 // may take a moment (the Go runtime starting, fonts read), and Android takes its starting screen
 // away as soon as the window is there, which would otherwise be black until then.
-func (current *window) showPlainBackground() {
+func (current *activityWindow) showPlainBackground() {
 	shade := float32(1)
 	if systemDark.Load() {
 		shade = 0
@@ -252,7 +252,7 @@ func (current *window) showPlainBackground() {
 	C.surface_present(&current.surface)
 }
 
-func (current *window) closeSurface() {
+func (current *activityWindow) closeSurface() {
 	if !current.open {
 		return
 	}
@@ -261,7 +261,7 @@ func (current *window) closeSurface() {
 }
 
 // readSystem reads the screen's density, the phone's theme and the colours of its wallpaper.
-func (current *window) readSystem() {
+func (current *activityWindow) readSystem() {
 	density := float32(C.screen_density())
 	current.reader.scale = 1
 	if density > 0 {
@@ -277,7 +277,7 @@ func (current *window) readSystem() {
 
 // readInsets reads what the system's bars cover until the window's own insets are known; before the
 // window is shown Android only knows the bars' standard heights.
-func (current *window) readInsets() {
+func (current *activityWindow) readInsets() {
 	// while typing, the on-screen keyboard comes and goes over the bottom of the window
 	if (current.insetsOK && !keyboardShown) || current.env == nil {
 		return
@@ -299,7 +299,7 @@ func barHeight(env *C.JNIEnv, name string) int {
 }
 
 // paintWhenDue runs a step and draws, when a frame is wanted and the cap allows one.
-func (current *window) paintWhenDue() error {
+func (current *activityWindow) paintWhenDue() error {
 	if !current.open || !current.asked || time.Since(current.lastDraw) < current.interval {
 		return nil
 	}
@@ -338,7 +338,7 @@ func (current *window) paintWhenDue() error {
 	return nil
 }
 
-func (current *window) paint() error {
+func (current *activityWindow) paint() error {
 	if current.fresh && Graphics() == "" {
 		text := description() + " · ES " + string(rune('0'+current.surface.version))
 		graphics.Store(&text)
@@ -355,7 +355,7 @@ func (current *window) paint() error {
 
 // updateSizes tells the input state the framebuffer's size in pixels and the window's in layout
 // pixels.
-func (current *window) updateSizes() {
+func (current *activityWindow) updateSizes() {
 	var width, height C.int
 	C.surface_size(&current.surface, &width, &height)
 	state, scale := current.app.Input, current.reader.scale

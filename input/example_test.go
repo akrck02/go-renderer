@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/akrck02/go-renderer/input"
-	"github.com/akrck02/go-renderer/models"
+	"github.com/akrck02/go-renderer/window"
 )
 
 // In a program the window loop (or the browser's) fills the state; these examples press the keys
@@ -57,8 +57,8 @@ func ExamplePadLayoutFromName() {
 
 // ExampleState_SetFullscreen toggles the whole screen with F11 in an application's update step.
 func ExampleState_SetFullscreen() {
-	app := &models.Application{Type: models.WindowApplication, Input: input.NewState()}
-	app.Update = func(app *models.Application, seconds float64) error {
+	app := &window.Application{Input: input.NewState()}
+	app.Update = func(app *window.Application, seconds float64) error {
 		if app.Input.Pressed(input.KeyF11) {
 			app.Input.SetFullscreen(!app.Input.Fullscreen())
 		}

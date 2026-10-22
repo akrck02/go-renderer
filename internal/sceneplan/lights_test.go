@@ -3,8 +3,8 @@ package sceneplan
 import (
 	"testing"
 
+	"github.com/akrck02/go-renderer/camera"
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
 	"github.com/akrck02/go-renderer/scene"
 )
 
@@ -24,7 +24,7 @@ func planWithLights(lights []scene.PointLight) Frame {
 	world := scene.New()
 	world.Nodes = []*scene.Node{{Name: "crate", Mesh: unitCube()}}
 	world.Lights = lights
-	camera := models.Camera{Position: graphics.Vector{0, 2, 10, 1}, Up: graphics.Vector{0, 1, 0, 0}, Near: 0.1, Far: 100}
+	camera := camera.Camera{Position: graphics.Vector{0, 2, 10, 1}, Up: graphics.Vector{0, 1, 0, 0}, Near: 0.1, Far: 100}
 	return NewPlanner(MergingStore{}).Plan(world, camera, 640, 480, ShadowSettings{})
 }
 
@@ -51,7 +51,7 @@ func TestFrameLightsCarryTheirIntensityAndTheVerticalScale(test *testing.T) {
 	world := scene.New()
 	world.Environment.VerticalScale = 2
 	world.Lights = []scene.PointLight{{Position: graphics.Vector{0, 3, 0, 1}, Color: graphics.Vector{1, 0.5, 0, 2}, Inner: 5, Outer: 4}}
-	frame := NewPlanner(MergingStore{}).Plan(world, models.Camera{Up: graphics.Vector{0, 1, 0, 0}, Near: 0.1, Far: 10}, 64, 64, ShadowSettings{})
+	frame := NewPlanner(MergingStore{}).Plan(world, camera.Camera{Up: graphics.Vector{0, 1, 0, 0}, Near: 0.1, Far: 10}, 64, 64, ShadowSettings{})
 	light := frame.Lights[0]
 	if light.Position[1] != 6 || light.Color != (graphics.Vector{2, 1, 0, 1}) || light.Inner >= 4 || light.Inner < 3.99 {
 		test.Fatalf("the frame's light is %+v; wanted its height scaled, its colour times 2, its inner radius within the outer", light)
@@ -73,7 +73,7 @@ func TestInstancesTakeTheLightsThatReachAnyOfThem(test *testing.T) {
 	instances := &scene.Instances{Transforms: []graphics.Matrix{graphics.Identity(), far}, Colors: []graphics.Vector{{1, 1, 1, 1}, {1, 1, 1, 1}}}
 	world.Nodes = []*scene.Node{{Name: "forest", Mesh: unitCube(), Instances: instances}}
 	world.Lights = []scene.PointLight{lamp(41, 0, 0, 3), lamp(0, 30, 0, 3)} // by the far tree; above, out of reach
-	camera := models.Camera{Position: graphics.Vector{0, 2, 10, 1}, Up: graphics.Vector{0, 1, 0, 0}, Near: 0.1, Far: 100}
+	camera := camera.Camera{Position: graphics.Vector{0, 2, 10, 1}, Up: graphics.Vector{0, 1, 0, 0}, Near: 0.1, Far: 100}
 	forest := NewPlanner(MergingStore{}).Plan(world, camera, 640, 480, ShadowSettings{}).Commands[0].Lights
 	if forest.Count != 1 || forest.Indices[0] != 0 {
 		test.Fatalf("the forest takes %+v; wanted the lamp by its far tree only", forest)

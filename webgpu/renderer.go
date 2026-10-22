@@ -2,33 +2,42 @@ package webgpu
 
 import (
 	"github.com/akrck02/go-renderer/graphics"
-	"github.com/akrck02/go-renderer/models"
+	"github.com/akrck02/go-renderer/immediate"
 )
 
-type WebGPURenderer struct{}
+// Renderer will draw the immediate-mode shapes (immediate.Renderer) with WebGPU. Until it is
+// built, every method returns NotImplemented.
+type Renderer struct{}
 
-func (WebGPURenderer) RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error {
+// RenderPolygon returns NotImplemented.
+func (Renderer) RenderPolygon(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error {
 	return NotImplemented
 }
 
-func (WebGPURenderer) RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error {
+// RenderTriangle returns NotImplemented.
+func (Renderer) RenderTriangle(space graphics.CoordinateSpace, coordinates []graphics.Vector, shader *string, fill bool) error {
 	return NotImplemented
 }
 
-func (WebGPURenderer) RenderRectangle(space graphics.CoordinateSpace, coordinates graphics.Vector, width float32, height float32, shader *string, fill bool) error {
+// RenderRectangle returns NotImplemented.
+func (Renderer) RenderRectangle(space graphics.CoordinateSpace, centre graphics.Vector, width float32, height float32, shader *string, fill bool) error {
 	return NotImplemented
 }
 
-func (WebGPURenderer) RenderImage(space graphics.CoordinateSpace, bytes []byte, coordinates graphics.Vector, width float32, height float32, shader *string) error {
+// RenderImage returns NotImplemented.
+func (Renderer) RenderImage(space graphics.CoordinateSpace, bytes []byte, centre graphics.Vector, width float32, height float32, shader *string) error {
 	return NotImplemented
 }
 
-func (WebGPURenderer) Render3dObject(space graphics.CoordinateSpace, vertices []graphics.Vector, shader *string) error {
+// RenderObject returns NotImplemented.
+func (Renderer) RenderObject(space graphics.CoordinateSpace, vertices []graphics.Vector, shader *string) error {
 	return NotImplemented
 }
 
-func (WebGPURenderer) Render3dModel(space graphics.CoordinateSpace, model *models.Model, shader *string) error {
+// RenderModel returns NotImplemented.
+func (Renderer) RenderModel(space graphics.CoordinateSpace, model *immediate.Model, shader *string) error {
 	return NotImplemented
 }
 
-func (WebGPURenderer) SetMatrices(projection, view, model graphics.Matrix) {}
+// SetMatrices does nothing yet: it has no error to return.
+func (Renderer) SetMatrices(projection, view, model graphics.Matrix) {}
