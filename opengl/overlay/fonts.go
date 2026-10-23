@@ -113,14 +113,16 @@ func loadFonts(chosen Fonts) (*fonts, error) {
 	return loaded, nil
 }
 
-// face returns a font at a size in pixels. Text is hinted to the pixel grid so it stays crisp at
-// small sizes; icons are not, so their strokes keep their drawn proportions.
+// face returns a font at a size in pixels. Text is hinted to the pixel grid up and down, so its
+// lines stay crisp at small sizes, but not across: letters keep their own widths, as a browser's
+// do, so a word is as wide here as on a web page. Icons are not hinted, so their strokes keep
+// their drawn proportions.
 func (loaded *fonts) face(name faceName, size int) font.Face {
 	key := faceKey{name, size}
 	if face, found := loaded.faces[key]; found {
 		return face
 	}
-	hinting := font.HintingFull
+	hinting := font.HintingVertical
 	if name == iconFace {
 		hinting = font.HintingNone
 	}
@@ -207,6 +209,29 @@ func (loaded *fonts) metrics(name faceName, size int) faceMetrics {
 	rounded := faceMetrics{ascent: roundPixel(measures.Ascent), descent: roundPixel(measures.Descent), capHeight: capHeight}
 	loaded.measures[key] = rounded
 	return rounded
+}
+
+// noLetter stands for no letter before the first, or before one after an emoji: nothing to
+// kern against.
+const noLetter rune = -1
+
+// kerning is how much closer, or further, character sits to the letter before it in a face, as
+// the font asks and browsers do («AV», «To»). Letters from different fonts are not kerned.
+func (loaded *fonts) kerning(name faceName, size int, previous, character rune) float32 {
+	if previous == noLetter || name == iconFace {
+		return 0
+	}
+	face := loaded.face(name, size)
+	if face == nil || !loaded.hasOwnGlyph(face, previous) || !loaded.hasOwnGlyph(face, character) {
+		return 0
+	}
+	return toPixels(face.Kern(previous, character))
+}
+
+// hasOwnGlyph tells whether a face itself draws character, rather than a fallback font.
+func (loaded *fonts) hasOwnGlyph(face font.Face, character rune) bool {
+	_, found := face.GlyphAdvance(character)
+	return found
 }
 
 // roundPixel is a length rounded to the nearest whole pixel.

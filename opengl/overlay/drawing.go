@@ -305,6 +305,7 @@ func (painter *Painter) paintText(command *draw2d.Command, scale float32) {
 	// an emoji keeps its own colours, faded as the text is
 	emojiColour := colourOf(draw2d.Color{1, 1, 1, command.Fill[3]})
 	text := painter.runesOf(command.Text)
+	previous := noLetter
 	for index, character := range text {
 		if invisible(character) {
 			continue
@@ -312,13 +313,16 @@ func (painter *Painter) paintText(command *draw2d.Command, scale float32) {
 		if emoji, coloured := painter.fonts.colourFor(face, size, character, askedAsEmoji(text, index)); coloured {
 			painter.paintEmoji(emoji, int(math.Round(float64(pen))), baseline, emojiColour)
 			pen += emoji.advance
+			previous = noLetter
 			continue
 		}
 		if !painter.fonts.hasGlyph(face, size, character) {
 			character = '?'
 		}
+		pen += painter.fonts.kerning(face, size, previous, character)
 		entry := painter.paintGlyph(face, size, character, int(math.Round(float64(pen))), baseline, colour)
 		pen += entry.Advance
+		previous = character
 	}
 }
 
@@ -449,19 +453,23 @@ func (measurer *Measurer) MeasureText(text string, size float32, weight draw2d.W
 	}
 	width := float32(0)
 	characters := []rune(text)
+	previous := noLetter
 	for index, character := range characters {
 		if invisible(character) {
 			continue
 		}
 		if emoji, coloured := measurer.fonts.colourFor(face, pixelSize, character, askedAsEmoji(characters, index)); coloured {
 			width += emoji.advance
+			previous = noLetter
 			continue
 		}
 		advance, found := measurer.fonts.faceFor(face, pixelSize, character).GlyphAdvance(character)
 		if !found {
-			advance, _ = fontFace.GlyphAdvance('?')
+			character = '?'
+			advance, _ = fontFace.GlyphAdvance(character)
 		}
-		width += toPixels(advance)
+		width += measurer.fonts.kerning(face, pixelSize, previous, character) + toPixels(advance)
+		previous = character
 	}
 	metrics := measurer.fonts.metrics(face, pixelSize)
 	return draw2d.TextMetrics{Width: width / scale, Ascent: metrics.ascent / scale, Descent: metrics.descent / scale}
