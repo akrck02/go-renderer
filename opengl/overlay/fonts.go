@@ -77,6 +77,8 @@ func listPrebuiltCharacters() []rune {
 type fonts struct {
 	parsed map[faceName]*opentype.Font
 	faces  map[faceKey]font.Face
+	// measures are each face's vertical measures, worked out once
+	measures map[faceKey]faceMetrics
 	// fallbackFaces are faces of the system's fonts, for characters the program's fonts lack
 	fallbackFaces map[fallbackKey]font.Face
 	// system and emoji are the system's fonts and colour emoji in the chosen folders, shared with
@@ -99,7 +101,7 @@ func loadFonts(chosen Fonts) (*fonts, error) {
 	sources := map[faceName][]byte{textFace: orDefault(chosen.Medium, gomedium.TTF), strongFace: orDefault(chosen.Bold, gobold.TTF),
 		iconFace: lucide.Font(), regularFace: orDefault(chosen.Regular, goregular.TTF), monoFace: orDefault(chosen.Mono, gomonobold.TTF)}
 	system, emoji := systemFontsIn(chosen.folders())
-	loaded := &fonts{parsed: map[faceName]*opentype.Font{}, faces: map[faceKey]font.Face{}, fallbackFaces: map[fallbackKey]font.Face{},
+	loaded := &fonts{parsed: map[faceName]*opentype.Font{}, faces: map[faceKey]font.Face{}, measures: map[faceKey]faceMetrics{}, fallbackFaces: map[fallbackKey]font.Face{},
 		system: system, emoji: emoji}
 	for name, data := range sources {
 		parsed, err := opentype.Parse(data)
@@ -181,18 +183,34 @@ type faceMetrics struct {
 	ascent, descent, capHeight float32
 }
 
+// metrics are a face's vertical measures as a browser takes them: the font's own ascent and
+// descent at this size, each rounded to the nearest pixel, so a line of text is as tall here as
+// on a web page in the same font. (Hinting would round both up, a pixel taller.)
 func (loaded *fonts) metrics(name faceName, size int) faceMetrics {
-	face := loaded.face(name, size)
-	if face == nil {
+	key := faceKey{name, size}
+	if measures, found := loaded.measures[key]; found {
+		return measures
+	}
+	parsed := loaded.parsed[name]
+	if parsed == nil || size <= 0 {
 		return faceMetrics{}
 	}
-	measures := face.Metrics()
+	measures, err := parsed.Metrics(nil, fixed.I(size), font.HintingNone)
+	if err != nil {
+		// a parsed font measures any positive size; keep the zero measures if it does not
+		return faceMetrics{}
+	}
 	capHeight := toPixels(measures.CapHeight)
 	if capHeight <= 0 {
 		capHeight = toPixels(measures.Ascent) * 0.7
 	}
-	return faceMetrics{ascent: toPixels(measures.Ascent), descent: toPixels(measures.Descent), capHeight: capHeight}
+	rounded := faceMetrics{ascent: roundPixel(measures.Ascent), descent: roundPixel(measures.Descent), capHeight: capHeight}
+	loaded.measures[key] = rounded
+	return rounded
 }
+
+// roundPixel is a length rounded to the nearest whole pixel.
+func roundPixel(value fixed.Int26_6) float32 { return float32(math.Round(float64(toPixels(value)))) }
 
 // glyph returns the picture of a character in a face, drawing it into the atlas the first time.
 // The entry's offset places the picture relative to the dot on the baseline.
