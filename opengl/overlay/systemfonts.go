@@ -37,7 +37,11 @@ func SystemFonts() (Fonts, error) {
 func interfaceFontsIn(folders []string, faces []systemFace) (Fonts, error) {
 	for _, face := range faces {
 		regular := findFontFile(folders, face.regular)
-		bold := findFontFile(folders, face.bold)
+		bold := regular
+		// A variable font holds every weight in one file, often a large one: read it once.
+		if face.bold != face.regular {
+			bold = findFontFile(folders, face.bold)
+		}
 		if regular == nil || bold == nil {
 			continue
 		}

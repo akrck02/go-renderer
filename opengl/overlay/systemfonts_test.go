@@ -31,3 +31,17 @@ func TestWithoutASystemFontTheGoFontsStay(test *testing.T) {
 		test.Errorf("fonts %v, %v", fonts, err)
 	}
 }
+
+func TestAVariableFontIsReadOnceForBothWeights(test *testing.T) {
+	folder := test.TempDir()
+	if err := os.WriteFile(filepath.Join(folder, "Variable.ttf"), []byte("every weight"), 0o644); err != nil {
+		test.Fatal(err)
+	}
+	fonts, err := interfaceFontsIn([]string{folder}, []systemFace{{"Variable.ttf", "Variable.ttf"}})
+	if err != nil {
+		test.Fatal(err)
+	}
+	if &fonts.Regular[0] != &fonts.Bold[0] {
+		test.Errorf("the regular and bold weights of one file are two copies in memory")
+	}
+}
