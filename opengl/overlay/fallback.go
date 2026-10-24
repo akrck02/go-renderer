@@ -129,10 +129,14 @@ func isFontFile(path string) bool {
 	return false
 }
 
+// separators are taken out of font files' names. One replacer for every name: building one costs
+// kilobytes, and a system holds thousands of font files.
+var separators = strings.NewReplacer("-", "", "_", "", " ", "")
+
 // plainName is a file's name in lower case, without its extension and separators.
 func plainName(path string) string {
 	name := strings.ToLower(strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)))
-	return strings.NewReplacer("-", "", "_", "", " ", "").Replace(name)
+	return separators.Replace(name)
 }
 
 // search looks for a font with the character: first among the files named for its script, then,

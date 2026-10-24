@@ -94,3 +94,12 @@ func TestTextTheFontsLackIsMeasuredInTheSystemsFont(test *testing.T) {
 		test.Fatalf("with no system fonts it is a question mark: %v", measured.Width)
 	}
 }
+
+func TestAFontFilesPlainNameAllocatesOnlyItsText(test *testing.T) {
+	plainName("Warm-up.ttf") // the shared replacer is built on its first use
+	allocations := testing.AllocsPerRun(100, func() { plainName("Noto Sans_Arabic-Bold.ttf") })
+	const atMost = 3 // the lower-case name, the plain one and their joining
+	if allocations > atMost {
+		test.Errorf("a plain name costs %.0f allocations, want at most %d", allocations, atMost)
+	}
+}
