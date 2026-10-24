@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/png"
 	"os"
+	"time"
 
 	"github.com/akrck02/go-renderer/frameloop"
 	"github.com/akrck02/go-renderer/window"
@@ -23,6 +24,18 @@ func (opengl *Window) capture(app *window.Application, clock *frameloop.Clock) e
 			return err
 		}
 		if err := opengl.Draw(app); err != nil {
+			return err
+		}
+	}
+	drawFrame := func() error {
+		glfw.PollEvents()
+		if err := frameloop.RunUpdateStep(app, clock.Step()); err != nil {
+			return err
+		}
+		return opengl.Draw(app)
+	}
+	if app.Input != nil {
+		if err := frameloop.Settle(app.Input.Feed().TakeFrameRequest, drawFrame, time.Sleep); err != nil {
 			return err
 		}
 	}

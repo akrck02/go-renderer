@@ -14,6 +14,7 @@ canvas) share them, so an application advances the same way everywhere.
 | Function | |
 |---|---|
 | `func RunUpdateStep(app *window.Application, step float64) error` | RunUpdateStep calls the application update once and clears the per-step input deltas. |
+| `func Settle(nextRequest func() (time.Duration, bool), drawFrame func() error, sleep func(time.Duration)) error` | Settle draws frames while the program asks for the next one soon, so a capture shows the interface at rest rather than half way through a motion. |
 
 ### Clock
 
