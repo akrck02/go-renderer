@@ -7,8 +7,9 @@ import "github.com/akrck02/go-renderer/windowloop"
 Package windowloop runs a GLFW window's main loop for any drawing backend
 (OpenGL, Metal): the window's events, input, drawing on demand, the fixed-step
 update clock, frames asked for while the window is being resized, the pointer's
-shape and lock, and the whole screen. A backend only has to draw and show a
-frame.
+shape and lock, and the whole screen. A window that draws on demand and stays
+idle for three seconds gives the memory the program no longer uses back to the
+system. A backend only has to draw and show a frame.
 
 ### Functions
 
