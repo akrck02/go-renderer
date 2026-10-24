@@ -73,7 +73,7 @@ These hold across every package.
 | **Goroutines** | Update and edit functions run on the drawing goroutine: change the scene there, with no locks. From another goroutine, wake the window (`opengl.Wake`) and hand the change over |
 | **Uploads** | Meshes and instances are uploaded once; set `Dirty` (or `Instances.MarkChanged`) after changing them |
 | **Zero values** | A zero field usually means "the default" (`FogFar` 0 = no fog, `VerticalScale` 0 = 1); the field's comment says which |
-| **Icons** | By [Lucide](https://lucide.dev/icons) name, everywhere |
+| **Icons** | By [Lucide](https://lucide.dev/icons) name, everywhere; the brand logos Lucide withdrew are not offered |
 
 ---
 
