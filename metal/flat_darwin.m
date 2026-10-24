@@ -310,6 +310,12 @@ void *flatRendererCreate(void *cocoaWindow, int vsync, char **failure) {
 		NSView *view = renderer.window.contentView;
 		view.layer = layer; // set before wantsLayer: the view hosts this layer instead of making its own
 		view.wantsLayer = YES;
+		// while an edge is dragged, AppKit asks the view to redraw at every new size (GLFW's
+		// refresh callback draws the frame), and a frame that is late is pinned to the top-left
+		// corner instead of stretched to fill the window
+		view.layerContentsRedrawPolicy = NSViewLayerContentsRedrawDuringViewResize;
+		layer.needsDisplayOnBoundsChange = YES;
+		layer.contentsGravity = kCAGravityTopLeft;
 		renderer.layer = layer;
 		return (__bridge_retained void *)renderer;
 	}
