@@ -5,6 +5,7 @@
 package windowloop
 
 import (
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -212,10 +213,49 @@ func waitForWork(state *input.State, followUp bool) bool {
 	case wanted:
 		glfw.WaitEventsTimeout(delay.Seconds())
 	default:
-		glfw.WaitEvents()
+		sleepReleasingMemory(idleWaiter{state: state})
 	}
 	return state.Feed().HasInput()
 }
+
+// idleBeforeRelease is how long a window that draws on demand waits with nothing to do before
+// it gives the system back the memory the program no longer uses.
+const idleBeforeRelease = 3 * time.Second
+
+// waiter is what sleepReleasingMemory needs from the window: the real one waits for GLFW's
+// events, a test's pretends to.
+type waiter interface {
+	waitAtMost(time.Duration) (slept bool) // slept: nothing woke it before the time was up
+	waitForever()
+	hadInput() bool
+	release()
+}
+
+// sleepReleasingMemory sleeps until there is work. A program's memory holds what it no longer
+// uses until the collector runs, and the runtime gives freed pages back to the system only
+// slowly, so an idle window would keep the memory of its busiest moment. Once the window has had
+// nothing to do for idleBeforeRelease, it collects and gives that memory back, then sleeps on:
+// once per idle spell, while nobody is waiting for a frame.
+func sleepReleasingMemory(window waiter) {
+	slept := window.waitAtMost(idleBeforeRelease)
+	if !slept || window.hadInput() {
+		return // woken by input or Wake: there is a frame to draw
+	}
+	window.release()
+	window.waitForever()
+}
+
+// idleWaiter waits for a GLFW window's events and gives memory back through the runtime.
+type idleWaiter struct{ state *input.State }
+
+func (idleWaiter) waitAtMost(duration time.Duration) bool {
+	started := time.Now()
+	glfw.WaitEventsTimeout(duration.Seconds())
+	return time.Since(started) >= duration
+}
+func (idleWaiter) waitForever()          { glfw.WaitEvents() }
+func (waiter idleWaiter) hadInput() bool { return waiter.state.Feed().HasInput() }
+func (idleWaiter) release()              { debug.FreeOSMemory() }
 
 // Wake makes a window that draws on demand draw a frame now: for a program whose data changes
 // on another goroutine (a download finishing, a message arriving). Safe from any goroutine.

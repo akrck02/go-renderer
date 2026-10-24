@@ -90,3 +90,31 @@ func TestTheFramesPerSecondAreCountedOnceASecond(test *testing.T) {
 		test.Fatalf("title %q", title)
 	}
 }
+
+// pretendWindow records what sleepReleasingMemory asked of it.
+type pretendWindow struct {
+	wokenEarly, input      bool
+	released, sleptForever bool
+}
+
+func (window *pretendWindow) waitAtMost(time.Duration) bool { return !window.wokenEarly }
+func (window *pretendWindow) waitForever()                  { window.sleptForever = true }
+func (window *pretendWindow) hadInput() bool                { return window.input }
+func (window *pretendWindow) release()                      { window.released = true }
+
+func TestAnIdleWindowGivesItsMemoryBackThenSleepsOn(test *testing.T) {
+	window := &pretendWindow{}
+	sleepReleasingMemory(window)
+	if !window.released || !window.sleptForever {
+		test.Errorf("an idle window released %v and slept on %v", window.released, window.sleptForever)
+	}
+}
+
+func TestAWindowWokenBeforeItIsIdleDrawsWithoutReleasing(test *testing.T) {
+	for _, window := range []*pretendWindow{{wokenEarly: true}, {input: true}} {
+		sleepReleasingMemory(window)
+		if window.released || window.sleptForever {
+			test.Errorf("a window woken (early %v, input %v) released memory or slept on", window.wokenEarly, window.input)
+		}
+	}
+}
