@@ -17,7 +17,8 @@ draws only through Metal.
 It is **not** needed for performance or battery today. An interface that draws on demand sleeps
 while idle, and each frame it does draw is one draw call; the translation layer costs about
 0.1–0.2 ms of such a frame. Metal is insurance, plus a few things OpenGL cannot do on macOS:
-smooth live resizing (`presentsWithTransaction`), choosing the low-power GPU, and pacing frames
+smooth live resizing (`presentsWithTransaction`, with AppKit asking for a frame at every new
+size and a late frame pinned to the top-left corner rather than stretched), choosing the low-power GPU, and pacing frames
 with the display.
 
 ## What was built

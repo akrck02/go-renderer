@@ -78,6 +78,12 @@ void *sceneDeviceCreate(void *cocoaWindow, int vsync, char **failure) {
 		NSView *view = scene.window.contentView;
 		view.layer = layer;
 		view.wantsLayer = YES;
+		// while an edge is dragged, AppKit asks the view to redraw at every new size (GLFW's
+		// refresh callback draws the frame), and a frame that is late is pinned to the top-left
+		// corner instead of stretched to fill the window
+		view.layerContentsRedrawPolicy = NSViewLayerContentsRedrawDuringViewResize;
+		layer.needsDisplayOnBoundsChange = YES;
+		layer.contentsGravity = kCAGravityTopLeft;
 		scene.layer = layer;
 		return retained(scene);
 	}
