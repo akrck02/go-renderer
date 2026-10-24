@@ -68,7 +68,7 @@ func (emoji *emojiFont) find() {
 	emoji.searched = true
 	emoji.fonts, emoji.decoded, emoji.glyphs = nil, map[rune]image.Image{}, map[emojiKey]*emojiGlyph{}
 	for _, path := range colourEmojiFiles(emoji.folders) {
-		data, err := os.ReadFile(path)
+		data, _, err := mapFile(path) // kept for as long as the program draws: never released
 		if err != nil {
 			continue
 		}

@@ -59,7 +59,8 @@ func findFontFile(folders []string, name string) []byte {
 			if err != nil || entry.IsDir() || entry.Name() != name {
 				return nil
 			}
-			found, err = os.ReadFile(path)
+			// kept for as long as the program draws text: never released
+			found, _, err = mapFile(path)
 			if err != nil {
 				return nil // unreadable: keep looking
 			}
