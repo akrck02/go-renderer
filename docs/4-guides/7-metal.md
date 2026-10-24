@@ -73,6 +73,21 @@ still** (a probe with 30 lines of text, `-continuous`):
 Most of the memory saved is the window's buffers and the driver's caches: OpenGL on macOS runs on
 a translation layer over Metal, which keeps more buffers and caches of its own.
 
+**Where a still window's memory goes.** An inventory application of about a dozen pages, after a
+minute through all of them, on an Apple M4 with a 2560 × 1664 screen, measured with `footprint`:
+
+| | Before | After mapping fonts and giving memory back when idle |
+|---|---|---|
+| Footprint | 84 MB (peak 133) | **71 MB** (peak 121) |
+| The window's two drawables (IOSurface) | 31 MB | 31 MB |
+| Go's memory (Untagged) | 28 MB | **15 MB** |
+| The system's frameworks (Malloc) | 10 MB | 11 MB |
+| The GPU's buffers (IOAccelerator) | 5 MB | 5 MB |
+
+The two drawables are the floor of a Retina window: each is the whole window at four bytes a
+pixel. What the program can still shape is Go's part (see `windowloop`, which gives freed memory
+back after three idle seconds, and the overlay guide, on mapped fonts).
+
 ## The 3D scene renderer
 
 Built after the flat path, in the same way:

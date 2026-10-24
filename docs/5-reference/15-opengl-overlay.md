@@ -25,6 +25,12 @@ var FontNotRead = failure.Define("overlay.font-not-read", "a font could not be r
 
 FontNotRead is returned by NewPainter and NewMeasurer when one of the fonts (the default ones or those given in Fonts) is not a TrueType or OpenType font.
 
+```go
+var SystemFontNotFound = failure.Define("overlay.system-font-not-found", "the system's interface font is not on this device")
+```
+
+SystemFontNotFound is returned by SystemFonts when none of the system's interface fonts it knows is on this device; the Go fonts are still there to draw with.
+
 ### Atlas
 
 Atlas is one grey image holding everything the overlay draws: the glyphs of the text, the icons and the rounded corners of the pills. Every picture is a coverage mask (0 = empty, 255 = covered) that the backend tints when it draws it, so a single texture and a single draw call paint the whole overlay. Pictures are added when first needed and never move; when the image is full it doubles in size (keeping what it had in the same place). Version changes whenever pixels change, so the backend knows to upload the image again.
@@ -70,6 +76,10 @@ type Fonts struct {
 	Folders []string
 }
 ```
+
+| Function or method | |
+|---|---|
+| `func SystemFonts() (Fonts, error)` | SystemFonts are the fonts the system draws its own interface with, so a program reads like the rest of the device and like a web page using system-ui on it. |
 
 ### Frame
 
