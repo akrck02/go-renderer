@@ -4,6 +4,7 @@
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
+#include "readback_darwin.h"
 #include <stdlib.h>
 #include <string.h>
 #include "flat_darwin.h"
@@ -648,7 +649,7 @@ void flatRendererCapture(void *handle, const flatInstance *instances, int count,
 		                                                                                     height:height
 		                                                                                  mipmapped:NO];
 		descriptor.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead; // read by the backdrop's blur
-		descriptor.storageMode = MTLStorageModeManaged;
+		descriptor.storageMode = readableStorage(renderer.device);
 		id<MTLTexture> target = [renderer.device newTextureWithDescriptor:descriptor];
 
 		dispatch_semaphore_wait(renderer.inFlight, DISPATCH_TIME_FOREVER);
@@ -656,9 +657,7 @@ void flatRendererCapture(void *handle, const flatInstance *instances, int count,
 		frameCuts cuts = {snapshots, snapshotCount, lightings, lightingCount, lightBuffer(renderer, lights, lightCount)};
 		id<MTLCommandBuffer> commands = [renderer.queue commandBuffer];
 		encodeFrame(renderer, commands, target, buffer, count, cuts, background, width, height);
-		id<MTLBlitCommandEncoder> blit = [commands blitCommandEncoder];
-		[blit synchronizeResource:target];
-		[blit endEncoding];
+		bringBack(commands, target);
 		[commands commit];
 		[commands waitUntilCompleted];
 		dispatch_semaphore_signal(renderer.inFlight);
