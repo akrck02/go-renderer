@@ -1,12 +1,14 @@
 package windowloop
 
 import (
+	"slices"
 	"testing"
 	"time"
 
 	"github.com/akrck02/go-renderer/frameloop"
 	"github.com/akrck02/go-renderer/input"
 	"github.com/akrck02/go-renderer/window"
+	"github.com/go-gl/glfw/v3.4/glfw"
 )
 
 // countingApplication is an application that counts its update steps.
@@ -116,5 +118,15 @@ func TestAWindowWokenBeforeItIsIdleDrawsWithoutReleasing(test *testing.T) {
 		if window.released || window.sleptForever {
 			test.Errorf("a window woken (early %v, input %v) released memory or slept on", window.wokenEarly, window.input)
 		}
+	}
+}
+
+func TestANewSizeRunsTheBackendsCallbackThenDraws(test *testing.T) {
+	var happened []string
+	previous := func(_ *glfw.Window, width, height int) { happened = append(happened, "viewport") }
+	afterSizeChange(previous, nil, 800, 600, func() { happened = append(happened, "draw") })
+	afterSizeChange(nil, nil, 800, 600, func() { happened = append(happened, "draw") })
+	if want := []string{"viewport", "draw", "draw"}; !slices.Equal(happened, want) {
+		test.Errorf("%v, want %v", happened, want)
 	}
 }
