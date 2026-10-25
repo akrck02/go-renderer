@@ -145,7 +145,7 @@ func framesTitle(title, version string, frames int) string {
 // resizeFollower keeps a window's content in step with its size. While a window is being resized,
 // some systems (macOS) hold the program inside glfw.PollEvents until the mouse is let go, so the
 // main loop draws nothing and the window shows a stretched or empty frame: it flickers. The
-// follower draws from the window's refresh callback meanwhile, after an update step at the new
+// follower draws from the window's refresh and size callbacks meanwhile, after an update step at the new
 // size so an interface lays itself out again.
 type resizeFollower struct {
 	framebufferSize func() (width, height int)
@@ -162,7 +162,7 @@ func followResizing(glfwWindow *glfw.Window, app *window.Application, clock *fra
 	if app.Input != nil {
 		follower.updateSizes = func() { UpdateSizes(glfwWindow, app.Input) }
 	}
-	glfwWindow.SetRefreshCallback(func(*glfw.Window) {
+	draw := func() {
 		if *failure != nil {
 			return
 		}
@@ -171,8 +171,24 @@ func followResizing(glfwWindow *glfw.Window, app *window.Application, clock *fra
 			return
 		}
 		*failure = drawFrame()
+	}
+	glfwWindow.SetRefreshCallback(func(*glfw.Window) { draw() })
+	// macOS asks for a refresh only when AppKit paints the view, which it never does for a view that
+	// hosts a Metal layer; the new size does arrive at every step of a resize, so draw then too.
+	var previous glfw.FramebufferSizeCallback
+	previous = glfwWindow.SetFramebufferSizeCallback(func(resized *glfw.Window, width, height int) {
+		afterSizeChange(previous, resized, width, height, draw)
 	})
 	return follower
+}
+
+// afterSizeChange runs the size callback the backend installed (OpenGL's viewport), then draws:
+// in that order, so the frame is drawn for the new size.
+func afterSizeChange(previous glfw.FramebufferSizeCallback, resized *glfw.Window, width, height int, draw func()) {
+	if previous != nil {
+		previous(resized, width, height)
+	}
+	draw()
 }
 
 // advance runs the update steps that are due. When the window changed size and no step is due, it
