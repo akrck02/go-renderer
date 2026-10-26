@@ -20,7 +20,11 @@ func (renderer *SceneRenderer) drawGeometry(program *shaderProgram, command scen
 	if !visible {
 		return
 	}
-	drawSingle(program, uploadMesh(mesh))
+	buffers := uploadMesh(mesh)
+	if which == sceneplan.MainPass {
+		ensureUVs(buffers, mesh, command.Material)
+	}
+	drawSingle(program, buffers)
 	renderer.planner.Count(which, mesh, 0)
 }
 
@@ -31,6 +35,9 @@ func (renderer *SceneRenderer) drawVisibleInstances(program *shaderProgram, comm
 		if buffers == nil || batch.Count == 0 {
 			continue
 		}
+		if which == sceneplan.MainPass {
+			buffers.ensureUVs(batch.Mesh, command.Material)
+		}
 		drawInstanced(program, buffers.mesh, &instanceBuffers{vertexArray: buffers.vertexArray, instanceCount: int32(batch.Count)})
 		renderer.planner.Count(which, batch.Mesh, batch.Count)
 	}
@@ -40,6 +47,18 @@ func (renderer *SceneRenderer) drawVisibleInstances(program *shaderProgram, comm
 type instanceBatch struct {
 	vertexArray, instanceBuffer uint32
 	mesh                        *meshBuffers
+	hasUVs                      bool // its vertex array reads the mesh's UVs
+}
+
+// ensureUVs makes the batch read its mesh's UVs when it is drawn with a texture, once.
+func (batch *instanceBatch) ensureUVs(mesh *scene.Mesh, material *scene.Material) {
+	if batch.hasUVs || !sceneplan.IsTextured(material) {
+		return
+	}
+	ensureUVs(batch.mesh, mesh, material)
+	attachUVs(batch.vertexArray, batch.mesh.uvBuffer)
+	gl.BindVertexArray(0)
+	batch.hasUVs = true
 }
 
 // instanceBatches keeps the planner's instance batches in OpenGL buffers.
@@ -78,6 +97,10 @@ func newInstanceBatch(mesh *meshBuffers) *instanceBatch {
 	}
 	gl.BindBuffer(gl.ARRAY_BUFFER, batch.instanceBuffer)
 	describeInstanceLayout()
+	if mesh.uvBuffer != 0 {
+		attachUVs(batch.vertexArray, mesh.uvBuffer)
+		batch.hasUVs = true
+	}
 	gl.BindVertexArray(0)
 	return batch
 }
