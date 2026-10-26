@@ -232,6 +232,23 @@ ScreenReader.java         a virtual view per node, answering TalkBack; its focus
 - **Text as UTF-16.** JNI's own UTF-8 is not quite UTF-8: an emoji in a label sent that way stops a
   program. Labels cross as Java keeps them, and so does a field's new text on its way back.
 
+## Turning the phone
+
+`StartRotation` starts the phone's rotation sensor and `Rotation` reads how the screen is turned,
+as a camera's orientation: a camera turned by it looks out of the back of the phone, the room's up
+its y, so the screen becomes a window into the scene. `StopRotation` stops it again: the sensor
+draws power, so a program starts it only while it looks through the phone.
+
+- **The game rotation vector.** It leaves the compass out, so a magnet does not swing the view; the
+  heading it starts with is arbitrary, and a program keeps its own from there. A phone without it
+  falls back to the rotation vector, and `StartRotation` says false on one with neither.
+- **Its own thread.** A thread waits on the sensor's queue and keeps the latest reading, about 125
+  a second; `Rotation` takes it whenever a frame draws. The sensor does not wake the window, so a
+  program that follows it asks for frames while it does.
+- **The screen's way up.** The sensor turns the phone's own axes; the window reads how far the
+  display is turned (`Display.getRotation`) each time the configuration changes, and `Rotation`
+  turns the axes with it, so the view stays upright on the phone's side too.
+
 ## Without a window
 
 A headset does not show the activity's window: an OpenXR runtime takes each eye's picture from

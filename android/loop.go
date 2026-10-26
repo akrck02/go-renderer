@@ -271,6 +271,7 @@ func (current *activityWindow) readSystem() {
 		systemDark.Store(C.night_mode(current.env) != 0)
 		textScale.Store(float32(C.font_scale(current.env)))
 		readPalettes(current.env)
+		displayQuarterTurns.Store(int32(C.display_quarter_turns(current.env)))
 	}
 	current.insetsOK = false
 }

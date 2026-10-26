@@ -30,6 +30,7 @@ calls, was about two thirds of what a 3D view cost on a phone.
 | `func NotificationsAllowed() bool` | NotificationsAllowed tells whether the program may show notifications: always before Android 13, and on Android 13 and later once the person allowed them (AskForNotifications). |
 | `func Notify(channel Channel, id int, title, text string) bool` | Notify shows a notification on a channel in the system's shade, as other applications' are, even while the program is in the background: a title and a line, and touching it opens the program. |
 | `func OpenLink(link string) bool` | OpenLink opens a link in the application that shows it: a web page in the browser, mailto: in the mail, tel: in the phone, geo: in the maps. |
+| `func Rotation() (space.Quaternion, bool)` | Rotation is how the screen is turned in the room, as a camera's orientation: a camera turned by it looks out of the back of the phone, with the screen's top as its up and the room's up as the scene's y. |
 | `func Run(app *window.Application, options Options, draw func(functions GL, fresh bool) error) error` | Run draws the application in the activity's window until the program ends (Android ends it). |
 | `func RunHeadset(options HeadsetOptions, frame func(headset Headset, functions GL) bool) error` | RunHeadset runs a program that draws for a headset rather than into a window: an OpenXR runtime takes its pictures from images of its own. |
 | `func ScreenReaderFocus() int32` | ScreenReaderFocus is the node the screen reader is on, which the program rings; 0 for none. |
@@ -37,6 +38,8 @@ calls, was about two thirds of what a 3D view cost on a phone.
 | `func Share(title, text string) bool` | Share offers a text (a link, a note) to the person's other applications, through the system's sheet with a title over it. |
 | `func ShowAccessibleNodes(nodes []AccessibleNode)` | ShowAccessibleNodes hands Android what the frame shows, for the screen reader: call it on the drawing goroutine (in a step) with the nodes in reading order. |
 | `func ShowKeyboard(typing bool)` | ShowKeyboard asks for the on-screen keyboard while a text field is being typed in, and puts it away when none is: call it in every step (go-ui's window does, with Context.Typing). |
+| `func StartRotation() bool` | StartRotation starts reading the phone's rotation sensor, for Rotation: it says false when the phone has none. |
+| `func StopRotation()` | StopRotation stops the rotation sensor. |
 | `func SystemPalettes() (Palettes, bool)` | SystemPalettes returns the phone's palettes as last read, and false on a phone without them (before Android 12) or before the window has read them. |
 | `func SystemPrefersDark() bool` | SystemPrefersDark tells whether the phone is in its dark theme, as last read. |
 | `func TakeTextEdit(field uint64) (TextInput, bool)` | TakeTextEdit returns what the on-screen keyboard made of a field's text since the last call: its whole text, the selection and the word being composed. |
