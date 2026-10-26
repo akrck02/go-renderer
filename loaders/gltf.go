@@ -25,6 +25,9 @@ type gltfDocument struct {
 	Accessors   []gltfAccessorDefinition   `json:"accessors"`
 	BufferViews []gltfBufferViewDefinition `json:"bufferViews"`
 	Buffers     []gltfBufferDefinition     `json:"buffers"`
+	Textures    []gltfTextureDefinition    `json:"textures"`
+	Images      []gltfImageDefinition      `json:"images"`
+	Samplers    []gltfSamplerDefinition    `json:"samplers"`
 }
 
 type gltfSceneDefinition struct {
@@ -67,7 +70,8 @@ type gltfPrimitiveDefinition struct {
 type gltfMaterialDefinition struct {
 	Name                 string `json:"name"`
 	PbrMetallicRoughness struct {
-		BaseColorFactor []float32 `json:"baseColorFactor"`
+		BaseColorFactor  []float32         `json:"baseColorFactor"`
+		BaseColorTexture *gltfTextureUsage `json:"baseColorTexture"`
 	} `json:"pbrMetallicRoughness"`
 	DoubleSided bool           `json:"doubleSided"`
 	AlphaMode   string         `json:"alphaMode"`
@@ -116,20 +120,23 @@ var bytesPerComponent = map[int]int{componentByte: 1, componentUnsigned: 1, comp
 type gltfFile struct {
 	document  gltfDocument
 	buffers   [][]byte
-	directory string // folder of the file, for external buffers and sky images
+	directory string                 // folder of the file, for external buffers and sky images; "" when it has none (ReadScene)
+	textures  map[int]*scene.Texture // made so far, by the document's texture number: materials share them
 }
 
 // LoadScene reads a glTF 2.0 file (.glb, or .gltf with external buffers) into a scene.Scene.
 //
-// Supported: triangle primitives with POSITION, NORMAL, COLOR_0 and indices; node hierarchy with
-// matrix or TRS; material base color, doubleSided and alphaMode; EXT_mesh_gpu_instancing
+// Supported: triangle primitives with POSITION, NORMAL, COLOR_0, TEXCOORD_0 and indices; node
+// hierarchy with matrix or TRS; material base color, its texture (PNG or JPEG, in the file or beside
+// it; its sampler's wrapping along u, and nearest magnification as sharp), doubleSided and alphaMode; EXT_mesh_gpu_instancing
 // (TRANSLATION, ROTATION, SCALE and a custom _COLOR). Extras understood by the renderer:
 //   - scene extras "environment": sunDirection, sunColor, skyZenith, skyHorizon, groundAmbient,
 //     ambient, fog {color, near, far}, water {level, deep, shallow, size, waveLength, floorDepth, colorDepth},
 //     verticalScale, sky (see applySky); water.variation (see applyLevelVariation)
 //   - scene extras "environment" also: wind {direction, strength}
 //   - material extras "kind": "lit" | "unlit" | "water" | "waterfall" | "glow"; "sway": bending in the wind;
-//     "pattern": cobbles | masonry | plaster | shingles | planks | grass, with "patternScale" (world units);
+//     "texture": a built-in texture (scene.BuiltInTexture) for a material without a texture of its own,
+//     with "textureScale" (repeats a unit of UV);
 //     "foliage": true (takes the environment's foliageTint)
 //   - scene extras "environment" also: snow {level, blend, color}, foliageTint [r, g, b, amount]
 //   - mesh, primitive or node extras "ground": true (walkable surface)
@@ -172,6 +179,9 @@ func readGLTFFile(path string) (*gltfFile, error) {
 		return nil, failure.Wrap(FileNotRead, path, err)
 	}
 	file := &gltfFile{directory: filepath.Dir(path)}
+	if file.directory == "" {
+		file.directory = "."
+	}
 	if isGLBContainer(content) {
 		err = file.parseGLBContainer(content)
 	} else {
@@ -316,7 +326,10 @@ func (file *gltfFile) readIndices(accessorNumber int) ([]uint32, error) {
 
 func (file *gltfFile) buildScene() (*scene.Scene, error) {
 	result := scene.New()
-	materials := file.buildMaterials()
+	materials, err := file.buildMaterials()
+	if err != nil {
+		return nil, err
+	}
 	meshes, err := file.buildMeshes(materials)
 	if err != nil {
 		return nil, err
@@ -357,7 +370,7 @@ func (file *gltfFile) rootNodesAndExtras() ([]int, map[string]any) {
 	return all, nil
 }
 
-func (file *gltfFile) buildMaterials() []*scene.Material {
+func (file *gltfFile) buildMaterials() ([]*scene.Material, error) {
 	materials := make([]*scene.Material, len(file.document.Materials))
 	for materialNumber, definition := range file.document.Materials {
 		materials[materialNumber] = &scene.Material{
@@ -370,9 +383,14 @@ func (file *gltfFile) buildMaterials() []*scene.Material {
 			DepthBias:   extraNumber(definition.Extras, "depthBias", 0),
 		}
 		materials[materialNumber].Foliage = definition.Extras["foliage"] == true
-		applyBuiltInTexture(materials[materialNumber], definition.Extras)
+		if err := file.applyBaseColorTexture(materials[materialNumber], definition.PbrMetallicRoughness.BaseColorTexture); err != nil {
+			return nil, err
+		}
+		if materials[materialNumber].Texture == nil {
+			applyBuiltInTexture(materials[materialNumber], definition.Extras)
+		}
 	}
-	return materials
+	return materials, nil
 }
 
 // applyBuiltInTexture gives a material the built-in texture its extras name ("texture": "cobbles"),
@@ -451,6 +469,11 @@ func (file *gltfFile) buildPrimitive(mesh gltfMeshDefinition, primitive gltfPrim
 	result := &scene.Mesh{Name: mesh.Name, Positions: positions, Ground: isGround(mesh.Extras) || isGround(primitive.Extras)}
 	if normalAccessor, found := primitive.Attributes["NORMAL"]; found {
 		if result.Normals, _, err = file.readAccessor(normalAccessor); err != nil {
+			return nil, err
+		}
+	}
+	if uvAccessor, found := primitive.Attributes["TEXCOORD_0"]; found {
+		if result.UVs, _, err = file.readAccessor(uvAccessor); err != nil {
 			return nil, err
 		}
 	}

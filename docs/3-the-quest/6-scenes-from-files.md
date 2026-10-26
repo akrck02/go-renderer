@@ -33,10 +33,11 @@ viewer.Run(world, options, "Island", nil)
 That is the whole of `cmd/visor`, give or take its flags: `go run ./cmd/visor island.glb` opens
 any file without writing a line.
 
-The loader reads the node tree, positions, normals, vertex colours (`COLOR_0`), indices, the
-base colour of materials with `doubleSided` and `alphaMode`, compressed attributes
-(`KHR_mesh_quantization`) and instancing (`EXT_mesh_gpu_instancing`). Textures are not read: colour
-comes from materials, vertex colours and textures.
+The loader reads the node tree, positions, normals, vertex colours (`COLOR_0`), UVs
+(`TEXCOORD_0`), indices, the base colour of materials and its texture (a PNG or JPEG in the file or
+beside it, with its sampler's wrapping), `doubleSided` and `alphaMode`, compressed attributes
+(`KHR_mesh_quantization`) and instancing (`EXT_mesh_gpu_instancing`). Other maps (normals,
+roughness, emission) are not read.
 
 ## Extras: what glTF cannot say
 
