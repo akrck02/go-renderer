@@ -47,7 +47,8 @@ type SceneRenderer struct {
 	shadowMap        unsafe.Pointer
 	shadowResolution int32
 	seabedMap        unsafe.Pointer
-	placeholders     struct{ panorama, cube, levelVariation, instances unsafe.Pointer }
+	placeholders     struct{ panorama, cube, levelVariation, instances, uvs unsafe.Pointer }
+	textures         *textureStore
 	constellations   *constellationBuffer
 	overlay          overlayLayer
 	// capturing draws frames into an off-screen picture (captured) instead of the window.
@@ -78,6 +79,7 @@ func NewSceneRenderer(window *glfw.Window, vsync bool, fonts overlay.Fonts) (*Sc
 		return nil, err
 	}
 	renderer.prepareTextures()
+	renderer.prepareSurfaceTextures()
 	return renderer, nil
 }
 
@@ -180,7 +182,8 @@ func (renderer *SceneRenderer) Close() {
 		renderer.pipelines.constellationLines, renderer.pipelines.constellationPoints, renderer.pipelines.overlay,
 		renderer.depthStates.drawing, renderer.depthStates.blended, renderer.depthStates.shadow, renderer.depthStates.overlay,
 		renderer.shadowMap, renderer.seabedMap, renderer.placeholders.panorama, renderer.placeholders.cube,
-		renderer.placeholders.levelVariation, renderer.placeholders.instances, renderer.overlay.atlas, renderer.overlay.buffer,
+		renderer.placeholders.levelVariation, renderer.placeholders.instances, renderer.placeholders.uvs, renderer.textures.placeholder,
+		renderer.overlay.atlas, renderer.overlay.buffer,
 		renderer.device,
 	} {
 		C.sceneRelease(object)
@@ -312,7 +315,9 @@ func (renderer *SceneRenderer) drawGeometry(encoder unsafe.Pointer, command scen
 			if instances == nil || batch.Count == 0 {
 				continue
 			}
-			renderer.drawMesh(encoder, renderer.uploadMesh(batch.Mesh), instances.buffer, batch.Count, &uniforms)
+			buffers := renderer.uploadMesh(batch.Mesh)
+			renderer.bindSurface(encoder, batch.Mesh, buffers, command.Material, which)
+			renderer.drawMesh(encoder, buffers, instances.buffer, batch.Count, &uniforms)
 			renderer.planner.Count(which, batch.Mesh, batch.Count)
 		}
 		return
@@ -321,8 +326,21 @@ func (renderer *SceneRenderer) drawGeometry(encoder unsafe.Pointer, command scen
 	if !visible {
 		return
 	}
-	renderer.drawMesh(encoder, renderer.uploadMesh(mesh), renderer.placeholders.instances, 0, &uniforms)
+	buffers := renderer.uploadMesh(mesh)
+	renderer.bindSurface(encoder, mesh, buffers, command.Material, which)
+	renderer.drawMesh(encoder, buffers, renderer.placeholders.instances, 0, &uniforms)
 	renderer.planner.Count(which, mesh, 0)
+}
+
+// bindSurface binds what a draw reads of its texture: the mesh's UVs, and in the main pass the
+// texture itself (the depth-only passes have no fragment function to read one).
+func (renderer *SceneRenderer) bindSurface(encoder unsafe.Pointer, mesh *scene.Mesh, buffers *metalMesh, material *scene.Material, which sceneplan.Pass) {
+	if which != sceneplan.MainPass {
+		C.sceneEncoderSetVertexBuffer(encoder, renderer.placeholders.uvs, uvBufferIndex)
+		return
+	}
+	C.sceneEncoderSetVertexBuffer(encoder, renderer.meshUVs(mesh, buffers, material), uvBufferIndex)
+	C.sceneEncoderSetFragmentTexture(encoder, renderer.surfaceTexture(material), surfaceTextureIndex)
 }
 
 // drawMesh makes one draw call of a mesh, instanced when instances is above 0.
@@ -399,6 +417,7 @@ func (renderer *SceneRenderer) drawSeabed(frame unsafe.Pointer, plan sceneplan.S
 	uniforms := seabedPassUniforms(plan.Region)
 	C.sceneEncoderSetVertexBytes(encoder, unsafe.Pointer(&uniforms), C.long(unsafe.Sizeof(uniforms)), 2)
 	C.sceneEncoderSetVertexTexture(encoder, renderer.placeholders.levelVariation, 0)
+	C.sceneEncoderSetVertexBuffer(encoder, renderer.placeholders.uvs, uvBufferIndex) // read by textured draws only
 	for _, command := range plan.Casters {
 		// the whole mesh, without culling or levels of detail
 		ground := drawUniforms{model: command.World, sway: command.Material.Sway}
@@ -550,6 +569,7 @@ type metalTexture struct{ handle unsafe.Pointer }
 // metalMesh is a mesh's buffers on the GPU, kept in Mesh.GPU.
 type metalMesh struct {
 	vertices, indices unsafe.Pointer // indices is nil for a mesh without them
+	uvs               unsafe.Pointer // nil until the mesh is drawn with a texture
 	count             int            // vertices read by a draw call
 }
 
@@ -563,6 +583,7 @@ func (renderer *SceneRenderer) uploadMesh(mesh *scene.Mesh) *metalMesh {
 	if buffers != nil {
 		C.sceneRelease(buffers.vertices)
 		C.sceneRelease(buffers.indices)
+		C.sceneRelease(buffers.uvs)
 	}
 	buffers = &metalMesh{vertices: renderer.newBuffer(sceneplan.InterleaveVertices(mesh)), count: sceneplan.ElementCount(mesh)}
 	if len(mesh.Indices) > 0 {

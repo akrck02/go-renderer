@@ -88,6 +88,11 @@ Built after the flat path, in the same way:
 - **A thin Objective-C layer** (`scene_darwin.m`): buffers, textures, pipelines, passes and draw
   calls; the logic stays in Go. A frame waits for the previous one, so buffers can be rewritten in
   place (a simulation moving instances).
+- **Textures** (`metal/scene_textures_darwin.go`): uploaded once per picture and version, in sRGB
+  with their smaller copies; UVs in a buffer of their own. Metal's samplers are declared in the
+  shader, so the six ways of reading a texture (repeated, clamped or mirrored; smooth or sharp)
+  are six samplers, and each draw names one. Written without a Mac: still to be built and looked
+  at on one.
 - **Memoryless depth buffer** where the GPU allows it (Apple silicon): nothing reads it after the
   frame, so it takes no memory.
 - **The viewer** chooses with `-backend` (Metal on macOS, falling back to OpenGL), and the visor
