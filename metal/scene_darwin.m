@@ -85,7 +85,7 @@ void *sceneDeviceCreate(void *cocoaWindow, int vsync, char **failure) {
 void *sceneLibraryCreate(void *handle, const char *source, char **failure) {
 	@autoreleasepool {
 		SceneDevice *scene = (__bridge SceneDevice *)handle;
-		// precise maths: the noise behind patterns, stars and clouds takes sines of large numbers, which
+		// precise maths: the noise behind stars and clouds takes sines of large numbers, which
 		// fast maths would round differently from OpenGL
 		MTLCompileOptions *options = [MTLCompileOptions new];
 		if (@available(macOS 15.0, *)) {

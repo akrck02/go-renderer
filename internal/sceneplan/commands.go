@@ -20,6 +20,8 @@ type Command struct {
 	// Lights are the frame's point lights this draw takes (see Frame.Lights); none for the sea,
 	// whose look is its own.
 	Lights DrawLights
+	// textureOrder groups the draws of one texture (see textureOrder), worked out once a frame.
+	textureOrder uint64
 }
 
 // CameraMatrices are the matrices of one frame, in OpenGL's clip space (depth from -1 to 1); a
@@ -66,12 +68,18 @@ func CastsShadow(command Command) bool {
 	return !command.Transparent && command.Material.Kind != scene.UnlitKind
 }
 
-// BaseColorOf returns a material's colour, white when it is unset.
+// BaseColorOf returns a material's colour, white when it is unset, times its texture's gain when
+// it has one (scene.Texture.Gain), so the texture keeps the surface's brightness.
 func BaseColorOf(material *scene.Material) graphics.Vector {
-	if material.BaseColor == (graphics.Vector{}) {
-		return graphics.Vector{1, 1, 1, 1}
+	color := material.BaseColor
+	if color == (graphics.Vector{}) {
+		color = graphics.Vector{1, 1, 1, 1}
 	}
-	return material.BaseColor
+	if !IsTextured(material) {
+		return color
+	}
+	gain := material.Texture.EffectiveGain()
+	return graphics.Vector{color[0] * gain, color[1] * gain, color[2] * gain, color[3]}
 }
 
 func materialOrDefault(material *scene.Material) *scene.Material {
@@ -110,12 +118,13 @@ func (planner *Planner) collectNode(node *scene.Node, transform graphics.Matrix)
 	planner.commands = append(planner.commands, Command{
 		Node: node, World: transform, Material: material, Transparent: IsTransparent(material),
 		SquaredCameraDistance: squaredHorizontalDistance(transform.Apply(graphics.Vector{0, 0, 0, 1}), planner.walkCamera.Position),
-		Lights:                planner.lightsOfNode(node, transform),
+		Lights:                planner.lightsOfNode(node, transform), textureOrder: textureOrder(material),
 	})
 }
 
-// sortOpaqueBeforeTransparent keeps opaque commands in order and draws transparent ones last,
-// farthest first, so blending composes correctly.
+// sortOpaqueBeforeTransparent draws opaque commands first, grouped by texture so each texture is
+// bound once (untextured ones first, each group in the order it came), and transparent ones
+// last, farthest first, so blending composes correctly.
 func sortOpaqueBeforeTransparent(commands []Command) {
 	slices.SortStableFunc(commands, compareForDrawing) // no reflection, no closure: no garbage
 }
@@ -128,10 +137,20 @@ func compareForDrawing(first, second Command) int {
 		}
 		return -1
 	case !first.Transparent:
-		return 0
+		return compareTextures(first.textureOrder, second.textureOrder)
 	case first.SquaredCameraDistance > second.SquaredCameraDistance:
 		return -1
 	case first.SquaredCameraDistance < second.SquaredCameraDistance:
+		return 1
+	}
+	return 0
+}
+
+func compareTextures(first, second uint64) int {
+	switch {
+	case first < second:
+		return -1
+	case first > second:
 		return 1
 	}
 	return 0

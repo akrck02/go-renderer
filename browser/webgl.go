@@ -260,6 +260,11 @@ func (webgl *WebGL) SetPixelStorage(name gles.Enum, value int32) {
 	webgl.context.Call("pixelStorei", uint32(name), value)
 }
 
+// GenerateMipmap implements gles.Functions.
+func (webgl *WebGL) GenerateMipmap(target gles.Enum) {
+	webgl.context.Call("generateMipmap", uint32(target))
+}
+
 // SetTextureImage implements gles.Functions.
 func (webgl *WebGL) SetTextureImage(target gles.Enum, level int, internalFormat gles.Enum, width, height int, format, kind gles.Enum, pixels []byte) {
 	source := js.Null() // no pixels: an empty texture to draw into, which WebGL wants as null

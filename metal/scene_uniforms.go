@@ -54,10 +54,10 @@ type drawUniforms struct {
 	baseColor             graphics.Vector
 	sway                  float32
 	depthBias             float32
-	patternScale          float32
+	textured              int32 // 1: the material's texture multiplies its colour
 	instanced             int32
 	kind                  int32
-	pattern               int32
+	textureSampling       int32 // which of the shader's surface samplers: textureSamplingOf
 	foliage               int32
 	levelVariationEnabled int32
 	seaSurface            int32
@@ -65,6 +65,7 @@ type drawUniforms struct {
 	unused                [2]int32
 	lightPositions        [sceneplan.MaxLightsPerDraw]graphics.Vector // xyz: where, w: the outer radius
 	lightColors           [sceneplan.MaxLightsPerDraw]graphics.Vector // rgb: linear colour times intensity, w: the inner radius
+	texturePlacement      [4]float32                                  // scale along u and v, then offset along u and v
 }
 
 type skyUniforms struct {
@@ -176,9 +177,13 @@ func seabedPassUniforms(region sceneplan.SeabedRegion) frameUniforms {
 func drawUniformsFor(command sceneplan.Command, levelVariationActive bool, frameLights []sceneplan.FrameLight) drawUniforms {
 	material := command.Material
 	uniforms := drawUniforms{model: command.World, baseColor: sceneplan.BaseColorOf(material),
-		sway: material.Sway, depthBias: material.DepthBias, patternScale: material.PatternScale,
-		kind: int32(material.Kind), pattern: int32(material.Pattern), foliage: boolean(material.Foliage),
+		sway: material.Sway, depthBias: material.DepthBias,
+		kind: int32(material.Kind), foliage: boolean(material.Foliage),
 		levelVariationEnabled: boolean(command.SeaSurface && levelVariationActive), seaSurface: boolean(command.SeaSurface)}
+	if sceneplan.IsTextured(material) {
+		uniforms.textured, uniforms.textureSampling = 1, textureSamplingOf(material.Texture)
+		uniforms.texturePlacement = sceneplan.TexturePlacement(material)
+	}
 	uniforms.lightCount = int32(command.Lights.Count)
 	for slot, index := range command.Lights.Indices[:command.Lights.Count] {
 		light := &frameLights[index]
@@ -232,4 +237,15 @@ func boolean(value bool) int32 {
 		return 1
 	}
 	return 0
+}
+
+// textureSamplingOf picks which of the scene shader's six surface samplers reads a texture: its
+// wrap (repeat, clamp, mirror) times two, plus one when sharp. Metal's samplers are declared in the
+// shader, so each way of reading is one of them.
+func textureSamplingOf(texture *scene.Texture) int32 {
+	wrap := int32(texture.Wrap)
+	if wrap < 0 || wrap > int32(scene.Mirror) {
+		wrap = int32(scene.Repeat)
+	}
+	return 2*wrap + boolean(texture.Sharp)
 }

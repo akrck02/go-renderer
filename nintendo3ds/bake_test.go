@@ -2,6 +2,7 @@ package nintendo3ds
 
 import (
 	"math"
+	"slices"
 	"testing"
 
 	"github.com/akrck02/go-renderer/graphics"
@@ -178,5 +179,14 @@ func TestAMovingNodeIsLitOnTheGPUAsABakedOneIs(test *testing.T) {
 	}
 	if uniforms.colours[2] != (graphics.Vector{}) {
 		test.Errorf("an unused lamp's colour is %v, wanted none", uniforms.colours[2])
+	}
+}
+
+func TestATexturedBakedVertexCarriesItsUVAfterItsColour(test *testing.T) {
+	baked := []float32{1, 2, 3, 0.5, 4, 5, 6, 0.25}
+	got := withUVs(nil, baked, []float32{0.1, 0.2, 0.3, 0.4})
+	wanted := []float32{1, 2, 3, 0.5, 0.1, 0.2, 4, 5, 6, 0.25, 0.3, 0.4}
+	if !slices.Equal(got, wanted) {
+		test.Errorf("textured vertices %v, wanted %v", got, wanted)
 	}
 }

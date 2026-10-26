@@ -1,0 +1,73 @@
+; baked.v.pica for textured meshes: the same, and each vertex's UV, placed on the texture by the
+; material's scale and offset, for the colour stages to read the texture with. The fog is in the
+; colour the texture then multiplies, so a far textured surface fogs towards the fog's colour
+; times its texture.
+
+; Per frame
+.fvec viewProjection[4]  ; sceneplan's view-projection, turned into the PICA200's clip space
+.fvec camera             ; xyz: the camera's position
+.fvec settings           ; x: vertical scale
+.fvec fog                ; x: fog near, y: 1 / (far - near), 0 without fog
+.fvec fogColour          ; in the screen's gamma
+
+; Per draw
+.fvec model[4]
+.fvec texturePlacement   ; xy: the texture's scale along u and v, zw: its offset
+
+.constf numbers(0.0, 1.0, 0.0039215686, 0.00001)
+.alias zeros     numbers.xxxx
+.alias ones      numbers.yyyy
+.alias fromBytes numbers.zzzz ; 1 / 255
+.alias tiny      numbers.wwww
+
+.out outPosition position
+.out outColour   color
+.out outUV       texcoord0
+
+.alias inPosition v0
+.alias inColour   v1 ; four bytes, 0 to 255
+.alias inUV       v2
+
+.proc main
+	; r1 = world position: model × (position, 1), raised by the vertical scale
+	mov r0.xyz, inPosition
+	mov r0.w, ones
+	dp4 r1.x, model[0], r0
+	dp4 r1.y, model[1], r0
+	dp4 r1.z, model[2], r0
+	dp4 r1.w, model[3], r0
+	mul r1.y, settings.xxxx, r1.yyyy
+	dp4 outPosition.x, viewProjection[0], r1
+	dp4 outPosition.y, viewProjection[1], r1
+	dp4 outPosition.z, viewProjection[2], r1
+	dp4 outPosition.w, viewProjection[3], r1
+
+	; r2 = the colour, from bytes
+	mul r2, fromBytes, inColour
+
+	; r3.x = how much fog: the distance to the camera, from the near to the far distance
+	mov r3.xyz, camera
+	add r3.xyz, r3.xyz, -r1.xyz
+	dp3 r3.x, r3, r3
+	max r3.x, tiny, r3.xxxx
+	rsq r3.y, r3.xxxx
+	rcp r3.x, r3.yyyy
+	mov r4, fog
+	add r3.x, r3.xxxx, -r4.xxxx
+	mul r3.x, r4.yyyy, r3.xxxx
+	max r3.x, zeros, r3.xxxx
+	min r3.x, ones, r3.xxxx
+
+	; towards the fog's colour
+	mov r4.xyz, fogColour
+	add r4.xyz, r4.xyz, -r2.xyz
+	mad r2.xyz, r4.xyz, r3.xxxx, r2.xyz
+	mov outColour, r2
+
+	; the UV on the texture: UV × scale + offset
+	mov r5, inUV
+	mul r5.xy, texturePlacement.xyxy, r5.xyxy
+	add r5.xy, texturePlacement.zwzw, r5.xyxy
+	mov outUV, r5
+	end
+.end

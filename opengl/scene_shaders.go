@@ -1,7 +1,7 @@
 package opengl
 
 // sceneVertexShader transforms meshes and GPU instances. Attributes: 0 position, 1 normal,
-// 2 color, 3-6 instance matrix columns, 7 instance color. The vertical scale exaggerates
+// 2 color, 3-6 instance matrix columns, 7 instance color, 8 UV (from its own buffer). The vertical scale exaggerates
 // heights (and corrects normals) without touching the geometry. Meshes with sway (plants modelled
 // with height 1 and the base at the origin) bend with the wind, more at the top.
 const sceneVertexShader = `
@@ -14,6 +14,7 @@ layout(location = 4) in vec4 instanceColumnTwo;
 layout(location = 5) in vec4 instanceColumnThree;
 layout(location = 6) in vec4 instanceColumnFour;
 layout(location = 7) in vec4 instanceColor;
+layout(location = 8) in vec2 vertexUV;
 uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
@@ -30,9 +31,11 @@ uniform vec4 levelVariationArea;     // minimum x, minimum z, maximum x, maximum
 uniform float levelVariationAngle;
 uniform float depthBias;             // share of the distance the surface is pulled towards the camera
 uniform vec3 cameraPosition;
+uniform vec4 texturePlacement;       // scale along u and v, then offset along u and v
 out vec3 worldPosition;
 out vec3 worldNormal;
 out vec4 surfaceColor;
+out vec2 surfaceUV;
 // windBend moves a vertex along the wind, growing with the square of its height in the model, with
 // gusts whose phase depends on where the model stands.
 vec2 windBend(mat4 modelMatrix) {
@@ -69,20 +72,23 @@ void main() {
     worldPosition = world.xyz;
     worldNormal = normal;
     surfaceColor = color;
+    surfaceUV = vertexUV * texturePlacement.xy + texturePlacement.zw;
     // thin surfaces on the terrain (rivers) are drawn a little closer, so its simpler far versions do not hide them
     if (depthBias > 0.0) world.xyz += (cameraPosition - world.xyz) * depthBias;
     gl_Position = projection * view * world;
 }
 ` + "\x00"
 
-// sceneFragmentShader shades by material kind: 0 lit, 1 unlit, 2 water, 3 waterfall, 4 glow; lit and
-// glowing materials can carry a procedural surface pattern (see scene.Pattern).
+// sceneFragmentShader shades by material kind: 0 lit, 1 unlit, 2 water, 3 waterfall, 4 glow.
 const sceneFragmentShader = `
 #version 410
 in vec3 worldPosition;
 in vec3 worldNormal;
 in vec4 surfaceColor;
+in vec2 surfaceUV;
 uniform vec4 baseColor;
+uniform int textured;              // 1: the material's texture multiplies its colour
+uniform sampler2D surfaceTexture;
 uniform int kind;
 uniform vec3 sunDirection;
 uniform vec3 sunColor;
@@ -110,14 +116,12 @@ uniform vec4 waterShallowColor;
 uniform float waterColorDepth;
 uniform float shoreFadeDepth;      // the sea fades out over this depth at the shore, with a line of foam
 uniform int seaSurface;            // 1 for the environment's sea; rivers and lakes keep their own colour
-uniform int pattern;               // procedural surface pattern (scene.Pattern), 0 = none
 uniform int foliage;               // 1: the material takes the season's foliage tint
 uniform vec4 foliageTint;          // colour and amount (alpha) of the season's foliage
 uniform int snowEnabled;
 uniform float snowLevel;           // world units, before vertical scaling
 uniform float snowBlend;
 uniform vec3 snowColor;
-uniform float patternScale;        // world units per pattern cell
 uniform int lightCount;            // the point lights this draw takes, up to four (sceneplan.MaxLightsPerDraw)
 uniform vec4 lightPositions[4];    // xyz: where, w: the outer radius
 uniform vec4 lightColors[4];       // rgb: linear colour times intensity, w: the inner radius
@@ -147,150 +151,6 @@ float sunVisibility(vec3 normal) {
     return mix(1.0, visible / 9.0, shadowRegionFade(coordinates.xy));
 }
 
-float hashOf(vec2 cell) { return fract(sin(dot(cell, vec2(127.1, 311.7))) * 43758.5453); }
-vec2 hashOf2(vec2 cell) { return fract(sin(vec2(dot(cell, vec2(127.1, 311.7)), dot(cell, vec2(269.5, 183.3)))) * 43758.5453); }
-
-float valueNoise(vec2 point) {
-    vec2 cell = floor(point), inside = fract(point);
-    vec2 eased = inside * inside * (3.0 - 2.0 * inside);
-    return mix(mix(hashOf(cell), hashOf(cell + vec2(1.0, 0.0)), eased.x),
-               mix(hashOf(cell + vec2(0.0, 1.0)), hashOf(cell + vec2(1.0, 1.0)), eased.x), eased.y);
-}
-
-// surfaceCoordinates are pattern coordinates on the surface: x and z on flat ground; along the
-// wall and up on walls; along the slope's contour and down the slope on roofs.
-vec2 surfaceCoordinates(vec3 normal) {
-    vec3 position = worldPosition / patternScale;
-    if (abs(normal.y) > 0.92) return position.xz;
-    vec2 across = normalize(vec2(-normal.z, normal.x) + vec2(1e-5, 0.0));
-    return vec2(dot(position.xz, across), position.y);
-}
-
-float cobbles(vec2 point) {
-    vec2 cell = floor(point);
-    float nearest = 8.0, second = 8.0;
-    vec2 nearestCell = cell;
-    for (int column = -1; column <= 1; column++) {
-        for (int row = -1; row <= 1; row++) {
-            vec2 neighbour = cell + vec2(float(column), float(row));
-            float gap = length(neighbour + 0.15 + 0.7 * hashOf2(neighbour) - point);
-            if (gap < nearest) { second = nearest; nearest = gap; nearestCell = neighbour; }
-            else if (gap < second) { second = gap; }
-        }
-    }
-    float joint = smoothstep(0.03, 0.12, second - nearest);
-    return mix(0.55, 0.82 + 0.3 * hashOf(nearestCell), joint) * (1.0 - 0.12 * nearest);
-}
-
-float masonry(vec2 point) {
-    float course = floor(point.y);
-    float along = point.x * 0.5 + 0.5 * mod(course, 2.0);
-    vec2 block = vec2(floor(along), course);
-    float joint = smoothstep(0.0, 0.06, fract(point.y)) * smoothstep(1.0, 0.94, fract(point.y))
-                * smoothstep(0.0, 0.03, fract(along)) * smoothstep(1.0, 0.97, fract(along));
-    return mix(0.62, 0.84 + 0.26 * hashOf(block) + 0.06 * valueNoise(point * 4.0), joint);
-}
-
-float shingles(vec2 point) {
-    float row = floor(point.y);
-    float along = point.x * 1.4 + 0.5 * mod(row, 2.0);
-    float tone = 0.8 + 0.3 * hashOf(vec2(floor(along), row));
-    float overlap = 0.72 + 0.28 * fract(point.y);
-    float gap = smoothstep(0.0, 0.05, fract(along)) * smoothstep(1.0, 0.95, fract(along));
-    return tone * overlap * mix(0.7, 1.0, gap);
-}
-
-float planks(vec2 point) {
-    float board = floor(point.y);
-    float gap = smoothstep(0.0, 0.05, fract(point.y)) * smoothstep(1.0, 0.95, fract(point.y));
-    float grain = 0.94 + 0.08 * valueNoise(vec2(point.x * 0.6, point.y * 9.0));
-    return mix(0.6, (0.82 + 0.26 * hashOf(vec2(board, floor(point.x * 0.25 + hashOf(vec2(board, 3.0)))))) * grain, gap);
-}
-
-// patternHeight is the relief of a pattern (0 in the joints, up to 1 on a stone, a tile or a
-// board), which bends the light: rounded cobbles, sunken joints, overlapping tiles, board gaps.
-float patternHeight(vec2 point) {
-    if (pattern == 1) {
-        vec2 cell = floor(point);
-        float nearest = 8.0, second = 8.0;
-        for (int column = -1; column <= 1; column++) {
-            for (int row = -1; row <= 1; row++) {
-                vec2 neighbour = cell + vec2(float(column), float(row));
-                float gap = length(neighbour + 0.15 + 0.7 * hashOf2(neighbour) - point);
-                if (gap < nearest) { second = nearest; nearest = gap; }
-                else if (gap < second) { second = gap; }
-            }
-        }
-        float edge = smoothstep(0.0, 0.35, second - nearest);
-        return sqrt(edge) * (1.0 - 0.35 * nearest * nearest);
-    }
-    if (pattern == 2) {
-        float course = floor(point.y);
-        float along = point.x * 0.5 + 0.5 * mod(course, 2.0);
-        return smoothstep(0.0, 0.08, fract(point.y)) * smoothstep(1.0, 0.92, fract(point.y))
-             * smoothstep(0.0, 0.04, fract(along)) * smoothstep(1.0, 0.96, fract(along))
-             * (0.85 + 0.15 * valueNoise(point * 3.0));
-    }
-    if (pattern == 4) {
-        float along = point.x * 1.4 + 0.5 * mod(floor(point.y), 2.0);
-        return fract(point.y) * smoothstep(0.0, 0.06, fract(along)) * smoothstep(1.0, 0.94, fract(along));
-    }
-    if (pattern == 5) return smoothstep(0.0, 0.06, fract(point.y)) * smoothstep(1.0, 0.94, fract(point.y));
-    if (pattern == 3 || pattern == 6) return valueNoise(point * 3.0);
-    return 0.0;
-}
-
-// bumpStrength is how far each pattern's relief bends the normal.
-float bumpStrength() {
-    if (pattern == 1) return 0.55;
-    if (pattern == 2) return 0.35;
-    if (pattern == 4) return 0.45;
-    if (pattern == 5) return 0.25;
-    return 0.08;
-}
-
-// bumpedNormal bends a surface's normal by its pattern's relief, fading out with distance like the
-// pattern itself.
-vec3 bumpedNormal(vec3 normal) {
-    if (pattern == 0 || patternScale <= 0.0) return normal;
-    float cellsPerPixel = length(fwidth(worldPosition)) / patternScale;
-    float strength = (1.0 - smoothstep(0.15, 0.6, cellsPerPixel)) * bumpStrength();
-    if (strength <= 0.0) return normal;
-    vec2 point = surfaceCoordinates(normal);
-    const float step = 0.04;
-    float here = patternHeight(point);
-    float slopeU = (patternHeight(point + vec2(step, 0.0)) - here) / step;
-    float slopeV = (patternHeight(point + vec2(0.0, step)) - here) / step;
-    vec3 tangentU, tangentV;
-    if (abs(normal.y) > 0.92) {
-        tangentU = vec3(1.0, 0.0, 0.0);
-        tangentV = vec3(0.0, 0.0, 1.0);
-    } else {
-        vec2 across = normalize(vec2(-normal.z, normal.x) + vec2(1e-5, 0.0));
-        tangentU = vec3(across.x, 0.0, across.y);
-        tangentV = vec3(0.0, 1.0, 0.0);
-    }
-    return normalize(normal - strength * 0.1 * (slopeU * tangentU + slopeV * tangentV));
-}
-
-// patternFactor multiplies a surface's colour by the material's pattern, fading it out where a
-// cell covers less than about two pixels.
-float patternFactor(vec3 normal) {
-    if (pattern == 0 || patternScale <= 0.0) return 1.0;
-    float cellsPerPixel = length(fwidth(worldPosition)) / patternScale;
-    float strength = 1.0 - smoothstep(0.25, 0.8, cellsPerPixel);
-    if (strength <= 0.0) return 1.0;
-    vec2 point = surfaceCoordinates(normal);
-    float factor = 1.0;
-    if (pattern == 1) factor = cobbles(point);
-    else if (pattern == 2) factor = masonry(point);
-    else if (pattern == 3) factor = 0.9 + 0.1 * valueNoise(point * 0.8) + 0.06 * valueNoise(point * 7.0);
-    else if (pattern == 4) factor = shingles(point);
-    else if (pattern == 5) factor = planks(point);
-    else if (pattern == 6) factor = 0.82 + 0.2 * valueNoise(point * 0.7) + 0.1 * valueNoise(point * 5.0);
-    return mix(1.0, factor, strength);
-}
-
 // lampLight is the light the draw's point lights bring to a surface: each fades from full at its
 // inner radius to nothing at its outer one, as 2D lights do, and lights what faces it.
 vec3 lampLight(vec3 surface) {
@@ -308,17 +168,9 @@ vec3 lampLight(vec3 surface) {
 vec3 shadeLit(vec3 color) {
     vec3 normal = normalize(worldNormal);
     if (!gl_FrontFacing) normal = -normal;
-    vec3 surface = bumpedNormal(normal);
-    vec3 towardsSun = normalize(sunDirection);
-    float shadowed = sunVisibility(normal);
-    float sunlight = max(dot(surface, towardsSun), 0.0) * shadowed;
-    // the relief also hides light from the sky: joints and gaps are darker
-    float cavity = mix(1.0, 0.8 + 0.2 * max(dot(surface, normal), 0.0), step(0.5, float(pattern)));
-    vec3 skylight = mix(groundColor, skyColor, surface.y * 0.5 + 0.5) * ambient * cavity;
-    // a soft sheen on stone, tiles and wood under the sun
-    vec3 towardsCamera = normalize(cameraPosition - worldPosition);
-    float sheen = pattern > 0 ? pow(max(dot(normalize(towardsSun + towardsCamera), surface), 0.0), 24.0) * 0.12 * shadowed : 0.0;
-    return color * (skylight + sunColor * sunlight + lampLight(surface)) + sunColor * sheen;
+    float sunlight = max(dot(normal, normalize(sunDirection)), 0.0) * sunVisibility(normal);
+    vec3 skylight = mix(groundColor, skyColor, normal.y * 0.5 + 0.5) * ambient;
+    return color * (skylight + sunColor * sunlight + lampLight(normal));
 }
 
 vec3 waterNormal() {
@@ -394,11 +246,11 @@ float waterfallOpacity(float baseOpacity) {
 
 void main() {
     vec4 color = surfaceColor * baseColor;
+    if (textured == 1) color *= texture(surfaceTexture, surfaceUV);
     vec3 towardsCamera = normalize(cameraPosition - worldPosition);
     if (kind == 0 || kind == 4) {
         vec3 normal = normalize(worldNormal);
         if (!gl_FrontFacing) normal = -normal;
-        color.rgb *= patternFactor(normal);
         if (foliage == 1 && foliageTint.a > 0.0) {
             float lightness = 0.6 + 0.8 * dot(color.rgb, vec3(0.333));
             color.rgb = mix(color.rgb, foliageTint.rgb * lightness, foliageTint.a);

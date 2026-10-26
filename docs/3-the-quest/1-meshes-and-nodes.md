@@ -42,14 +42,15 @@ A grid of squares, each made of two triangles, whose height falls from the middl
 // hill is a round island: a grid of side × side cells, highest in the middle and under the sea at
 // its edges. Its surface is ground, so the walker and GroundHeight find it.
 func hill(side int, height float32) *scene.Mesh {
+	grass, _ := scene.BuiltInTexture("grass")
 	mesh := &scene.Mesh{
 		Name:   "hill",
 		Ground: true,
 		Material: &scene.Material{
 			Kind:         scene.LitKind,
 			BaseColor:    graphics.Vector{0.45, 0.6, 0.3, 1},
-			Pattern:      scene.PatternGrass,
-			PatternScale: 1,
+			Texture:      grass,
+			TextureScale: [2]float32{0.25, 0.25},
 		},
 	}
 	half := float32(side) / 2
@@ -74,8 +75,10 @@ func hill(side int, height float32) *scene.Mesh {
 ```
 
 `ComputeNormals` works out smooth normals from the triangles, so the hill is shaded as one rounded
-surface. `PatternGrass` mottles its colour from the world position, with no texture to load; the
-other patterns are cobbles, masonry, plaster, shingles and planks.
+surface. The built-in `grass` texture mottles its colour, with no file to load: the hill has no
+UVs, so the texture is laid from where its vertices are, and `TextureScale` repeats it once every
+four metres. The other built-in textures are cobbles, masonry, plaster, shingles, planks, panels,
+grid, stripes, carbon, hexagons, worn, camouflage and windows.
 
 ### The tower
 
@@ -151,7 +154,7 @@ A cream tower stands on a green hill, its shadow on the grass. Press `Tab` and w
 ## What you learnt
 
 - A mesh is positions and indices, counter-clockwise from the front, with normals for the light.
-- A material says how it is shaded; `Pattern` adds surface detail with no texture.
+- A material says how it is shaded; a `Texture`, such as a built-in one, adds surface detail.
 - A node places a mesh with a matrix; `Ground: true` makes it walkable.
 
 ## Bonus (optional)
@@ -164,7 +167,8 @@ four metres east of it and turned 30°.
 
 ```go
 house := box(3, 2.5, 4, graphics.Vector{0.6, 0.45, 0.3, 1})
-house.Material.Pattern, house.Material.PatternScale = scene.PatternPlanks, 0.3
+house.Material.Texture, _ = scene.BuiltInTexture("planks")
+house.Material.TextureScale = [2]float32{0.8, 0.8}
 height, _ := world.GroundHeight(4, 0)
 world.Nodes = append(world.Nodes, &scene.Node{
 	Name:      "house",

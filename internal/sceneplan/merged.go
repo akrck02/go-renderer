@@ -41,8 +41,10 @@ func MergeInstances(into, mesh *scene.Mesh, packed []float32, count int) {
 	}
 	vertices := mesh.VertexCount()
 	into.Positions, into.Normals = into.Positions[:0], into.Normals[:0]
-	into.Colors, into.Indices = into.Colors[:0], into.Indices[:0]
+	into.Colors, into.Indices, into.UVs = into.Colors[:0], into.Indices[:0], into.UVs[:0]
+	uvs := UVsToDraw(mesh, mesh.Material)
 	for instance := range count {
+		into.UVs = append(into.UVs, uvs...)
 		values := packed[instance*FloatsPerInstance:]
 		placement, tint := graphics.Matrix(values[0:16]), graphics.Vector(values[16:20])
 		turn := NormalMatrix(placement)

@@ -60,6 +60,11 @@ const (
 	RGBA             Enum = 0x1908
 	UnpackAlignment  Enum = 0x0CF5
 	Nearest          Enum = 0x2600
+	Repeat           Enum = 0x2901
+	MirroredRepeat   Enum = 0x8370
+
+	LinearMipmapLinear   Enum = 0x2703
+	NearestMipmapNearest Enum = 0x2700
 
 	FramebufferTarget Enum = 0x8D40
 	ColorAttachment0  Enum = 0x8CE0
@@ -158,6 +163,9 @@ type Functions interface {
 	SetPixelStorage(name Enum, value int32)
 	// SetTextureImage is glTexImage2D.
 	SetTextureImage(target Enum, level int, internalFormat Enum, width, height int, format, kind Enum, pixels []byte)
+	// GenerateMipmap makes the bound texture's smaller copies, which smooth sampling reads far away.
+	// (OpenGL ES: glGenerateMipmap.)
+	GenerateMipmap(target Enum)
 	// ReplaceTexturePart replaces a rectangle of the bound texture's pixels, given row after row.
 	// (OpenGL ES: glTexSubImage2D.)
 	ReplaceTexturePart(target Enum, level, x, y, width, height int, format, kind Enum, pixels []byte)

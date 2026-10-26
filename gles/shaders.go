@@ -2,7 +2,7 @@ package gles
 
 // The shaders are GLSL ES 1.00, which OpenGL ES 2 and 3 and WebGL2 all read. They translate the
 // desktop ones in opengl (overlay_shaders.go, scene_shaders.go): the overlay exactly, the scene
-// in its simplest form (sun and sky light, fog, translucent water; no shadows, patterns, waves or
+// in its simplest form (sun and sky light, textures, fog, translucent water; no shadows, waves or
 // wind). Attributes get their indices from the program (attributeNames), since GLSL ES 1.00 has
 // no layout qualifiers.
 
@@ -10,7 +10,7 @@ package gles
 var (
 	quadAttributes     = []string{"screenPosition", "atlasPosition", "vertexColor", "picturePosition", "backdropFlag"}
 	backdropAttributes = []string{"corner"}
-	sceneAttributes    = []string{"vertexPosition", "vertexNormal", "vertexColor"}
+	sceneAttributes    = []string{"vertexPosition", "vertexNormal", "vertexColor", "vertexUV"}
 )
 
 // quadVertexShader places the overlay's rectangles, given in screen pixels from the top-left
@@ -88,14 +88,17 @@ const sceneVertexShader = `#version 100
 attribute vec3 vertexPosition;
 attribute vec3 vertexNormal;
 attribute vec4 vertexColor;
+attribute vec2 vertexUV;
 uniform mat4 viewProjection;
 uniform mat4 model;
 uniform mat3 normalMatrix;
 uniform vec4 tint;
 uniform float verticalScale;
+uniform vec4 texturePlacement; // scale along u and v, then offset along u and v
 varying vec3 worldPosition;
 varying vec3 worldNormal;
 varying vec4 surfaceColor;
+varying vec2 surfaceUV;
 
 void main() {
     vec4 world = model * vec4(vertexPosition, 1.0);
@@ -105,6 +108,7 @@ void main() {
     normal.y /= verticalScale;
     worldNormal = normal;
     surfaceColor = vertexColor * tint;
+    surfaceUV = vertexUV * texturePlacement.xy + texturePlacement.zw;
     gl_Position = viewProjection * world;
 }
 `
@@ -117,7 +121,10 @@ precision highp float;
 varying vec3 worldPosition;
 varying vec3 worldNormal;
 varying vec4 surfaceColor;
+varying vec2 surfaceUV;
 uniform vec4 baseColor;
+uniform int textured;              // 1: the material's texture multiplies its colour
+uniform sampler2D surfaceTexture;
 uniform int kind;
 uniform vec3 cameraPosition;
 uniform vec3 sunDirection;
@@ -153,6 +160,13 @@ vec3 shadeLit(vec3 color) {
     return color * (skylight + sunColor * sunlight + lampLight(normal));
 }
 
+// textureColor reads the surface's texture as linear light: a picture's colours are sRGB, as a
+// PNG's are, and OpenGL ES 2 has no texture format that turns them by itself.
+vec4 textureColor(vec2 uv) {
+    vec4 texel = texture2D(surfaceTexture, uv);
+    return vec4(pow(texel.rgb, vec3(2.2)), texel.a);
+}
+
 // shadeWater gives the surface a sky reflection that grows at grazing angles, over its own colour.
 vec4 shadeWater(vec4 color) {
     vec3 towardsCamera = normalize(cameraPosition - worldPosition);
@@ -163,6 +177,7 @@ vec4 shadeWater(vec4 color) {
 
 void main() {
     vec4 color = surfaceColor * baseColor;
+    if (textured == 1) color *= textureColor(surfaceUV);
     if (kind == 0) {
         color.rgb = shadeLit(color.rgb);
     } else if (kind == 4) {

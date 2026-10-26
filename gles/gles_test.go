@@ -233,9 +233,9 @@ func TestASecondFrameSendsOnlyWhatChanged(test *testing.T) {
 		test.Fatalf("uniform values sent: %d on the first frame, %d on the same frame again; want fewer", firstValues, fake.uniformValues)
 	}
 	// the three both programs read stay on; the quads' own two (pictures and backdrop) go on for
-	// the overlay and off after
-	if fake.enables > 2 {
-		test.Fatalf("vertex attributes switched on %d times again; want only the quads' own two", fake.enables)
+	// the overlay and off after, and the UVs once, for the textured draws, which come together
+	if fake.enables > 3 {
+		test.Fatalf("vertex attributes switched on %d times again; want only the quads' own two and the UVs", fake.enables)
 	}
 }
 

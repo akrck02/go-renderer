@@ -20,6 +20,8 @@ type recorder struct {
 	enables            int
 	snapshots          int // frames copied into a texture: one per backdrop snapshot
 	bound              Framebuffer
+	parameters         map[Enum]int32 // the last value each texture parameter was set to
+	mipmaps            int            // textures given their smaller copies
 }
 
 type recordedDraw struct {
@@ -29,7 +31,7 @@ type recordedDraw struct {
 }
 
 func newRecorder() *recorder {
-	return &recorder{uniforms: map[string]Uniform{}, bufferUploads: map[Enum]int{}}
+	return &recorder{uniforms: map[string]Uniform{}, bufferUploads: map[Enum]int{}, parameters: map[Enum]int32{}}
 }
 
 func (fake *recorder) handle() uint32 {
@@ -88,8 +90,11 @@ func (fake *recorder) DescribeVertexAttribute(uint32, int, Enum, bool, int, int)
 func (fake *recorder) CreateTexture() Texture                                    { return Texture(fake.handle()) }
 func (fake *recorder) SelectTextureUnit(Enum)                                    {}
 func (fake *recorder) BindTexture(Enum, Texture)                                 {}
-func (fake *recorder) SetTextureParameter(Enum, Enum, int32)                     {}
-func (fake *recorder) SetPixelStorage(Enum, int32)                               {}
+func (fake *recorder) SetTextureParameter(_ Enum, name Enum, value int32) {
+	fake.parameters[name] = value
+}
+func (fake *recorder) GenerateMipmap(Enum)         { fake.mipmaps++ }
+func (fake *recorder) SetPixelStorage(Enum, int32) {}
 func (fake *recorder) SetTextureImage(Enum, int, Enum, int, int, Enum, Enum, []byte) {
 	fake.textureUploads++
 }

@@ -32,6 +32,7 @@ type SceneRenderer struct {
 	shadow         *shadowMap
 	levelVariation *levelVariationTexture
 	seabed         *seabedMap
+	textures       *textureStore
 	frameLights    []sceneplan.FrameLight                     // the frame's point lights, which each draw takes a few of
 	lightValues    [2][4 * sceneplan.MaxLightsPerDraw]float32 // the draw's lights as uniforms: positions, colours
 	matrices       sceneplan.CameraMatrices                   // the last DrawIn's camera, which the overlay places labels with
@@ -53,10 +54,14 @@ type PassTimes = sceneplan.PassTimes
 type shaderProgram struct {
 	handle    uint32
 	locations map[string]int32
+	// staging holds a matrix or a vector on its way to OpenGL: a pointer to a value on the stack
+	// would move the value to the heap at every call, as cgo's arguments must.
+	staging [16]float32
 }
 
 type meshBuffers struct {
 	vertexArray, vertexBuffer, indexBuffer uint32
+	uvBuffer                               uint32 // 0 until the mesh is drawn with a texture or has UVs
 	elementCount                           int32
 	indexed                                bool
 }
@@ -99,6 +104,7 @@ func NewSceneRenderer(fonts overlay.Fonts) (*SceneRenderer, error) {
 		return nil, err
 	}
 	renderer.levelVariation = newLevelVariationTexture()
+	renderer.textures = newTextureStore()
 	if renderer.overlay, err = newOverlayRenderer(fonts); err != nil {
 		return nil, err
 	}
@@ -127,11 +133,13 @@ func (program *shaderProgram) setVector3(name string, value graphics.Vector) {
 }
 
 func (program *shaderProgram) setVector4(name string, value graphics.Vector) {
-	gl.Uniform4fv(program.location(name), 1, &value[0])
+	copy(program.staging[:], value[:])
+	gl.Uniform4fv(program.location(name), 1, &program.staging[0])
 }
 
 func (program *shaderProgram) setMatrix(name string, value graphics.Matrix) {
-	gl.UniformMatrix4fv(program.location(name), 1, false, &value[0])
+	copy(program.staging[:], value[:])
+	gl.UniformMatrix4fv(program.location(name), 1, false, &program.staging[0])
 }
 
 func (program *shaderProgram) setFloat(name string, value float32) {
@@ -181,6 +189,7 @@ func (renderer *SceneRenderer) drawArea(world *scene.Scene, camera camera.Lens, 
 	renderer.shadow.bindForLighting(renderer.sceneProgram, frame.Shadow.Region, shadowsReady)
 	renderer.seabed.bindForWater(renderer.sceneProgram, world.Environment.Water)
 	renderer.levelVariation.bind(renderer.sceneProgram, world.Environment.Water)
+	renderer.textures.beginFrame(renderer.sceneProgram)
 	renderer.frameLights = frame.Lights
 	renderer.measurePass("scene", func() { renderer.executeDrawCommands(frame.Opaque, frame.View) })
 	if !over {
@@ -342,11 +351,10 @@ func (renderer *SceneRenderer) drawNode(command sceneplan.Command, view scenepla
 	material := command.Material
 	program.setVector4("baseColor", sceneplan.BaseColorOf(material))
 	program.setInteger("kind", int32(material.Kind))
-	program.setInteger("pattern", int32(material.Pattern))
 	program.setInteger("foliage", boolToInteger(material.Foliage))
-	program.setFloat("patternScale", material.PatternScale)
 	program.setInteger("levelVariationEnabled", boolToInteger(command.SeaSurface && renderer.levelVariation.active))
 	program.setInteger("seaSurface", boolToInteger(command.SeaSurface))
+	renderer.textures.setTexture(program, material)
 	renderer.setDrawLights(command.Lights)
 	renderer.drawGeometry(program, command, view, sceneplan.MainPass)
 }
@@ -384,9 +392,49 @@ func uploadMesh(mesh *scene.Mesh) *meshBuffers {
 	fillVertexBuffer(buffers.vertexBuffer, sceneplan.InterleaveVertices(mesh))
 	describeVertexLayout()
 	fillIndexBuffer(buffers, mesh)
+	uvs := sceneplan.UVsToDraw(mesh, mesh.Material)
+	if uvs == nil && buffers.uvBuffer != 0 {
+		uvs = mesh.SurfaceUVs() // it was drawn textured before: its UVs must follow its new vertices
+	}
+	if uvs != nil {
+		fillUVs(buffers, uvs)
+		attachUVs(buffers.vertexArray, buffers.uvBuffer)
+	}
 	gl.BindVertexArray(0)
 	mesh.GPU, mesh.Dirty = buffers, false
 	return buffers
+}
+
+// uvAttribute is the vertex attribute of the UVs. They have a buffer of their own, so a mesh
+// without a texture keeps the vertices it had before textures; with no buffer attached, the
+// attribute reads (0, 0), which an untextured draw does not use.
+const uvAttribute = 8
+
+// fillUVs uploads a mesh's UVs, making their buffer the first time.
+func fillUVs(buffers *meshBuffers, uvs []float32) {
+	if buffers.uvBuffer == 0 {
+		gl.GenBuffers(1, &buffers.uvBuffer)
+	}
+	fillVertexBuffer(buffers.uvBuffer, uvs)
+}
+
+// attachUVs makes a vertex array read the UVs of a buffer.
+func attachUVs(vertexArray, uvBuffer uint32) {
+	gl.BindVertexArray(vertexArray)
+	gl.BindBuffer(gl.ARRAY_BUFFER, uvBuffer)
+	gl.EnableVertexAttribArray(uvAttribute)
+	gl.VertexAttribPointerWithOffset(uvAttribute, 2, gl.FLOAT, false, 2*bytesPerFloat, 0)
+}
+
+// ensureUVs gives a mesh's buffers UVs when it is drawn with a texture but was uploaded without
+// (a simpler version of a textured mesh, a material given a texture later), once.
+func ensureUVs(buffers *meshBuffers, mesh *scene.Mesh, material *scene.Material) {
+	if buffers.uvBuffer != 0 || !sceneplan.IsTextured(material) {
+		return
+	}
+	fillUVs(buffers, sceneplan.UVsToDraw(mesh, material))
+	attachUVs(buffers.vertexArray, buffers.uvBuffer)
+	gl.BindVertexArray(0)
 }
 
 func newMeshBuffers() *meshBuffers {
