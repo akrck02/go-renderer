@@ -82,8 +82,11 @@ and `PatternScale` go, with the patterns' code in the desktop's shaders: a mater
 `Pattern` (go-engine and Go UI checked).
 
 **The backends.** Each keeps uploaded textures by the picture's id and version, as the 2D picture
-atlas does: one upload for any number of meshes, again only after `Changed()`; draws are sorted by
-texture after material, so a texture is bound once a frame.
+atlas does: one upload for any number of meshes, again only after `Changed()`; opaque draws are
+sorted by texture, so a texture is bound once a frame. (*Changed while building:* materials were
+never sorted, and sorting by them would buy nothing, since a material is only uniforms; the
+untextured draws keep their order, first.) A texture's pixels are sRGB, as a PNG's are: the
+desktop and the browser turn them into linear light as they read them.
 - **OpenGL (desktop), OpenGL ES (Android and the browser), Metal (its AI-written renderers):** a
   `texCoord` attribute, a sampler, wrapping and filtering as the texture says, mipmaps when smooth.
 - **The 3DS:** the PICA200's texture combiner multiplies the texture by the baked vertex colour, so
@@ -104,7 +107,7 @@ pixel on the 3DS for textured meshes: the measurements show its vertex work is t
 
 - [x] T1 — `scene.Texture`, `Wrap`, `TextureFormat`; `Mesh.UVs`; `Material.Texture`, `TextureScale`, `TextureOffset` · `scene` · R1, R2, R3 · tests of the defaults and of a mesh's UV count
 - [x] T2 — built-in textures that tile without a seam; `Pattern` removed · `scene` · R4 · test: each tiles (its edges match), each is made once
-- [ ] T3 — OpenGL: upload once per version, wrapping, filtering, mipmaps, sorting by texture · `opengl`, `internal/sceneplan` · R2–R4, R7 · frames compared under Mesa (a tinted tiled box, sharp and smooth); benchmarks with and without textures
+- [x] T3 — OpenGL: upload once per version, wrapping, filtering, mipmaps, sorting by texture · `opengl`, `internal/sceneplan` · R2–R4, R7 · frames compared under Mesa (a tinted tiled box, sharp and smooth); benchmarks with and without textures
 - [ ] T4 — OpenGL ES, for Android and the browser · `gles` · R2–R4 · tests with the recorder; an APK on the emulator
 - [ ] T5 — Metal (its AI-written renderers) · `metal` · R2–R4 · the author builds and looks on his Mac
 - [ ] T6 — the 3DS: tiles to powers of two, RGBA8, RGB565 and an ETC1 encoder, the combiner's multiply · `nintendo3ds` · R5 · tests of the encoders against reference blocks and of the size rules; Azahar capture; frame time measured with and without textures

@@ -1,7 +1,7 @@
 package opengl
 
 // sceneVertexShader transforms meshes and GPU instances. Attributes: 0 position, 1 normal,
-// 2 color, 3-6 instance matrix columns, 7 instance color. The vertical scale exaggerates
+// 2 color, 3-6 instance matrix columns, 7 instance color, 8 UV (from its own buffer). The vertical scale exaggerates
 // heights (and corrects normals) without touching the geometry. Meshes with sway (plants modelled
 // with height 1 and the base at the origin) bend with the wind, more at the top.
 const sceneVertexShader = `
@@ -14,6 +14,7 @@ layout(location = 4) in vec4 instanceColumnTwo;
 layout(location = 5) in vec4 instanceColumnThree;
 layout(location = 6) in vec4 instanceColumnFour;
 layout(location = 7) in vec4 instanceColor;
+layout(location = 8) in vec2 vertexUV;
 uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
@@ -30,9 +31,11 @@ uniform vec4 levelVariationArea;     // minimum x, minimum z, maximum x, maximum
 uniform float levelVariationAngle;
 uniform float depthBias;             // share of the distance the surface is pulled towards the camera
 uniform vec3 cameraPosition;
+uniform vec4 texturePlacement;       // scale along u and v, then offset along u and v
 out vec3 worldPosition;
 out vec3 worldNormal;
 out vec4 surfaceColor;
+out vec2 surfaceUV;
 // windBend moves a vertex along the wind, growing with the square of its height in the model, with
 // gusts whose phase depends on where the model stands.
 vec2 windBend(mat4 modelMatrix) {
@@ -69,6 +72,7 @@ void main() {
     worldPosition = world.xyz;
     worldNormal = normal;
     surfaceColor = color;
+    surfaceUV = vertexUV * texturePlacement.xy + texturePlacement.zw;
     // thin surfaces on the terrain (rivers) are drawn a little closer, so its simpler far versions do not hide them
     if (depthBias > 0.0) world.xyz += (cameraPosition - world.xyz) * depthBias;
     gl_Position = projection * view * world;
@@ -81,7 +85,10 @@ const sceneFragmentShader = `
 in vec3 worldPosition;
 in vec3 worldNormal;
 in vec4 surfaceColor;
+in vec2 surfaceUV;
 uniform vec4 baseColor;
+uniform int textured;              // 1: the material's texture multiplies its colour
+uniform sampler2D surfaceTexture;
 uniform int kind;
 uniform vec3 sunDirection;
 uniform vec3 sunColor;
@@ -239,6 +246,7 @@ float waterfallOpacity(float baseOpacity) {
 
 void main() {
     vec4 color = surfaceColor * baseColor;
+    if (textured == 1) color *= texture(surfaceTexture, surfaceUV);
     vec3 towardsCamera = normalize(cameraPosition - worldPosition);
     if (kind == 0 || kind == 4) {
         vec3 normal = normalize(worldNormal);
