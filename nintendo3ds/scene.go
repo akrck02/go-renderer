@@ -533,8 +533,7 @@ func (renderer *SceneRenderer) bakedFor(mesh *scene.Mesh, key bakeKey, material 
 	}
 	for index := range baked.variants {
 		variant := &baked.variants[index]
-		if variant.key.normalMatrix != key.normalMatrix || variant.key.baseColour != key.baseColour || variant.key.kind != key.kind ||
-			variant.key.lamps.model != key.lamps.model || variant.key.textured != key.textured {
+		if !variant.key.sameDraw(key) {
 			continue // a mesh drawn in two places under lamps is lit differently in each
 		}
 		if !variant.key.light.closeTo(key.light) || !variant.key.lamps.closeTo(key.lamps) {

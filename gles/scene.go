@@ -252,7 +252,11 @@ func (renderer *SceneRenderer) uploadMesh(mesh *scene.Mesh, material *scene.Mate
 		functions.BindBuffer(ElementArrayBuffer, buffers.indexBuffer)
 		functions.SetBufferData(ElementArrayBuffer, indexBytes(mesh.Indices), StaticDraw)
 	}
-	if uvs := sceneplan.UVsToDraw(mesh, material); uvs != nil {
+	uvs := sceneplan.UVsToDraw(mesh, material)
+	if uvs == nil && buffers.uvBuffer != 0 {
+		uvs = mesh.SurfaceUVs() // it was drawn textured before: its UVs must follow its new vertices
+	}
+	if uvs != nil {
 		renderer.uploadUVs(buffers, uvs)
 	}
 	mesh.GPU, mesh.Dirty = buffers, false

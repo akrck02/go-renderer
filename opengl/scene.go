@@ -392,7 +392,11 @@ func uploadMesh(mesh *scene.Mesh) *meshBuffers {
 	fillVertexBuffer(buffers.vertexBuffer, sceneplan.InterleaveVertices(mesh))
 	describeVertexLayout()
 	fillIndexBuffer(buffers, mesh)
-	if uvs := sceneplan.UVsToDraw(mesh, mesh.Material); uvs != nil {
+	uvs := sceneplan.UVsToDraw(mesh, mesh.Material)
+	if uvs == nil && buffers.uvBuffer != 0 {
+		uvs = mesh.SurfaceUVs() // it was drawn textured before: its UVs must follow its new vertices
+	}
+	if uvs != nil {
 		fillUVs(buffers, uvs)
 		attachUVs(buffers.vertexArray, buffers.uvBuffer)
 	}
