@@ -313,7 +313,9 @@ flat.Draw(list, background, panel.Width(), panel.Height(), 1)
 - **How many.** `MostPanels` (8) a session.
 - **Format.** The eyes' (sRGB on a Quest): draw linear colour into it (`FlatRenderer.LinearOutput`).
 - **Off the headset.** `DetachedPanel(width, height)` is a panel that can be placed but not drawn,
-  for working out what points at it (tests, layouts).
+  for working out what points at it (tests, layouts). `PanelWithTarget(width, height, target)` is
+  one drawn where the program says: a stand-in for a headset on a computer composes its panels
+  itself, from framebuffers of its own.
 
 ### Vibration
 

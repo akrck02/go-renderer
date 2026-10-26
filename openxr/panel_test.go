@@ -38,3 +38,14 @@ func TestAPanelWithoutASessionCannotBeDrawn(test *testing.T) {
 		test.Fatalf("the panel's target is %v (%v), want the session's 7", target, err)
 	}
 }
+
+func TestAPanelWithItsOwnTargetIsDrawnWhereItSays(test *testing.T) {
+	asked := 0
+	panel := PanelWithTarget(640, 320, func() (gles.Framebuffer, error) { asked++; return 9, nil })
+	if panel.Width() != 640 || panel.Height() != 320 {
+		test.Fatalf("the panel is %d × %d pixels, want 640 × 320", panel.Width(), panel.Height())
+	}
+	if target, err := panel.Target(); err != nil || target != 9 || asked != 1 {
+		test.Fatalf("the panel's target is %v (%v, asked %d times), want 9 from its own", target, err, asked)
+	}
+}
