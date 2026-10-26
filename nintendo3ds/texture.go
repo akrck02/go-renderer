@@ -12,12 +12,9 @@ func tileForPICA(into, pixels []byte, size int) []byte {
 		into = make([]byte, size*size)
 	}
 	into = into[:size*size]
-	tilesPerRow := size / 8
 	for y := range size {
-		fromBottom := size - 1 - y
 		for x := range size {
-			tile := (fromBottom/8)*tilesPerRow + x/8
-			into[tile*64+mortonInTile(x, fromBottom)] = pixels[y*size+x]
+			into[tiledIndex(x, y, size, size)] = pixels[y*size+x]
 		}
 	}
 	return into
@@ -31,12 +28,9 @@ func tileRGBAForPICA(into, pixels []byte, size int) []byte {
 		into = make([]byte, size*size*4)
 	}
 	into = into[:size*size*4]
-	tilesPerRow := size / 8
 	for y := range size {
-		fromBottom := size - 1 - y
 		for x := range size {
-			tile := (fromBottom/8)*tilesPerRow + x/8
-			to := (tile*64 + mortonInTile(x, fromBottom)) * 4
+			to := tiledIndex(x, y, size, size) * 4
 			from := (y*size + x) * 4
 			into[to], into[to+1], into[to+2], into[to+3] = pixels[from+3], pixels[from+2], pixels[from+1], pixels[from]
 		}

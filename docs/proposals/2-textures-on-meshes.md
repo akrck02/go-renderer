@@ -110,7 +110,7 @@ pixel on the 3DS for textured meshes: the measurements show its vertex work is t
 - [x] T3 — OpenGL: upload once per version, wrapping, filtering, mipmaps, sorting by texture · `opengl`, `internal/sceneplan` · R2–R4, R7 · frames compared under Mesa (a tinted tiled box, sharp and smooth); benchmarks with and without textures
 - [x] T4 — OpenGL ES, for Android and the browser · `gles` · R2–R4 · tests with the recorder; an APK on the emulator
 - [x] T5 — Metal (its AI-written renderers) · `metal` · R2–R4 · the author builds and looks on his Mac
-- [ ] T6 — the 3DS: tiles to powers of two, RGBA8, RGB565 and an ETC1 encoder, the combiner's multiply · `nintendo3ds` · R5 · tests of the encoders against reference blocks and of the size rules; Azahar capture; frame time measured with and without textures
+- [x] T6 — the 3DS: tiles to powers of two, RGBA8, RGB565 and an ETC1 encoder, the combiner's multiply · `nintendo3ds` · R5 · tests of the encoders against reference blocks and of the size rules; Azahar capture; frame time measured with and without textures
 - [ ] T7 — glTF textures and UVs · `loaders` · R6 · test with a small `.glb`
 - [ ] T8 — docs: a guide *Textures on meshes*, the 3DS guide's limits, the reference; then go-engine's scenes can name a material's texture (a follow-up there) · `docs` · R1–R6
 

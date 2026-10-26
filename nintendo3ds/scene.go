@@ -56,6 +56,20 @@ static void drawBakedElements(void* vertices, void* indices, int count) {
 	C3D_DrawElements(GPU_TRIANGLES, count, C3D_UNSIGNED_SHORT, indices);
 }
 
+// drawBakedTexturedElements draws a piece of a baked textured mesh: position (3 floats), colour (4
+// bytes) and UV (2 floats), and 16-bit indices.
+static void drawBakedTexturedElements(void* vertices, void* indices, int count) {
+	C3D_AttrInfo* attributeInfo = C3D_GetAttrInfo();
+	AttrInfo_Init(attributeInfo);
+	AttrInfo_AddLoader(attributeInfo, 0, GPU_FLOAT, 3);
+	AttrInfo_AddLoader(attributeInfo, 1, GPU_UNSIGNED_BYTE, 4);
+	AttrInfo_AddLoader(attributeInfo, 2, GPU_FLOAT, 2);
+	C3D_BufInfo* bufferInfo = C3D_GetBufInfo();
+	BufInfo_Init(bufferInfo);
+	BufInfo_Add(bufferInfo, vertices, 3 * sizeof(float) + 4 + 2 * sizeof(float), 3, 0x210);
+	C3D_DrawElements(GPU_TRIANGLES, count, C3D_UNSIGNED_SHORT, indices);
+}
+
 // drawSceneElements draws a piece of a mesh: interleaved position (3), normal (3) and colour (4)
 // floats, and 16-bit indices.
 static void drawSceneElements(void* vertices, void* indices, int count) {
@@ -98,6 +112,9 @@ var sceneShaderBinary []byte
 //go:embed shaders/baked.shbin
 var bakedShaderBinary []byte
 
+//go:embed shaders/bakedtextured.shbin
+var bakedTexturedShaderBinary []byte
+
 // SceneRenderer draws a scene.Scene on the top screen in gles's simple form: lit meshes and
 // instances, the light of the time of day, fog and translucent water. What a frame draws is
 // planned by sceneplan, as on every other platform. The PICA200 cannot draw instances either, so
@@ -114,17 +131,23 @@ type SceneRenderer struct {
 	screen      *Screen
 	water       *Shader
 	baked       *Shader
+	textured    *Shader // baked.v.pica with UVs, for textured materials
 	waterPlaces waterLocations
 	bakedPlaces bakedLocations
-	planner     *sceneplan.Planner
-	bakedMeshes map[*scene.Mesh]*bakedMesh
-	shaded      map[*scene.Mesh]*shadedMesh
-	forests     map[*scene.Instances]*mergedForest
-	frames      int // frames drawn, to let go of meshes no longer drawn (forget)
+	// texturedPlaces are where the textured shader reads the baked shader's uniforms, and its own
+	texturedPlaces   bakedLocations
+	texturePlacement int
+	textures         *textureStore
+	planner          *sceneplan.Planner
+	bakedMeshes      map[*scene.Mesh]*bakedMesh
+	shaded           map[*scene.Mesh]*shadedMesh
+	forests          map[*scene.Instances]*mergedForest
+	frames           int // frames drawn, to let go of meshes no longer drawn (forget)
 	// vertexScratch and indexScratch are reused by every bake and upload: their contents only
 	// matter until they are copied to linear memory.
-	vertexScratch []float32
-	indexScratch  []uint16
+	vertexScratch   []float32
+	texturedScratch []float32 // vertexScratch with UVs, for textured bakes
+	indexScratch    []uint16
 
 	// this frame's shading, and the shader its uniforms were last set for
 	shading        frameShading
@@ -160,11 +183,17 @@ func NewSceneRenderer(screen *Screen) (*SceneRenderer, error) {
 		water.Free()
 		return nil, err
 	}
+	textured, err := LoadShader(bakedTexturedShaderBinary)
+	if err != nil {
+		water.Free()
+		baked.Free()
+		return nil, err
+	}
 	planner := sceneplan.NewPlanner(sceneplan.MergingStore{})
 	// 256 × 256 cells of water were 131 072 of the sample island's 160 756 triangles, through the
 	// slow full shader; without waves 32 × 32 is enough, fine near the camera for the fog.
 	planner.WaterGridDivisions = waterGridDivisions
-	renderer := &SceneRenderer{screen: screen, water: water, baked: baked,
+	renderer := &SceneRenderer{screen: screen, water: water, baked: baked, textured: textured, textures: newTextureStore(),
 		planner: planner, bakedMeshes: map[*scene.Mesh]*bakedMesh{}, shaded: map[*scene.Mesh]*shadedMesh{},
 		forests: map[*scene.Instances]*mergedForest{}}
 	renderer.waterPlaces = waterLocations{
@@ -178,12 +207,18 @@ func NewSceneRenderer(screen *Screen) (*SceneRenderer, error) {
 		minimumAlpha: water.Uniform("minimumAlpha"),
 		lampPosition: water.Uniform("lampPosition"), lampColour: water.Uniform("lampColour"),
 	}
-	renderer.bakedPlaces = bakedLocations{
-		viewProjection: baked.Uniform("viewProjection"), camera: baked.Uniform("camera"),
-		settings: baked.Uniform("settings"), fog: baked.Uniform("fog"),
-		fogColour: baked.Uniform("fogColour"), model: baked.Uniform("model"),
-	}
+	renderer.bakedPlaces, renderer.texturedPlaces = bakedLocationsOf(baked), bakedLocationsOf(textured)
+	renderer.texturePlacement = textured.Uniform("texturePlacement")
 	return renderer, nil
+}
+
+// bakedLocationsOf are where a baked shader, textured or not, reads each uniform.
+func bakedLocationsOf(shader *Shader) bakedLocations {
+	return bakedLocations{
+		viewProjection: shader.Uniform("viewProjection"), camera: shader.Uniform("camera"),
+		settings: shader.Uniform("settings"), fog: shader.Uniform("fog"),
+		fogColour: shader.Uniform("fogColour"), model: shader.Uniform("model"),
+	}
 }
 
 // PlanTime is how long planning the last frame took on the processor, before citro3d's own
@@ -266,6 +301,7 @@ func (renderer *SceneRenderer) drawEye(viewProjection graphics.Matrix, frame sce
 	renderer.viewProjection = viewProjection
 	renderer.bound = nil
 	C.prepareScene()
+	renderer.textures.beginEye()
 	renderer.drawCommands(frame.Opaque, frame.View)
 	renderer.drawCommands(frame.Transparent, frame.View)
 }
@@ -279,8 +315,11 @@ func (renderer *SceneRenderer) bind(shader *Shader) {
 	renderer.bound = shader
 	shading := renderer.shading
 	viewProjection := renderer.viewProjection
-	if shader == renderer.baked {
+	if shader == renderer.baked || shader == renderer.textured {
 		places := renderer.bakedPlaces
+		if shader == renderer.textured {
+			places = renderer.texturedPlaces
+		}
 		SetMatrix(places.viewProjection, viewProjection)
 		setVector(places.camera, shading.camera)
 		setVector(places.settings, shading.settings)
@@ -325,8 +364,7 @@ func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view scene
 		draw = renderer.drawShaded
 		renderer.prepareShaded(command)
 	} else {
-		renderer.bind(renderer.baked)
-		SetMatrix(renderer.bakedPlaces.model, command.World)
+		renderer.prepareBaked(command)
 	}
 	if command.Node.Instances != nil {
 		forest := renderer.wholeForest(command.Node)
@@ -374,9 +412,25 @@ type mergedForest struct {
 	lastDrawn int
 }
 
+// prepareBaked binds the baked shader a command needs, textured or not, and sets its placement,
+// its texture and the colour stage that multiplies it.
+func (renderer *SceneRenderer) prepareBaked(command sceneplan.Command) {
+	if !sceneplan.IsTextured(command.Material) {
+		renderer.textures.useNone()
+		renderer.bind(renderer.baked)
+		SetMatrix(renderer.bakedPlaces.model, command.World)
+		return
+	}
+	renderer.textures.use(command.Material.Texture)
+	renderer.bind(renderer.textured)
+	SetMatrix(renderer.texturedPlaces.model, command.World)
+	setVector(renderer.texturePlacement, graphics.Vector(sceneplan.TexturePlacement(command.Material)))
+}
+
 // prepareShaded binds the full shader and sets what one command it draws needs: water, or a
 // moving node's lit, flat or glowing mesh.
 func (renderer *SceneRenderer) prepareShaded(command sceneplan.Command) {
+	renderer.textures.useNone() // shaded on the GPU: water and moving nodes draw without textures
 	renderer.bind(renderer.water)
 	places := renderer.waterPlaces
 	setVector(places.baseColour, sceneplan.BaseColorOf(command.Material))
@@ -407,8 +461,13 @@ func (renderer *SceneRenderer) drawBaked(command sceneplan.Command, mesh *scene.
 		kind:         command.Material.Kind,
 		light:        renderer.light,
 		lamps:        lampKeyOf(command.Lights, renderer.frame.Lights, command.World),
+		textured:     sceneplan.IsTextured(command.Material),
 	}
-	for _, piece := range renderer.bakedFor(mesh, key).pieces {
+	for _, piece := range renderer.bakedFor(mesh, key, command.Material).pieces {
+		if key.textured {
+			C.drawBakedTexturedElements(piece.vertices, piece.indices, C.int(piece.count))
+			continue
+		}
 		C.drawBakedElements(piece.vertices, piece.indices, C.int(piece.count))
 	}
 }
@@ -450,11 +509,12 @@ func (renderer *SceneRenderer) nextFrame() {
 // nodes turned differently or with different materials.
 type bakedMesh struct {
 	variants  []bakedVariant
-	lastDrawn int // the frame it was last drawn in
+	lastDrawn int       // the frame it was last drawn in
+	uvs       []float32 // the UVs its textured bakes take (sceneplan.UVsToDraw), worked out once
 }
 
 // bakedFor returns the mesh baked for key, baking it when it is new, Dirty, or lit differently.
-func (renderer *SceneRenderer) bakedFor(mesh *scene.Mesh, key bakeKey) *meshOnGPU {
+func (renderer *SceneRenderer) bakedFor(mesh *scene.Mesh, key bakeKey, material *scene.Material) *meshOnGPU {
 	baked := renderer.bakedMeshes[mesh]
 	if baked == nil {
 		baked = &bakedMesh{}
@@ -465,24 +525,27 @@ func (renderer *SceneRenderer) bakedFor(mesh *scene.Mesh, key bakeKey) *meshOnGP
 		for _, variant := range baked.variants {
 			variant.onGPU.free()
 		}
-		baked.variants = baked.variants[:0]
+		baked.variants, baked.uvs = baked.variants[:0], nil
 		mesh.Dirty = false
+	}
+	if key.textured && baked.uvs == nil {
+		baked.uvs = sceneplan.UVsToDraw(mesh, material)
 	}
 	for index := range baked.variants {
 		variant := &baked.variants[index]
 		if variant.key.normalMatrix != key.normalMatrix || variant.key.baseColour != key.baseColour || variant.key.kind != key.kind ||
-			variant.key.lamps.model != key.lamps.model {
+			variant.key.lamps.model != key.lamps.model || variant.key.textured != key.textured {
 			continue // a mesh drawn in two places under lamps is lit differently in each
 		}
 		if !variant.key.light.closeTo(key.light) || !variant.key.lamps.closeTo(key.lamps) {
 			variant.onGPU.free()
-			variant.onGPU = renderer.uploadBaked(mesh, key)
+			variant.onGPU = renderer.uploadBaked(mesh, key, baked.uvs)
 			variant.key = key
 		}
 		variant.lastUsed = renderer.frames
 		return variant.onGPU
 	}
-	onGPU := renderer.uploadBaked(mesh, key)
+	onGPU := renderer.uploadBaked(mesh, key, baked.uvs)
 	fresh := bakedVariant{key: key, onGPU: onGPU, lastUsed: renderer.frames}
 	place := placeFor(baked.variants, key.lamps.count > 0)
 	if place < 0 {
@@ -496,10 +559,14 @@ func (renderer *SceneRenderer) bakedFor(mesh *scene.Mesh, key bakeKey) *meshOnGP
 
 // uploadBaked bakes a mesh's light and copies it to linear memory, through the renderer's own
 // buffers: a mesh baked again (its colours changed) makes no new garbage.
-func (renderer *SceneRenderer) uploadBaked(mesh *scene.Mesh, key bakeKey) *meshOnGPU {
+func (renderer *SceneRenderer) uploadBaked(mesh *scene.Mesh, key bakeKey, uvs []float32) *meshOnGPU {
 	renderer.bakes++
 	renderer.vertexScratch = bakeVertices(renderer.vertexScratch, mesh, key)
-	return uploadPieces(renderer.vertexScratch, mesh.Indices, floatsPerBakedVertex, &renderer.indexScratch)
+	if !key.textured {
+		return uploadPieces(renderer.vertexScratch, mesh.Indices, floatsPerBakedVertex, &renderer.indexScratch)
+	}
+	renderer.texturedScratch = withUVs(renderer.texturedScratch, renderer.vertexScratch, uvs)
+	return uploadPieces(renderer.texturedScratch, mesh.Indices, floatsPerTexturedBakedVertex, &renderer.indexScratch)
 }
 
 // shadedMesh is a mesh with its normals on the GPU, for the full shader.

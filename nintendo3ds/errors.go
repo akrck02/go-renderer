@@ -13,3 +13,8 @@ var (
 	// OutOfLinearMemory is the GPU's memory (linear memory) full.
 	OutOfLinearMemory = failure.Define("nintendo3ds.out-of-linear-memory", "the GPU's linear memory is full")
 )
+
+// TextureLosesTransparency is a texture with see-through pixels asked to be kept in a format
+// without opacity (RGB565 or ETC1). Drawing keeps such a texture in RGBA8 instead.
+var TextureLosesTransparency = failure.Define("nintendo3ds.texture-loses-transparency",
+	"the texture has see-through pixels and its format keeps no opacity")

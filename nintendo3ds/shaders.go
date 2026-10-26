@@ -7,4 +7,5 @@ package nintendo3ds
 //
 //go:generate picasso -o shaders/scene.shbin shaders/scene.v.pica
 //go:generate picasso -o shaders/baked.shbin shaders/baked.v.pica
+//go:generate picasso -o shaders/bakedtextured.shbin shaders/bakedtextured.v.pica
 //go:generate picasso -o shaders/quad.shbin shaders/quad.v.pica
