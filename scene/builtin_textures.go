@@ -3,6 +3,7 @@ package scene
 import (
 	"image"
 	"image/color"
+	"math"
 	"sync"
 
 	"github.com/akrck02/go-renderer/draw2d"
@@ -69,7 +70,8 @@ func BuiltInTexture(name string) (texture *Texture, found bool) {
 	}
 	for _, recipe := range builtInTextures {
 		if recipe.name == name {
-			texture = &Texture{Picture: draw2d.NewImage(recipe.paint())}
+			pixels := recipe.paint()
+			texture = &Texture{Picture: draw2d.NewImage(pixels), Gain: gainToAverageOne(pixels)}
 			madeTextures.byName[name] = texture
 			return texture, true
 		}
@@ -88,4 +90,23 @@ func (recipe builtInTexture) paint() *image.NRGBA {
 		}
 	}
 	return pixels
+}
+
+// gainToAverageOne is the gain that makes a grey picture average 1 in linear light, as the GPU
+// reads it (its pixels are sRGB).
+func gainToAverageOne(pixels *image.NRGBA) float32 {
+	total := 0.0
+	for index := 0; index < len(pixels.Pix); index += 4 {
+		total += linearOf(pixels.Pix[index])
+	}
+	return float32(float64(len(pixels.Pix)/4) / total)
+}
+
+// linearOf is an sRGB channel's value in linear light, from 0 to 1.
+func linearOf(channel uint8) float64 {
+	value := float64(channel) / 255
+	if value <= 0.04045 {
+		return value / 12.92
+	}
+	return math.Pow((value+0.055)/1.055, 2.4)
 }

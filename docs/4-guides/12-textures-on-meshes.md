@@ -36,7 +36,9 @@ counts as 1), and `TextureOffset` slides it, in repeats.
 
 `scene.BuiltInTexture(name)` makes a texture in Go the first time it is asked for and keeps it,
 so every material that asks for one shares it. Each is a square, 64 or 128 pixels a side, that
-repeats without a seam (a test checks each edge runs into the other):
+repeats without a seam (a test checks each edge runs into the other). Each has a `Gain` that
+brings its average to white, so a cobbled square is as bright as its `BaseColor`, as the old
+procedural patterns were; give a picture of your own a `Gain` for the same:
 
 | Surfaces | Details |
 |---|---|

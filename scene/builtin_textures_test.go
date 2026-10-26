@@ -55,3 +55,25 @@ func TestEveryBuiltInTextureTilesWithoutASeam(test *testing.T) {
 		}
 	}
 }
+
+// TestEveryBuiltInTextureKeepsASurfacesBrightness checks that each built-in texture, read in
+// linear light as the GPU reads it and multiplied by its Gain, averages 1: a surface keeps its
+// BaseColor's brightness on average, as the procedural patterns did.
+func TestEveryBuiltInTextureKeepsASurfacesBrightness(test *testing.T) {
+	const tolerance = 0.01
+	for _, name := range builtInNames {
+		texture, _ := BuiltInTexture(name)
+		if mean := float64(texture.EffectiveGain()) * meanLinearBrightness(texture); math.Abs(mean-1) > tolerance {
+			test.Errorf("%s averages %.3f with its gain, wanted 1", name, mean)
+		}
+	}
+}
+
+func meanLinearBrightness(texture *Texture) float64 {
+	pixels := texture.Picture.Pixels
+	total := 0.0
+	for index := 0; index < len(pixels.Pix); index += 4 {
+		total += linearOf(pixels.Pix[index+1])
+	}
+	return total / float64(len(pixels.Pix)/4)
+}

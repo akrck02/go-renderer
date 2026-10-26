@@ -479,12 +479,17 @@ type Texture struct {
 	// between smaller copies of the picture far away).
 	Sharp  bool
 	Format TextureFormat // how the 3DS keeps it in its memory; other targets keep RGBA8
+	// Gain multiplies the texture's colour (0 = 1): a picture darker on average than white, as a
+	// pattern with dark joints is, would darken every surface that wears it. The built-in
+	// textures set it so that, on average, they keep the material's brightness.
+	Gain float32
 }
 ```
 
 | Function or method | |
 |---|---|
 | `func BuiltInTexture(name string) (texture *Texture, found bool)` | BuiltInTexture returns a texture made in Go, by name: surfaces (cobbles, masonry, plaster, shingles, planks, grass) and tiling details (panels, grid, stripes, carbon, hexagons, worn, camouflage, windows). |
+| `func (texture *Texture) EffectiveGain() float32` | EffectiveGain is the texture's Gain, 1 when unset. |
 
 ### TextureFormat
 

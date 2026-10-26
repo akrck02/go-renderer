@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/akrck02/go-renderer/draw2d"
+	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/scene"
 )
 
@@ -59,5 +60,13 @@ func TestMergedInstancesKeepTheirMeshsUVs(test *testing.T) {
 	MergeInstances(merged, mesh, packed, 2)
 	if wanted := append(slices.Clone(mesh.UVs), mesh.UVs...); !slices.Equal(merged.UVs, wanted) {
 		test.Errorf("merged UVs %v, wanted %v", merged.UVs, wanted)
+	}
+}
+
+func TestATexturesGainBrightensItsMaterialsColourButNotItsOpacity(test *testing.T) {
+	material := &scene.Material{BaseColor: graphics.Vector{0.5, 0.25, 1, 0.5},
+		Texture: &scene.Texture{Picture: draw2d.NewBlankImage(8, 8), Gain: 2}}
+	if got, wanted := BaseColorOf(material), (graphics.Vector{1, 0.5, 2, 0.5}); got != wanted {
+		test.Errorf("colour %v, wanted %v", got, wanted)
 	}
 }

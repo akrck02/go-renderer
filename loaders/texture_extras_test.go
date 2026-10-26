@@ -27,3 +27,18 @@ func TestMaterialExtrasGiveBuiltInTexturesAndGlow(test *testing.T) {
 		test.Errorf("an unknown texture is none: %+v", materials[2])
 	}
 }
+
+func TestTheOldPatternExtrasStillGiveTheirTextureWithCellsOfTheirSize(test *testing.T) {
+	file := &gltfFile{document: gltfDocument{Materials: []gltfMaterialDefinition{
+		{Name: "street", Extras: map[string]any{"pattern": "cobbles", "patternScale": 0.5}},
+	}}}
+	materials, err := file.buildMaterials()
+	if err != nil {
+		test.Fatal(err)
+	}
+	cobbles, _ := scene.BuiltInTexture("cobbles")
+	// five cobbles a repeat, each half a unit: a repeat every 2.5 units
+	if materials[0].Texture != cobbles || materials[0].TextureScale != [2]float32{0.4, 0.4} {
+		test.Errorf("street: texture %p (cobbles %p), scale %v", materials[0].Texture, cobbles, materials[0].TextureScale)
+	}
+}

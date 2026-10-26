@@ -136,7 +136,7 @@ type gltfFile struct {
 //   - scene extras "environment" also: wind {direction, strength}
 //   - material extras "kind": "lit" | "unlit" | "water" | "waterfall" | "glow"; "sway": bending in the wind;
 //     "texture": a built-in texture (scene.BuiltInTexture) for a material without a texture of its own,
-//     with "textureScale" (repeats a unit of UV);
+//     with "textureScale" (repeats a unit of UV); deprecated: "pattern" and "patternScale" (a cell's size)
 //     "foliage": true (takes the environment's foliageTint)
 //   - scene extras "environment" also: snow {level, blend, color}, foliageTint [r, g, b, amount]
 //   - mesh, primitive or node extras "ground": true (walkable surface)
@@ -394,14 +394,37 @@ func (file *gltfFile) buildMaterials() ([]*scene.Material, error) {
 }
 
 // applyBuiltInTexture gives a material the built-in texture its extras name ("texture": "cobbles"),
-// repeated "textureScale" times a unit of UV (1 when unset). An unknown name gives none.
+// repeated "textureScale" times a unit of UV (1 when unset). An unknown name gives none. The older
+// "pattern" and "patternScale" still work (deprecated): see applyPatternExtras.
 func applyBuiltInTexture(material *scene.Material, extras map[string]any) {
 	name, named := extras["texture"].(string)
 	if !named {
+		applyPatternExtras(material, extras)
 		return
 	}
 	material.Texture, _ = scene.BuiltInTexture(name) // an unknown name leaves the material plain
 	scale := extraNumber(extras, "textureScale", 0)
+	material.TextureScale = [2]float32{scale, scale}
+}
+
+// cellsPerRepeat is how many of a pattern's cells (a stone, a course, a shingle row, a board) one
+// repeat of its built-in texture holds.
+var cellsPerRepeat = map[string]float32{"cobbles": 5, "masonry": 4, "plaster": 4, "shingles": 6, "planks": 4, "grass": 4}
+
+// applyPatternExtras reads the deprecated "pattern" (a built-in texture's name) and "patternScale"
+// (the size of one cell in units of the model, as the procedural patterns had it), turned into
+// a texture and the repeats per unit of UV that give cells of that size.
+func applyPatternExtras(material *scene.Material, extras map[string]any) {
+	name, named := extras["pattern"].(string)
+	if !named {
+		return
+	}
+	material.Texture, _ = scene.BuiltInTexture(name) // an unknown name leaves the material plain
+	cellSize := extraNumber(extras, "patternScale", 0)
+	if material.Texture == nil || cellSize <= 0 {
+		return
+	}
+	scale := 1 / (cellSize * cellsPerRepeat[name])
 	material.TextureScale = [2]float32{scale, scale}
 }
 
