@@ -12,6 +12,12 @@ Backends upload meshes once and draw them every frame. Simulations can change
 geometry or instances later and mark them Dirty so the backend uploads them
 again.
 
+### Functions
+
+| Function | |
+|---|---|
+| `func BuiltInTextureNames() []string` | BuiltInTextureNames lists the textures BuiltInTexture makes. |
+
 ### Constants and variables
 
 ```go
@@ -211,9 +217,7 @@ type Material struct {
 	Sway      float32 // how much the wind bends the mesh (0 = rigid); for plants modelled with height 1
 	DepthBias float32 // pulls the surface towards the camera by this share of its distance, so thin surfaces
 	// lying on terrain (rivers, roads) stay visible over the terrain's simpler far versions; 0 = none
-	Pattern      Pattern // procedural surface pattern of lit and glowing materials
-	PatternScale float32 // size of one pattern cell (a stone, a course, a shingle) in world units
-	Foliage      bool    // takes the environment's FoliageTint (leaves that change with the seasons)
+	Foliage bool // takes the environment's FoliageTint (leaves that change with the seasons)
 	// Texture lays a picture over the surface (nil = none): its colour is BaseColor × the vertex
 	// colour × the texture at (UV × TextureScale + TextureOffset), lit as before.
 	Texture       *Texture
@@ -356,32 +360,6 @@ type Overlay struct {
 | `func (overlay *Overlay) RemoveLabel(label *Label)` | RemoveLabel stops showing a label. |
 | `func (overlay *Overlay) VisibleNotices() []VisibleNotice` | VisibleNotices returns the notices to draw now, newest first, at most MaximumNotices. |
 
-### Pattern
-
-Pattern is a procedural surface pattern that modulates a lit material's colour, computed from the world position (no texture): stones, blocks, shingles… It fades out where its cells get too small on screen.
-
-```go
-type Pattern int
-```
-
-```go
-const (
-	PatternNone     Pattern = iota
-	PatternCobbles          // irregular paving stones with joints (horizontal surfaces)
-	PatternMasonry          // courses of stone blocks with mortar (walls)
-	PatternPlaster          // mottled render
-	PatternShingles         // overlapping rows of shingles or slates (roofs)
-	PatternPlanks           // wooden planks
-	PatternGrass            // mottled grass
-)
-```
-
-The patterns; PatternNone leaves the material's colour as it is.
-
-| Function or method | |
-|---|---|
-| `func PatternNamed(name string) Pattern` | PatternNamed returns the pattern with a name (cobbles, masonry, plaster, shingles, planks, grass); PatternNone for any other name. |
-
 ### PointLight
 
 PointLight is a light that shines from a point all around, as a lamp: full within Inner of it and fading smoothly to nothing at Outer (world units), the same fade as draw2d's point lights. It lights the lit materials it reaches, besides the sun and the sky; each draw takes the few that reach it (see sceneplan.MaxLightsPerDraw).
@@ -503,6 +481,10 @@ type Texture struct {
 	Format TextureFormat // how the 3DS keeps it in its memory; other targets keep RGBA8
 }
 ```
+
+| Function or method | |
+|---|---|
+| `func BuiltInTexture(name string) (texture *Texture, found bool)` | BuiltInTexture returns a texture made in Go, by name: surfaces (cobbles, masonry, plaster, shingles, planks, grass) and tiling details (panels, grid, stripes, carbon, hexagons, worn, camouflage, windows). |
 
 ### TextureFormat
 

@@ -370,12 +370,21 @@ func (file *gltfFile) buildMaterials() []*scene.Material {
 			DepthBias:   extraNumber(definition.Extras, "depthBias", 0),
 		}
 		materials[materialNumber].Foliage = definition.Extras["foliage"] == true
-		if name, named := definition.Extras["pattern"].(string); named {
-			materials[materialNumber].Pattern = scene.PatternNamed(name)
-			materials[materialNumber].PatternScale = extraNumber(definition.Extras, "patternScale", 0)
-		}
+		applyBuiltInTexture(materials[materialNumber], definition.Extras)
 	}
 	return materials
+}
+
+// applyBuiltInTexture gives a material the built-in texture its extras name ("texture": "cobbles"),
+// repeated "textureScale" times a unit of UV (1 when unset). An unknown name gives none.
+func applyBuiltInTexture(material *scene.Material, extras map[string]any) {
+	name, named := extras["texture"].(string)
+	if !named {
+		return
+	}
+	material.Texture, _ = scene.BuiltInTexture(name) // an unknown name leaves the material plain
+	scale := extraNumber(extras, "textureScale", 0)
+	material.TextureScale = [2]float32{scale, scale}
 }
 
 func materialKindFromExtras(extras map[string]any) scene.MaterialKind {

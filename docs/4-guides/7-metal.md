@@ -82,7 +82,7 @@ Built after the flat path, in the same way:
   makes no graphics calls. OpenGL's captures came out identical, pixel for pixel, before and after
   the move. `metal.SceneRenderer` draws the same plan.
 - **Shaders translated one to one** (`metal/scene_shaders.go`), compiled at start with precise
-  maths: the noise behind the patterns, stars and clouds takes sines of large numbers, and fast
+  maths: the noise behind the stars and clouds takes sines of large numbers, and fast
   maths would round them differently. The uniform blocks are mirrored in Go byte for byte, checked
   by tests on both sides.
 - **A thin Objective-C layer** (`scene_darwin.m`): buffers, textures, pipelines, passes and draw

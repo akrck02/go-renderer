@@ -15,13 +15,13 @@ package metal
 //     and Metal textures have row 0 at the top, so shadow and seabed lookups flip v and use the
 //     depth as it is; the sky keeps OpenGL's inverse view-projection, as its maths is written for it;
 //   - samplers are declared in the shader, so the renderer binds no sampler states;
-//   - GLSL's mod, atan(y, x), inverse and textureGrad have no exact MSL spelling: see glslMod,
-//     atan2, inverseTranspose and gradient2d below;
+//   - GLSL's atan(y, x), inverse and textureGrad have no exact MSL spelling: see atan2,
+//     inverseTranspose and gradient2d below;
 //   - the constellation shader's drawingPoints switch becomes two fragment functions, one for
 //     lines and one for points, because a point coordinate only exists when drawing points.
 //
 // Compile it with safe maths (MTLMathModeSafe): fast maths changes sin for the large arguments
-// the noise hashes use, and the patterns would no longer match OpenGL's.
+// the noise hashes use, and the stars and clouds would no longer match OpenGL's.
 const sceneShaderSource = `
 #include <metal_stdlib>
 using namespace metal;
@@ -87,10 +87,10 @@ struct DrawUniforms {
     float4 baseColor;
     float sway;                     // how much the wind bends this mesh
     float depthBias;                // share of the distance the surface is pulled towards the camera
-    float patternScale;             // world units per pattern cell
+    float padding;
     int instanced;
     int kind;                       // material kind: 0 lit, 1 unlit, 2 water, 3 waterfall, 4 glow
-    int pattern;                    // procedural surface pattern (scene.Pattern), 0 = none
+    int paddingInteger;
     int foliage;                    // 1: the material takes the season's foliage tint
     int levelVariationEnabled;
     int seaSurface;                 // 1 for the environment's sea; rivers and lakes keep their own colour
@@ -181,20 +181,6 @@ constexpr sampler atlasSampler(filter::linear, address::clamp_to_edge);
 // What GLSL has built in and MSL spells differently.
 // ---------------------------------------------------------------------------------------------
 
-// glslMod is GLSL's mod, x - y * floor(x / y): MSL's fmod truncates instead, which differs for
-// negative values (and courses and rows below zero must alternate the same way).
-float glslMod(float x, float y) {
-    return x - y * floor(x / y);
-}
-
-// smoothstepAnyOrder is smoothstep written out, because the patterns call it with the edges
-// reversed (from 1 down to 0.94) to fade out at the end of a cell. Both languages leave that case
-// undefined; OpenGL drivers compute this formula, so writing it here keeps Metal the same.
-float smoothstepAnyOrder(float edgeStart, float edgeEnd, float value) {
-    float amount = clamp((value - edgeStart) / (edgeEnd - edgeStart), 0.0, 1.0);
-    return amount * amount * (3.0 - 2.0 * amount);
-}
-
 // upperLeft is GLSL's mat3(matrix): the rotation and scale part of a 4×4 matrix.
 float3x3 upperLeft(float4x4 transform) {
     return float3x3(transform[0].xyz, transform[1].xyz, transform[2].xyz);
@@ -216,7 +202,6 @@ float3x3 inverseTranspose(float3x3 transform) {
 // ---------------------------------------------------------------------------------------------
 
 float hashOf(float2 cell) { return fract(sin(dot(cell, float2(127.1, 311.7))) * 43758.5453); }
-float2 hashPairOf(float2 cell) { return fract(sin(float2(dot(cell, float2(127.1, 311.7)), dot(cell, float2(269.5, 183.3)))) * 43758.5453); }
 float hashOf(float3 seed) { return fract(sin(dot(seed, float3(12.9898, 78.233, 37.719))) * 43758.5453); }
 
 float valueNoise(float2 point) {
@@ -323,141 +308,6 @@ float sunVisibility(float3 normal, float3 worldPosition, constant FrameUniforms 
     return mix(1.0, visible / 9.0, shadowRegionFade(coordinates.xy));
 }
 
-// surfaceCoordinates are pattern coordinates on the surface: x and z on flat ground; along the
-// wall and up on walls; along the slope's contour and down the slope on roofs.
-float2 surfaceCoordinates(float3 normal, float3 worldPosition, constant DrawUniforms &draw) {
-    float3 position = worldPosition / draw.patternScale;
-    if (abs(normal.y) > 0.92) return position.xz;
-    float2 across = normalize(float2(-normal.z, normal.x) + float2(1e-5, 0.0));
-    return float2(dot(position.xz, across), position.y);
-}
-
-float cobbles(float2 point) {
-    float2 cell = floor(point);
-    float nearest = 8.0, second = 8.0;
-    float2 nearestCell = cell;
-    for (int column = -1; column <= 1; column++) {
-        for (int row = -1; row <= 1; row++) {
-            float2 neighbour = cell + float2(float(column), float(row));
-            float gap = length(neighbour + 0.15 + 0.7 * hashPairOf(neighbour) - point);
-            if (gap < nearest) { second = nearest; nearest = gap; nearestCell = neighbour; }
-            else if (gap < second) { second = gap; }
-        }
-    }
-    float joint = smoothstep(0.03, 0.12, second - nearest);
-    return mix(0.55, 0.82 + 0.3 * hashOf(nearestCell), joint) * (1.0 - 0.12 * nearest);
-}
-
-float masonry(float2 point) {
-    float course = floor(point.y);
-    float along = point.x * 0.5 + 0.5 * glslMod(course, 2.0);
-    float2 block = float2(floor(along), course);
-    float joint = smoothstep(0.0, 0.06, fract(point.y)) * smoothstepAnyOrder(1.0, 0.94, fract(point.y))
-                * smoothstep(0.0, 0.03, fract(along)) * smoothstepAnyOrder(1.0, 0.97, fract(along));
-    return mix(0.62, 0.84 + 0.26 * hashOf(block) + 0.06 * valueNoise(point * 4.0), joint);
-}
-
-float shingles(float2 point) {
-    float row = floor(point.y);
-    float along = point.x * 1.4 + 0.5 * glslMod(row, 2.0);
-    float tone = 0.8 + 0.3 * hashOf(float2(floor(along), row));
-    float overlap = 0.72 + 0.28 * fract(point.y);
-    float gap = smoothstep(0.0, 0.05, fract(along)) * smoothstepAnyOrder(1.0, 0.95, fract(along));
-    return tone * overlap * mix(0.7, 1.0, gap);
-}
-
-float planks(float2 point) {
-    float board = floor(point.y);
-    float gap = smoothstep(0.0, 0.05, fract(point.y)) * smoothstepAnyOrder(1.0, 0.95, fract(point.y));
-    float grain = 0.94 + 0.08 * valueNoise(float2(point.x * 0.6, point.y * 9.0));
-    return mix(0.6, (0.82 + 0.26 * hashOf(float2(board, floor(point.x * 0.25 + hashOf(float2(board, 3.0)))))) * grain, gap);
-}
-
-// patternHeight is the relief of a pattern (0 in the joints, up to 1 on a stone, a tile or a
-// board), which bends the light: rounded cobbles, sunken joints, overlapping tiles, board gaps.
-float patternHeight(float2 point, int pattern) {
-    if (pattern == 1) {
-        float2 cell = floor(point);
-        float nearest = 8.0, second = 8.0;
-        for (int column = -1; column <= 1; column++) {
-            for (int row = -1; row <= 1; row++) {
-                float2 neighbour = cell + float2(float(column), float(row));
-                float gap = length(neighbour + 0.15 + 0.7 * hashPairOf(neighbour) - point);
-                if (gap < nearest) { second = nearest; nearest = gap; }
-                else if (gap < second) { second = gap; }
-            }
-        }
-        float edge = smoothstep(0.0, 0.35, second - nearest);
-        return sqrt(edge) * (1.0 - 0.35 * nearest * nearest);
-    }
-    if (pattern == 2) {
-        float course = floor(point.y);
-        float along = point.x * 0.5 + 0.5 * glslMod(course, 2.0);
-        return smoothstep(0.0, 0.08, fract(point.y)) * smoothstepAnyOrder(1.0, 0.92, fract(point.y))
-             * smoothstep(0.0, 0.04, fract(along)) * smoothstepAnyOrder(1.0, 0.96, fract(along))
-             * (0.85 + 0.15 * valueNoise(point * 3.0));
-    }
-    if (pattern == 4) {
-        float along = point.x * 1.4 + 0.5 * glslMod(floor(point.y), 2.0);
-        return fract(point.y) * smoothstep(0.0, 0.06, fract(along)) * smoothstepAnyOrder(1.0, 0.94, fract(along));
-    }
-    if (pattern == 5) return smoothstep(0.0, 0.06, fract(point.y)) * smoothstepAnyOrder(1.0, 0.94, fract(point.y));
-    if (pattern == 3 || pattern == 6) return valueNoise(point * 3.0);
-    return 0.0;
-}
-
-// bumpStrength is how far each pattern's relief bends the normal.
-float bumpStrength(int pattern) {
-    if (pattern == 1) return 0.55;
-    if (pattern == 2) return 0.35;
-    if (pattern == 4) return 0.45;
-    if (pattern == 5) return 0.25;
-    return 0.08;
-}
-
-// bumpedNormal bends a surface's normal by its pattern's relief, fading out with distance like the
-// pattern itself.
-float3 bumpedNormal(float3 normal, float3 worldPosition, constant DrawUniforms &draw) {
-    if (draw.pattern == 0 || draw.patternScale <= 0.0) return normal;
-    float cellsPerPixel = length(fwidth(worldPosition)) / draw.patternScale;
-    float strength = (1.0 - smoothstep(0.15, 0.6, cellsPerPixel)) * bumpStrength(draw.pattern);
-    if (strength <= 0.0) return normal;
-    float2 point = surfaceCoordinates(normal, worldPosition, draw);
-    // GLSL names this step; here that name would hide the step function
-    const float stepSize = 0.04;
-    float here = patternHeight(point, draw.pattern);
-    float slopeU = (patternHeight(point + float2(stepSize, 0.0), draw.pattern) - here) / stepSize;
-    float slopeV = (patternHeight(point + float2(0.0, stepSize), draw.pattern) - here) / stepSize;
-    float3 tangentU, tangentV;
-    if (abs(normal.y) > 0.92) {
-        tangentU = float3(1.0, 0.0, 0.0);
-        tangentV = float3(0.0, 0.0, 1.0);
-    } else {
-        float2 across = normalize(float2(-normal.z, normal.x) + float2(1e-5, 0.0));
-        tangentU = float3(across.x, 0.0, across.y);
-        tangentV = float3(0.0, 1.0, 0.0);
-    }
-    return normalize(normal - strength * 0.1 * (slopeU * tangentU + slopeV * tangentV));
-}
-
-// patternFactor multiplies a surface's colour by the material's pattern, fading it out where a
-// cell covers less than about two pixels.
-float patternFactor(float3 normal, float3 worldPosition, constant DrawUniforms &draw) {
-    if (draw.pattern == 0 || draw.patternScale <= 0.0) return 1.0;
-    float cellsPerPixel = length(fwidth(worldPosition)) / draw.patternScale;
-    float strength = 1.0 - smoothstep(0.25, 0.8, cellsPerPixel);
-    if (strength <= 0.0) return 1.0;
-    float2 point = surfaceCoordinates(normal, worldPosition, draw);
-    float factor = 1.0;
-    if (draw.pattern == 1) factor = cobbles(point);
-    else if (draw.pattern == 2) factor = masonry(point);
-    else if (draw.pattern == 3) factor = 0.9 + 0.1 * valueNoise(point * 0.8) + 0.06 * valueNoise(point * 7.0);
-    else if (draw.pattern == 4) factor = shingles(point);
-    else if (draw.pattern == 5) factor = planks(point);
-    else if (draw.pattern == 6) factor = 0.82 + 0.2 * valueNoise(point * 0.7) + 0.1 * valueNoise(point * 5.0);
-    return mix(1.0, factor, strength);
-}
-
 // lampLight is the light the draw's point lights bring to a surface, as the OpenGL scene shader's.
 float3 lampLight(float3 surface, float3 worldPosition, constant DrawUniforms &draw) {
     float3 total = float3(0.0);
@@ -475,17 +325,9 @@ float3 shadeLit(float3 color, SceneVaryings input, bool frontFacing,
                 constant FrameUniforms &frame, constant DrawUniforms &draw, depth2d<float> shadowMap) {
     float3 normal = normalize(input.worldNormal);
     if (!frontFacing) normal = -normal;
-    float3 surface = bumpedNormal(normal, input.worldPosition, draw);
-    float3 towardsSun = normalize(frame.sunDirection.xyz);
-    float shadowed = sunVisibility(normal, input.worldPosition, frame, shadowMap);
-    float sunlight = max(dot(surface, towardsSun), 0.0) * shadowed;
-    // the relief also hides light from the sky: joints and gaps are darker
-    float cavity = mix(1.0, 0.8 + 0.2 * max(dot(surface, normal), 0.0), step(0.5, float(draw.pattern)));
-    float3 skylight = mix(frame.groundColor.xyz, frame.skyColor.xyz, surface.y * 0.5 + 0.5) * frame.ambient * cavity;
-    // a soft sheen on stone, tiles and wood under the sun
-    float3 towardsCamera = normalize(frame.cameraPosition.xyz - input.worldPosition);
-    float sheen = draw.pattern > 0 ? pow(max(dot(normalize(towardsSun + towardsCamera), surface), 0.0), 24.0) * 0.12 * shadowed : 0.0;
-    return color * (skylight + frame.sunColor.xyz * sunlight + lampLight(surface, input.worldPosition, draw)) + frame.sunColor.xyz * sheen;
+    float sunlight = max(dot(normal, normalize(frame.sunDirection.xyz)), 0.0) * sunVisibility(normal, input.worldPosition, frame, shadowMap);
+    float3 skylight = mix(frame.groundColor.xyz, frame.skyColor.xyz, normal.y * 0.5 + 0.5) * frame.ambient;
+    return color * (skylight + frame.sunColor.xyz * sunlight + lampLight(normal, input.worldPosition, draw));
 }
 
 float3 waterNormal(float3 worldPosition, constant FrameUniforms &frame) {
@@ -562,8 +404,7 @@ float waterfallOpacity(float baseOpacity, float3 worldPosition, constant FrameUn
     return baseOpacity * (0.45 + 0.55 * smoothstep(0.0, 0.5, streak));
 }
 
-// sceneFragment shades by material kind: 0 lit, 1 unlit, 2 water, 3 waterfall, 4 glow; lit and
-// glowing materials can carry a procedural surface pattern (see scene.Pattern).
+// sceneFragment shades by material kind: 0 lit, 1 unlit, 2 water, 3 waterfall, 4 glow.
 fragment float4 sceneFragment(SceneVaryings input [[stage_in]],
                               bool frontFacing [[front_facing]],
                               constant FrameUniforms &frame [[buffer(0)]],
@@ -576,7 +417,6 @@ fragment float4 sceneFragment(SceneVaryings input [[stage_in]],
     if (draw.kind == 0 || draw.kind == 4) {
         float3 normal = normalize(input.worldNormal);
         if (!frontFacing) normal = -normal;
-        color.rgb *= patternFactor(normal, worldPosition, draw);
         if (draw.foliage == 1 && frame.foliageTint.a > 0.0) {
             float lightness = 0.6 + 0.8 * dot(color.rgb, float3(0.333));
             color.rgb = mix(color.rgb, frame.foliageTint.rgb * lightness, frame.foliageTint.a);

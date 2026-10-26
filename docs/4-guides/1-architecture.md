@@ -83,9 +83,10 @@ backend and the Metal flat window both use it, so they behave the same way.
 `scene.Scene` is a description of a 3D scene that does not depend on any backend:
 
 - **Nodes** with transforms, children, names and tags (the glTF extras), drawing meshes.
-- **Meshes** with positions, per-vertex normals and colours, indices and a **material**: `lit`,
-  `unlit`, `water` or `waterfall`, with an optional procedural pattern (cobbles, masonry, plaster,
-  shingles, planks, grass), a glow, a sway (how much the wind bends it) and a depth bias.
+- **Meshes** with positions, per-vertex normals, colours and UVs, indices and a **material**:
+  `lit`, `unlit`, `water` or `waterfall`, with an optional texture (a picture of the program's, or
+  a built-in one: cobbles, masonry, planks, panels, grid…), a glow, a sway (how much the wind
+  bends it) and a depth bias.
 - **Instances**: one mesh drawn many times (GPU instancing), each copy with its transform and tint.
 - **Levels of detail**: simpler versions of a mesh for when it looks small on screen.
 - **The environment**: sun, sky, fog, water plane, wind, snow and foliage tint, and the vertical

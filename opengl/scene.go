@@ -342,9 +342,7 @@ func (renderer *SceneRenderer) drawNode(command sceneplan.Command, view scenepla
 	material := command.Material
 	program.setVector4("baseColor", sceneplan.BaseColorOf(material))
 	program.setInteger("kind", int32(material.Kind))
-	program.setInteger("pattern", int32(material.Pattern))
 	program.setInteger("foliage", boolToInteger(material.Foliage))
-	program.setFloat("patternScale", material.PatternScale)
 	program.setInteger("levelVariationEnabled", boolToInteger(command.SeaSurface && renderer.levelVariation.active))
 	program.setInteger("seaSurface", boolToInteger(command.SeaSurface))
 	renderer.setDrawLights(command.Lights)
