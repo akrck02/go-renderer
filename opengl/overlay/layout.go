@@ -262,10 +262,20 @@ const labelGap = 6
 // badgeGap is the space between a label and its badge, in layout pixels.
 const badgeGap = 3
 
+// labelStyleFor is the pill a label is drawn in: the labels' own, in the display font when the label
+// asks for it.
+func labelStyleFor(label *scene.Label) pillStyle {
+	style := labelStyle
+	if label.Display {
+		style.face = displayFace
+	}
+	return style
+}
+
 // paintLabel draws a label centred over its anchor: the label pill, and the badge under it.
 func (painter *Painter) paintLabel(placed placedLabel, scale float32) {
 	label := placed.label
-	main := painter.measurePill(pillContent{icon: label.Icon, text: label.Text, tint: label.Tint}, labelStyle, scale)
+	main := painter.measurePill(pillContent{icon: label.Icon, text: label.Text, tint: label.Tint}, labelStyleFor(label), scale)
 	badge := painter.measurePill(pillContent{text: label.Badge, tint: label.Tint}, badgeStyle, scale)
 	stackHeight := main.height + badge.height
 	if main.height > 0 && badge.height > 0 {

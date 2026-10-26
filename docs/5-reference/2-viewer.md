@@ -122,6 +122,9 @@ type Rendering struct {
 	// FixedSeconds, when not NaN, draws every frame as if this many seconds had passed (water,
 	// clouds and waterfalls stand still): captures that must come out the same, to compare them.
 	FixedSeconds float64
+	// Fonts are what the overlay's text (labels, notices) is drawn with; the zero value is the
+	// default fonts.
+	Fonts overlay.Fonts
 }
 ```
 

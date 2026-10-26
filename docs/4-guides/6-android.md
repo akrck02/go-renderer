@@ -27,6 +27,7 @@ what was tested.
 | The drawing thread: waiting, the frame cap, steps and frames | `android/loop.go` |
 | Touches and a hardware keyboard | `android/input.go`; fingers as the pointer in `input.TouchPointer` |
 | OpenGL ES, called directly | `android/gl.go` |
+| Running without a window, for a headset (OpenXR) | `android/headset.go`, `android/headset.c` |
 | The system's bars and theme, and the wallpaper's palettes, through JNI | `android/system.c`, `android/palettes.go` |
 | What a screen reader (TalkBack) reads, and what it asks | `android/screenreader.go`, `screenreader.c`, `android/java/ScreenReader.java` |
 | The text the on-screen keyboard edits: words, suggestions, the word being composed | `android/keyboard.go`, `android/textinput.go`, `textinput.c`, `android/java/TextInput.java` |
@@ -230,6 +231,47 @@ ScreenReader.java         a virtual view per node, answering TalkBack; its focus
   window is a native surface, where Android draws no ring of its own.
 - **Text as UTF-16.** JNI's own UTF-8 is not quite UTF-8: an emoji in a label sent that way stops a
   program. Labels cross as Java keeps them, and so does a field's new text on its way back.
+
+## Without a window
+
+A headset does not show the activity's window: an OpenXR runtime takes each eye's picture from
+images of its own (its *swapchains*) and puts them before the eyes itself. `RunHeadset` is `Run` for
+that case. It is new and has not run on a headset yet: it builds, and that is all that was checked.
+
+```go
+err := android.RunHeadset(android.HeadsetOptions{Hidden: pause, Shown: resume},
+	func(headset android.Headset, functions android.GL) bool {
+		// open the OpenXR session with headset the first time, then wait for the runtime's
+		// frame, draw each eye with functions, and submit it
+		return keepGoing
+	})
+```
+
+| | `Run` | `RunHeadset` |
+|---|---|---|
+| Draws into | the activity's window | the runtime's images; the window is never drawn on |
+| OpenGL ES | 3, else 2, on the window's surface | 3 only, current on a 16×16 pbuffer (no surface at all if the driver has no pbuffer) |
+| Waits | on its looper until something happens | never: `frame` paces itself, with the runtime's `xrWaitFrame` |
+| Frames | when something changed, capped | `frame` is called again and again until it returns false |
+| Touches and keys | the input state | dropped: the controls come through OpenXR |
+
+- **What `frame` gets.** `Headset` carries what the runtime asks for when a session is made on
+  OpenGL ES: the Java VM, the activity (a global reference), and the EGL display, configuration and
+  context the drawing thread holds. They are numbers (`uintptr`), not Go pointers: a global
+  reference is an encoded index and an EGL display is often just 1, which Go's garbage collector
+  must never mistake for an address. The package that speaks to the runtime (`openxr`) turns them
+  back into C handles, and keeps them only while `frame` runs on this thread.
+- **The activity's news is still read**, without sleeping, at the top of each turn: Android still
+  hands the activity a window and an input queue and waits until they are let go before taking them
+  away. The queue's events are finished at once: touches dropped, keys left to Android (the volume)
+  but back, which would otherwise close the activity behind the program.
+- **Paused and resumed.** `Hidden` is called when the activity is paused (the headset taken off, the
+  system's menu over the program), `Shown` when it is resumed, the first time too. `frame` keeps being
+  called while paused: the runtime then says the session is not running, and `frame` sleeps a little
+  instead of drawing.
+- **The end.** When `frame` returns false, the context is let go, the thread leaves Java (a thread
+  that ends still attached stops the whole program), the activity is finished and `RunHeadset`
+  returns. The activity's later news is still answered, so Android's callbacks never wait forever.
 
 ## Not yet
 

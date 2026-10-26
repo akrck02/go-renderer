@@ -33,6 +33,7 @@ type viewer struct {
 	world          *scene.Scene
 	renderer       sceneDrawer
 	makeRenderer   func() (sceneDrawer, error) // set by the backend the session runs on
+	fonts          overlay.Fonts               // what the overlay's text is drawn with
 	orbit          *camera.Orbit
 	walk           *camera.Walk
 	walking        bool
@@ -95,12 +96,7 @@ func Edit(world *scene.Scene, options Options, title string, edit EditFunc) erro
 
 // run applies the options and shows the session until the window closes.
 func (session *viewer) run(options Options, title string) error {
-	session.start(options.Start)
-	session.fixedTime = options.Rendering.FixedSeconds
-	session.shadowsEnabled = !options.Rendering.NoShadows
-	if options.Measure.BenchmarkFrames > 0 {
-		session.benchmark = newBenchmark(options.Measure)
-	}
+	session.configure(options)
 	app := newApplication(session, options, title)
 	if options.Backend.usesMetal() {
 		err := runMetal(session, app)
@@ -111,6 +107,18 @@ func (session *viewer) run(options Options, title string) error {
 		app.Input = input.NewState()
 	}
 	return runOpenGL(session, app)
+}
+
+// configure applies the options that do not need a window: where the view starts, how frames are
+// drawn, what is measured.
+func (session *viewer) configure(options Options) {
+	session.start(options.Start)
+	session.fixedTime = options.Rendering.FixedSeconds
+	session.shadowsEnabled = !options.Rendering.NoShadows
+	session.fonts = options.Rendering.Fonts
+	if options.Measure.BenchmarkFrames > 0 {
+		session.benchmark = newBenchmark(options.Measure)
+	}
 }
 
 // start places the view where options say it starts.
@@ -137,7 +145,7 @@ func (session *viewer) start(options Start) {
 // runOpenGL shows the session through OpenGL.
 func runOpenGL(session *viewer, app *window.Application) error {
 	session.makeRenderer = func() (sceneDrawer, error) {
-		renderer, err := opengl.NewSceneRenderer(overlay.Fonts{})
+		renderer, err := opengl.NewSceneRenderer(session.fonts)
 		if err != nil {
 			return nil, err
 		}

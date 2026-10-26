@@ -27,6 +27,7 @@ const (
 	iconFace                    // Lucide: icons
 	regularFace                 // Go Regular: body text of drawings (interfaces)
 	monoFace                    // Go Mono Bold: codes and keys (draw2d.Mono)
+	displayFace                 // the display font, else the labels': a theme's titles (scene.Label.Display)
 )
 
 // Fonts are what a Painter or a Measurer draws text with: the TrueType or OpenType fonts, one per
@@ -34,8 +35,9 @@ const (
 // default: the Go fonts and the system's usual folders.
 type Fonts struct {
 	// Regular, Medium, Bold and Mono are a font file's bytes each; an empty one keeps the Go font
-	// of that weight.
-	Regular, Medium, Bold, Mono []byte
+	// of that weight. Display is a decorative font for the labels that ask for it
+	// (scene.Label.Display); an empty one writes them in the labels' own font (Medium).
+	Regular, Medium, Bold, Mono, Display []byte
 	// Folders are where the system's fonts and colour emoji are looked for, for characters the
 	// fonts lack. nil is DefaultFontFolders(); an empty, non-nil list looks nowhere, and such
 	// characters are drawn as a question mark.
@@ -97,7 +99,8 @@ type faceKey struct {
 
 func loadFonts(chosen Fonts) (*fonts, error) {
 	sources := map[faceName][]byte{textFace: orDefault(chosen.Medium, gomedium.TTF), strongFace: orDefault(chosen.Bold, gobold.TTF),
-		iconFace: lucide.Font(), regularFace: orDefault(chosen.Regular, goregular.TTF), monoFace: orDefault(chosen.Mono, gomonobold.TTF)}
+		iconFace: lucide.Font(), regularFace: orDefault(chosen.Regular, goregular.TTF), monoFace: orDefault(chosen.Mono, gomonobold.TTF),
+		displayFace: orDefault(chosen.Display, orDefault(chosen.Medium, gomedium.TTF))}
 	system, emoji := systemFontsIn(chosen.folders())
 	loaded := &fonts{parsed: map[faceName]*opentype.Font{}, faces: map[faceKey]font.Face{}, fallbackFaces: map[fallbackKey]font.Face{},
 		system: system, emoji: emoji}

@@ -78,6 +78,29 @@ int text_input_show(int typing);
 void text_input_set(jlong field, int edit, const jchar *characters, int length, int selection_start,
 	int selection_end, int composing_start, int composing_end, int secret);
 
+// Running without a window (headset.c), for an OpenXR runtime: all on the drawing thread.
+typedef struct {
+	EGLDisplay display;
+	EGLConfig config;
+	EGLContext context;
+	EGLSurface surface; // a small pbuffer, or EGL_NO_SURFACE when the context is surfaceless
+} headset_context;
+
+int headset_context_open(headset_context *opened);
+void headset_context_close(headset_context *opened);
+void headset_drain_queue(AInputQueue *queue);
+// headset_handles are what an OpenXR runtime needs: JavaVM*, the activity (jobject), EGLDisplay,
+// EGLConfig and EGLContext, as numbers. Several are not addresses Go may hold as pointers (a global
+// reference is an encoded index, EGLDisplay is often 1), so they cross to Go as uintptr_t.
+typedef struct {
+	uintptr_t java_vm, activity, display, config, context;
+} headset_handles;
+
+void headset_handles_fill(JNIEnv *env, headset_context *opened, headset_handles *handles);
+void headset_handles_release(JNIEnv *env, headset_handles *handles);
+void detach_thread(void);
+void finish_activity(void);
+
 // log_text writes a line to Android's log, under the tag Go.
 void log_text(int priority, const char *text);
 

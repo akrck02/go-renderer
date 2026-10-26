@@ -61,6 +61,7 @@ uniform sampler2D atlas;
 uniform sampler2D pictures;
 uniform sampler2D blurred;
 uniform vec2 frameSize; // the screen's size: screenSize is highp to the vertex stage, so not shared
+uniform float colorExponent; // 1 for a screen; the gamma to turn the colours linear (FlatRenderer.LinearOutput)
 
 void main() {
     float coverage = texture2D(atlas, atlasCoordinate).r;
@@ -72,6 +73,7 @@ void main() {
         }
         painted *= texture2D(pictures, read);
     }
+    painted.rgb = pow(max(painted.rgb, vec3(0.0)), vec3(colorExponent));
     if (backdrop > 0.5) {
         painted = vec4(texture2D(blurred, gl_FragCoord.xy / frameSize).rgb, 1.0);
     }
@@ -111,7 +113,9 @@ void main() {
 
 // sceneFragmentShader lights a surface by kind: 0 lit, 1 unlit, 2 water, 3 waterfall, 4 glow (the
 // values of scene.MaterialKind). Colours are linear and turned to the screen's gamma at the end,
-// like the desktop renderer.
+// like the desktop renderer: outputExponent is 1/2.2 for that, or 1 to leave them linear for a
+// target that encodes sRGB itself (a uniform rather than a second program, as it changes nothing
+// else and a power of 1 costs next to nothing).
 const sceneFragmentShader = `#version 100
 precision highp float;
 varying vec3 worldPosition;
@@ -128,6 +132,7 @@ uniform float ambient;
 uniform float brightness;
 uniform vec3 fogColor;
 uniform vec2 fogRange;
+uniform float outputExponent;
 uniform int lightCount;            // the point lights this draw takes, up to four
 uniform vec4 lightPositions[4];    // xyz: where, w: the outer radius
 uniform vec4 lightColors[4];       // rgb: linear colour times intensity, w: the inner radius
@@ -176,7 +181,7 @@ void main() {
         float fogAmount = smoothstep(fogRange.x, fogRange.y, distance(cameraPosition, worldPosition));
         color.rgb = mix(color.rgb, fogColor, fogAmount);
     }
-    gl_FragColor = vec4(pow(max(color.rgb, vec3(0.0)), vec3(1.0 / 2.2)), color.a);
+    gl_FragColor = vec4(pow(max(color.rgb, vec3(0.0)), vec3(outputExponent)), color.a);
 }
 `
 

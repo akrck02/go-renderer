@@ -20,6 +20,14 @@ type recorder struct {
 	enables            int
 	snapshots          int // frames copied into a texture: one per backdrop snapshot
 	bound              Framebuffer
+	floats             map[Uniform]float32 // the last value each float uniform was set to
+	viewports          []recordedViewport
+	clears             []Framebuffer // the framebuffer bound at each clear
+}
+
+type recordedViewport struct {
+	framebuffer         Framebuffer // the one bound when it was set
+	x, y, width, height int
 }
 
 type recordedDraw struct {
@@ -29,7 +37,7 @@ type recordedDraw struct {
 }
 
 func newRecorder() *recorder {
-	return &recorder{uniforms: map[string]Uniform{}, bufferUploads: map[Enum]int{}}
+	return &recorder{uniforms: map[string]Uniform{}, bufferUploads: map[Enum]int{}, floats: map[Uniform]float32{}}
 }
 
 func (fake *recorder) handle() uint32 {
@@ -70,8 +78,11 @@ func (fake *recorder) UniformLocation(_ Program, name string) Uniform {
 	}
 	return location
 }
-func (fake *recorder) SetUniformInteger(Uniform, int32)                         { fake.uniformValues++ }
-func (fake *recorder) SetUniformFloat(Uniform, float32)                         { fake.uniformValues++ }
+func (fake *recorder) SetUniformInteger(Uniform, int32) { fake.uniformValues++ }
+func (fake *recorder) SetUniformFloat(location Uniform, value float32) {
+	fake.uniformValues++
+	fake.floats[location] = value
+}
 func (fake *recorder) SetUniformTwoFloats(Uniform, float32, float32)            { fake.uniformValues++ }
 func (fake *recorder) SetUniformThreeFloats(Uniform, float32, float32, float32) { fake.uniformValues++ }
 func (fake *recorder) SetUniformFourFloats(Uniform, float32, float32, float32, float32) {
@@ -107,14 +118,16 @@ func (fake *recorder) CreateFramebuffer() Framebuffer {
 func (fake *recorder) BindFramebuffer(_ Enum, framebuffer Framebuffer)           { fake.bound = framebuffer }
 func (fake *recorder) AttachTextureToFramebuffer(Enum, Enum, Enum, Texture, int) {}
 func (fake *recorder) DeleteFramebuffer(Framebuffer)                             {}
-func (fake *recorder) SetViewport(int, int, int, int)                            {}
-func (fake *recorder) SetClearColor(float32, float32, float32, float32)          {}
-func (fake *recorder) Clear(Enum)                                                {}
-func (fake *recorder) Enable(Enum)                                               {}
-func (fake *recorder) Disable(Enum)                                              {}
-func (fake *recorder) SetBlendFactors(Enum, Enum, Enum, Enum)                    {}
-func (fake *recorder) SetDepthWrite(bool)                                        {}
-func (fake *recorder) SetDepthFunction(Enum)                                     {}
+func (fake *recorder) SetViewport(x, y, width, height int) {
+	fake.viewports = append(fake.viewports, recordedViewport{fake.bound, x, y, width, height})
+}
+func (fake *recorder) SetClearColor(float32, float32, float32, float32) {}
+func (fake *recorder) Clear(Enum)                                       { fake.clears = append(fake.clears, fake.bound) }
+func (fake *recorder) Enable(Enum)                                      {}
+func (fake *recorder) Disable(Enum)                                     {}
+func (fake *recorder) SetBlendFactors(Enum, Enum, Enum, Enum)           {}
+func (fake *recorder) SetDepthWrite(bool)                               {}
+func (fake *recorder) SetDepthFunction(Enum)                            {}
 func (fake *recorder) DrawArrays(_ Enum, _ int, count int) {
 	fake.draws = append(fake.draws, recordedDraw{count: count, framebuffer: fake.bound})
 }
@@ -124,9 +137,19 @@ func (fake *recorder) DrawElements(_ Enum, count int, _ Enum, _ int) {
 
 // forget clears what the last frame recorded.
 func (fake *recorder) forget() {
-	fake.draws = nil
+	fake.draws, fake.viewports, fake.clears = nil, nil, nil
 	fake.textureUploads, fake.textureAreaUploads, fake.matrixUploads, fake.uniformValues, fake.enables = 0, 0, 0, 0, 0
 	fake.bufferUploads = map[Enum]int{}
+}
+
+// float returns the last value a float uniform was set to, by name.
+func (fake *recorder) float(name string) (float32, bool) {
+	location, known := fake.uniforms[name]
+	if !known {
+		return 0, false
+	}
+	value, set := fake.floats[location]
+	return value, set
 }
 
 // sourcesWith returns the shader sources that contain a piece of text.

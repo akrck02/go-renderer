@@ -25,6 +25,10 @@ type SceneRenderer struct {
 	// Target is the framebuffer Draw draws into: 0, the screen, unless the caller made one to
 	// draw a picture offscreen.
 	Target Framebuffer
+	// LinearOutput makes the shaders and the clear write linear colour instead of turning it to
+	// the screen's gamma: for a target that encodes sRGB itself (a headset's swapchain), which
+	// would otherwise apply the gamma twice and wash the picture out.
+	LinearOutput bool
 
 	functions    Functions
 	program      *program
@@ -32,6 +36,7 @@ type SceneRenderer struct {
 	planner      *sceneplan.Planner
 	attributesOn bool                   // the vertex attributes were switched on in the context
 	frameLights  []sceneplan.FrameLight // the frame's point lights, which each draw takes a few of
+	plans        int                    // frames planned, so tests can tell DrawViews plans once
 }
 
 // NewSceneRenderer compiles the shaders and prepares the overlay's atlas; the overlay's text is
@@ -54,12 +59,11 @@ func NewSceneRenderer(functions Functions, fonts overlay.Fonts) (*SceneRenderer,
 func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Lens, width, height int) {
 	renderer.functions.BindFramebuffer(FramebufferTarget, renderer.Target)
 	renderer.quads.target = renderer.Target
-	frame := renderer.planner.Plan(world, camera, width, height, sceneplan.ShadowSettings{})
-	renderer.clear(frame.Light, width, height)
-	renderer.setFrameUniforms(world.Environment, frame.Light, camera, frame.Matrices)
-	renderer.frameLights = frame.Lights
-	renderer.drawCommands(frame.Opaque, frame.View)
-	renderer.drawCommands(frame.Transparent, frame.View)
+	frame := renderer.plan(world, camera, width, height)
+	renderer.functions.SetViewport(0, 0, width, height)
+	renderer.clear(frame.Light)
+	renderer.setFrameUniforms(world.Environment, frame.Light, camera.Position, frame.Matrices.ViewProjection)
+	renderer.drawFrame(frame)
 	scale := renderer.OverlayScale
 	if scale <= 0 {
 		scale = 1
@@ -67,22 +71,98 @@ func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Lens, widt
 	renderer.quads.paintScene(world, frame.Matrices.ViewProjection, width, height, scale)
 }
 
-// clear fills the frame with the colour of the horizon, which stands in for the sky; the fog
-// fades into it, so it takes the same gamma as the shaded surfaces.
-func (renderer *SceneRenderer) clear(light scene.Daylight, width, height int) {
+// View is one picture DrawViews draws: an eye of a headset.
+type View struct {
+	// Target is the framebuffer it is drawn into, with a depth buffer. Views may share one, each
+	// in its own viewport.
+	Target Framebuffer
+	// X, Y, Width and Height are its viewport in the target, in pixels from the bottom-left.
+	X, Y, Width, Height int
+	// View and Projection are the eye's matrices (see camera.Rig and
+	// graphics.PerspectiveFromFieldOfView).
+	View, Projection graphics.Matrix
+	// Eye is the eye in the world: lighting, fog and the water's reflection are worked out from it.
+	Eye graphics.Vector
+}
+
+// planHeight is the height of the picture DrawViews plans for: the planner only reads the aspect
+// from the size, so any height will do.
+const planHeight = 1000
+
+// DrawViews plans the frame once, from covering (see camera.CoveringLens) and its aspect (width
+// over height), and draws it in every view with the view's own matrices and eye. There is no
+// overlay (labels, header, notices, draw list): a headset has no screen to pin it to.
+func (renderer *SceneRenderer) DrawViews(world *scene.Scene, covering camera.Lens, aspect float32, views []View) {
+	if len(views) == 0 {
+		return
+	}
+	if aspect <= 0 {
+		aspect = 1
+	}
+	frame := renderer.plan(world, covering, int(math.Round(float64(aspect)*planHeight)), planHeight)
+	for index, view := range views {
+		renderer.functions.BindFramebuffer(FramebufferTarget, view.Target)
+		renderer.functions.SetViewport(view.X, view.Y, view.Width, view.Height)
+		if !targetDrawnBefore(views[:index], view.Target) {
+			renderer.clear(frame.Light) // a clear fills the whole target, so only before its first view
+		}
+		renderer.setFrameUniforms(world.Environment, frame.Light, view.Eye, view.Projection.Multiply(view.View))
+		renderer.drawFrame(frame)
+	}
+}
+
+// targetDrawnBefore tells whether one of the views already drew in target.
+func targetDrawnBefore(views []View, target Framebuffer) bool {
+	for _, view := range views {
+		if view.Target == target {
+			return true
+		}
+	}
+	return false
+}
+
+// plan plans a frame seen by the camera, for a picture of width × height pixels.
+func (renderer *SceneRenderer) plan(world *scene.Scene, camera camera.Lens, width, height int) sceneplan.Frame {
+	renderer.plans++
+	frame := renderer.planner.Plan(world, camera, width, height, sceneplan.ShadowSettings{})
+	renderer.frameLights = frame.Lights
+	return frame
+}
+
+// drawFrame draws the planned surfaces, opaque first, with the frame's uniforms already set.
+func (renderer *SceneRenderer) drawFrame(frame sceneplan.Frame) {
+	renderer.drawCommands(frame.Opaque, frame.View)
+	renderer.drawCommands(frame.Transparent, frame.View)
+}
+
+// clear fills the bound framebuffer with the colour of the horizon, which stands in for the sky;
+// the fog fades into it, so it takes the same gamma as the shaded surfaces.
+func (renderer *SceneRenderer) clear(light scene.Daylight) {
 	functions := renderer.functions
-	functions.SetViewport(0, 0, width, height)
-	horizon := linearToScreen(light.Horizon)
+	horizon := light.Horizon
+	if !renderer.LinearOutput {
+		horizon = linearToScreen(horizon)
+	}
 	functions.SetClearColor(horizon[0], horizon[1], horizon[2], 1)
 	functions.Clear(ColorBufferBit | DepthBufferBit)
 }
 
-func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, light scene.Daylight, camera camera.Lens, matrices sceneplan.CameraMatrices) {
+// outputExponent is the power the scene shader raises its final colour to: the screen's gamma,
+// or 1 to leave it linear.
+func (renderer *SceneRenderer) outputExponent() float32 {
+	if renderer.LinearOutput {
+		return 1
+	}
+	return 1 / screenGamma
+}
+
+func (renderer *SceneRenderer) setFrameUniforms(environment scene.Environment, light scene.Daylight, eye graphics.Vector, viewProjection graphics.Matrix) {
 	program := renderer.program
 	program.use()
-	program.setMatrix("viewProjection", matrices.ViewProjection)
+	program.setMatrix("viewProjection", viewProjection)
 	program.setFloat("verticalScale", environment.EffectiveVerticalScale())
-	program.setVector3("cameraPosition", camera.Position)
+	program.setFloat("outputExponent", renderer.outputExponent())
+	program.setVector3("cameraPosition", eye)
 	program.setVector3("sunDirection", light.LightDirection)
 	program.setVector3("sunColor", light.LightColor)
 	program.setVector3("skyColor", light.SkyLight)
@@ -231,6 +311,9 @@ func describeSceneVertexLayout(functions Functions) {
 	functions.DescribeVertexAttribute(2, 4, Float, false, stride, 6*4)
 }
 
+// screenGamma is the gamma of a screen that does not encode sRGB itself.
+const screenGamma = 2.2
+
 // linearToScreen turns a linear colour into the screen's gamma, as the scene shader does.
 func linearToScreen(color graphics.Vector) graphics.Vector {
 	return graphics.Vector{gammaOf(color[0]), gammaOf(color[1]), gammaOf(color[2]), color[3]}
@@ -240,5 +323,5 @@ func gammaOf(channel float32) float32 {
 	if channel <= 0 {
 		return 0
 	}
-	return float32(math.Pow(float64(channel), 1/2.2))
+	return float32(math.Pow(float64(channel), 1/screenGamma))
 }

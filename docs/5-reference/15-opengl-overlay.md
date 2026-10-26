@@ -62,8 +62,9 @@ Fonts are what a Painter or a Measurer draws text with: the TrueType or OpenType
 ```go
 type Fonts struct {
 	// Regular, Medium, Bold and Mono are a font file's bytes each; an empty one keeps the Go font
-	// of that weight.
-	Regular, Medium, Bold, Mono []byte
+	// of that weight. Display is a decorative font for the labels that ask for it
+	// (scene.Label.Display); an empty one writes them in the labels' own font (Medium).
+	Regular, Medium, Bold, Mono, Display []byte
 	// Folders are where the system's fonts and colour emoji are looked for, for characters the
 	// fonts lack. nil is DefaultFontFolders(); an empty, non-nil list looks nowhere, and such
 	// characters are drawn as a question mark.

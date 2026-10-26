@@ -109,6 +109,10 @@ type FlatRenderer struct {
 	// Target is the framebuffer Draw draws into: 0, the screen, unless the caller made one to
 	// draw a picture offscreen.
 	Target Framebuffer
+	// LinearOutput makes the colours, which are the screen's (sRGB), be written linear: for a
+	// target that encodes sRGB itself, as a headset's panel does, where they would otherwise come
+	// out twice as light.
+	LinearOutput bool
 
 	// Has unexported fields.
 }
@@ -271,6 +275,10 @@ type SceneRenderer struct {
 	// Target is the framebuffer Draw draws into: 0, the screen, unless the caller made one to
 	// draw a picture offscreen.
 	Target Framebuffer
+	// LinearOutput makes the shaders and the clear write linear colour instead of turning it to
+	// the screen's gamma: for a target that encodes sRGB itself (a headset's swapchain), which
+	// would otherwise apply the gamma twice and wash the picture out.
+	LinearOutput bool
 
 	// Has unexported fields.
 }
@@ -280,6 +288,7 @@ type SceneRenderer struct {
 |---|---|
 | `func NewSceneRenderer(functions Functions, fonts overlay.Fonts) (*SceneRenderer, error)` | NewSceneRenderer compiles the shaders and prepares the overlay's atlas; the overlay's text is drawn in fonts (overlay.Fonts{} for the default ones). |
 | `func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Lens, width, height int)` | Draw draws a frame of the scene seen by the camera, in the target framebuffer of width × height pixels. |
+| `func (renderer *SceneRenderer) DrawViews(world *scene.Scene, covering camera.Lens, aspect float32, views []View)` | DrawViews plans the frame once, from covering (see camera.CoveringLens) and its aspect (width over height), and draws it in every view with the view's own matrices and eye. |
 
 ### Shader
 
@@ -303,6 +312,25 @@ Uniform is where a program reads a uniform value; -1 when the program has none o
 
 ```go
 type Uniform int32
+```
+
+### View
+
+View is one picture DrawViews draws: an eye of a headset.
+
+```go
+type View struct {
+	// Target is the framebuffer it is drawn into, with a depth buffer. Views may share one, each
+	// in its own viewport.
+	Target Framebuffer
+	// X, Y, Width and Height are its viewport in the target, in pixels from the bottom-left.
+	X, Y, Width, Height int
+	// View and Projection are the eye's matrices (see camera.Rig and
+	// graphics.PerspectiveFromFieldOfView).
+	View, Projection graphics.Matrix
+	// Eye is the eye in the world: lighting, fog and the water's reflection are worked out from it.
+	Eye graphics.Vector
+}
 ```
 
 ---

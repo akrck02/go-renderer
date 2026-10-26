@@ -26,10 +26,12 @@ calls, was about two thirds of what a 3D view cost on a phone.
 | `func FeelLongPress()` | FeelLongPress gives the short buzz Android's own applications give when a touch becomes a long press, if the person has touch feedback on. |
 | `func Graphics() string` | Graphics names the phone's OpenGL ES and GPU once the window has drawn, or what stopped it. |
 | `func LastCrash() string` | LastCrash is the report of the last run's crash, or "" when it ended well. |
+| `func LogError(text string)` | LogError writes a line to Android's log (tag Go) at once. |
 | `func NotificationsAllowed() bool` | NotificationsAllowed tells whether the program may show notifications: always before Android 13, and on Android 13 and later once the person allowed them (AskForNotifications). |
 | `func Notify(channel Channel, id int, title, text string) bool` | Notify shows a notification on a channel in the system's shade, as other applications' are, even while the program is in the background: a title and a line, and touching it opens the program. |
 | `func OpenLink(link string) bool` | OpenLink opens a link in the application that shows it: a web page in the browser, mailto: in the mail, tel: in the phone, geo: in the maps. |
 | `func Run(app *window.Application, options Options, draw func(functions GL, fresh bool) error) error` | Run draws the application in the activity's window until the program ends (Android ends it). |
+| `func RunHeadset(options HeadsetOptions, frame func(headset Headset, functions GL) bool) error` | RunHeadset runs a program that draws for a headset rather than into a window: an OpenXR runtime takes its pictures from images of its own. |
 | `func ScreenReaderFocus() int32` | ScreenReaderFocus is the node the screen reader is on, which the program rings; 0 for none. |
 | `func ScreenReaderOn() bool` | ScreenReaderOn tells whether a screen reader (or another accessibility service) is on: only then is a list of nodes worth making. |
 | `func Share(title, text string) bool` | Share offers a text (a link, a note) to the person's other applications, through the system's sheet with a title over it. |
@@ -42,6 +44,10 @@ calls, was about two thirds of what a 3D view cost on a phone.
 | `func Wake()` | Wake makes the window draw a frame now: for a program whose data changes on another goroutine. |
 
 ### Constants and variables
+
+```go
+var HeadsetContextNotMade = failure.Define("android.headset-context-not-made",
+```
 
 ```go
 var VideoNotOpened = failure.Define("android.video-not-opened", "the video could not be opened")
@@ -172,6 +178,28 @@ type GL struct{}
 | `func (GL) ShaderCompiled(shader gles.Shader) (bool, string)` | ShaderCompiled implements gles.Functions. |
 | `func (GL) UniformLocation(program gles.Program, name string) gles.Uniform` | UniformLocation implements gles.Functions. |
 | `func (GL) UseProgram(program gles.Program)` | UseProgram implements gles.Functions. |
+
+### Headset
+
+Headset is what an OpenXR runtime needs from the program: the Java VM, the activity, and the EGL context its drawing thread holds (JavaVM*, jobject, EGLDisplay, EGLConfig, EGLContext), handed over as they are for the package that speaks to the runtime. They are numbers, not Go pointers: a jobject global reference is an encoded index and an EGLDisplay is often 1, which the garbage collector must never take for an address.
+
+```go
+type Headset struct {
+	JavaVM, Activity, Display, Config, Context uintptr
+}
+```
+
+### HeadsetOptions
+
+HeadsetOptions tune RunHeadset.
+
+```go
+type HeadsetOptions struct {
+	// Hidden is called on the drawing thread when the activity is paused (the headset taken off, the
+	// system's menu over the program), Shown when it is resumed, the first time included.
+	Hidden, Shown func()
+}
+```
 
 ### Insets
 

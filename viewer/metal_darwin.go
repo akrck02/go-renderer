@@ -10,7 +10,7 @@ import (
 
 // runMetal shows the session through Metal.
 func runMetal(session *viewer, app *window.Application) error {
-	window := &metal.SceneWindow{}
+	window := &metal.SceneWindow{Fonts: session.fonts}
 	session.makeRenderer = func() (sceneDrawer, error) { return metalScene{window.Renderer()}, nil }
 	return window.Run(app)
 }
