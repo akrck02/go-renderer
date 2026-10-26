@@ -214,8 +214,17 @@ type Material struct {
 	Pattern      Pattern // procedural surface pattern of lit and glowing materials
 	PatternScale float32 // size of one pattern cell (a stone, a course, a shingle) in world units
 	Foliage      bool    // takes the environment's FoliageTint (leaves that change with the seasons)
+	// Texture lays a picture over the surface (nil = none): its colour is BaseColor × the vertex
+	// colour × the texture at (UV × TextureScale + TextureOffset), lit as before.
+	Texture       *Texture
+	TextureScale  [2]float32 // repeats of the texture for each unit of UV, along u and v; 0 = 1
+	TextureOffset [2]float32 // moves the texture along u and v, in repeats
 }
 ```
+
+| Function or method | |
+|---|---|
+| `func (material *Material) EffectiveTextureScale() [2]float32` | EffectiveTextureScale is how many times the texture repeats for each unit of UV, along each side, with 0 meaning 1. |
 
 ### MaterialKind
 
@@ -237,7 +246,7 @@ const (
 
 ### Mesh
 
-Mesh is triangle geometry. Positions and normals are xyz triples, colors rgba quads (linear). Indices are optional: without them every three vertices form a triangle.
+Mesh is triangle geometry. Positions and normals are xyz triples, colors rgba quads (linear), UVs (where on a texture each vertex lies) uv pairs. Indices are optional: without them every three vertices form a triangle.
 
 ```go
 type Mesh struct {
@@ -245,6 +254,7 @@ type Mesh struct {
 	Positions []float32
 	Normals   []float32
 	Colors    []float32
+	UVs       []float32 // optional; without them a texture is projected from the positions (SurfaceUVs)
 	Indices   []uint32
 	Material  *Material
 	Details   []DetailLevel // simpler versions for when the mesh looks small, from finer to coarser
@@ -259,9 +269,11 @@ type Mesh struct {
 | `func (mesh *Mesh) Bounds() (minimum, maximum graphics.Vector)` | Bounds returns the box around the mesh positions in its own coordinates. |
 | `func (mesh *Mesh) ComputeNormals()` | ComputeNormals fills smooth vertex normals from the triangles (weighted by triangle area). |
 | `func (mesh *Mesh) ForEachTriangle(visit func(first, second, third uint32))` | ForEachTriangle calls visit with the vertex indices of every triangle. |
+| `func (mesh *Mesh) HasUVs() bool` | HasUVs tells whether the mesh carries its own UVs, two for each vertex. |
 | `func (mesh *Mesh) Level(index int) *Mesh` | Level returns a version of the mesh: 0 is the mesh itself, 1 the first detail level, and so on. |
 | `func (mesh *Mesh) LevelCount() int` | LevelCount returns how many versions the mesh has, itself included. |
 | `func (mesh *Mesh) LevelForScreenSize(screenSize float32) int` | LevelForScreenSize returns the index of the version to draw for a model of this apparent size: the coarsest level whose ScreenSize is still larger than it. |
+| `func (mesh *Mesh) SurfaceUVs() []float32` | SurfaceUVs returns the mesh's UVs, or, when it has none, UVs projected from where its vertices are, one unit of the model a repeat: x and z on what faces up or down, along the wall and up on what faces sideways (its facing taken from its normals; up when it has none). |
 | `func (mesh *Mesh) Top() float32` | Top returns the highest y of the mesh's vertices (0 for an empty mesh), to lift a label above it. |
 | `func (mesh *Mesh) Vertex(index uint32) graphics.Vector` | Vertex returns the position of a vertex. |
 | `func (mesh *Mesh) VertexCount() int` | VertexCount returns the number of vertices. |
@@ -477,6 +489,39 @@ type Stars struct {
 }
 ```
 
+### Texture
+
+Texture is a picture a material lays over its surfaces: a tiling detail (panels, stones, a weave) or a whole picture. A program makes one, keeps it, and can give it to any number of materials: backends upload its pixels once, and again only after Picture.Changed().
+
+```go
+type Texture struct {
+	Picture *draw2d.Image // its pixels, the same kind of picture 2D lists draw
+	Wrap    Wrap          // what the surface shows past the picture's edges
+	// Sharp shows the nearest pixel, as pixel art wants, instead of blending between pixels (and
+	// between smaller copies of the picture far away).
+	Sharp  bool
+	Format TextureFormat // how the 3DS keeps it in its memory; other targets keep RGBA8
+}
+```
+
+### TextureFormat
+
+TextureFormat is how the 3DS keeps a texture's pixels: in full, in half the memory, or in an eighth. Other targets keep every texture in RGBA8.
+
+```go
+type TextureFormat int
+```
+
+```go
+const (
+	RGBA8  TextureFormat = iota // 32 bits a pixel: every colour and opacity
+	RGB565                      // 16 bits a pixel: no opacity, colours in steps of 1/32 (green 1/64)
+	ETC1                        // 4 bits a pixel, compressed in blocks of 4×4: no opacity, small loss in detail
+)
+```
+
+The texture formats.
+
 ### VisibleNotice
 
 VisibleNotice is a notice as it should be drawn now.
@@ -524,6 +569,24 @@ type Wind struct {
 	Strength  float32         // 0 calm, 1 strong
 }
 ```
+
+### Wrap
+
+Wrap is what a surface shows where its UVs leave the picture (below 0 or above 1).
+
+```go
+type Wrap int
+```
+
+```go
+const (
+	Repeat Wrap = iota // the picture again, as tiles
+	Clamp              // the colour at the picture's edge, stretched
+	Mirror             // the picture again, flipped every other time, so its edges always meet
+)
+```
+
+The ways a picture wraps.
 
 ---
 

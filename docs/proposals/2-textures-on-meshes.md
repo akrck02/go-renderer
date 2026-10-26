@@ -1,6 +1,6 @@
 # 2. Textures on meshes
 
-> Status: planning · Author's approval: proposal ☑ (2026-10-26, with the decisions below) plan ☐
+> Status: building · Author's approval: proposal ☑ (2026-10-26, with the decisions below) plan ☑ (2026-10-26, "Dale, implementa")
 
 ## Why
 
@@ -62,8 +62,16 @@ type Texture struct {
 
 `Mesh` gains `UVs []float32` (two per vertex, as `Positions` has three). `Material` gains
 `Texture *Texture` and `TextureScale`, `TextureOffset` (`[2]float32`; a zero scale is 1): the
-surface's colour is `BaseColor` × vertex colour × the texture at (UV × scale + offset). A mesh
-without UVs, or a material without a texture, draws exactly as today.
+surface's colour is `BaseColor` × vertex colour × the texture at (UV × scale + offset). A material
+without a texture draws exactly as today. A textured mesh without UVs takes them from its
+positions (`Mesh.SurfaceUVs`: x and z on what faces up, along and up on walls, one model unit a
+repeat), as the procedural patterns did from the world position: the island's terrain, a box made
+in code and a model without `TEXCOORD_0` can still wear a tiling texture.
+
+*Changed while building (2026-10-26):* the plan said a mesh without UVs draws as today; the
+patterns it replaces need no UVs, so without the projection every pattern would have been lost on
+meshes that have none. The projection is worked out once, on the processor, when the mesh is
+uploaded: every backend, the 3DS included, gets the same UVs and no shader changes for it.
 
 **Built-in textures.** `scene.BuiltInTexture(name string) (*Texture, bool)` gives textures made in
 Go the first time they are asked for, then kept: the six patterns of today (cobbles, masonry,
@@ -94,7 +102,7 @@ pixel on the 3DS for textured meshes: the measurements show its vertex work is t
 
 ## Tasks
 
-- [ ] T1 — `scene.Texture`, `Wrap`, `TextureFormat`; `Mesh.UVs`; `Material.Texture`, `TextureScale`, `TextureOffset` · `scene` · R1, R2, R3 · tests of the defaults and of a mesh's UV count
+- [x] T1 — `scene.Texture`, `Wrap`, `TextureFormat`; `Mesh.UVs`; `Material.Texture`, `TextureScale`, `TextureOffset` · `scene` · R1, R2, R3 · tests of the defaults and of a mesh's UV count
 - [ ] T2 — built-in textures that tile without a seam; `Pattern` removed · `scene` · R4 · test: each tiles (its edges match), each is made once
 - [ ] T3 — OpenGL: upload once per version, wrapping, filtering, mipmaps, sorting by texture · `opengl`, `internal/sceneplan` · R2–R4, R7 · frames compared under Mesa (a tinted tiled box, sharp and smooth); benchmarks with and without textures
 - [ ] T4 — OpenGL ES, for Android and the browser · `gles` · R2–R4 · tests with the recorder; an APK on the emulator
@@ -105,4 +113,4 @@ pixel on the 3DS for textured meshes: the measurements show its vertex work is t
 
 ## Result
 
-Not built yet: waiting for the author's approval of this proposal.
+Being built.
