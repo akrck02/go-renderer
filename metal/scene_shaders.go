@@ -87,10 +87,10 @@ struct DrawUniforms {
     float4 baseColor;
     float sway;                     // how much the wind bends this mesh
     float depthBias;                // share of the distance the surface is pulled towards the camera
-    float padding;
+    int textured;                   // 1: the material's texture multiplies its colour
     int instanced;
     int kind;                       // material kind: 0 lit, 1 unlit, 2 water, 3 waterfall, 4 glow
-    int paddingInteger;
+    int textureSampling;            // which surface sampler reads it: wrap × 2, + 1 when sharp
     int foliage;                    // 1: the material takes the season's foliage tint
     int levelVariationEnabled;
     int seaSurface;                 // 1 for the environment's sea; rivers and lakes keep their own colour
@@ -99,8 +99,9 @@ struct DrawUniforms {
     int unused2;
     float4 lightPositions[4];       // xyz: where, w: the outer radius
     float4 lightColors[4];          // rgb: linear colour times intensity, w: the inner radius
+    float4 texturePlacement;        // scale along u and v, then offset along u and v
 };
-static_assert(sizeof(DrawUniforms) == 256, "DrawUniforms must be 256 bytes, as the Go side writes it");
+static_assert(sizeof(DrawUniforms) == 272, "DrawUniforms must be 272 bytes, as the Go side writes it");
 
 struct SkyUniforms {
     float4x4 inverseViewProjection; // OpenGL convention
@@ -176,6 +177,13 @@ constexpr sampler levelVariationSampler(filter::linear, address::clamp_to_edge);
 constexpr sampler panoramaSampler(filter::linear, mip_filter::linear, s_address::repeat, t_address::clamp_to_edge);
 constexpr sampler cubeSampler(filter::linear, address::clamp_to_edge);
 constexpr sampler atlasSampler(filter::linear, address::clamp_to_edge);
+// a surface texture's six ways of being read: repeated, clamped or mirrored, smooth or sharp
+constexpr sampler repeatSmooth(filter::linear, mip_filter::linear, address::repeat);
+constexpr sampler repeatSharp(filter::nearest, mip_filter::nearest, address::repeat);
+constexpr sampler clampSmooth(filter::linear, mip_filter::linear, address::clamp_to_edge);
+constexpr sampler clampSharp(filter::nearest, mip_filter::nearest, address::clamp_to_edge);
+constexpr sampler mirrorSmooth(filter::linear, mip_filter::linear, address::mirrored_repeat);
+constexpr sampler mirrorSharp(filter::nearest, mip_filter::nearest, address::mirrored_repeat);
 
 // ---------------------------------------------------------------------------------------------
 // What GLSL has built in and MSL spells differently.
@@ -222,6 +230,7 @@ struct SceneVaryings {
     float3 worldPosition;
     float3 worldNormal;
     float4 surfaceColor;
+    float2 surfaceUV;
 };
 
 // windBend moves a vertex along the wind, growing with the square of its height in the model, with
@@ -253,6 +262,7 @@ vertex SceneVaryings sceneVertex(uint vertexIndex [[vertex_id]],
                                  const device Instance *instances [[buffer(1)]],
                                  constant FrameUniforms &frame [[buffer(2)]],
                                  constant DrawUniforms &draw [[buffer(3)]],
+                                 const device packed_float2 *uvs [[buffer(4)]],
                                  texture2d<float> levelVariation [[texture(0)]]) {
     Vertex input = vertices[vertexIndex];
     float3 vertexPosition = float3(input.position);
@@ -275,6 +285,9 @@ vertex SceneVaryings sceneVertex(uint vertexIndex [[vertex_id]],
     output.worldPosition = world.xyz;
     output.worldNormal = normal;
     output.surfaceColor = color;
+    // an untextured draw binds a buffer of one UV, which it must not read past
+    float2 uv = draw.textured == 1 ? float2(uvs[vertexIndex]) : float2(0.0);
+    output.surfaceUV = uv * draw.texturePlacement.xy + draw.texturePlacement.zw;
     // thin surfaces on the terrain (rivers) are drawn a little closer, so its simpler far versions do not hide them
     if (draw.depthBias > 0.0) world.xyz += (frame.cameraPosition.xyz - world.xyz) * draw.depthBias;
     output.position = frame.projection * frame.view * world;
@@ -404,14 +417,29 @@ float waterfallOpacity(float baseOpacity, float3 worldPosition, constant FrameUn
     return baseOpacity * (0.45 + 0.55 * smoothstep(0.0, 0.5, streak));
 }
 
+// sampleSurface reads a surface texture with the sampler its draw chose (textureSamplingOf). The
+// texture is sRGB, so the read is already linear light, as OpenGL's is.
+float4 sampleSurface(texture2d<float> surface, float2 uv, int sampling) {
+    switch (sampling) {
+        case 1: return surface.sample(repeatSharp, uv);
+        case 2: return surface.sample(clampSmooth, uv);
+        case 3: return surface.sample(clampSharp, uv);
+        case 4: return surface.sample(mirrorSmooth, uv);
+        case 5: return surface.sample(mirrorSharp, uv);
+    }
+    return surface.sample(repeatSmooth, uv);
+}
+
 // sceneFragment shades by material kind: 0 lit, 1 unlit, 2 water, 3 waterfall, 4 glow.
 fragment float4 sceneFragment(SceneVaryings input [[stage_in]],
                               bool frontFacing [[front_facing]],
                               constant FrameUniforms &frame [[buffer(0)]],
                               constant DrawUniforms &draw [[buffer(1)]],
                               depth2d<float> shadowMap [[texture(0)]],
-                              depth2d<float> seabedMap [[texture(1)]]) {
+                              depth2d<float> seabedMap [[texture(1)]],
+                              texture2d<float> surfaceTexture [[texture(2)]]) {
     float4 color = input.surfaceColor * draw.baseColor;
+    if (draw.textured == 1) color *= sampleSurface(surfaceTexture, input.surfaceUV, draw.textureSampling);
     float3 worldPosition = input.worldPosition;
     float3 towardsCamera = normalize(frame.cameraPosition.xyz - worldPosition);
     if (draw.kind == 0 || draw.kind == 4) {
