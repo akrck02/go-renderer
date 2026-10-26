@@ -8,6 +8,11 @@ import (
 // Options are what a session is opened with.
 type Options struct {
 	ApplicationName string // what the runtime shows of the program; "Go Renderer" when empty
+	// Passthrough asks to see the room behind the scene, on headsets whose runtime has
+	// XR_FB_passthrough (a Meta Quest): the room shows wherever the eyes' picture is transparent,
+	// so draw it with gles' SceneRenderer.SeeThrough. Session.ShowsRoom tells whether it is shown;
+	// without the extension the session opens as usual, with nothing behind the scene.
+	Passthrough bool
 }
 
 // Eye is one eye of a frame: where it is, what it sees, and where to draw it.

@@ -29,6 +29,10 @@ type SceneRenderer struct {
 	// the screen's gamma: for a target that encodes sRGB itself (a headset's swapchain), which
 	// would otherwise apply the gamma twice and wash the picture out.
 	LinearOutput bool
+	// SeeThrough clears to a transparent background instead of the horizon, so what lies behind
+	// the picture shows where nothing is drawn: a headset's view of the room (openxr's
+	// Options.Passthrough). The surfaces drawn stay opaque.
+	SeeThrough bool
 
 	functions    Functions
 	program      *program
@@ -136,9 +140,15 @@ func (renderer *SceneRenderer) drawFrame(frame sceneplan.Frame) {
 }
 
 // clear fills the bound framebuffer with the colour of the horizon, which stands in for the sky;
-// the fog fades into it, so it takes the same gamma as the shaded surfaces.
+// the fog fades into it, so it takes the same gamma as the shaded surfaces. Seen through, it
+// clears to nothing at all: no colour, no opacity.
 func (renderer *SceneRenderer) clear(light scene.Daylight) {
 	functions := renderer.functions
+	if renderer.SeeThrough {
+		functions.SetClearColor(0, 0, 0, 0)
+		functions.Clear(ColorBufferBit | DepthBufferBit)
+		return
+	}
 	horizon := light.Horizon
 	if !renderer.LinearOutput {
 		horizon = linearToScreen(horizon)

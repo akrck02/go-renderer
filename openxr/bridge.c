@@ -64,6 +64,9 @@ static XrResult read_extensions(xr_program *program, XrExtensionProperties **ext
 static XrResult resolve_instance_functions(xr_program *program) {
 	XrResult result = XR_SUCCESS;
 	XR_INSTANCE_FUNCTIONS(XR_RESOLVE_INSTANCE)
+	if (program->has_passthrough) {
+		XR_PASSTHROUGH_FUNCTIONS(XR_RESOLVE_INSTANCE)
+	}
 	return result;
 }
 
@@ -78,8 +81,8 @@ static XrResult create_instance(xr_program *program, XrInstanceCreateInfo *info)
 }
 
 // xr_create_instance starts the runtime for the program, with the extensions it cannot do without
-// (Android, OpenGL ES) and the floor-level space when the runtime has it. A missing extension is
-// named in missing.
+// (Android, OpenGL ES), the floor-level space when the runtime has it, and the passthrough when the
+// program asked for it and the runtime has it. A missing extension is named in missing.
 XrResult xr_create_instance(xr_program *program, const char *name, uintptr_t java_vm, uintptr_t activity, const char **missing) {
 	XrExtensionProperties *extensions = NULL;
 	uint32_t count = 0;
@@ -89,7 +92,7 @@ XrResult xr_create_instance(xr_program *program, const char *name, uintptr_t jav
 		return result;
 	}
 	static const char *needed[] = {XR_KHR_ANDROID_CREATE_INSTANCE_EXTENSION_NAME, XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME};
-	const char *enabled[3] = {needed[0], needed[1]};
+	const char *enabled[4] = {needed[0], needed[1]};
 	uint32_t enabled_count = 2;
 	for (int index = 0; index < 2; index++) {
 		if (offered(extensions, count, needed[index])) continue;
@@ -98,6 +101,10 @@ XrResult xr_create_instance(xr_program *program, const char *name, uintptr_t jav
 		return XR_ERROR_EXTENSION_NOT_PRESENT;
 	}
 	if (offered(extensions, count, XR_EXT_LOCAL_FLOOR_EXTENSION_NAME)) enabled[enabled_count++] = XR_EXT_LOCAL_FLOOR_EXTENSION_NAME;
+	if (program->wants_passthrough && offered(extensions, count, XR_FB_PASSTHROUGH_EXTENSION_NAME)) {
+		enabled[enabled_count++] = XR_FB_PASSTHROUGH_EXTENSION_NAME;
+		program->has_passthrough = 1;
+	}
 	free(extensions);
 
 	XrInstanceCreateInfoAndroidKHR android = {XR_TYPE_INSTANCE_CREATE_INFO_ANDROID_KHR};
@@ -231,6 +238,7 @@ void xr_destroy(xr_program *program) {
 	if (program == NULL) return;
 	xr_destroy_controls(program);
 	xr_destroy_swapchains(program);
+	xr_stop_passthrough(program);
 	if (program->head != XR_NULL_HANDLE) program->call.xrDestroySpace(program->head);
 	if (program->world != XR_NULL_HANDLE) program->call.xrDestroySpace(program->world);
 	if (program->session != XR_NULL_HANDLE) program->call.xrDestroySession(program->session);

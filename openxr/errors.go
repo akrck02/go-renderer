@@ -28,6 +28,9 @@ var (
 	PanelNotCreated = failure.Define("openxr.panel-not-created", "the panel could not be made")
 	// PanelNotDrawable is a panel's picture asked for outside a frame that is drawn.
 	PanelNotDrawable = failure.Define("openxr.panel-not-drawable", "the panel can be drawn only in a frame that is shown")
+	// PassthroughNotStarted is a runtime that has the passthrough extension but would not show the
+	// room: the app may lack its permission or feature in its manifest.
+	PassthroughNotStarted = failure.Define("openxr.passthrough-not-started", "the room could not be shown behind the scene")
 	// SessionLost is a session the runtime took away: the program should end.
 	SessionLost = failure.Define("openxr.session-lost", "the OpenXR session was lost")
 )

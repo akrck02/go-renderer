@@ -134,7 +134,8 @@ static XrCompositionLayerQuad quad_layer(xr_program *program, const xr_quad *qua
 
 // xr_end_frame gives the images back and ends the frame: with the eyes as a projection layer when
 // they were drawn, and over it each quad whose panel has a picture; with no layer (the runtime
-// shows nothing of the program's) when the eyes were not drawn.
+// shows nothing of the program's) when the eyes were not drawn. While the room is shown, its
+// passthrough layer goes under everything, and the eyes' layer is blended over it by its alpha.
 XrResult xr_end_frame(xr_program *program, int64_t time, int render, const xr_quad *quads, int quad_count) {
 	int drawn = render && program->eyes[0].acquired && program->eyes[1].acquired;
 	release_images(program);
@@ -151,20 +152,30 @@ XrResult xr_end_frame(xr_program *program, int64_t time, int render, const xr_qu
 	layer.space = program->world;
 	layer.viewCount = XR_EYES;
 	layer.views = views;
-	const XrCompositionLayerBaseHeader *layers[1 + XR_MOST_PANELS] = {(const XrCompositionLayerBaseHeader *)&layer};
+	const XrCompositionLayerBaseHeader *layers[2 + XR_MOST_PANELS];
+	uint32_t count = 0;
+	XrCompositionLayerPassthroughFB room = {XR_TYPE_COMPOSITION_LAYER_PASSTHROUGH_FB};
+	if (program->passthrough_running) {
+		room.layerHandle = program->passthrough_layer;
+		room.flags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT;
+		layers[count++] = (const XrCompositionLayerBaseHeader *)&room;
+		layer.layerFlags = XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT;
+	}
+	uint32_t room_layers = count; // shown even when the eyes are not drawn
+	layers[count++] = (const XrCompositionLayerBaseHeader *)&layer;
 	XrCompositionLayerQuad shown[XR_MOST_PANELS];
-	uint32_t count = 1;
+	int quads_shown = 0;
 	for (int index = 0; index < quad_count && index < XR_MOST_PANELS; index++) {
 		int panel = quads[index].panel;
 		if (panel < 0 || panel >= program->panel_count || !program->panels[panel].ready) continue;
-		shown[count - 1] = quad_layer(program, &quads[index]);
-		layers[count] = (const XrCompositionLayerBaseHeader *)&shown[count - 1];
-		count++;
+		shown[quads_shown] = quad_layer(program, &quads[index]);
+		layers[count++] = (const XrCompositionLayerBaseHeader *)&shown[quads_shown];
+		quads_shown++;
 	}
 	XrFrameEndInfo end = {XR_TYPE_FRAME_END_INFO};
 	end.displayTime = time;
 	end.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
-	end.layerCount = drawn ? count : 0;
-	end.layers = drawn ? layers : NULL;
+	end.layerCount = drawn ? count : room_layers;
+	end.layers = end.layerCount > 0 ? layers : NULL;
 	return program->call.xrEndFrame(program->session, &end);
 }

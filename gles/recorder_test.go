@@ -23,6 +23,7 @@ type recorder struct {
 	floats             map[Uniform]float32 // the last value each float uniform was set to
 	viewports          []recordedViewport
 	clears             []Framebuffer // the framebuffer bound at each clear
+	clearColors        [][4]float32  // the clear colour at each SetClearColor
 }
 
 type recordedViewport struct {
@@ -121,13 +122,15 @@ func (fake *recorder) DeleteFramebuffer(Framebuffer)                            
 func (fake *recorder) SetViewport(x, y, width, height int) {
 	fake.viewports = append(fake.viewports, recordedViewport{fake.bound, x, y, width, height})
 }
-func (fake *recorder) SetClearColor(float32, float32, float32, float32) {}
-func (fake *recorder) Clear(Enum)                                       { fake.clears = append(fake.clears, fake.bound) }
-func (fake *recorder) Enable(Enum)                                      {}
-func (fake *recorder) Disable(Enum)                                     {}
-func (fake *recorder) SetBlendFactors(Enum, Enum, Enum, Enum)           {}
-func (fake *recorder) SetDepthWrite(bool)                               {}
-func (fake *recorder) SetDepthFunction(Enum)                            {}
+func (fake *recorder) SetClearColor(red, green, blue, alpha float32) {
+	fake.clearColors = append(fake.clearColors, [4]float32{red, green, blue, alpha})
+}
+func (fake *recorder) Clear(Enum)                             { fake.clears = append(fake.clears, fake.bound) }
+func (fake *recorder) Enable(Enum)                            {}
+func (fake *recorder) Disable(Enum)                           {}
+func (fake *recorder) SetBlendFactors(Enum, Enum, Enum, Enum) {}
+func (fake *recorder) SetDepthWrite(bool)                     {}
+func (fake *recorder) SetDepthFunction(Enum)                  {}
 func (fake *recorder) DrawArrays(_ Enum, _ int, count int) {
 	fake.draws = append(fake.draws, recordedDraw{count: count, framebuffer: fake.bound})
 }

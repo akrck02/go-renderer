@@ -62,12 +62,21 @@
 	X(xrCreateActionSpace)                    \
 	X(xrApplyHapticFeedback)
 
+// The functions XR_FB_passthrough gives, found only when the program asked to see the room and the
+// runtime has the extension.
+#define XR_PASSTHROUGH_FUNCTIONS(X) \
+	X(xrCreatePassthroughFB)        \
+	X(xrDestroyPassthroughFB)       \
+	X(xrCreatePassthroughLayerFB)   \
+	X(xrDestroyPassthroughLayerFB)
+
 #define XR_FUNCTION_FIELD(name) PFN_##name name;
 
 typedef struct {
 	PFN_xrGetInstanceProcAddr xrGetInstanceProcAddr;
 	XR_GLOBAL_FUNCTIONS(XR_FUNCTION_FIELD)
 	XR_INSTANCE_FUNCTIONS(XR_FUNCTION_FIELD)
+	XR_PASSTHROUGH_FUNCTIONS(XR_FUNCTION_FIELD)
 } xr_functions;
 
 #define XR_EYES 2
@@ -121,6 +130,11 @@ typedef struct {
 	XrSession session;
 	XrSpace world, head;
 	int has_local_floor;
+	int wants_passthrough; // the program asked to see the room behind its scene (set before the instance)
+	int has_passthrough;   // the runtime has XR_FB_passthrough and it was enabled
+	XrPassthroughFB passthrough;
+	XrPassthroughLayerFB passthrough_layer;
+	int passthrough_running; // the room is shown under the eyes' layer
 	int64_t format;
 	int srgb;
 	int framebuffer_incomplete;
@@ -164,6 +178,10 @@ void xr_destroy(xr_program *program);
 XrResult xr_create_swapchains(xr_program *program);
 XrResult xr_create_panel(xr_program *program, int32_t width, int32_t height, int *index);
 void xr_destroy_swapchains(xr_program *program);
+
+// passthrough.c
+XrResult xr_start_passthrough(xr_program *program);
+void xr_stop_passthrough(xr_program *program);
 
 // frame.c
 XrResult xr_wait_frame(xr_program *program, int *should_render, int64_t *display_time);
