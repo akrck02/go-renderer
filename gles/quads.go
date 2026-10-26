@@ -56,6 +56,9 @@ type quadPass struct {
 	// target is the framebuffer the frame is drawn into, which the blur and the lights bind
 	// again after drawing into their own
 	target Framebuffer
+	// linearOutput: the target encodes sRGB itself (FlatRenderer.LinearOutput), so the colours,
+	// which are the screen's, are written linear
+	linearOutput bool
 }
 
 func newQuadPass(functions Functions, fonts overlay.Fonts) (*quadPass, error) {
@@ -292,6 +295,15 @@ func appendQuadVertices(vertices []float32, quads []overlay.Quad) []float32 {
 // top, 2 right or bottom), into a quad's left, top, right, bottom.
 var quadCorners = [6][2]int{{0, 0}, {0, 2}, {2, 2}, {0, 0}, {2, 2}, {2, 0}}
 
+// colorExponent is the power the colours are raised to: none for a screen, the screen's gamma
+// to undo it for a target that encodes sRGB itself.
+func (pass *quadPass) colorExponent() float32 {
+	if pass.linearOutput {
+		return screenGamma
+	}
+	return 1
+}
+
 // cornersPerQuad: two triangles.
 const cornersPerQuad = 6
 
@@ -312,6 +324,7 @@ func (pass *quadPass) drawVertices(first, last, width, height int) {
 	pass.program.setInteger("pictures", picturesTextureUnit)
 	pass.program.setInteger("blurred", blurredTextureUnit)
 	pass.program.setVector2("frameSize", float32(width), float32(height))
+	pass.program.setFloat("colorExponent", pass.colorExponent())
 	functions.Disable(DepthTest)
 	functions.SetDepthWrite(false)
 	functions.Enable(Blend)

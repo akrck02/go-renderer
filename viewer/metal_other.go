@@ -9,5 +9,5 @@ import (
 
 // runMetal fails everywhere but macOS, and the session falls back to OpenGL.
 func runMetal(session *viewer, app *window.Application) error {
-	return (&metal.SceneWindow{}).Run(app)
+	return (&metal.SceneWindow{Fonts: session.fonts}).Run(app)
 }
