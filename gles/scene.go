@@ -15,8 +15,8 @@ import (
 // the program's draw list). What a frame draws (culling, levels of detail, order) is planned by
 // sceneplan, like on the desktop.
 //
-// It is a first step, not the desktop renderer: there are no shadows, sky dome, procedural
-// patterns, waves, wind or snow. OpenGL ES 2 cannot draw instances, so each batch of instances is
+// It is a first step, not the desktop renderer: there are no shadows, sky dome, waves, wind or
+// snow. Textured materials are drawn as on the desktop. OpenGL ES 2 cannot draw instances, so each batch of instances is
 // made into one mesh on the processor, again only when it changes.
 type SceneRenderer struct {
 	// OverlayScale is framebuffer pixels per layout pixel, so labels and interfaces keep their
@@ -30,6 +30,8 @@ type SceneRenderer struct {
 	program      *program
 	quads        *quadPass
 	planner      *sceneplan.Planner
+	textures     *textureStore
+	uvsOn        bool                   // the UV attribute is on: the overlay's quads need it off, as they left it
 	attributesOn bool                   // the vertex attributes were switched on in the context
 	frameLights  []sceneplan.FrameLight // the frame's point lights, which each draw takes a few of
 }
@@ -46,7 +48,7 @@ func NewSceneRenderer(functions Functions, fonts overlay.Fonts) (*SceneRenderer,
 		return nil, err
 	}
 	return &SceneRenderer{functions: functions, program: shaders, quads: quads,
-		planner: sceneplan.NewPlanner(sceneplan.MergingStore{})}, nil
+		planner: sceneplan.NewPlanner(sceneplan.MergingStore{}), textures: newTextureStore(functions)}, nil
 }
 
 // Draw draws a frame of the scene seen by the camera, in the target framebuffer of width × height
@@ -57,9 +59,11 @@ func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Lens, widt
 	frame := renderer.planner.Plan(world, camera, width, height, sceneplan.ShadowSettings{})
 	renderer.clear(frame.Light, width, height)
 	renderer.setFrameUniforms(world.Environment, frame.Light, camera, frame.Matrices)
+	renderer.textures.beginFrame(renderer.program)
 	renderer.frameLights = frame.Lights
 	renderer.drawCommands(frame.Opaque, frame.View)
 	renderer.drawCommands(frame.Transparent, frame.View)
+	renderer.switchUVs(false)
 	scale := renderer.OverlayScale
 	if scale <= 0 {
 		scale = 1
@@ -134,6 +138,7 @@ func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view scene
 	program := renderer.program
 	program.setVector4("baseColor", sceneplan.BaseColorOf(command.Material))
 	program.setInteger("kind", int32(command.Material.Kind))
+	renderer.textures.setTexture(program, command.Material)
 	renderer.setDrawLights(command.Lights)
 	if command.Node.Instances != nil {
 		renderer.drawInstances(command, view)
@@ -145,7 +150,7 @@ func (renderer *SceneRenderer) drawCommand(command sceneplan.Command, view scene
 	}
 	renderer.setModel(command.World)
 	program.setVector4("tint", graphics.Vector{1, 1, 1, 1})
-	renderer.drawMesh(mesh)
+	renderer.drawMesh(mesh, command.Material)
 	renderer.planner.Count(sceneplan.MainPass, mesh, 0)
 }
 
@@ -159,7 +164,7 @@ func (renderer *SceneRenderer) drawInstances(command sceneplan.Command, view sce
 		}
 		renderer.setModel(command.World)
 		renderer.program.setVector4("tint", graphics.Vector{1, 1, 1, 1})
-		renderer.drawMesh(instances.MergedFor(batch.Mesh, batch.Count))
+		renderer.drawMesh(instances.MergedFor(batch.Mesh, batch.Count), command.Material)
 		renderer.planner.Count(sceneplan.MainPass, batch.Mesh, batch.Count)
 	}
 }
@@ -170,8 +175,9 @@ func (renderer *SceneRenderer) setModel(model graphics.Matrix) {
 	renderer.program.setMatrix3("normalMatrix", sceneplan.NormalMatrix(model))
 }
 
-func (renderer *SceneRenderer) drawMesh(mesh *scene.Mesh) {
-	buffers := renderer.uploadMesh(mesh)
+// drawMesh draws a mesh with a material, reading its UVs when the material is textured.
+func (renderer *SceneRenderer) drawMesh(mesh *scene.Mesh, material *scene.Material) {
+	buffers := renderer.uploadMesh(mesh, material)
 	functions := renderer.functions
 	if !renderer.attributesOn {
 		switchAttributesOn(functions)
@@ -179,6 +185,12 @@ func (renderer *SceneRenderer) drawMesh(mesh *scene.Mesh) {
 	}
 	functions.BindBuffer(ArrayBuffer, buffers.vertexBuffer)
 	describeSceneVertexLayout(functions)
+	textured := sceneplan.IsTextured(material)
+	renderer.switchUVs(textured)
+	if textured {
+		functions.BindBuffer(ArrayBuffer, buffers.uvBuffer)
+		functions.DescribeVertexAttribute(uvAttribute, 2, Float, false, 2*4, 0)
+	}
 	if buffers.indexed {
 		functions.BindBuffer(ElementArrayBuffer, buffers.indexBuffer)
 		functions.DrawElements(Triangles, buffers.count, UnsignedInt, 0)
@@ -186,6 +198,24 @@ func (renderer *SceneRenderer) drawMesh(mesh *scene.Mesh) {
 	}
 	functions.DrawArrays(Triangles, 0, buffers.count)
 }
+
+// switchUVs turns the UV attribute on for textured draws and off for the others, only when it
+// changes: every call crosses into the platform's bindings, and the textured draws come together.
+func (renderer *SceneRenderer) switchUVs(on bool) {
+	if on == renderer.uvsOn {
+		return
+	}
+	if on {
+		renderer.functions.EnableVertexAttribute(uvAttribute)
+	} else {
+		renderer.functions.DisableVertexAttribute(uvAttribute)
+	}
+	renderer.uvsOn = on
+}
+
+// uvAttribute is the index of the scene shader's UVs (sceneAttributes). They have a buffer of
+// their own, so a mesh without a texture keeps the vertices it had before textures.
+const uvAttribute = 3
 
 // meshBuffers is a mesh on the GPU, in the graphics context of the renderer that uploaded it.
 type meshBuffers struct {
@@ -195,15 +225,19 @@ type meshBuffers struct {
 	owner        *SceneRenderer
 	vertexBuffer Buffer
 	indexBuffer  Buffer
+	uvBuffer     Buffer // 0 until the mesh is drawn with a texture or has UVs
 	count        int
 	indexed      bool
 }
 
 // uploadMesh sends a mesh to the GPU the first time this renderer draws it, and again when it is
-// Dirty.
-func (renderer *SceneRenderer) uploadMesh(mesh *scene.Mesh) *meshBuffers {
+// Dirty; its UVs go too when it has them or is drawn with a texture.
+func (renderer *SceneRenderer) uploadMesh(mesh *scene.Mesh, material *scene.Material) *meshBuffers {
 	buffers, _ := mesh.GPU.(*meshBuffers)
 	if buffers != nil && buffers.owner == renderer && !mesh.Dirty {
+		if buffers.uvBuffer == 0 && sceneplan.IsTextured(material) {
+			renderer.uploadUVs(buffers, sceneplan.UVsToDraw(mesh, material))
+		}
 		return buffers
 	}
 	functions := renderer.functions
@@ -218,8 +252,20 @@ func (renderer *SceneRenderer) uploadMesh(mesh *scene.Mesh) *meshBuffers {
 		functions.BindBuffer(ElementArrayBuffer, buffers.indexBuffer)
 		functions.SetBufferData(ElementArrayBuffer, indexBytes(mesh.Indices), StaticDraw)
 	}
+	if uvs := sceneplan.UVsToDraw(mesh, material); uvs != nil {
+		renderer.uploadUVs(buffers, uvs)
+	}
 	mesh.GPU, mesh.Dirty = buffers, false
 	return buffers
+}
+
+// uploadUVs fills a mesh's UV buffer, making it the first time.
+func (renderer *SceneRenderer) uploadUVs(buffers *meshBuffers, uvs []float32) {
+	if buffers.uvBuffer == 0 {
+		buffers.uvBuffer = renderer.functions.CreateBuffer()
+	}
+	renderer.functions.BindBuffer(ArrayBuffer, buffers.uvBuffer)
+	renderer.functions.SetBufferData(ArrayBuffer, floatBytes(uvs), StaticDraw)
 }
 
 // describeSceneVertexLayout tells where position, normal and colour are in sceneplan's interleaved

@@ -92,6 +92,11 @@ const (
 	RGBA             Enum = 0x1908
 	UnpackAlignment  Enum = 0x0CF5
 	Nearest          Enum = 0x2600
+	Repeat           Enum = 0x2901
+	MirroredRepeat   Enum = 0x8370
+
+	LinearMipmapLinear   Enum = 0x2703
+	NearestMipmapNearest Enum = 0x2700
 
 	FramebufferTarget Enum = 0x8D40
 	ColorAttachment0  Enum = 0x8CE0
@@ -206,6 +211,9 @@ type Functions interface {
 	SetPixelStorage(name Enum, value int32)
 	// SetTextureImage is glTexImage2D.
 	SetTextureImage(target Enum, level int, internalFormat Enum, width, height int, format, kind Enum, pixels []byte)
+	// GenerateMipmap makes the bound texture's smaller copies, which smooth sampling reads far away.
+	// (OpenGL ES: glGenerateMipmap.)
+	GenerateMipmap(target Enum)
 	// ReplaceTexturePart replaces a rectangle of the bound texture's pixels, given row after row.
 	// (OpenGL ES: glTexSubImage2D.)
 	ReplaceTexturePart(target Enum, level, x, y, width, height int, format, kind Enum, pixels []byte)
@@ -261,7 +269,7 @@ type Program uint32
 
 ### SceneRenderer
 
-SceneRenderer draws a scene.Scene in its simplest form: lit meshes and instances, the light of the time of day, fog, translucent water and, over them, the overlay (labels, header, notices and the program's draw list). What a frame draws (culling, levels of detail, order) is planned by sceneplan, like on the desktop. It is a first step, not the desktop renderer: there are no shadows, sky dome, procedural patterns, waves, wind or snow. OpenGL ES 2 cannot draw instances, so each batch of instances is made into one mesh on the processor, again only when it changes.
+SceneRenderer draws a scene.Scene in its simplest form: lit meshes and instances, the light of the time of day, fog, translucent water and, over them, the overlay (labels, header, notices and the program's draw list). What a frame draws (culling, levels of detail, order) is planned by sceneplan, like on the desktop. It is a first step, not the desktop renderer: there are no shadows, sky dome, waves, wind or snow. Textured materials are drawn as on the desktop. OpenGL ES 2 cannot draw instances, so each batch of instances is made into one mesh on the processor, again only when it changes.
 
 ```go
 type SceneRenderer struct {

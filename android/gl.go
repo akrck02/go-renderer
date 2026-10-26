@@ -210,6 +210,11 @@ func (GL) SetPixelStorage(name gles.Enum, value int32) {
 	C.glPixelStorei(C.GLenum(name), C.GLint(value))
 }
 
+// GenerateMipmap implements gles.Functions.
+func (GL) GenerateMipmap(target gles.Enum) {
+	C.glGenerateMipmap(C.GLenum(target))
+}
+
 // SetTextureImage implements gles.Functions.
 func (GL) SetTextureImage(target gles.Enum, level int, internalFormat gles.Enum, width, height int, format, kind gles.Enum, pixels []byte) {
 	C.glTexImage2D(C.GLenum(target), C.GLint(level), C.GLint(internalFormat), C.GLsizei(width), C.GLsizei(height), 0,
