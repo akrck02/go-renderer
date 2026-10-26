@@ -98,3 +98,15 @@ func TestTheSceneShaderMultipliesItsColourByTheTexture(test *testing.T) {
 		test.Fatalf("no scene shader multiplies by the surface texture: %d found", len(shaders))
 	}
 }
+
+func TestAMeshOnceDrawnTexturedKeepsItsUVsInStepWhenItChanges(test *testing.T) {
+	fake, renderer, _ := newTexturedScene(test)
+	mesh := triangle(nil, nil).Mesh
+	renderer.uploadMesh(mesh, &scene.Material{Texture: &scene.Texture{Picture: draw2d.NewBlankImage(8, 8)}})
+	fake.forget()
+	mesh.Dirty = true
+	renderer.uploadMesh(mesh, nil) // a simpler version of it, drawn with its parent's material
+	if buffers := fake.bufferUploads[ArrayBuffer]; buffers != 2 {
+		test.Errorf("a changed mesh with a UV buffer filled %d vertex buffers, wanted its vertices and its UVs", buffers)
+	}
+}

@@ -1,6 +1,6 @@
 # 2. Textures on meshes
 
-> Status: building · Author's approval: proposal ☑ (2026-10-26, with the decisions below) plan ☑ (2026-10-26, "Dale, implementa")
+> Status: done · Author's approval: proposal ☑ (2026-10-26, with the decisions below) plan ☑ (2026-10-26, "Dale, implementa")
 
 ## Why
 
@@ -116,4 +116,29 @@ pixel on the 3DS for textured meshes: the measurements show its vertex work is t
 
 ## Result
 
-Being built.
+Built on 2026-10-26, T1 to T8, on `docs/textures-on-meshes`. Every requirement's check was run:
+
+- **R1–R4 (OpenGL):** `opengl/textures_test.go` compares a frame of a tinted 64-pixel picture
+  repeated eight times across two quads (smooth and red, sharp and blue) with
+  `opengl/testdata/two-tinted-textures.png` (Mesa, 8 levels a channel, 0.5 % of pixels);
+  adding the texture instead of multiplying it fails it (58.6 % of pixels differ). One texture on
+  a hundred meshes is uploaded once, and once more after `Changed()`.
+- **R2–R4 (OpenGL ES):** tests with the recorder (one upload, UVs only for textured meshes,
+  sampling as asked); the sample island with its textures drawn by Go UI's `cmd/mobile` on the
+  Android emulator.
+- **R5 (3DS):** the ETC1 encoder and the RGB565 and RGBA8 tiling tested against blocks and
+  pixels worked out by hand; `cmd/textures3ds` in Azahar: cobbles in RGBA8, a roof and planks in
+  RGB565, walls and ground in ETC1, 60 frames a second and 0.8 ms of citro3d's processing with or
+  without textures.
+- **R6:** a small `.glb` with an embedded PNG, and one with the picture beside it.
+- **R7:** see [the optimization plan](../6-project/1-optimization-plan.md#textures-2026-10-26):
+  a scene without textures costs the same; a textured frame allocates nothing.
+
+Found and fixed on the way: the scene renderer allocated 59 times a frame (cgo pointers to
+matrices on the stack), now none outside the 3D labels; a first 3DS build checked every pixel for
+transparency on every draw.
+
+**Still to be reviewed by a person:** everything (AI-written); the Metal renderer was written
+without a Mac and has never been compiled or run; nothing was tried on a real 3DS or phone. Left
+out: textures on the 3DS's water and moving nodes, mipmaps on the 3DS, and the 3D labels' five
+allocations a frame. go-engine's scenes can now name a material's texture: a follow-up there.

@@ -27,6 +27,13 @@ type bakeKey struct {
 	textured     bool // baked with UVs, for a textured material
 }
 
+// sameDraw tells whether two keys are the same mesh drawn the same way (turned, coloured, placed
+// under lamps and textured alike), whose bakes differ only by the light of the moment.
+func (key bakeKey) sameDraw(other bakeKey) bool {
+	return key.normalMatrix == other.normalMatrix && key.baseColour == other.baseColour && key.kind == other.kind &&
+		key.lamps.model == other.lamps.model && key.textured == other.textured
+}
+
 // lampKey is the point lights a draw takes (see sceneplan.DrawLights), and where the mesh is,
 // which their light depends on; all zero for a draw no lamp reaches, so those bake as before.
 type lampKey struct {
