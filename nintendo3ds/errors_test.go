@@ -8,10 +8,11 @@ import (
 
 func TestEachCodeHasItsOwnName(test *testing.T) {
 	codes := map[*failure.Code]string{
-		ScreenNotOpened:   "nintendo3ds.screen-not-opened",
-		InvalidShader:     "nintendo3ds.invalid-shader",
-		InvalidVertices:   "nintendo3ds.invalid-vertices",
-		OutOfLinearMemory: "nintendo3ds.out-of-linear-memory",
+		ScreenNotOpened:          "nintendo3ds.screen-not-opened",
+		InvalidShader:            "nintendo3ds.invalid-shader",
+		InvalidVertices:          "nintendo3ds.invalid-vertices",
+		OutOfLinearMemory:        "nintendo3ds.out-of-linear-memory",
+		TextureLosesTransparency: "nintendo3ds.texture-loses-transparency",
 	}
 	for code, want := range codes {
 		if code.Name() != want {
