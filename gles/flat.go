@@ -36,8 +36,8 @@ func NewFlatRenderer(functions Functions, fonts overlay.Fonts) (*FlatRenderer, e
 	return &FlatRenderer{functions: functions, quads: quads}, nil
 }
 
-// Draw clears the target framebuffer (width × height pixels) to the background colour and paints
-// the list. scale is framebuffer pixels per layout pixel: 2 on a high-density screen.
+// Draw clears the target framebuffer (width × height pixels) to the background colour, its alpha
+// premultiplied (0 leaves it see-through where nothing is painted), and paints the list. scale is framebuffer pixels per layout pixel: 2 on a high-density screen.
 func (renderer *FlatRenderer) Draw(list *draw2d.List, background draw2d.Color, width, height int, scale float32) {
 	renderer.functions.BindFramebuffer(FramebufferTarget, renderer.Target)
 	renderer.quads.target = renderer.Target
@@ -46,7 +46,10 @@ func (renderer *FlatRenderer) Draw(list *draw2d.List, background draw2d.Color, w
 	if renderer.LinearOutput {
 		background = screenToLinear(background)
 	}
-	renderer.functions.SetClearColor(background[0], background[1], background[2], 1)
+	// premultiplied by its alpha, as a compositor blends a picture: a see-through background lets
+	// what is behind the picture show where nothing is painted (a pill-shaped label on a panel)
+	alpha := background[3]
+	renderer.functions.SetClearColor(background[0]*alpha, background[1]*alpha, background[2]*alpha, alpha)
 	renderer.functions.Clear(ColorBufferBit)
 	renderer.layer.Drawing = list
 	renderer.quads.paintFlat(&renderer.layer, width, height, scale)

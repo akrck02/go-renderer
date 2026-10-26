@@ -404,3 +404,22 @@ func TestALinearFlatRendererUndoesTheScreensGamma(test *testing.T) {
 		test.Fatalf("the screen's middle grey is %v linear, want about 0.218 with its alpha kept", grey)
 	}
 }
+
+func TestAFlatBackgroundKeepsItsAlphaPremultiplied(test *testing.T) {
+	fake := newRecorder()
+	renderer, err := NewFlatRenderer(fake, overlay.Fonts{})
+	if err != nil {
+		test.Fatal(err)
+	}
+	renderer.Draw(card(), draw2d.Color{0.2, 0.4, 0.6, 1}, 640, 480, 1)
+	renderer.Draw(card(), draw2d.Color{0.2, 0.4, 0.6, 0.5}, 640, 480, 1)
+	renderer.Draw(card(), draw2d.Color{}, 640, 480, 1)
+	want := [][4]float32{{0.2, 0.4, 0.6, 1}, {0.1, 0.2, 0.3, 0.5}, {0, 0, 0, 0}}
+	for index, cleared := range fake.clearColors {
+		for channel := range 4 {
+			if math.Abs(float64(cleared[channel]-want[index][channel])) > 1e-6 {
+				test.Fatalf("background %d cleared to %v, want %v: opaque as it is, see-through premultiplied", index, cleared, want[index])
+			}
+		}
+	}
+}

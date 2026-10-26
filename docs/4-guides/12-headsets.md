@@ -306,7 +306,10 @@ flat.Draw(list, background, panel.Width(), panel.Height(), 1)
   it back. The runtime keeps showing the last picture given back, so draw only when it changes. A
   panel never drawn into shows nothing.
 - **Order.** Shown panels go after the eyes' projection layer, in the order they were made, the
-  last made on top. They are blended by their alpha; `FlatRenderer` paints an opaque background.
+  last made on top. They are blended by their alpha, premultiplied. `FlatRenderer` clears to its
+  background colour with that colour's alpha, premultiplied: an opaque background fills the
+  picture, and a see-through one (alpha 0) leaves the room or the scene showing wherever nothing is
+  painted, so a label can be a rounded pill rather than a rectangle.
 - **How many.** `MostPanels` (8) a session.
 - **Format.** The eyes' (sRGB on a Quest): draw linear colour into it (`FlatRenderer.LinearOutput`).
 - **Off the headset.** `DetachedPanel(width, height)` is a panel that can be placed but not drawn,
