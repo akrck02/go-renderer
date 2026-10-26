@@ -1,6 +1,6 @@
 // Package sample builds a small made-up island that uses every feature the renderers draw: relief
 // with snow, the sea with a tide, a river, instanced trees with levels of detail that sway, a
-// house with stone, shingle and plank patterns, a paved square, a glowing lamp, a waterfall, an
+// house with stone, shingle and plank textures, a paved square, a glowing lamp, a waterfall, an
 // unlit flag, a glass box, the sky with clouds, moon and a constellation, and a label. It needs no
 // files, so tests and backend comparisons can draw the same scene anywhere.
 package sample
@@ -73,7 +73,7 @@ func smoothStep(low, high, value float64) float64 {
 func terrainMesh() *scene.Mesh {
 	const divisions, size = 96, 2.4 * islandRadius
 	mesh := &scene.Mesh{Name: "terrain", Ground: true,
-		Material: &scene.Material{Name: "ground", BaseColor: graphics.Vector{1, 1, 1, 1}, Pattern: scene.PatternGrass, PatternScale: 1.5}}
+		Material: &scene.Material{Name: "ground", BaseColor: graphics.Vector{1, 1, 1, 1}, Texture: builtIn("grass"), TextureScale: repeatsPerUnit(6)}}
 	for row := 0; row <= divisions; row++ {
 		for column := 0; column <= divisions; column++ {
 			x := (float64(column)/divisions - 0.5) * size
@@ -215,22 +215,33 @@ func boxMesh(name string, minimum, maximum [3]float32, material *scene.Material)
 	return mesh
 }
 
+// builtIn is one of the built-in textures, which the island's surfaces wear.
+func builtIn(name string) *scene.Texture {
+	texture, _ := scene.BuiltInTexture(name) // every name used here is built in
+	return texture
+}
+
+// repeatsPerUnit is the texture scale that lays one repeat of a texture over a length of the model,
+// in its units, along both sides: the island's meshes have no UVs, so theirs come from their
+// positions, one unit a repeat.
+func repeatsPerUnit(length float32) [2]float32 { return [2]float32{1 / length, 1 / length} }
+
 // villageGround is the height of the village's square.
 func villageGround() float32 { return float32(heightAt(villageX, villageZ)) }
 
 // houseNode is a stone house with a shingle roof and a wooden door, as children of one node.
 func houseNode() *scene.Node {
 	walls := boxMesh("walls", [3]float32{-4, 0, -3}, [3]float32{4, 5, 3},
-		&scene.Material{Name: "stone", BaseColor: graphics.Vector{0.7, 0.66, 0.6, 1}, Pattern: scene.PatternMasonry, PatternScale: 0.5})
+		&scene.Material{Name: "stone", BaseColor: graphics.Vector{0.7, 0.66, 0.6, 1}, Texture: builtIn("masonry"), TextureScale: repeatsPerUnit(2)})
 	roof := &scene.Mesh{Name: "roof", Material: &scene.Material{Name: "slate",
-		BaseColor: graphics.Vector{0.35, 0.3, 0.32, 1}, Pattern: scene.PatternShingles, PatternScale: 0.4, DoubleSided: true}}
+		BaseColor: graphics.Vector{0.35, 0.3, 0.32, 1}, Texture: builtIn("shingles"), TextureScale: repeatsPerUnit(2.4), DoubleSided: true}}
 	roof.Positions = []float32{
 		-4.4, 5, 3.4, 4.4, 5, 3.4, 4.4, 8, 0, -4.4, 5, 3.4, 4.4, 8, 0, -4.4, 8, 0,
 		4.4, 5, -3.4, -4.4, 5, -3.4, -4.4, 8, 0, 4.4, 5, -3.4, -4.4, 8, 0, 4.4, 8, 0,
 	}
 	roof.ComputeNormals()
 	door := boxMesh("door", [3]float32{-0.8, 0, 3}, [3]float32{0.8, 2.4, 3.1},
-		&scene.Material{Name: "wood", BaseColor: graphics.Vector{0.45, 0.3, 0.18, 1}, Pattern: scene.PatternPlanks, PatternScale: 0.2})
+		&scene.Material{Name: "wood", BaseColor: graphics.Vector{0.45, 0.3, 0.18, 1}, Texture: builtIn("planks"), TextureScale: repeatsPerUnit(0.8)})
 	house := &scene.Node{Name: "house", Transform: graphics.Translate(graphics.Vector{20, villageGround(), 10, 0})}
 	for _, mesh := range []*scene.Mesh{walls, roof, door} {
 		house.Children = append(house.Children, &scene.Node{Name: mesh.Name, Transform: graphics.Identity(), Mesh: mesh})
@@ -241,9 +252,9 @@ func houseNode() *scene.Node {
 // squareNode is a paved square in front of the house, plastered benches around it.
 func squareNode() *scene.Node {
 	paving := boxMesh("square", [3]float32{-8, 0, -6}, [3]float32{8, 0.2, 6},
-		&scene.Material{Name: "cobbles", BaseColor: graphics.Vector{0.6, 0.58, 0.55, 1}, Pattern: scene.PatternCobbles, PatternScale: 0.35})
+		&scene.Material{Name: "cobbles", BaseColor: graphics.Vector{0.6, 0.58, 0.55, 1}, Texture: builtIn("cobbles"), TextureScale: repeatsPerUnit(1.75)})
 	bench := boxMesh("bench", [3]float32{-3, 0, -0.4}, [3]float32{3, 0.8, 0.4},
-		&scene.Material{Name: "plaster", BaseColor: graphics.Vector{0.85, 0.8, 0.7, 1}, Pattern: scene.PatternPlaster, PatternScale: 0.5})
+		&scene.Material{Name: "plaster", BaseColor: graphics.Vector{0.85, 0.8, 0.7, 1}, Texture: builtIn("plaster"), TextureScale: repeatsPerUnit(2)})
 	square := &scene.Node{Name: "square", Transform: graphics.Translate(graphics.Vector{20, villageGround() - 0.1, 20, 0}),
 		Mesh: paving}
 	square.Children = append(square.Children, &scene.Node{Name: "bench", Transform: graphics.Translate(graphics.Vector{0, 0.2, 4, 0}), Mesh: bench})

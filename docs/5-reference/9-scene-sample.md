@@ -6,7 +6,7 @@ import "github.com/akrck02/go-renderer/scene/sample"
 
 Package sample builds a small made-up island that uses every feature the
 renderers draw: relief with snow, the sea with a tide, a river, instanced trees
-with levels of detail that sway, a house with stone, shingle and plank patterns,
+with levels of detail that sway, a house with stone, shingle and plank textures,
 a paved square, a glowing lamp, a waterfall, an unlit flag, a glass box,
 the sky with clouds, moon and a constellation, and a label. It needs no files,
 so tests and backend comparisons can draw the same scene anywhere.

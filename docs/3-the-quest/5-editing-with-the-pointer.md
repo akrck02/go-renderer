@@ -296,14 +296,15 @@ func drawWindCard(drawing *draw2d.List, strength float32) {
 // hill is a round island: a grid of side × side cells, highest in the middle and under the sea at
 // its edges. Its surface is ground, so the walker and GroundHeight find it.
 func hill(side int, height float32) *scene.Mesh {
+	grass, _ := scene.BuiltInTexture("grass")
 	mesh := &scene.Mesh{
 		Name:   "hill",
 		Ground: true,
 		Material: &scene.Material{
 			Kind:         scene.LitKind,
 			BaseColor:    graphics.Vector{0.45, 0.6, 0.3, 1},
-			Pattern:      scene.PatternGrass,
-			PatternScale: 1,
+			Texture:      grass,
+			TextureScale: [2]float32{0.25, 0.25},
 		},
 	}
 	half := float32(side) / 2

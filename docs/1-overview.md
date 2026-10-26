@@ -93,7 +93,7 @@ The menu on the left (or the files in `docs/`) follows this order.
 ## 🚧 Not done yet
 
 - **In a browser:** the full scene renderer in WebGL2 (shadows, the sky dome with stars and clouds,
-  waves and tides, patterns, wind and snow), loading `.glb` files in the page, locking the pointer
+  waves and tides, wind and snow), loading `.glb` files in the page, locking the pointer
   for walking, the on-screen keyboard and the system clipboard at any time, WebGPU, and smaller
   files with TinyGo. See [in a web browser](4-guides/5-web.md#not-yet).
 - **On Android:** keyboards for Chinese and Japanese (not tried yet), long presses, and the full

@@ -54,10 +54,10 @@ type drawUniforms struct {
 	baseColor             graphics.Vector
 	sway                  float32
 	depthBias             float32
-	patternScale          float32
+	padding               float32
 	instanced             int32
 	kind                  int32
-	pattern               int32
+	paddingInteger        int32
 	foliage               int32
 	levelVariationEnabled int32
 	seaSurface            int32
@@ -176,8 +176,8 @@ func seabedPassUniforms(region sceneplan.SeabedRegion) frameUniforms {
 func drawUniformsFor(command sceneplan.Command, levelVariationActive bool, frameLights []sceneplan.FrameLight) drawUniforms {
 	material := command.Material
 	uniforms := drawUniforms{model: command.World, baseColor: sceneplan.BaseColorOf(material),
-		sway: material.Sway, depthBias: material.DepthBias, patternScale: material.PatternScale,
-		kind: int32(material.Kind), pattern: int32(material.Pattern), foliage: boolean(material.Foliage),
+		sway: material.Sway, depthBias: material.DepthBias,
+		kind: int32(material.Kind), foliage: boolean(material.Foliage),
 		levelVariationEnabled: boolean(command.SeaSurface && levelVariationActive), seaSurface: boolean(command.SeaSurface)}
 	uniforms.lightCount = int32(command.Lights.Count)
 	for slot, index := range command.Lights.Indices[:command.Lights.Count] {

@@ -103,7 +103,7 @@ pixel on the 3DS for textured meshes: the measurements show its vertex work is t
 ## Tasks
 
 - [x] T1 — `scene.Texture`, `Wrap`, `TextureFormat`; `Mesh.UVs`; `Material.Texture`, `TextureScale`, `TextureOffset` · `scene` · R1, R2, R3 · tests of the defaults and of a mesh's UV count
-- [ ] T2 — built-in textures that tile without a seam; `Pattern` removed · `scene` · R4 · test: each tiles (its edges match), each is made once
+- [x] T2 — built-in textures that tile without a seam; `Pattern` removed · `scene` · R4 · test: each tiles (its edges match), each is made once
 - [ ] T3 — OpenGL: upload once per version, wrapping, filtering, mipmaps, sorting by texture · `opengl`, `internal/sceneplan` · R2–R4, R7 · frames compared under Mesa (a tinted tiled box, sharp and smooth); benchmarks with and without textures
 - [ ] T4 — OpenGL ES, for Android and the browser · `gles` · R2–R4 · tests with the recorder; an APK on the emulator
 - [ ] T5 — Metal (its AI-written renderers) · `metal` · R2–R4 · the author builds and looks on his Mac

@@ -36,7 +36,7 @@ any file without writing a line.
 The loader reads the node tree, positions, normals, vertex colours (`COLOR_0`), indices, the
 base colour of materials with `doubleSided` and `alphaMode`, compressed attributes
 (`KHR_mesh_quantization`) and instancing (`EXT_mesh_gpu_instancing`). Textures are not read: colour
-comes from materials, vertex colours and the procedural patterns.
+comes from materials, vertex colours and textures.
 
 ## Extras: what glTF cannot say
 
@@ -48,7 +48,7 @@ when *Include → Custom Properties* is ticked in the exporter.
 |---|---|---|
 | The scene | `environment`: `sunDirection`, `fog`, `water`, `wind`, `sky`, `snow`… | `world.Environment` (lesson 3) |
 | A mesh, a primitive or a node | `"ground": true` | `Mesh.Ground`: walkable, found by `GroundHeight` |
-| A material | `"kind": "glow"`, `"sway": 0.3`, `"pattern": "cobbles"`, `"patternScale": 0.5` | `Material.Kind`, `Sway`, `Pattern` (lessons 1–3) |
+| A material | `"kind": "glow"`, `"sway": 0.3`, `"texture": "cobbles"`, `"textureScale": 0.5` | `Material.Kind`, `Sway`, a built-in `Texture` and its `TextureScale` (lessons 1–3) |
 | A mesh | `"detail": [{"mesh": 3, "screenSize": 0.05}]` | Simpler versions drawn far away |
 | A node | `"label"`, `"icon"`, `"badge"`, `"label_color"`, `"pinned"` | A label, or a line of the header (lesson 4) |
 
