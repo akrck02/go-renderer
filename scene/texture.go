@@ -12,6 +12,18 @@ type Texture struct {
 	// between smaller copies of the picture far away).
 	Sharp  bool
 	Format TextureFormat // how the 3DS keeps it in its memory; other targets keep RGBA8
+	// Gain multiplies the texture's colour (0 = 1): a picture darker on average than white, as a
+	// pattern with dark joints is, would darken every surface that wears it. The built-in
+	// textures set it so that, on average, they keep the material's brightness.
+	Gain float32
+}
+
+// EffectiveGain is the texture's Gain, 1 when unset.
+func (texture *Texture) EffectiveGain() float32 {
+	if texture.Gain <= 0 {
+		return 1
+	}
+	return texture.Gain
 }
 
 // Wrap is what a surface shows where its UVs leave the picture (below 0 or above 1).

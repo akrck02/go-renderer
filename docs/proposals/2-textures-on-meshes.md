@@ -47,6 +47,17 @@ The author's answers (2026-10-26):
 4. **The procedural patterns:** they become built-in textures, so every target, the 3DS included,
    draws them; the pattern code in the desktop's shaders goes.
 
+After building, the author answered the review's questions (2026-10-26, "Dale"):
+
+5. **The old glTF extras** stay, deprecated: `"pattern"` and `"patternScale"` are read as the
+   built-in texture of that name, the cell size turned into the texture scale that keeps it.
+6. **The built-in textures keep a surface's brightness:** each carries a `Gain` (a new
+   `scene.Texture` field) that brings its mean in linear light to 1; the material's colour is
+   multiplied by it, so nothing changes per pixel.
+7. **The 3DS's limits** (no textures on water and moving nodes, no mipmaps, the fog tinted by the
+   texture) stay as documented.
+8. **go-engine** follows on its branch `feature/material-textures`.
+
 ## Design
 
 **In `scene`.** `Texture` is small and kept by the program:
@@ -141,4 +152,5 @@ transparency on every draw.
 **Still to be reviewed by a person:** everything (AI-written); the Metal renderer was written
 without a Mac and has never been compiled or run; nothing was tried on a real 3DS or phone. Left
 out: textures on the 3DS's water and moving nodes, mipmaps on the 3DS, and the 3D labels' five
-allocations a frame. go-engine's scenes can now name a material's texture: a follow-up there.
+allocations a frame. Decisions 5 to 8 were built after the review: the deprecated pattern extras,
+the textures' `Gain`, and go-engine's `feature/material-textures`.

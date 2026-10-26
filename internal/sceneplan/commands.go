@@ -68,12 +68,18 @@ func CastsShadow(command Command) bool {
 	return !command.Transparent && command.Material.Kind != scene.UnlitKind
 }
 
-// BaseColorOf returns a material's colour, white when it is unset.
+// BaseColorOf returns a material's colour, white when it is unset, times its texture's gain when
+// it has one (scene.Texture.Gain), so the texture keeps the surface's brightness.
 func BaseColorOf(material *scene.Material) graphics.Vector {
-	if material.BaseColor == (graphics.Vector{}) {
-		return graphics.Vector{1, 1, 1, 1}
+	color := material.BaseColor
+	if color == (graphics.Vector{}) {
+		color = graphics.Vector{1, 1, 1, 1}
 	}
-	return material.BaseColor
+	if !IsTextured(material) {
+		return color
+	}
+	gain := material.Texture.EffectiveGain()
+	return graphics.Vector{color[0] * gain, color[1] * gain, color[2] * gain, color[3]}
 }
 
 func materialOrDefault(material *scene.Material) *scene.Material {
