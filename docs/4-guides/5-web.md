@@ -130,7 +130,7 @@ servers usually do on the fly. The fonts and icons are inside it, so the page lo
 ## Not yet
 
 - The full scene renderer in WebGL2: shadows, the sky dome with stars and clouds, waves and tides,
-  patterns, wind and snow. It is a translation of the desktop shaders to GLSL ES, a larger piece of
+  wind and snow (textures are drawn already, as on the desktop). It is a translation of the desktop shaders to GLSL ES, a larger piece of
   work.
 - True instanced drawing, so that very large forests do not cost a copy of each mesh.
 - Loading `.glb` files in the page (`fetch`, then `loaders` on the bytes).

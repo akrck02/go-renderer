@@ -86,6 +86,7 @@ type WebGL struct {
 | `func (webgl *WebGL) DrawElements(mode gles.Enum, count int, kind gles.Enum, offset int)` | DrawElements implements gles.Functions. |
 | `func (webgl *WebGL) Enable(capability gles.Enum)` | Enable implements gles.Functions. |
 | `func (webgl *WebGL) EnableVertexAttribute(index uint32)` | EnableVertexAttribute implements gles.Functions. |
+| `func (webgl *WebGL) GenerateMipmap(target gles.Enum)` | GenerateMipmap implements gles.Functions. |
 | `func (webgl *WebGL) LinkProgram(program gles.Program)` | LinkProgram implements gles.Functions. |
 | `func (webgl *WebGL) ProgramLinked(program gles.Program) (bool, string)` | ProgramLinked implements gles.Functions. |
 | `func (webgl *WebGL) ReplaceTexturePart(target gles.Enum, level, x, y, width, height int, format, kind gles.Enum, pixels []byte)` | ReplaceTexturePart implements gles.Functions. |

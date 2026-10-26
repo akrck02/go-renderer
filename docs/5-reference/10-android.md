@@ -148,6 +148,7 @@ type GL struct{}
 | `func (GL) DrawElements(mode gles.Enum, count int, kind gles.Enum, offset int)` | DrawElements implements gles.Functions. |
 | `func (GL) Enable(capability gles.Enum)` | Enable implements gles.Functions. |
 | `func (GL) EnableVertexAttribute(index uint32)` | EnableVertexAttribute implements gles.Functions. |
+| `func (GL) GenerateMipmap(target gles.Enum)` | GenerateMipmap implements gles.Functions. |
 | `func (GL) LinkProgram(program gles.Program)` | LinkProgram implements gles.Functions. |
 | `func (GL) ProgramLinked(program gles.Program) (bool, string)` | ProgramLinked implements gles.Functions. |
 | `func (GL) ReplaceTexturePart(target gles.Enum, level, x, y, width, height int, format, kind gles.Enum, pixels []byte)` | ReplaceTexturePart implements gles.Functions. |
