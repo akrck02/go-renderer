@@ -35,6 +35,9 @@ type Session struct {
 // function, where the context is current. The session runs once PollEvents hears it is ready.
 func Open(headset android.Headset, options Options) (*Session, error) {
 	session := &Session{program: C.xr_new_program()}
+	if options.Passthrough {
+		session.program.wants_passthrough = 1
+	}
 	if err := session.open(headset, options); err != nil {
 		session.Close()
 		return nil, err
@@ -104,7 +107,25 @@ func (session *Session) createSession(headset android.Headset) error {
 	if session.program.framebuffer_incomplete != 0 {
 		return FramebufferIncomplete
 	}
-	return session.check(SessionNotCreated, "xrCreateSwapchain", result)
+	if err := session.check(SessionNotCreated, "xrCreateSwapchain", result); err != nil {
+		return err
+	}
+	return session.startPassthrough()
+}
+
+// startPassthrough shows the room behind the scene when the program asked for it and the runtime
+// has the extension; otherwise there is nothing to start.
+func (session *Session) startPassthrough() error {
+	if session.program.has_passthrough == 0 {
+		return nil
+	}
+	return session.check(PassthroughNotStarted, "xrCreatePassthroughFB", C.xr_start_passthrough(session.program))
+}
+
+// ShowsRoom tells whether the room is shown behind the scene: the program asked for it
+// (Options.Passthrough) and the runtime has it.
+func (session *Session) ShowsRoom() bool {
+	return session.program != nil && session.program.passthrough_running != 0
 }
 
 // Close ends the session and lets go of the runtime. Call it on the drawing thread, once Finished

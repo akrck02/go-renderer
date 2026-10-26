@@ -10,7 +10,7 @@ import (
 func TestErrorsAreNamedForTheirPackage(test *testing.T) {
 	codes := []*failure.Code{
 		LoaderNotFound, ExtensionMissing, InstanceNotCreated, HeadsetNotFound, GraphicsUnsupported,
-		SessionNotCreated, FramebufferIncomplete, ControlsNotCreated, FrameFailed, SessionLost,
+		SessionNotCreated, FramebufferIncomplete, ControlsNotCreated, FrameFailed, SessionLost, PassthroughNotStarted,
 	}
 	seen := map[string]bool{}
 	for _, code := range codes {

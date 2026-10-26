@@ -129,3 +129,26 @@ func TestNoViewsDrawNothing(test *testing.T) {
 		test.Fatalf("planned %d frames and drew %d calls for no views", renderer.plans, len(fake.draws))
 	}
 }
+
+func TestASeeThroughSceneClearsToNothingSoTheRoomShows(test *testing.T) {
+	for _, seeThrough := range []bool{false, true} {
+		fake := newRecorder()
+		renderer, err := NewSceneRenderer(fake, overlay.Fonts{})
+		if err != nil {
+			test.Fatal(err)
+		}
+		renderer.SeeThrough = seeThrough
+		views, covering, aspect := twoEyes()
+		renderer.DrawViews(sample.Island(), covering, aspect, views)
+		if len(fake.clearColors) == 0 {
+			test.Fatalf("see-through %v: nothing was cleared", seeThrough)
+		}
+		alpha := fake.clearColors[len(fake.clearColors)-1][3]
+		if seeThrough && fake.clearColors[len(fake.clearColors)-1] != [4]float32{} {
+			test.Errorf("see-through: clear colour %v, want transparent", fake.clearColors[len(fake.clearColors)-1])
+		}
+		if !seeThrough && alpha != 1 {
+			test.Errorf("not see-through: clear alpha %v, want the opaque horizon", alpha)
+		}
+	}
+}

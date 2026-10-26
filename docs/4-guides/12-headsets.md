@@ -322,6 +322,20 @@ the program does not have the controls.
 On a Meta Quest 3 (October 2026): a 1024 × 640 panel shown 1.5 m ahead, drawn by `FlatRenderer` in
 linear colour, reads with its own colours (not washed out) at 72 frames a second.
 
+### The room behind the scene
+
+On a Meta Quest the scene can stand in the player's own room. Open the session with
+`openxr.Options{Passthrough: true}`: when the runtime has `XR_FB_passthrough`, the session makes a
+passthrough layer, and every frame puts it under the eyes' picture. Draw the eyes with
+`gles.SceneRenderer.SeeThrough` while `Session.ShowsRoom()` is true: the renderer clears to
+transparent instead of the horizon, so the room shows wherever nothing is drawn.
+
+Meta's runtime has no `ALPHA_BLEND` environment blend mode, only `OPAQUE`: the passthrough layer is
+how a Quest mixes the room in. The application's manifest must also declare
+`com.oculus.feature.PASSTHROUGH` (go-meta-quest's does). Without the extension the session opens as usual, with nothing
+behind the scene, and `ShowsRoom` is false. A runtime that has it but will not start it fails `Open`
+with `openxr.passthrough-not-started`.
+
 ### Not checked yet
 
 No headset was connected, so none of this has run. The pure parts are unit-tested on a computer
