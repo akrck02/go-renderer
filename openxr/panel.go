@@ -31,6 +31,13 @@ type Panel struct {
 // fails), only placed, for working out what a panel shows and where off the headset, as in tests.
 func DetachedPanel(width, height int) *Panel { return &Panel{width: width, height: height} }
 
+// PanelWithTarget is a panel of width × height pixels whose picture is drawn where target says:
+// for a program that composes panels itself, as one that stands in for a headset on a computer
+// does. target is asked each time Target is, and hands out a framebuffer of that size.
+func PanelWithTarget(width, height int, target func() (gles.Framebuffer, error)) *Panel {
+	return &Panel{width: width, height: height, acquire: target}
+}
+
 // Width and Height are the panel's picture in pixels, what it was made with.
 func (panel *Panel) Width() int  { return panel.width }
 func (panel *Panel) Height() int { return panel.height }
