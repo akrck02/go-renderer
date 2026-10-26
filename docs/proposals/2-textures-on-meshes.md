@@ -35,16 +35,17 @@ Today `scene.Mesh` has no texture coordinates and `scene.Material` no texture, o
 - Texture atlases built by the renderer, and texture compression on the desktop.
 - Fetching pictures from the network: a program downloads them and hands over the pixels.
 
-## Open questions for the author
+## Decisions
 
-1. **Where a texture lives.** A new `scene.Texture` (pixels, wrapping, filtering), or the 2D
-   `draw2d.Image`, shared by 2D and 3D?
-2. **Filtering.** Smooth (linear, with mipmaps on the desktop) by default, or sharp (nearest) for a
-   pixel-art look, chosen per texture?
-3. **The 3DS's formats.** RGBA8 only (simplest, 4 bytes a pixel), or also RGB565 and ETC1 to save
-   its memory?
-4. **The procedural patterns.** Keep them beside textures, or let the six become built-in textures
-   that every target, the 3DS included, can draw?
+The author's answers (2026-10-26):
+
+1. **Where a texture lives:** open. Proposed: a small `scene.Texture` that holds a `draw2d.Image`
+   for its pixels (one way to keep pixels, for 2D and 3D alike) and the settings only 3D needs:
+   wrapping, filtering, the 3DS's format.
+2. **Filtering:** chosen per texture, smooth or sharp.
+3. **The 3DS's formats:** save memory where it can: RGBA8, RGB565 and ETC1, chosen per texture.
+4. **The procedural patterns:** they become built-in textures, so every target, the 3DS included,
+   draws them; the pattern code in the desktop's shaders goes.
 
 ## Result
 
