@@ -51,8 +51,15 @@ void main() {
 // and a backdrop's from the blurred snapshot of the frame, where the quad is on screen.
 const quadFragmentShader = `#version 100
 precision mediump float;
+// The atlases are thousands of pixels wide: mediump (about 11 bits on phones) reads them a pixel
+// or two off, cutting and shifting glyphs. Where to read them is highp when the phone has it.
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+varying highp vec2 atlasCoordinate;
+varying highp vec2 pictureCoordinate;
+#else
 varying vec2 atlasCoordinate;
 varying vec2 pictureCoordinate;
+#endif
 varying float sharp;
 varying vec2 pictureTexel;
 varying vec4 color;
@@ -66,7 +73,11 @@ void main() {
     float coverage = texture2D(atlas, atlasCoordinate).r;
     vec4 painted = color;
     if (pictureCoordinate.x >= 0.0) {
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+        highp vec2 read = pictureCoordinate;
+#else
         vec2 read = pictureCoordinate;
+#endif
         if (sharp > 0.5) {
             read = (floor(read / pictureTexel) + 0.5) * pictureTexel; // the middle of the nearest pixel
         }
