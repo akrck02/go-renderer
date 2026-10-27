@@ -105,13 +105,32 @@ On `feature/android-emoji` (from `feature/browser-emoji`), one commit per task, 
 `go-renderer` main tree's uncommitted `android/java/TextInput.java` is not touched: this work lives
 in the `go-renderer-browser-emoji` worktree.
 
-- [ ] T1 — Colour emoji fonts are font files only · `opengl/overlay/emoji_files.go` · R7 · test `a renamed emoji font is not read`
-- [ ] T2 — A chain of emoji sources and the hook: `UseSystemEmoji(drawer)` sets a source asked after the font files; the platform source turns the drawer's picture into an `emojiGlyph` · `opengl/overlay/emoji.go`, `emoji_system.go` · R2–R5 · tests `the font file's emoji wins over the system's`, `an emoji the fonts lack is asked of the system once`, `a text with a system emoji is as wide as its parts`, `without either, the character is drawn as a question mark`; `testing.AllocsPerRun` on a second frame
-- [ ] T3 — `EmojiPicture.java`: one static method that draws a character at a size in pixels with `Paint` and `Canvas` into a `Bitmap`, twice in two colours, and returns the ARGB pixels and the four measures, or null for no colour emoji; added to `java.Sources` (go-ui-apk compiles every entry) · `android/java/` · R1, R5 · a test like `screenreader_nodes_test.go`'s that the class name and package agree
-- [ ] T4 — The JNI side: the class is loaded on the interface thread when the activity is made (`load_package_class`, a global reference); the call attaches the GL thread to the Java machine when it is not, and never throws into Go; Go undoes Android's premultiplied alpha into an `image.NRGBA`; the `android` package calls `overlay.UseSystemEmoji` at start · `android/emoji.c`, `android/emoji.go` · R1, R4 · build for android/arm64 and android/amd64; by hand on the emulator
-- [ ] T5 — Check and docs: the emulator capture of R1 (Android 14, `NotoColorEmojiLegacy.ttf` moved out of `/system/fonts`) next to the same frame with it in place, in `docs/images/`; the overlay guide and the Android guide say where emoji come from on each platform; README's AI disclosure kept true · `docs/` · R1, R6 · captures; the docs build
+- [x] T1 — Colour emoji fonts are font files only · `opengl/overlay/emoji_files.go` · R7 · test `a renamed emoji font is not read`
+- [x] T2 — A chain of emoji sources and the hook: `UseSystemEmoji(drawer)` sets a source asked after the font files; the platform source turns the drawer's picture into an `emojiGlyph` · `opengl/overlay/emoji.go`, `emoji_system.go` · R2–R5 · tests `the font file's emoji wins over the system's`, `an emoji the fonts lack is asked of the system once`, `a text with a system emoji is as wide as its parts`, `without either, the character is drawn as a question mark`; `testing.AllocsPerRun` on a second frame
+- [x] T3 — `EmojiPicture.java`: one static method that draws a character at a size in pixels with `Paint` and `Canvas` into a `Bitmap`, twice in two colours, and returns the ARGB pixels and the four measures, or null for no colour emoji; added to `java.Sources` (go-ui-apk compiles every entry) · `android/java/` · R1, R5 · a test like `screenreader_nodes_test.go`'s that the class name and package agree
+- [x] T4 — The JNI side: the class is loaded on the interface thread when the activity is made (`load_package_class`, a global reference); the call attaches the GL thread to the Java machine when it is not, and never throws into Go; Go undoes Android's premultiplied alpha into an `image.NRGBA`; the `android` package calls `overlay.UseSystemEmoji` at start · `android/emoji.c`, `android/emoji.go` · R1, R4 · build for android/arm64 and android/amd64; by hand on the emulator
+- [x] T5 — Check and docs: the emulator capture of R1 (Android 14, `NotoColorEmojiLegacy.ttf` moved out of `/system/fonts`) next to the same frame with it in place, in `docs/images/`; the overlay guide and the Android guide say where emoji come from on each platform; README's AI disclosure kept true · `docs/` · R1, R6 · captures; the docs build
 - [ ] T6 — Hand-over: the chat's `go.mod` already points at this worktree; deploy-manager checks the preview and the bubble on its emulator without the CBDT font, then rebuilds the APK (arm64, x86_64) and publishes it, keeping the old one · · by hand; the author confirms on the Pixel
 
 ## Result
 
-*Filled at the end.*
+Built on `feature/android-emoji`, one commit per task, not pushed. `gofmt`, `go vet` and
+`go test ./...` pass; the `android` package builds for android/arm64 and android/amd64, and
+`EmojiPicture.java` compiles against android-36.
+
+On the Android 14 emulator, a small Go UI program with 😀 👍 🚀 ❤️ at 16, 32 and 48 pixels draws
+them in colour both with `NotoColorEmojiLegacy.ttf` in place and with it moved out of
+`/system/fonts` (R1; `docs/images/android-emoji-*.png`).
+
+What differs from the plan:
+
+- **No unpremultiplying in Go.** `Bitmap.getPixels` already gives straight (not premultiplied)
+  colours, so Go only reorders ARGB into `image.NRGBA`.
+- **The hook is set in `goStartMain`,** before `main` runs, not in `Run`: a program may measure text
+  before its window starts, and an emoji looked for once is not looked for again.
+- **The tool must carry the class.** `go-ui-apk` compiles the `java.Sources` of the go-renderer it
+  was built with. Built from go-ui-android, whose `go.mod` points at `../go-renderer`, it leaves
+  `EmojiPicture` out and the phone keeps its question marks. Until this branch is merged, build the
+  tool against this worktree (`go build -modfile` with the `replace` changed).
+
+Not tested: a real phone (the author's Pixel confirms after T6), and the arm64 build on a device.
