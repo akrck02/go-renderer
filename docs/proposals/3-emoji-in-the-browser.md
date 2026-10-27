@@ -83,7 +83,7 @@ There is a single seam. The painter (`drawing.go`) and the `Measurer` both ask
 - [x] T3 — The browser's source: draw on a 2D canvas, read the pixels, an empty canvas is no
   glyph · `opengl/overlay/emoji_browser.go` (`js && wasm`) · serves R1, R3, R5 · test under
   `GOOS=js` in Node, which has no canvas: `TestWithoutACanvasAnEmojiIsDrawnAsAQuestionMark`
-- [ ] T4 — A page to look at: a label with "North light 🌊 😀 🚀 ❤️", captured in headless Chromium
+- [x] T4 — A page to look at: a label with "North light 🌊 😀 🚀 ❤️", captured in headless Chromium
   and on the desktop · an example under `cmd/` · serves R1, R3 · check: the two captures side
   by side in the proposal's Result
 - [ ] T5 — Docs: the overlay guide's emoji paragraph says where a browser's emoji come from, and
