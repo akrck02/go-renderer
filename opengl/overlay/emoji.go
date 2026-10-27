@@ -1,15 +1,17 @@
 package overlay
 
 import (
+	"image"
 	"sync"
+	"sync/atomic"
 	"unicode"
 
 	"github.com/akrck02/go-renderer/draw2d"
 )
 
 // Emoji are drawn in their own colours, as pictures in the picture atlas, in the same draw call as
-// the text: from the system's colour emoji font (Android's NotoColorEmoji), or drawn by the browser
-// in a page. Each is made once at each size it is drawn at, so it stays sharp and does not shimmer.
+// the text: from the system's colour emoji font (Android's NotoColorEmojiLegacy), drawn by the
+// platform when no font file has them (see UseSystemEmoji), or drawn by the browser in a page. Each is made once at each size it is drawn at, so it stays sharp and does not shimmer.
 
 // emojiFont keeps the emoji drawn so far, each at each size it was drawn at, and asks its source
 // for the ones it has not made yet (see systemFontsIn).
@@ -62,6 +64,55 @@ func (emoji *emojiFont) glyph(character rune, size int) (*emojiGlyph, bool) {
 	}
 	emoji.glyphs[key] = glyph
 	return glyph, found
+}
+
+// SystemEmojiDrawer draws a character as a colour emoji at a size in pixels, with the platform's
+// own emoji. It returns the picture and where it sits, in pixels: left of the pen, top above the
+// baseline, and the pen's move after it; found is false when the platform has no colour emoji of
+// the character (a letter drawn in one colour is not one).
+type SystemEmojiDrawer func(character rune, pixels int) (picture image.Image, left, top, advance float32, found bool)
+
+// systemDrawer is the platform's drawer, nil until one is set.
+var systemDrawer atomic.Pointer[SystemEmojiDrawer]
+
+// UseSystemEmoji makes the overlay ask the platform to draw the emoji that no colour font file
+// has, such as on an Android whose emoji font is drawn from outlines. Set it once, before the
+// first frame: an emoji already looked for at a size is not looked for again. Nil stops asking.
+func UseSystemEmoji(drawer SystemEmojiDrawer) {
+	if drawer == nil {
+		systemDrawer.Store(nil)
+		return
+	}
+	systemDrawer.Store(&drawer)
+}
+
+// systemEmoji is the emoji the platform draws, through the drawer set with UseSystemEmoji.
+type systemEmoji struct{}
+
+func (systemEmoji) emoji(character rune, size int) (*emojiGlyph, bool) {
+	drawer := systemDrawer.Load()
+	if drawer == nil {
+		return nil, false
+	}
+	picture, left, top, advance, found := (*drawer)(character, size)
+	if !found || picture == nil || picture.Bounds().Empty() {
+		return nil, false
+	}
+	bounds := picture.Bounds()
+	return &emojiGlyph{picture: draw2d.NewImage(picture), left: left, top: top, advance: advance,
+		pixelWidth: bounds.Dx(), pixelHeight: bounds.Dy()}, true
+}
+
+// emojiSources asks each source in turn, and takes the first picture.
+type emojiSources []emojiSource
+
+func (sources emojiSources) emoji(character rune, size int) (*emojiGlyph, bool) {
+	for _, source := range sources {
+		if glyph, found := source.emoji(character, size); found {
+			return glyph, true
+		}
+	}
+	return nil, false
 }
 
 // emojiFirst tells whether a character is shown as a colour emoji before any font's outline of

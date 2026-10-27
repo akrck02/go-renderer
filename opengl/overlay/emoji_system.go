@@ -3,7 +3,7 @@
 package overlay
 
 // emojiSourceFor is where the emoji drawn come from: the system's colour emoji fonts in these
-// folders.
+// folders, and then the platform, for those no font file has a picture of.
 func emojiSourceFor(folders []string) emojiSource {
-	return newFontFileEmoji(folders)
+	return emojiSources{newFontFileEmoji(folders), systemEmoji{}}
 }
