@@ -109,10 +109,16 @@ goes in the same draw call as the text, faded as the text is. An emoji by defaul
 pictograph, transport) is drawn as a picture before any outline of it; another character is when
 it is followed by `U+FE0F` (❤️) or when no font has an outline of it. The variation selectors and
 the zero width joiner are not drawn; sequences joined by it (a family, a skin tone) show as their
-parts, as the font's ligatures are not read. Android 13 and later draw their own emoji from vector
-outlines (COLRv1, not read here) and keep the pictures in `NotoColorEmojiLegacy`, which is used;
-the fonts are tried in turn, the one for flags alone last. Tried on the Android 14 emulator:
-"North light 🌊 😀 🚀 ❤️ 灯台" in one field.
+parts, as the font's ligatures are not read. Only files named as fonts (`.ttf`, `.otf`, `.ttc`,
+`.otc`) are read, and they are tried in turn, the one for flags alone last.
+
+Some systems draw their emoji from vector outlines (COLRv1), which are not read here. Android 13 and
+later keep the pictures too, in `NotoColorEmojiLegacy`, but a newer phone, or one whose maker ships
+its own emoji font, may have no file the overlay can read. For those, a platform can draw the
+emoji itself: `overlay.UseSystemEmoji(drawer)` sets a function the overlay asks for an emoji no font
+file has, once per emoji and size. The `android` package sets it before `main` runs, and Android's
+own canvas draws the emoji (see [On Android](6-android.md)). Without a font file or a drawer, the
+character is a question mark, as before.
 
 In a **browser** a program cannot read the system's font files, but the browser draws with them.
 So each emoji is drawn by the browser, on a canvas that is never shown, and read back as a picture,

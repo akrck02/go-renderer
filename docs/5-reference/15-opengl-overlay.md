@@ -16,6 +16,7 @@ the OpenGL scene renderer uploads its atlas and draws its quads.
 | Function | |
 |---|---|
 | `func DefaultFontFolders() []string` | DefaultFontFolders are where the system's fonts are looked for by default, for characters the program's fonts lack: Android's own, or the usual folders of the desktop's system. |
+| `func UseSystemEmoji(drawer SystemEmojiDrawer)` | UseSystemEmoji makes the overlay ask the platform to draw the emoji that no colour font file has, such as on an Android whose emoji font is drawn from outlines. |
 
 ### Constants and variables
 
@@ -66,8 +67,8 @@ type Fonts struct {
 	Regular, Medium, Bold, Mono []byte
 	// Folders are where the system's fonts and colour emoji are looked for, for characters the
 	// fonts lack. nil is DefaultFontFolders(); an empty, non-nil list looks nowhere, and such
-	// characters are drawn as a question mark. In a browser the emoji come from the browser
-	// itself, and Folders is not looked in for them.
+	// characters are drawn as a question mark, unless UseSystemEmoji has a drawer for them. In
+	// a browser the emoji come from the browser itself, and Folders is not looked in for them.
 	Folders []string
 }
 ```
@@ -220,6 +221,14 @@ type Snapshot struct {
 	At   int
 	Blur float32
 }
+```
+
+### SystemEmojiDrawer
+
+SystemEmojiDrawer draws a character as a colour emoji at a size in pixels, with the platform's own emoji. It returns the picture and where it sits, in pixels: left of the pen, top above the baseline, and the pen's move after it; found is false when the platform has no colour emoji of the character (a letter drawn in one colour is not one).
+
+```go
+type SystemEmojiDrawer func(character rune, pixels int) (picture image.Image, left, top, advance float32, found bool)
 ```
 
 ---
