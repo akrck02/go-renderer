@@ -54,8 +54,11 @@ There is a single seam. The painter (`drawing.go`) and the `Measurer` both ask
   `<canvas>` when there is none). It sets the font to the systems' emoji families (`Apple Color
   Emoji`, `Segoe UI Emoji`, `Noto Color Emoji`) at the size in pixels. `measureText` gives the
   advance and the ascent; `fillText` and `getImageData` give the pixels as an `image.NRGBA`. A
-  canvas left empty means the system has no picture of the character, so no glyph. With no
-  canvas at all there is no source, and the text keeps its `?` (R5).
+  canvas left empty means the system has no picture of the character, so no glyph. So does one
+  the browser draws in the fill's colour: it is drawn twice, in two colours, and a colour emoji
+  keeps its own. Where there is no canvas at all (Node), the font files are read, as on other
+  systems; with none in reach, the text keeps its `?` (R5). *Changed while building: the plan had
+  no source there, but Node can read files, and the overlay's tests run in it.*
 - `fallback.go` picks the source when it makes the `emojiFont`: the browser's under `js && wasm`,
   the files' elsewhere. `Fonts.Folders` keeps its meaning for the files' source; in a browser it is
   ignored, and the docs say so.
@@ -77,7 +80,7 @@ There is a single seam. The painter (`drawing.go`) and the `Measurer` both ask
   tests as they are
 - [x] T2 — Measure with the source's advance: a text with emoji is as wide as its parts · serves
   R2 · test: `TestATextWithAnEmojiIsAsWideAsItsParts` (fake source, "a😀b")
-- [ ] T3 — The browser's source: draw on a 2D canvas, read the pixels, an empty canvas is no
+- [x] T3 — The browser's source: draw on a 2D canvas, read the pixels, an empty canvas is no
   glyph · `opengl/overlay/emoji_browser.go` (`js && wasm`) · serves R1, R3, R5 · test under
   `GOOS=js` in Node, which has no canvas: `TestWithoutACanvasAnEmojiIsDrawnAsAQuestionMark`
 - [ ] T4 — A page to look at: a label with "North light 🌊 😀 🚀 ❤️", captured in headless Chromium
