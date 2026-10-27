@@ -75,7 +75,7 @@ There is a single seam. The painter (`drawing.go`) and the `Measurer` both ask
   `emoji_files.go` unchanged · `opengl/overlay/emoji.go`, `emoji_files.go`, `fallback.go` · serves
   R4, R6 · tests: `TestAnEmojiIsMadeOncePerSize` (a fake source counts its calls), and the overlay's
   tests as they are
-- [ ] T2 — Measure with the source's advance: a text with emoji is as wide as its parts · serves
+- [x] T2 — Measure with the source's advance: a text with emoji is as wide as its parts · serves
   R2 · test: `TestATextWithAnEmojiIsAsWideAsItsParts` (fake source, "a😀b")
 - [ ] T3 — The browser's source: draw on a 2D canvas, read the pixels, an empty canvas is no
   glyph · `opengl/overlay/emoji_browser.go` (`js && wasm`) · serves R1, R3, R5 · test under
