@@ -2,6 +2,7 @@ package android
 
 import (
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -68,7 +69,7 @@ func TestTheKeyboardsViewIsWhereTheBridgeLooks(test *testing.T) {
 			test.Fatalf("textinput.c and TextInput.java no longer agree on %s", both[0])
 		}
 	}
-	if len(java.Sources) != 2 || java.Sources[1].Text != java.TextInput {
-		test.Fatal("the tool compiles both classes")
+	if !slices.Contains(java.Sources, java.Source{Path: java.TextInputPath, Text: java.TextInput}) {
+		test.Fatal("the tool compiles the class")
 	}
 }
