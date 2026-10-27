@@ -30,6 +30,7 @@ what was tested.
 | The system's bars and theme, and the wallpaper's palettes, through JNI | `android/system.c`, `android/palettes.go` |
 | What a screen reader (TalkBack) reads, and what it asks | `android/screenreader.go`, `screenreader.c`, `android/java/ScreenReader.java` |
 | The text the on-screen keyboard edits: words, suggestions, the word being composed | `android/keyboard.go`, `android/textinput.go`, `textinput.c`, `android/java/TextInput.java` |
+| The emoji no font file has, drawn by Android | `android/emoji.go`, `emoji_picture.go`, `emoji.c`, `android/java/EmojiPicture.java` |
 
 **Starting.** Android loads the library and calls `ANativeActivity_onCreate`. Go does not run
 `main.main` in a shared library by itself, so the first time the library finds it by name and calls
@@ -106,9 +107,10 @@ go build -buildmode=c-shared -ldflags=-extldflags=-Wl,-z,max-page-size=16384 -o 
 ```
 
 A package then holds `lib/arm64-v8a/libprogram.so` and a manifest whose activity is
-`android.app.NativeActivity`, with `android.app.lib_name` set to `program`. For a screen reader it
-also holds `classes.dex`, compiled from `android/java/ScreenReader.java` (`javac`, then the build
-tools' `d8`), and says `android:hasCode="true"`; without it, the program runs with no screen reader.
+`android.app.NativeActivity`, with `android.app.lib_name` set to `program`. For a screen reader, the
+keyboard's text and the phone's own emoji it also holds `classes.dex`, compiled from every file of
+`android/java` (`java.Sources`; `javac`, then the build tools' `d8`), and says
+`android:hasCode="true"`; without it, the program runs without them.
 Go UI for Android's `go-ui-apk` does it all with the Android SDK's tools. The 16 KB alignment is what
 phones with 16 KB memory pages (Android 15 and later) need.
 
@@ -231,8 +233,39 @@ ScreenReader.java         a virtual view per node, answering TalkBack; its focus
 - **Text as UTF-16.** JNI's own UTF-8 is not quite UTF-8: an emoji in a label sent that way stops a
   program. Labels cross as Java keeps them, and so does a field's new text on its way back.
 
+## Emoji
+
+The overlay reads colour emoji from the phone's font files when it can: the PNG pictures of a
+`CBDT` font, which Android 13 and 14 still keep in `NotoColorEmojiLegacy.ttf`. A newer phone, or one
+whose maker ships its own emoji font, may only have emoji drawn from vector outlines (COLRv1), which
+Go does not read. There Android itself draws them.
+
+```text
+the overlay               an emoji no font file has: asks the drawer set with UseSystemEmoji
+android (Go)              sets the drawer before main; reads the answer into a picture
+emoji.c                   attaches the drawing thread to Java and calls the class
+EmojiPicture.java         Paint and Canvas draw the character into a Bitmap, with its measures
+```
+
+- **Once per emoji and size.** The overlay keeps each picture, so a frame showing emoji already
+  made calls no Java and allocates nothing.
+- **A letter is not an emoji.** Android draws a character in a plain font when no emoji font has
+  it. So the class draws it twice, in red and in blue: a colour emoji keeps its own colours, a
+  letter takes the paint's, and then there is no picture and the text keeps its question mark.
+- **Straight colours.** `Bitmap.getPixels` gives the pixels not premultiplied, as Go keeps them.
+- **Older packages.** A package made without the class draws only what the font files have, and
+  says so once in the log.
+
+Tried on the Android 14 emulator, with `NotoColorEmojiLegacy.ttf` in place (left to the font file)
+and moved out of `/system/fonts` (drawn by Android). Before this, the second showed question marks.
+
+![Emoji read from the font file, on Android 14](../images/android-emoji-font-file.png)
+
+![The same emoji drawn by Android, with no CBDT font](../images/android-emoji-drawn-by-android.png)
+
 ## Not yet
 
+- Emoji sequences joined by U+200D (a family, a skin tone) show as their parts.
 - Keyboards for Chinese and Japanese, which compose the same way, are not tried yet.
 - Long presses.
 - Instanced drawing with OpenGL ES 3, and the full scene renderer (shadows, sky, waves) on phones.
