@@ -120,11 +120,16 @@ func (fallback *fallbackFonts) list() {
 }
 
 func isFontFile(path string) bool {
+	// a colour emoji font has pictures, not outlines: it is not drawn in one colour
+	name := plainName(path)
+	return hasFontExtension(path) && !strings.Contains(name, "color") && !strings.Contains(name, "colour")
+}
+
+// hasFontExtension tells whether a file is named as a font, or a collection of them.
+func hasFontExtension(path string) bool {
 	switch strings.ToLower(filepath.Ext(path)) {
 	case ".ttf", ".otf", ".ttc", ".otc":
-		// a colour emoji font has pictures, not outlines: it is not drawn in one colour
-		name := plainName(path)
-		return !strings.Contains(name, "color") && !strings.Contains(name, "colour")
+		return true
 	}
 	return false
 }

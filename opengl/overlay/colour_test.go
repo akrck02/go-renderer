@@ -148,6 +148,15 @@ func TestEveryColourFontIsLookedIn(test *testing.T) {
 	}
 }
 
+// Hiding a font by renaming it, as one does to see how a phone without it behaves, must hide it.
+func TestARenamedEmojiFontIsNotRead(test *testing.T) {
+	fonts := withFontFolder(test, map[string][]byte{"NotoColorEmoji.ttf.hidden": colourTestFont(test)})
+	_, systemEmoji := systemFontsIn(fonts.Folders)
+	if _, found := systemEmoji.glyph(wave, 16); found {
+		test.Fatal("a file that is not named as a font was read as one")
+	}
+}
+
 func TestASelectorAsksForThePictureOverAnOutline(test *testing.T) {
 	// a character the Go fonts draw, with a picture in the colour font too
 	fonts := withFontFolder(test, map[string][]byte{"NotoColorEmoji.ttf": colourTestFontOf(test, '©')})
