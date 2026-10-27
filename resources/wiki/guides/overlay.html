@@ -147,10 +147,22 @@ goes in the same draw call as the text, faded as the text is. An emoji by defaul
 pictograph, transport) is drawn as a picture before any outline of it; another character is when
 it is followed by <code>U+FE0F</code> (❤️) or when no font has an outline of it. The variation selectors and
 the zero width joiner are not drawn; sequences joined by it (a family, a skin tone) show as their
-parts, as the font&rsquo;s ligatures are not read. Android 13 and later draw their own emoji from vector
-outlines (COLRv1, not read here) and keep the pictures in <code>NotoColorEmojiLegacy</code>, which is used;
-the fonts are tried in turn, the one for flags alone last. Tried on the Android 14 emulator:
-&ldquo;North light 🌊 😀 🚀 ❤️ 灯台&rdquo; in one field.</p>
+parts, as the font&rsquo;s ligatures are not read. Only files named as fonts (<code>.ttf</code>, <code>.otf</code>, <code>.ttc</code>,
+<code>.otc</code>) are read, and they are tried in turn, the one for flags alone last.</p>
+
+<p>Some systems draw their emoji from vector outlines (COLRv1), which are not read here. Android 13 and
+later keep the pictures too, in <code>NotoColorEmojiLegacy</code>, but a newer phone, or one whose maker ships
+its own emoji font, may have no file the overlay can read. For those, a platform can draw the
+emoji itself: <code>overlay.UseSystemEmoji(drawer)</code> sets a function the overlay asks for an emoji no font
+file has, once per emoji and size. The <code>android</code> package sets it before <code>main</code> runs, and Android&rsquo;s
+own canvas draws the emoji (see <a href="./guides/android">On Android</a>). Without a font file or a drawer, the
+character is a question mark, as before.</p>
+
+<p>In a <strong>browser</strong> a program cannot read the system&rsquo;s font files, but the browser draws with them.
+So each emoji is drawn by the browser, on a canvas that is never shown, and read back as a picture,
+once per size; from there it goes the same way. To tell a colour emoji from a letter, the browser
+draws it twice in two colours: a colour emoji keeps its own, a letter takes the fill&rsquo;s and is left
+to the text&rsquo;s fonts. See <a href="./guides/web">In a web browser</a> for the page that shows them.</p>
 
 <p>On a high-density screen one window pixel is two framebuffer pixels; the viewer sets
 <code>SceneRenderer.OverlayScale</code> so the overlay keeps its size.</p>

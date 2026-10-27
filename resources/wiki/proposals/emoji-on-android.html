@@ -1,0 +1,224 @@
+<h1 id="4-emoji-on-any-android">4. Emoji on any Android</h1>
+
+<blockquote>
+<p>Status: approved, to build · Author&rsquo;s approval: proposal ☑ plan ☑ (through the organizer, 2026-10-27)</p>
+</blockquote>
+
+<h2 id="why">Why</h2>
+
+<p>On Android the overlay reads colour emoji from the system&rsquo;s font files, and it can only read one
+kind of them: <strong>CBDT</strong>, where each emoji is a PNG picture. Android 13 moved its own emoji to
+<strong>COLRv1</strong>, where each emoji is a vector drawing with gradients, and kept a CBDT copy,
+<code>NotoColorEmojiLegacy.ttf</code>, for programs like this one. On the Android 14 emulator that copy is
+there, and a chat made with Go UI draws 👍 in colour.</p>
+
+<p>A Pixel 6 Pro on Android 17 draws <code>?</code> instead: a recent Android, and phones whose maker ships its
+own emoji font, carry no CBDT file the overlay can read. Every emoji turns into a question mark,
+in every program built with go-renderer, and nothing tells the program why.</p>
+
+<h2 id="what">What</h2>
+
+<table>
+<thead>
+<tr>
+<th>Id</th>
+<th>Requirement</th>
+<th>Check</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>R1</td>
+<td>On an Android with no CBDT emoji font, an emoji of one character (😀, 👍, 🚀) and one asked for with <code>U+FE0F</code> (❤️) is drawn in colour, at the text&rsquo;s size, on its baseline</td>
+<td>emulator capture on Android 14 with <code>NotoColorEmojiLegacy.ttf</code> moved out, next to the same label with it in place</td>
+</tr>
+
+<tr>
+<td>R2</td>
+<td>An emoji is measured as it is drawn, so text with emoji wraps, centres and ellipsises right</td>
+<td>test with a fake platform source: the width of &ldquo;a😀b&rdquo; is the sum of its three advances</td>
+</tr>
+
+<tr>
+<td>R3</td>
+<td>Where a CBDT font has the emoji (Android 14 and earlier), it is used as today, without calling Java</td>
+<td>test: with both sources, the font file&rsquo;s picture wins and the platform source is never asked</td>
+</tr>
+
+<tr>
+<td>R4</td>
+<td>Each emoji is made once per size; a frame showing emoji already made calls no Java and allocates nothing</td>
+<td>test: drawing the same label twice asks the platform once</td>
+</tr>
+
+<tr>
+<td>R5</td>
+<td>When the platform cannot draw it either, the text keeps its <code>?</code>, as today, and nothing fails</td>
+<td>test with a platform source that has nothing</td>
+</tr>
+
+<tr>
+<td>R6</td>
+<td>The desktop and the browser draw emoji exactly as today</td>
+<td>the overlay&rsquo;s tests, and proposal 3&rsquo;s browser capture, unchanged</td>
+</tr>
+
+<tr>
+<td>R7</td>
+<td>Only font files (by their extension) are read as colour emoji fonts</td>
+<td>test: a file named <code>NotoColorEmoji.ttf.hidden</code> is not read</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="out-of-scope">Out of scope</h2>
+
+<ul>
+<li><strong>Sequences joined by U+200D</strong> (a family, a skin tone, most flags): shown as their parts, as on
+every platform today. Android&rsquo;s canvas could draw them later; the seam below allows it.</li>
+<li><strong>Reading COLRv1 in Go</strong>, for desktops whose Noto Color Emoji is COLRv1 too: compared below,
+and left for a later proposal if wanted.</li>
+<li><strong>Typing emoji</strong> in Go UI&rsquo;s own fields on Android: <code>android/java/TextInput.java</code> is someone
+else&rsquo;s work in progress, and this proposal does not touch it.</li>
+</ul>
+
+<h2 id="design">Design</h2>
+
+<h3 id="the-idea-let-android-draw-what-it-can-draw">The idea: let Android draw what it can draw</h3>
+
+<p>Proposal 3 did this for the browser: the browser has the system&rsquo;s emoji, so it paints each one
+into a small canvas, and Go reads the pixels back once. Android&rsquo;s own <code>Canvas</code> can do the same. A
+<code>Paint</code> with the text size, <code>Canvas.drawText</code> into a <code>Bitmap</code>, and <code>Paint.getFontMetrics</code> and
+<code>measureText</code> for where it sits. Android draws whatever its emoji font is (COLRv1, CBDT, a maker&rsquo;s
+own), so this works on every phone, now and after the next format change.</p>
+
+<h3 id="where-it-plugs-in">Where it plugs in</h3>
+
+<p>Proposal 3 left a single seam: <code>emojiFont</code> asks an <strong><code>emojiSource</code></strong> for a character&rsquo;s picture at a
+size, and both the painter and the <code>Measurer</code> go through it. Nothing above it changes.</p>
+
+<ul>
+<li><strong>A chain of sources.</strong> On Android the source becomes two in order: the font files first
+(today&rsquo;s code, cheap, no Java), then the platform. The second is asked only for a character the
+first has no picture of (R3).</li>
+<li><strong>A generic hook in the overlay.</strong> The overlay cannot call Java: it knows nothing of Android,
+and <code>android</code> already imports it through <code>gles</code>. So the overlay offers a function a platform
+sets once, at start, before the first frame:</li>
+</ul>
+<pre><code class="language-go">  <span class="c1">// UseSystemEmoji makes the overlay ask the platform to draw an emoji no font file has.</span>
+  <span class="nx">overlay</span><span class="p">.</span><span class="nf">UseSystemEmoji</span><span class="p">(</span><span class="kd">func</span><span class="p">(</span><span class="nx">character</span> <span class="kt">rune</span><span class="p">,</span> <span class="nx">pixels</span> <span class="kt">int</span><span class="p">)</span> <span class="p">(</span><span class="nx">picture</span> <span class="nx">image</span><span class="p">.</span><span class="nx">Image</span><span class="p">,</span> <span class="nx">left</span><span class="p">,</span> <span class="nx">top</span><span class="p">,</span> <span class="nx">advance</span> <span class="kt">float32</span><span class="p">,</span> <span class="nx">found</span> <span class="kt">bool</span><span class="p">))</span>
+</code></pre>
+
+<p>It is named for what it does on any platform, not for Android. The desktop and the browser
+  never set it (R6).</p>
+
+<ul>
+<li><strong>The Android side</strong> (<code>android/</code>): a new Java file, <code>android/java/EmojiPicture.java</code>, compiled
+and loaded like <code>ScreenReader.java</code>, with one static method. It takes the character and the size
+and returns the ARGB pixels with the four measures. A small C function calls it through JNI and
+attaches the calling thread to the Java machine when needed, since the overlay draws on the GL
+thread. Go turns the pixels into an <code>image.NRGBA</code> (Android&rsquo;s are premultiplied: they are divided
+back). The <code>android</code> package sets the hook when the activity starts.</li>
+<li><strong>Telling a monochrome letter from an emoji.</strong> Android can draw a character in a plain font
+when its emoji font lacks it. As in the browser, the character is drawn in two colours; a colour
+emoji keeps its own colours, a letter follows the fill, and then there is no picture (R5).</li>
+</ul>
+
+<h3 id="why-not-read-colrv1-in-go">Why not read COLRv1 in Go</h3>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Android draws it</th>
+<th>COLRv1 read in Go</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Works on</td>
+<td>every Android, any emoji font, future formats</td>
+<td>only phones whose emoji font is COLRv1</td>
+</tr>
+
+<tr>
+<td>Size of the work</td>
+<td>a Java method, a C call, a Go hook; about 200 lines</td>
+<td>a paint graph (gradients, transforms, blending) and a rasteriser for it; well over 1,500 lines</td>
+</tr>
+
+<tr>
+<td>Same look as the phone&rsquo;s other apps</td>
+<td>yes, by construction</td>
+<td>close, if every paint is right</td>
+</tr>
+
+<tr>
+<td>Also helps the desktop</td>
+<td>no</td>
+<td>yes, where the Noto Color Emoji is COLRv1</td>
+</tr>
+
+<tr>
+<td>Calls Java</td>
+<td>once per emoji and size</td>
+<td>never</td>
+</tr>
+</tbody>
+</table>
+<p>Reading COLRv1 would teach the most, but it is a large project for a narrower result. Bundling a
+CBDT emoji font in each app (about 10 MB, and out of date against the phone) is not taken either.</p>
+
+<h3 id="reproduced-without-the-phone">Reproduced without the phone</h3>
+
+<p>Deploy-manager reproduced the <code>?</code> on the Android 14 emulator on 2026-10-27: with
+<code>NotoColorEmojiLegacy.ttf</code> moved out of <code>/system/fonts</code>, only the COLRv1 <code>NotoColorEmoji.ttf</code> is
+left (tables COLR, CPAL and glyf, no CBDT), and a chat&rsquo;s preview shows &ldquo;recibido ? te leo.&rdquo;. With
+the file back, it shows 👍. R1&rsquo;s capture is taken on that emulator with the file moved out; the
+author confirms on the Pixel afterwards.</p>
+
+<p>That check found a small slip too: <code>colourEmojiFiles</code> takes any file whose name has &ldquo;emoji&rdquo; and
+&ldquo;color&rdquo;, whatever its extension, so a file renamed <code>.ttf.hidden</code> is still read. It should take
+font files only (<code>.ttf</code>, <code>.otf</code>, <code>.ttc</code>, <code>.otc</code>), as <code>isFontFile</code> does.</p>
+
+<h2 id="tasks">Tasks</h2>
+
+<p>On <code>feature/android-emoji</code> (from <code>feature/browser-emoji</code>), one commit per task, no push. The
+<code>go-renderer</code> main tree&rsquo;s uncommitted <code>android/java/TextInput.java</code> is not touched: this work lives
+in the <code>go-renderer-browser-emoji</code> worktree.</p>
+
+<ul>
+<li>[x] T1 — Colour emoji fonts are font files only · <code>opengl/overlay/emoji_files.go</code> · R7 · test <code>a renamed emoji font is not read</code></li>
+<li>[x] T2 — A chain of emoji sources and the hook: <code>UseSystemEmoji(drawer)</code> sets a source asked after the font files; the platform source turns the drawer&rsquo;s picture into an <code>emojiGlyph</code> · <code>opengl/overlay/emoji.go</code>, <code>emoji_system.go</code> · R2–R5 · tests <code>the font file's emoji wins over the system's</code>, <code>an emoji the fonts lack is asked of the system once</code>, <code>a text with a system emoji is as wide as its parts</code>, <code>without either, the character is drawn as a question mark</code>; <code>testing.AllocsPerRun</code> on a second frame</li>
+<li>[x] T3 — <code>EmojiPicture.java</code>: one static method that draws a character at a size in pixels with <code>Paint</code> and <code>Canvas</code> into a <code>Bitmap</code>, twice in two colours, and returns the ARGB pixels and the four measures, or null for no colour emoji; added to <code>java.Sources</code> (go-ui-apk compiles every entry) · <code>android/java/</code> · R1, R5 · a test like <code>screenreader_nodes_test.go</code>&rsquo;s that the class name and package agree</li>
+<li>[x] T4 — The JNI side: the class is loaded on the interface thread when the activity is made (<code>load_package_class</code>, a global reference); the call attaches the GL thread to the Java machine when it is not, and never throws into Go; Go undoes Android&rsquo;s premultiplied alpha into an <code>image.NRGBA</code>; the <code>android</code> package calls <code>overlay.UseSystemEmoji</code> at start · <code>android/emoji.c</code>, <code>android/emoji.go</code> · R1, R4 · build for android/arm64 and android/amd64; by hand on the emulator</li>
+<li>[x] T5 — Check and docs: the emulator capture of R1 (Android 14, <code>NotoColorEmojiLegacy.ttf</code> moved out of <code>/system/fonts</code>) next to the same frame with it in place, in <code>docs/images/</code>; the overlay guide and the Android guide say where emoji come from on each platform; README&rsquo;s AI disclosure kept true · <code>docs/</code> · R1, R6 · captures; the docs build</li>
+<li>[ ] T6 — Hand-over: the chat&rsquo;s <code>go.mod</code> already points at this worktree; deploy-manager checks the preview and the bubble on its emulator without the CBDT font, then rebuilds the APK (arm64, x86_64) and publishes it, keeping the old one · · by hand; the author confirms on the Pixel</li>
+</ul>
+
+<h2 id="result">Result</h2>
+
+<p>Built on <code>feature/android-emoji</code>, one commit per task, not pushed. <code>gofmt</code>, <code>go vet</code> and
+<code>go test ./...</code> pass; the <code>android</code> package builds for android/arm64 and android/amd64, and
+<code>EmojiPicture.java</code> compiles against android-36.</p>
+
+<p>On the Android 14 emulator, a small Go UI program with 😀 👍 🚀 ❤️ at 16, 32 and 48 pixels draws
+them in colour both with <code>NotoColorEmojiLegacy.ttf</code> in place and with it moved out of
+<code>/system/fonts</code> (R1; <code>docs/images/android-emoji-*.png</code>).</p>
+
+<p>What differs from the plan:</p>
+
+<ul>
+<li><strong>No unpremultiplying in Go.</strong> <code>Bitmap.getPixels</code> already gives straight (not premultiplied)
+colours, so Go only reorders ARGB into <code>image.NRGBA</code>.</li>
+<li><strong>The hook is set in <code>goStartMain</code>,</strong> before <code>main</code> runs, not in <code>Run</code>: a program may measure text
+before its window starts, and an emoji looked for once is not looked for again.</li>
+<li><strong>The tool must carry the class.</strong> <code>go-ui-apk</code> compiles the <code>java.Sources</code> of the go-renderer it
+was built with. Built from go-ui-android, whose <code>go.mod</code> points at <code>../go-renderer</code>, it leaves
+<code>EmojiPicture</code> out and the phone keeps its question marks. Until this branch is merged, build the
+tool against this worktree (<code>go build -modfile</code> with the <code>replace</code> changed).</li>
+</ul>
+
+<p>Not tested: a real phone (the author&rsquo;s Pixel confirms after T6), and the arm64 build on a device.</p>

@@ -1,0 +1,224 @@
+<h1 id="3-emoji-in-the-browser">3. Emoji in the browser</h1>
+
+<blockquote>
+<p>Status: done, pending review · Author&rsquo;s approval: proposal ☑ (2026-10-27) plan ☑ (2026-10-27)</p>
+</blockquote>
+
+<h2 id="why">Why</h2>
+
+<p>On Android and the desktop the overlay draws emoji in colour, read from the system&rsquo;s colour emoji
+font. In a browser, a WebAssembly program cannot read the system&rsquo;s fonts, so every emoji is drawn
+as <code>?</code>: <code>drawable()</code> in <code>opengl/overlay/layout.go</code> swaps each character no font has for a
+question mark. The same goes for Chinese, Arabic and every other script the Go fonts lack.</p>
+
+<p>A program built for both platforms then shows two different texts. A chat page made with Go UI
+(LLM-CP&rsquo;s <code>llmcp-chat</code>) shows a message sent as &ldquo;emoji test 😀👍&rdquo; as &ldquo;emoji test ??&rdquo;. The text
+itself arrives intact; only the drawing loses it.</p>
+
+<h2 id="what">What</h2>
+
+<table>
+<thead>
+<tr>
+<th>Id</th>
+<th>Requirement</th>
+<th>Check</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>R1</td>
+<td>In a browser, an emoji of one character (😀, 🚀, 👍) is drawn in colour, at the text&rsquo;s size, on the text&rsquo;s baseline</td>
+<td>headless Chromium capture of a label &ldquo;North light 🌊 😀 🚀&rdquo; next to the same frame on the desktop</td>
+</tr>
+
+<tr>
+<td>R2</td>
+<td>An emoji is measured the same as it is drawn: text with emoji wraps, centres and ellipsises right</td>
+<td>test: the width of &ldquo;a😀b&rdquo; equals the sum of the three advances; capture of a wrapped line</td>
+</tr>
+
+<tr>
+<td>R3</td>
+<td>A character followed by <code>U+FE0F</code> (❤️) is drawn as an emoji, as on the other platforms</td>
+<td>the capture of R1 holds &ldquo;❤️&rdquo;</td>
+</tr>
+
+<tr>
+<td>R4</td>
+<td>Each emoji is made once per size and kept; a frame that shows emoji already made allocates nothing new</td>
+<td>test: drawing the same label twice makes its emoji once</td>
+</tr>
+
+<tr>
+<td>R5</td>
+<td>A browser without the means to draw one (no 2D canvas) still draws <code>?</code>, as today, and nothing fails</td>
+<td>test with the source unavailable: the text is drawn with <code>?</code></td>
+</tr>
+
+<tr>
+<td>R6</td>
+<td>Android and the desktop draw emoji exactly as today</td>
+<td>the overlay&rsquo;s tests and the Android emulator capture of the overlay guide, unchanged</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="out-of-scope">Out of scope</h2>
+
+<ul>
+<li><strong>Sequences joined by U+200D</strong> (a family, a skin tone, most flags of more than two letters):
+they show as their parts, as on the other platforms today.</li>
+<li><strong>Other scripts</strong> (Chinese, Arabic) in the browser. The same idea would serve them. They are a
+second proposal if wanted, so this one stays small.</li>
+<li><strong>Typing emoji</strong> in Go UI&rsquo;s own text field in a browser. Go UI&rsquo;s pages type in a plain HTML
+field today. Typing on Android is someone else&rsquo;s work in progress (<code>android/java/TextInput.java</code>).</li>
+</ul>
+
+<h2 id="design">Design</h2>
+
+<p><strong>Let the browser draw each emoji.</strong> The browser has the system&rsquo;s emoji font, so it can paint an
+emoji into a small 2D canvas. The program then reads that canvas&rsquo;s pixels back into Go as an
+<code>image.Image</code>, made once per character and size. That picture enters the existing path: the
+picture atlas, in the same draw call as the text, faded as the text is. Only where the picture
+comes from changes.</p>
+
+<p>There is a single seam. The painter (<code>drawing.go</code>) and the <code>Measurer</code> both ask
+<code>fonts.colourFor</code>, which asks <code>emojiFont.glyph</code>. So measuring and drawing agree by construction
+(R2), and nothing above the overlay changes: Go UI, its <code>Measurer</code> and the backends stay as they are.</p>
+
+<ul>
+<li><code>emojiFont</code> keeps what it does today: the cache of glyphs by character and size, and the
+mutex. What it loses is reading the font files: it asks an <strong><code>emojiSource</code></strong> for a character&rsquo;s
+picture and metrics at a size, and the font-file reading moves behind that source.</li>
+<li><strong>The font files&rsquo; source</strong> (<code>emoji_files.go</code>, every build but <code>js &amp;&amp; wasm</code>) is today&rsquo;s code, moved
+as it is: <code>colourEmojiFiles</code>, <code>parseColourFont</code>, the scaling.</li>
+<li><strong>The browser&rsquo;s source</strong> (<code>emoji_browser.go</code>, <code>js &amp;&amp; wasm</code>) draws on an <code>OffscreenCanvas</code> (or a
+<code>&lt;canvas&gt;</code> when there is none). It sets the font to the systems&rsquo; emoji families (<code>Apple Color
+Emoji</code>, <code>Segoe UI Emoji</code>, <code>Noto Color Emoji</code>) at the size in pixels. <code>measureText</code> gives the
+advance and the ascent; <code>fillText</code> and <code>getImageData</code> give the pixels as an <code>image.NRGBA</code>. A
+canvas left empty means the system has no picture of the character, so no glyph. So does one
+the browser draws in the fill&rsquo;s colour: it is drawn twice, in two colours, and a colour emoji
+keeps its own. Where there is no canvas at all (Node), the font files are read, as on other
+systems; with none in reach, the text keeps its <code>?</code> (R5). <em>Changed while building: the plan had
+no source there, but Node can read files, and the overlay&rsquo;s tests run in it.</em></li>
+<li><code>fallback.go</code> picks the source when it makes the <code>emojiFont</code>: the browser&rsquo;s under <code>js &amp;&amp; wasm</code>,
+the files&rsquo; elsewhere. <code>Fonts.Folders</code> keeps its meaning for the files&rsquo; source; in a browser it is
+ignored, and the docs say so.</li>
+</ul>
+
+<p><strong>Not taken:</strong></p>
+
+<ul>
+<li><strong>Ship a colour emoji font with the page</strong> (Noto Color Emoji, about 10 MB): a heavy download
+for every page, and its emoji would look unlike the system&rsquo;s own.</li>
+<li><strong>Draw the text with HTML over the canvas:</strong> it would leave the overlay&rsquo;s single draw call, and
+break clipping, fading and layering.</li>
+<li><strong>Ask the browser for every missing character, not only emoji:</strong> it would serve Chinese and
+Arabic too, but it changes how all fallback text is drawn; left for its own proposal.</li>
+</ul>
+
+<h2 id="tasks">Tasks</h2>
+
+<ul>
+<li>[x] T1 — Put the emoji&rsquo;s pictures behind an <code>emojiSource</code>; move the font-file reading into
+<code>emoji_files.go</code> unchanged · <code>opengl/overlay/emoji.go</code>, <code>emoji_files.go</code>, <code>fallback.go</code> · serves
+R4, R6 · tests: <code>TestAnEmojiIsMadeOncePerSize</code> (a fake source counts its calls), and the overlay&rsquo;s
+tests as they are</li>
+<li>[x] T2 — Measure with the source&rsquo;s advance: a text with emoji is as wide as its parts · serves
+R2 · test: <code>TestATextWithAnEmojiIsAsWideAsItsParts</code> (fake source, &ldquo;a😀b&rdquo;)</li>
+<li>[x] T3 — The browser&rsquo;s source: draw on a 2D canvas, read the pixels, an empty canvas is no
+glyph · <code>opengl/overlay/emoji_browser.go</code> (<code>js &amp;&amp; wasm</code>) · serves R1, R3, R5 · test under
+<code>GOOS=js</code> in Node, which has no canvas: <code>TestWithoutACanvasAnEmojiIsDrawnAsAQuestionMark</code></li>
+<li>[x] T4 — A page to look at: a label with &ldquo;North light 🌊 😀 🚀 ❤️&rdquo;, captured in headless Chromium
+and on the desktop · an example under <code>cmd/</code> · serves R1, R3 · check: the two captures side
+by side in the proposal&rsquo;s Result</li>
+<li>[x] T5 — Docs: the overlay guide&rsquo;s emoji paragraph says where a browser&rsquo;s emoji come from, and
+the reference says <code>Fonts.Folders</code> is ignored in a browser · <code>docs/4-guides/3-overlay.md</code>,
+<code>docs/5-reference/15-opengl-overlay.md</code> · serves R1–R6</li>
+</ul>
+
+<p>Each task leaves the project working: T1 is a pure move, and T3 is the first to change what a
+browser shows. <code>go vet ./...</code> and the overlay&rsquo;s tests run after each one, under <code>GOOS=js</code> too.
+R6 still needs a person: the Android emulator capture of the overlay guide, after T1.</p>
+
+<h2 id="result">Result</h2>
+
+<p>Built as planned, in five commits on <code>feature/browser-emoji</code>. The one change to the plan is noted
+in Design: where there is no canvas (Node), the font files are read, as on other systems.</p>
+
+<table>
+<thead>
+<tr>
+<th>Id</th>
+<th>Checked by</th>
+<th>Result</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>R1</td>
+<td><code>cmd/web-emoji</code> in headless Chromium on Linux</td>
+<td>🌊 😀 🚀 👍 ✅ in colour, on the baseline (images below)</td>
+</tr>
+
+<tr>
+<td>R2</td>
+<td><code>TestATextWithAnEmojiIsAsWideAsItsParts</code>, and the existing <code>TestAnEmojiIsMeasuredAndDrawnInItsColours</code></td>
+<td>pass</td>
+</tr>
+
+<tr>
+<td>R3</td>
+<td>the same capture</td>
+<td>❤️ drawn in colour</td>
+</tr>
+
+<tr>
+<td>R4</td>
+<td><code>TestAnEmojiIsMadeOncePerSize</code></td>
+<td>pass</td>
+</tr>
+
+<tr>
+<td>R5</td>
+<td><code>TestWithoutACanvasAnEmojiIsDrawnAsAQuestionMark</code>, under <code>GOOS=js</code> in Node</td>
+<td>pass</td>
+</tr>
+
+<tr>
+<td>R6</td>
+<td>the overlay&rsquo;s tests, natively and under <code>GOOS=js</code></td>
+<td>pass; <strong>the Android emulator capture is still to do</strong></td>
+</tr>
+</tbody>
+</table>
+
+<table>
+<thead>
+<tr>
+<th>Before</th>
+<th>After</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><img alt="Three labels whose emoji are all question marks" src="./images/browser-emoji-before.png" width="400"></td>
+<td><img alt="The same labels with their emoji in colour" src="./images/browser-emoji-after.png" width="400"></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Still for a person to review:</strong></p>
+
+<ul>
+<li>The code, which is AI-written.</li>
+<li>A look in other browsers (Firefox, Safari) and on a phone. Only headless Chromium on Linux was
+tried, with Noto Color Emoji.</li>
+<li>The Android emulator capture of the overlay guide (R6). T1 moved that code without changing
+it, but no device was at hand.</li>
+<li>No side-by-side capture on the desktop: there was no display. The desktop path is the moved
+font-file code, covered by its tests.</li>
+</ul>

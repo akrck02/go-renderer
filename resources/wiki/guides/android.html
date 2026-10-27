@@ -96,6 +96,11 @@ what was tested.</p>
 <td>The text the on-screen keyboard edits: words, suggestions, the word being composed</td>
 <td><code>android/keyboard.go</code>, <code>android/textinput.go</code>, <code>textinput.c</code>, <code>android/java/TextInput.java</code></td>
 </tr>
+
+<tr>
+<td>The emoji no font file has, drawn by Android</td>
+<td><code>android/emoji.go</code>, <code>emoji_picture.go</code>, <code>emoji.c</code>, <code>android/java/EmojiPicture.java</code></td>
+</tr>
 </tbody>
 </table>
 <p><strong>Starting.</strong> Android loads the library and calls <code>ANativeActivity_onCreate</code>. Go does not run
@@ -196,9 +201,10 @@ instanced drawing can come later behind the same <code>gles.Functions</code>.</p
 </code></pre>
 
 <p>A package then holds <code>lib/arm64-v8a/libprogram.so</code> and a manifest whose activity is
-<code>android.app.NativeActivity</code>, with <code>android.app.lib_name</code> set to <code>program</code>. For a screen reader it
-also holds <code>classes.dex</code>, compiled from <code>android/java/ScreenReader.java</code> (<code>javac</code>, then the build
-tools&rsquo; <code>d8</code>), and says <code>android:hasCode=&quot;true&quot;</code>; without it, the program runs with no screen reader.
+<code>android.app.NativeActivity</code>, with <code>android.app.lib_name</code> set to <code>program</code>. For a screen reader, the
+keyboard&rsquo;s text and the phone&rsquo;s own emoji it also holds <code>classes.dex</code>, compiled from every file of
+<code>android/java</code> (<code>java.Sources</code>; <code>javac</code>, then the build tools&rsquo; <code>d8</code>), and says
+<code>android:hasCode=&quot;true&quot;</code>; without it, the program runs without them.
 Go UI for Android&rsquo;s <code>go-ui-apk</code> does it all with the Android SDK&rsquo;s tools. The 16 KB alignment is what
 phones with 16 KB memory pages (Android 15 and later) need.</p>
 
@@ -319,9 +325,40 @@ window is a native surface, where Android draws no ring of its own.</li>
 program. Labels cross as Java keeps them, and so does a field&rsquo;s new text on its way back.</li>
 </ul>
 
+<h2 id="emoji">Emoji</h2>
+
+<p>The overlay reads colour emoji from the phone&rsquo;s font files when it can: the PNG pictures of a
+<code>CBDT</code> font, which Android 13 and 14 still keep in <code>NotoColorEmojiLegacy.ttf</code>. A newer phone, or one
+whose maker ships its own emoji font, may only have emoji drawn from vector outlines (COLRv1), which
+Go does not read. There Android itself draws them.</p>
+<pre><code class="language-text">the overlay               an emoji no font file has: asks the drawer set with UseSystemEmoji
+android (Go)              sets the drawer before main; reads the answer into a picture
+emoji.c                   attaches the drawing thread to Java and calls the class
+EmojiPicture.java         Paint and Canvas draw the character into a Bitmap, with its measures
+</code></pre>
+
+<ul>
+<li><strong>Once per emoji and size.</strong> The overlay keeps each picture, so a frame showing emoji already
+made calls no Java and allocates nothing.</li>
+<li><strong>A letter is not an emoji.</strong> Android draws a character in a plain font when no emoji font has
+it. So the class draws it twice, in red and in blue: a colour emoji keeps its own colours, a
+letter takes the paint&rsquo;s, and then there is no picture and the text keeps its question mark.</li>
+<li><strong>Straight colours.</strong> <code>Bitmap.getPixels</code> gives the pixels not premultiplied, as Go keeps them.</li>
+<li><strong>Older packages.</strong> A package made without the class draws only what the font files have, and
+says so once in the log.</li>
+</ul>
+
+<p>Tried on the Android 14 emulator, with <code>NotoColorEmojiLegacy.ttf</code> in place (left to the font file)
+and moved out of <code>/system/fonts</code> (drawn by Android). Before this, the second showed question marks.</p>
+
+<p><img src="./images/android-emoji-font-file.png" alt="Emoji read from the font file, on Android 14" /></p>
+
+<p><img src="./images/android-emoji-drawn-by-android.png" alt="The same emoji drawn by Android, with no CBDT font" /></p>
+
 <h2 id="not-yet">Not yet</h2>
 
 <ul>
+<li>Emoji sequences joined by U+200D (a family, a skin tone) show as their parts.</li>
 <li>Keyboards for Chinese and Japanese, which compose the same way, are not tried yet.</li>
 <li>Long presses.</li>
 <li>Instanced drawing with OpenGL ES 3, and the full scene renderer (shadows, sky, waves) on phones.</li>

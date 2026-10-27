@@ -24,6 +24,11 @@ the OpenGL scene renderer uploads its atlas and draws its quads.</p>
 <td><code>func DefaultFontFolders() []string</code></td>
 <td>DefaultFontFolders are where the system&rsquo;s fonts are looked for by default, for characters the program&rsquo;s fonts lack: Android&rsquo;s own, or the usual folders of the desktop&rsquo;s system.</td>
 </tr>
+
+<tr>
+<td><code>func UseSystemEmoji(drawer SystemEmojiDrawer)</code></td>
+<td>UseSystemEmoji makes the overlay ask the platform to draw the emoji that no colour font file has, such as on an Android whose emoji font is drawn from outlines.</td>
+</tr>
 </tbody>
 </table>
 
@@ -84,7 +89,8 @@ the OpenGL scene renderer uploads its atlas and draws its quads.</p>
 	<span class="nx">Regular</span><span class="p">,</span> <span class="nx">Medium</span><span class="p">,</span> <span class="nx">Bold</span><span class="p">,</span> <span class="nx">Mono</span> <span class="p">[]</span><span class="kt">byte</span>
 	<span class="c1">// Folders are where the system&#39;s fonts and colour emoji are looked for, for characters the</span>
 	<span class="c1">// fonts lack. nil is DefaultFontFolders(); an empty, non-nil list looks nowhere, and such</span>
-	<span class="c1">// characters are drawn as a question mark.</span>
+	<span class="c1">// characters are drawn as a question mark, unless UseSystemEmoji has a drawer for them. In</span>
+	<span class="c1">// a browser the emoji come from the browser itself, and Folders is not looked in for them.</span>
 	<span class="nx">Folders</span> <span class="p">[]</span><span class="kt">string</span>
 <span class="p">}</span>
 </code></pre>
@@ -315,6 +321,12 @@ the OpenGL scene renderer uploads its atlas and draws its quads.</p>
 	<span class="nx">At</span>   <span class="kt">int</span>
 	<span class="nx">Blur</span> <span class="kt">float32</span>
 <span class="p">}</span>
+</code></pre>
+
+<h3 id="systememojidrawer">SystemEmojiDrawer</h3>
+
+<p>SystemEmojiDrawer draws a character as a colour emoji at a size in pixels, with the platform&rsquo;s own emoji. It returns the picture and where it sits, in pixels: left of the pen, top above the baseline, and the pen&rsquo;s move after it; found is false when the platform has no colour emoji of the character (a letter drawn in one colour is not one).</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">SystemEmojiDrawer</span> <span class="kd">func</span><span class="p">(</span><span class="nx">character</span> <span class="kt">rune</span><span class="p">,</span> <span class="nx">pixels</span> <span class="kt">int</span><span class="p">)</span> <span class="p">(</span><span class="nx">picture</span> <span class="nx">image</span><span class="p">.</span><span class="nx">Image</span><span class="p">,</span> <span class="nx">left</span><span class="p">,</span> <span class="nx">top</span><span class="p">,</span> <span class="nx">advance</span> <span class="kt">float32</span><span class="p">,</span> <span class="nx">found</span> <span class="kt">bool</span><span class="p">)</span>
 </code></pre>
 
 <hr>

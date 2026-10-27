@@ -15,6 +15,33 @@ python3 -m http.server -d cmd/web-island <span class="m">8080</span>      <span 
 <p>Drag to turn around the island, drag with the right button to move, turn the wheel to come
 closer.</p>
 
+<h3 id="emoji">Emoji</h3>
+
+<p>Labels and interfaces draw emoji in colour in a page, as on Android and the desktop. A page cannot
+read the system&rsquo;s font files, so the browser draws each emoji for the overlay (see the
+<a href="./guides/overlay">overlay guide</a>). <code>cmd/web-emoji</code> shows a few:</p>
+<pre><code class="language-bash"><span class="nv">GOOS</span><span class="o">=</span>js <span class="nv">GOARCH</span><span class="o">=</span>wasm go build -o cmd/web-emoji/emoji.wasm ./cmd/web-emoji
+cp <span class="s2">&#34;</span><span class="k">$(</span>go env GOROOT<span class="k">)</span><span class="s2">/lib/wasm/wasm_exec.js&#34;</span> cmd/web-emoji/
+python3 -m http.server -d cmd/web-emoji <span class="m">8080</span>      <span class="c1"># then open http://localhost:8080</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Before: each emoji was a question mark</th>
+<th>Now: drawn by the browser</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><img alt="Three labels whose emoji are all question marks" src="./images/browser-emoji-before.png" width="400"></td>
+<td><img alt="The same three labels with a wave, a smiling face, a rocket, a red heart, a thumb up and a check mark in colour" src="./images/browser-emoji-after.png" width="400"></td>
+</tr>
+</tbody>
+</table>
+<p>Emoji joined by U+200D (a family, a skin tone) still show as their parts, as everywhere else.</p>
+
 <h2 id="what-was-already-portable">What was already portable</h2>
 
 <p>Most of Go Renderer is plain Go and builds for WebAssembly as it is: the scene (<code>scene</code>), the
@@ -203,10 +230,12 @@ servers usually do on the fly. The fonts and icons are inside it, so the page lo
 <li><code>go test ./gles ./frameloop</code> on any computer: the renderers against the fake (shaders are
 GLSL ES 1.00 with nothing newer, one draw call for an interface, the atlas and meshes uploaded only when they
 change).</li>
-<li><code>GOOS=js GOARCH=wasm go test ./browser ./gles</code> runs the browser package&rsquo;s own tests under
-Node.js (key, wheel and button mapping); it needs <code>$(go env GOROOT)/lib/wasm</code> in the <code>PATH</code>.</li>
+<li><code>GOOS=js GOARCH=wasm go test ./browser ./gles ./opengl/overlay</code> runs the tests under Node.js
+(key, wheel and button mapping, and the overlay, which reads emoji from font files there, as
+Node has no canvas); it needs <code>$(go env GOROOT)/lib/wasm</code> in the <code>PATH</code>.</li>
 <li>In a browser: the island, turning and zooming, and the idle check above, were looked at in
-Chromium on macOS. Other browsers, phones and tablets have not been tried yet.</li>
+Chromium on macOS; the emoji page in headless Chromium on Linux. Other browsers, phones and
+tablets have not been tried yet.</li>
 </ul>
 
 <h2 id="not-yet">Not yet</h2>
