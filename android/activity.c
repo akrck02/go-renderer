@@ -44,6 +44,8 @@ void ANativeActivity_onCreate(ANativeActivity *activity, void *saved_state, size
 	screen_reader_install(activity->env, activity->clazz);
 	// the view the on-screen keyboard types in, standing in for the fields Go draws
 	text_input_install(activity->env, activity->clazz);
+	// the phone's own emoji, for those no font file the overlay reads has
+	emoji_install(activity->env, activity->clazz);
 	if (!main_started) {
 		uintptr_t main_code = (uintptr_t)dlsym(RTLD_DEFAULT, "main.main");
 		if (main_code == 0) {

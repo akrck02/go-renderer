@@ -69,6 +69,8 @@ func goStartMain(code C.uintptr_t, folder *C.char) {
 		_ = os.Setenv("TMPDIR", C.GoString(folder))
 	}
 	sendStandardErrorToLog()
+	// before main, so no text is measured before the phone's emoji can be asked
+	useSystemEmoji()
 	logInfo("the Go runtime runs; starting main")
 	go callmain.Call(uintptr(code))
 }
