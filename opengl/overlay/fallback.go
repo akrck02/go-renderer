@@ -58,7 +58,7 @@ func systemFontsIn(folders []string) (*fallbackFonts, *emojiFont) {
 	defer systemFontSets.mutex.Unlock()
 	set, found := systemFontSets.sets[key]
 	if !found {
-		set = systemFontSet{fonts: &fallbackFonts{folders: slices.Clone(folders)}, emoji: &emojiFont{folders: slices.Clone(folders)}}
+		set = systemFontSet{fonts: &fallbackFonts{folders: slices.Clone(folders)}, emoji: newEmojiFont(emojiSourceFor(folders))}
 		systemFontSets.sets[key] = set
 	}
 	return set.fonts, set.emoji
