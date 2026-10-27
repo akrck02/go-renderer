@@ -1,6 +1,6 @@
 # 3. Emoji in the browser
 
-> Status: building · Author's approval: proposal ☑ (2026-10-27) plan ☑ (2026-10-27)
+> Status: done, pending review · Author's approval: proposal ☑ (2026-10-27) plan ☑ (2026-10-27)
 
 ## Why
 
@@ -86,7 +86,7 @@ There is a single seam. The painter (`drawing.go`) and the `Measurer` both ask
 - [x] T4 — A page to look at: a label with "North light 🌊 😀 🚀 ❤️", captured in headless Chromium
   and on the desktop · an example under `cmd/` · serves R1, R3 · check: the two captures side
   by side in the proposal's Result
-- [ ] T5 — Docs: the overlay guide's emoji paragraph says where a browser's emoji come from, and
+- [x] T5 — Docs: the overlay guide's emoji paragraph says where a browser's emoji come from, and
   the reference says `Fonts.Folders` is ignored in a browser · `docs/4-guides/3-overlay.md`,
   `docs/5-reference/15-opengl-overlay.md` · serves R1–R6
 
@@ -96,4 +96,28 @@ R6 still needs a person: the Android emulator capture of the overlay guide, afte
 
 ## Result
 
-*Filled at the end.*
+Built as planned, in five commits on `feature/browser-emoji`. The one change to the plan is noted
+in Design: where there is no canvas (Node), the font files are read, as on other systems.
+
+| Id | Checked by | Result |
+|---|---|---|
+| R1 | `cmd/web-emoji` in headless Chromium on Linux | 🌊 😀 🚀 👍 ✅ in colour, on the baseline (images below) |
+| R2 | `TestATextWithAnEmojiIsAsWideAsItsParts`, and the existing `TestAnEmojiIsMeasuredAndDrawnInItsColours` | pass |
+| R3 | the same capture | ❤️ drawn in colour |
+| R4 | `TestAnEmojiIsMadeOncePerSize` | pass |
+| R5 | `TestWithoutACanvasAnEmojiIsDrawnAsAQuestionMark`, under `GOOS=js` in Node | pass |
+| R6 | the overlay's tests, natively and under `GOOS=js` | pass; **the Android emulator capture is still to do** |
+
+| Before | After |
+|---|---|
+| <img alt="Three labels whose emoji are all question marks" src="../images/browser-emoji-before.png" width="400"> | <img alt="The same labels with their emoji in colour" src="../images/browser-emoji-after.png" width="400"> |
+
+**Still for a person to review:**
+
+- The code, which is AI-written.
+- A look in other browsers (Firefox, Safari) and on a phone. Only headless Chromium on Linux was
+  tried, with Noto Color Emoji.
+- The Android emulator capture of the overlay guide (R6). T1 moved that code without changing
+  it, but no device was at hand.
+- No side-by-side capture on the desktop: there was no display. The desktop path is the moved
+  font-file code, covered by its tests.

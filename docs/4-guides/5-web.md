@@ -17,6 +17,24 @@ python3 -m http.server -d cmd/web-island 8080      # then open http://localhost:
 Drag to turn around the island, drag with the right button to move, turn the wheel to come
 closer.
 
+### Emoji
+
+Labels and interfaces draw emoji in colour in a page, as on Android and the desktop. A page cannot
+read the system's font files, so the browser draws each emoji for the overlay (see the
+[overlay guide](3-overlay.md)). `cmd/web-emoji` shows a few:
+
+```bash
+GOOS=js GOARCH=wasm go build -o cmd/web-emoji/emoji.wasm ./cmd/web-emoji
+cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" cmd/web-emoji/
+python3 -m http.server -d cmd/web-emoji 8080      # then open http://localhost:8080
+```
+
+| Before: each emoji was a question mark | Now: drawn by the browser |
+|---|---|
+| <img alt="Three labels whose emoji are all question marks" src="../images/browser-emoji-before.png" width="400"> | <img alt="The same three labels with a wave, a smiling face, a rocket, a red heart, a thumb up and a check mark in colour" src="../images/browser-emoji-after.png" width="400"> |
+
+Emoji joined by U+200D (a family, a skin tone) still show as their parts, as everywhere else.
+
 ## What was already portable
 
 Most of Go Renderer is plain Go and builds for WebAssembly as it is: the scene (`scene`), the
@@ -122,10 +140,12 @@ servers usually do on the fly. The fonts and icons are inside it, so the page lo
 - `go test ./gles ./frameloop` on any computer: the renderers against the fake (shaders are
   GLSL ES 1.00 with nothing newer, one draw call for an interface, the atlas and meshes uploaded only when they
   change).
-- `GOOS=js GOARCH=wasm go test ./browser ./gles` runs the browser package's own tests under
-  Node.js (key, wheel and button mapping); it needs `$(go env GOROOT)/lib/wasm` in the `PATH`.
+- `GOOS=js GOARCH=wasm go test ./browser ./gles ./opengl/overlay` runs the tests under Node.js
+  (key, wheel and button mapping, and the overlay, which reads emoji from font files there, as
+  Node has no canvas); it needs `$(go env GOROOT)/lib/wasm` in the `PATH`.
 - In a browser: the island, turning and zooming, and the idle check above, were looked at in
-  Chromium on macOS. Other browsers, phones and tablets have not been tried yet.
+  Chromium on macOS; the emoji page in headless Chromium on Linux. Other browsers, phones and
+  tablets have not been tried yet.
 
 ## Not yet
 
