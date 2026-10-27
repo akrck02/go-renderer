@@ -48,3 +48,19 @@ func TestWithoutASourceNoCharacterIsAnEmoji(test *testing.T) {
 		test.Fatal("an emoji was found with nowhere to look")
 	}
 }
+
+// A text is laid out from its measure, so an emoji must be measured as wide as it is drawn: a line
+// with one would otherwise wrap, centre or end with an ellipsis in the wrong place.
+func TestATextWithAnEmojiIsAsWideAsItsParts(test *testing.T) {
+	loaded, err := loadFonts(Fonts{Folders: []string{}})
+	if err != nil {
+		test.Fatal(err)
+	}
+	loaded.emoji = newEmojiFont(&countingEmoji{})
+	measurer := &Measurer{fonts: loaded}
+	width := func(text string) float32 { return measurer.MeasureText(text, 16, draw2d.Regular, 1).Width }
+	const emojiAdvance = 16 // the counting source's emoji are as wide as their size
+	if whole, parts := width("a😀b"), width("a")+emojiAdvance+width("b"); whole != parts {
+		test.Fatalf(`"a😀b" measures %v, its parts %v`, whole, parts)
+	}
+}
