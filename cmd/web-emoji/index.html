@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emoji in a page</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #f4f2ef; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<script src="wasm_exec.js"></script>
+<script>
+  const go = new Go();
+  WebAssembly.instantiateStreaming(fetch("emoji.wasm"), go.importObject)
+    .then((result) => go.run(result.instance))
+    .catch((error) => { document.body.textContent = "Could not start: " + error; });
+</script>
+</body>
+</html>
