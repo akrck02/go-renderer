@@ -114,6 +114,12 @@ outlines (COLRv1, not read here) and keep the pictures in `NotoColorEmojiLegacy`
 the fonts are tried in turn, the one for flags alone last. Tried on the Android 14 emulator:
 "North light 🌊 😀 🚀 ❤️ 灯台" in one field.
 
+In a **browser** a program cannot read the system's font files, but the browser draws with them.
+So each emoji is drawn by the browser, on a canvas that is never shown, and read back as a picture,
+once per size; from there it goes the same way. To tell a colour emoji from a letter, the browser
+draws it twice in two colours: a colour emoji keeps its own, a letter takes the fill's and is left
+to the text's fonts. See [In a web browser](5-web.md) for the page that shows them.
+
 On a high-density screen one window pixel is two framebuffer pixels; the viewer sets
 `SceneRenderer.OverlayScale` so the overlay keeps its size.
 

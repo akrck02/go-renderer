@@ -38,8 +38,8 @@ I write most of my code by hand, so I want to be clear about where AI was used h
   Objective-C files and the translated shaders), next to my hand-written `metal` stubs, which it
   left as they were. It also wrote the first step towards browsers and phones: the OpenGL ES
   renderers (`gles`), the browser canvas and loop (`browser`), the Android activity and loop
-  (`android`, with its C), the shared clock (`frameloop`) and `cmd/web-island`, and later the
-  screen reader's side on Android (`android/screenreader*`, with the Java class in `android/java`),
+  (`android`, with its C), the shared clock (`frameloop`) and `cmd/web-island`, and later emoji
+  in a page (`cmd/web-emoji`), the screen reader's side on Android (`android/screenreader*`, with the Java class in `android/java`),
   and the first drawing on the Nintendo 3DS (`nintendo3ds`, with its C, and `cmd/triangle3ds`).
 - **My hand-written parts, refactored by the AI at my request (2026-10-22):** the `Renderer`
   contract and `models` (split into `immediate`, `window` and `camera.Lens`), the `graphics`

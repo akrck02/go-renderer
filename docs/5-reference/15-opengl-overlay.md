@@ -66,7 +66,8 @@ type Fonts struct {
 	Regular, Medium, Bold, Mono []byte
 	// Folders are where the system's fonts and colour emoji are looked for, for characters the
 	// fonts lack. nil is DefaultFontFolders(); an empty, non-nil list looks nowhere, and such
-	// characters are drawn as a question mark.
+	// characters are drawn as a question mark. In a browser the emoji come from the browser
+	// itself, and Folders is not looked in for them.
 	Folders []string
 }
 ```
