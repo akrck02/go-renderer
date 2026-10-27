@@ -59,7 +59,7 @@ func colourEmojiFiles(folders []string) []string {
 	for _, folder := range folders {
 		filepath.WalkDir(folder, func(path string, entry os.DirEntry, err error) error {
 			name := plainName(path)
-			if err == nil && !entry.IsDir() && strings.Contains(name, "emoji") && (strings.Contains(name, "color") || strings.Contains(name, "colour")) {
+			if err == nil && !entry.IsDir() && hasFontExtension(path) && strings.Contains(name, "emoji") && (strings.Contains(name, "color") || strings.Contains(name, "colour")) {
 				found = append(found, path)
 			}
 			return nil
