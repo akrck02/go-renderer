@@ -11,8 +11,8 @@ import (
 	scaling "golang.org/x/image/draw"
 )
 
-// emojiSourceFor is where the emoji drawn come from: the colour emoji fonts in these folders.
-func emojiSourceFor(folders []string) emojiSource {
+// newFontFileEmoji reads the colour emoji fonts in these folders, when the first emoji is drawn.
+func newFontFileEmoji(folders []string) *fontFileEmoji {
 	return &fontFileEmoji{folders: slices.Clone(folders)}
 }
 
