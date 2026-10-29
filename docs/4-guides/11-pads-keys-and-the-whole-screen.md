@@ -47,7 +47,9 @@ app.Update = func(app *window.Application, seconds float64) error {
 
 `input.Key` holds letters, digits, arrows, Space, Tab, Enter, Escape, Shift, Control, Alt, the
 Command or Windows key (`KeySuper`), and `KeyF1` to `KeyF12`. Characters typed (an "ñ", an "€")
-come from `TypedText()`, after the keyboard layout. When an interface has the keyboard (a text
+come from `TypedText()`, after the keyboard layout. A field of many lines reads
+`TypedTextWithLineBreaks()` instead: the same characters with a `'\n'` for each Enter, where it came
+among them, so a fast typist's lines keep their order even when several arrive in one step. When an interface has the keyboard (a text
 field), it calls `ClaimKeyboard`, and `Unclaimed()` gives the rest of the program a state without
 those keys.
 

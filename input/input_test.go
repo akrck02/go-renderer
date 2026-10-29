@@ -121,6 +121,25 @@ func TestARepeatedKeyIsTypedAgainAndCharactersAreKept(test *testing.T) {
 	}
 }
 
+// A field of many lines puts each Enter where it was typed among the characters, even when
+// several lines arrive in one step, as a fast typist or a test sends them.
+func TestEnterIsALineBreakAmongTheCharactersTyped(test *testing.T) {
+	state := NewState()
+	feed := state.Feed()
+	feed.AddCharacter('a')
+	feed.SetKey(KeyEnter, true)
+	feed.SetKey(KeyEnter, false)
+	feed.AddCharacter('b')
+	feed.SetKey(KeyEnter, true)
+	feed.RepeatKey(KeyEnter)
+	if got := state.TypedTextWithLineBreaks(); got != "a\nb\n\n" {
+		test.Fatalf("with line breaks: %q", got)
+	}
+	if got := state.TypedText(); got != "ab" {
+		test.Fatalf("a field of one line sees no line break: %q", got)
+	}
+}
+
 func TestUnclaimedHidesWhatTheInterfaceUses(test *testing.T) {
 	state := NewState()
 	state.Feed().SetButton(MouseLeft, true)
