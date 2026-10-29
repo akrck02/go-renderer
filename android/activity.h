@@ -85,6 +85,12 @@ void emoji_install(JNIEnv *env, jobject activity);
 int emoji_available(void);
 jint *emoji_draw(int character, int pixels, int *length);
 
+// The file chooser (files.c, with FileChooser.java): install runs on the interface thread when
+// Android makes the activity; the others are safe from any thread.
+void files_install(JNIEnv *env, jobject activity);
+int files_available(void);
+int files_open(jlong largest);
+
 // log_text writes a line to Android's log, under the tag Go.
 void log_text(int priority, const char *text);
 
