@@ -263,6 +263,49 @@ and moved out of `/system/fonts` (drawn by Android). Before this, the second sho
 
 ![The same emoji drawn by Android, with no CBDT font](../images/android-emoji-drawn-by-android.png)
 
+## Choosing files
+
+A person picks files, a photo or a document, through Android's own document chooser:
+
+```go
+android.ChooseFiles(16<<20, func(chosen []android.ChosenFile) {
+	for _, file := range chosen {
+		log.Println(file.Name, file.Size, file.Read) // notes.txt 23 true
+	}
+})
+```
+
+`chosen` is called once when the person is done, on another goroutine (never Android's main
+thread), so it takes the program's own lock; an empty list means they cancelled. The first argument is the largest file the program
+takes, in bytes: a bigger one comes back with its name and size but unread (`Read` false), so a
+video picked by mistake never fills the phone's memory, and the program can say why it left it out.
+A file too big whose app does not tell its size says `UnknownSize`; an unread file with a size
+within the limit could not be read. Files reach Go one at a time as they are read.
+`ChooseFiles` returns false when the chooser cannot open: one is open already, or the package was
+made without the class.
+
+```text
+android (Go)              keeps the one open chooser, gathers what Java hands over
+files.c                   opens the class over the activity; passes each file on to Go
+FileChooser.java          a fragment: ACTION_OPEN_DOCUMENT, then reads each document
+```
+
+**Why a fragment.** Android gives what was chosen to the activity's `onActivityResult`, and
+`NativeActivity` does not pass that on to native code. A fragment with no view, added for one
+choice, gets its own `onActivityResult`; then it leaves. The other way, a second activity in the
+manifest, would mean changing every app's manifest. `android.app.Fragment` is deprecated in favour
+of a support library Go Renderer does not carry, but still works on every Android it runs on.
+
+**Read at once, off the main thread.** The permission to read a chosen document lasts as long as
+the activity, so the bytes are read straight away, on a thread of their own, never on Android's
+main thread, where a big file would freeze the app. A size the other app tells wrong is checked
+against what it gives.
+
+Tried on the Android 14 emulator: one file, two at once (one over the limit, which came back
+unread), and a cancel.
+
+![Android's document chooser over a Go Renderer app](../images/android-file-chooser.png)
+
 ## Not yet
 
 - Emoji sequences joined by U+200D (a family, a skin tone) show as their parts.

@@ -21,6 +21,8 @@ calls, was about two thirds of what a 3D view cost on a phone.
 | Function | |
 |---|---|
 | `func AskForNotifications()` | AskForNotifications shows Android's question to allow the program's notifications, on Android 13 and later; the package's manifest must name android.permission.POST_NOTIFICATIONS. |
+| `func CanChooseFiles() bool` | CanChooseFiles tells whether the package carries the file chooser (FileChooser.java): a package made by an older tool does not. |
+| `func ChooseFiles(largest int64, chosen func([]ChosenFile)) bool` | ChooseFiles opens Android's document chooser, where the person picks one file or several. |
 | `func EditText(field uint64, text TextInput, secret bool)` | EditText tells the on-screen keyboard the text of the field being typed in, so it edits that text: it suggests words from it, composes in it and deletes from it. |
 | `func Feel(feeling Feeling)` | Feel gives a buzz of a kind, if the person has touch feedback on. |
 | `func FeelLongPress()` | FeelLongPress gives the short buzz Android's own applications give when a touch becomes a long press, if the person has touch feedback on. |
@@ -91,6 +93,19 @@ type Channel struct {
 | Function or method | |
 |---|---|
 | `func MessagesChannel() Channel` | MessagesChannel is a channel for the program's messages, with an English label. |
+
+### ChosenFile
+
+ChosenFile is a file the person chose in Android's file chooser: its name as the chooser shows it, its size in bytes, and its bytes when Read. A file bigger than the caller takes is not read: it comes with its name and size only, so the caller can say why it was left out.
+
+```go
+type ChosenFile struct {
+	Name    string
+	Size    int64
+	Content []byte
+	Read    bool
+}
+```
 
 ### Feeling
 
