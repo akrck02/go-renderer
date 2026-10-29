@@ -1,6 +1,7 @@
 package android
 
 import (
+	"fmt"
 	"os"
 	"slices"
 	"strings"
@@ -29,7 +30,7 @@ func TestPositionsCrossToJavaInUTF16Units(test *testing.T) {
 func TestTheProgramsTextIsSentOnlyWhenItDiffers(test *testing.T) {
 	var keyboard keyboardText
 	field := TextInput{Text: "Harbour", SelectionStart: 7, SelectionEnd: 7}
-	if !keyboard.toSend(1, field, false) || keyboard.toSend(1, field, false) {
+	if !keyboard.toSend(1, field, LineOfText) || keyboard.toSend(1, field, LineOfText) {
 		test.Fatal("a field is sent when it starts being typed in, then not again while unchanged")
 	}
 	typed := TextInput{Text: "Harbour li", SelectionStart: 10, SelectionEnd: 10, ComposingStart: 8, ComposingEnd: 10}
@@ -37,10 +38,10 @@ func TestTheProgramsTextIsSentOnlyWhenItDiffers(test *testing.T) {
 	if got, ok := keyboard.take(1); !ok || got != typed || keyboard.takenEdit != 3 {
 		test.Fatalf("the keyboard's edit is taken: %+v %v", got, ok)
 	}
-	if keyboard.toSend(1, typed, false) {
+	if keyboard.toSend(1, typed, LineOfText) {
 		test.Fatal("the keyboard's own edit is not sent back to it")
 	}
-	if !keyboard.toSend(1, TextInput{Text: "Harbour l", SelectionStart: 9, SelectionEnd: 9}, false) {
+	if !keyboard.toSend(1, TextInput{Text: "Harbour l", SelectionStart: 9, SelectionEnd: 9}, LineOfText) {
 		test.Fatal("a change of the program's (a hardware key) is sent")
 	}
 	if _, ok := keyboard.take(1); ok {
@@ -62,7 +63,7 @@ func TestTheKeyboardsViewIsWhereTheBridgeLooks(test *testing.T) {
 	for _, both := range [][2]string{
 		{`"io.github.akrck02.gorenderer.TextInput"`, "package io.github.akrck02.gorenderer;"},
 		{`"(JILjava/lang/String;IIII)V"`, "static native void edited(long field, int edit, String text, int selectionStart, int selectionEnd,"},
-		{`"(JILjava/lang/String;IIIIZ)V"`, "public static void set(final long field, final int edit, final String text, final int selectionStart,"},
+		{`"(JILjava/lang/String;IIIII)V"`, "public static void set(final long field, final int edit, final String text, final int selectionStart,"},
 		{`"(Z)V"`, "public static void show(final boolean typing)"},
 	} {
 		if !strings.Contains(string(bridge), both[0]) || !strings.Contains(java.TextInput, both[1]) {
@@ -71,5 +72,26 @@ func TestTheKeyboardsViewIsWhereTheBridgeLooks(test *testing.T) {
 	}
 	if !slices.Contains(java.Sources, java.Source{Path: java.TextInputPath, Text: java.TextInput}) {
 		test.Fatal("the tool compiles the class")
+	}
+}
+
+func TestAFieldOfManyLinesIsSentAgainForItsNewLineKey(test *testing.T) {
+	var keyboard keyboardText
+	field := TextInput{Text: "Harbour", SelectionStart: 7, SelectionEnd: 7}
+	keyboard.toSend(1, field, LineOfText)
+	if !keyboard.toSend(1, field, LinesOfText) {
+		test.Fatal("the same text in a field that now takes many lines is sent again, so the keyboard changes its keys")
+	}
+}
+
+// TextInput.java chooses the keyboard's keys from the kind's number: both sides must agree on it.
+func TestTheKindsOfTextHaveTheSameNumbersInJava(test *testing.T) {
+	for _, kind := range []struct {
+		name  string
+		value TextKind
+	}{{"LINE_OF_TEXT", LineOfText}, {"PASSWORD", Password}, {"LINES_OF_TEXT", LinesOfText}} {
+		if declared := fmt.Sprintf("static final int %s = %d;", kind.name, kind.value); !strings.Contains(java.TextInput, declared) {
+			test.Fatalf("TextInput.java does not declare %q", declared)
+		}
 	}
 }

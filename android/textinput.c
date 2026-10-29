@@ -46,7 +46,7 @@ static int prepare_input_class(JNIEnv *env, jobject activity) {
 	}
 	install_method = (*env)->GetStaticMethodID(env, found, "install", "(Landroid/app/Activity;)V");
 	show_method = (*env)->GetStaticMethodID(env, found, "show", "(Z)V");
-	set_method = (*env)->GetStaticMethodID(env, found, "set", "(JILjava/lang/String;IIIIZ)V");
+	set_method = (*env)->GetStaticMethodID(env, found, "set", "(JILjava/lang/String;IIIII)V");
 	if (thrown(env) || install_method == NULL || show_method == NULL || set_method == NULL) {
 		(*env)->DeleteLocalRef(env, found);
 		return 0;
@@ -76,14 +76,14 @@ int text_input_show(int typing) {
 
 // text_input_set gives the view a field's text as Go has it; indices are in UTF-16 units.
 void text_input_set(jlong field, int edit, const jchar *characters, int length, int selection_start,
-		int selection_end, int composing_start, int composing_end, int secret) {
+		int selection_end, int composing_start, int composing_end, int kind) {
 	if (input_class == NULL) return;
 	JNIEnv *env = attach_thread();
 	if (env == NULL) return;
 	jstring text = (*env)->NewString(env, characters, length);
 	if (thrown(env) || text == NULL) return;
 	(*env)->CallStaticVoidMethod(env, input_class, set_method, field, edit, text, selection_start, selection_end,
-		composing_start, composing_end, secret ? JNI_TRUE : JNI_FALSE);
+		composing_start, composing_end, kind);
 	thrown(env);
 	(*env)->DeleteLocalRef(env, text);
 }

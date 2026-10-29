@@ -45,15 +45,16 @@ func showKeyboard(typing bool) {
 
 // EditText tells the on-screen keyboard the text of the field being typed in, so it edits that
 // text: it suggests words from it, composes in it and deletes from it. Call it in every step while
-// a field is typed in, before ShowKeyboard; field tells fields apart (any number but 0), and secret
-// asks for a password's keyboard, with no suggestions. It costs nothing while the text is unchanged.
-func EditText(field uint64, text TextInput, secret bool) {
-	if drawing == nil || field == 0 || !keyboard.toSend(field, text, secret) {
+// a field is typed in, before ShowKeyboard; field tells fields apart (any number but 0), and kind
+// asks for the keys the field needs: a password's, with no suggestions, or a new-line key for many
+// lines. It costs nothing while the text is unchanged.
+func EditText(field uint64, text TextInput, kind TextKind) {
+	if drawing == nil || field == 0 || !keyboard.toSend(field, text, kind) {
 		return
 	}
 	characters, selectionStart, selectionEnd, composingStart, composingEnd := utf16Text(text)
 	C.text_input_set(C.jlong(field), C.int(keyboard.takenEdit), (*C.jchar)(first(characters)), C.int(len(characters)),
-		C.int(selectionStart), C.int(selectionEnd), C.int(composingStart), C.int(composingEnd), boolInt(secret))
+		C.int(selectionStart), C.int(selectionEnd), C.int(composingStart), C.int(composingEnd), C.int(kind))
 }
 
 // TakeTextEdit returns what the on-screen keyboard made of a field's text since the last call: its

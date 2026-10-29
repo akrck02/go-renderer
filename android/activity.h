@@ -76,7 +76,7 @@ jclass load_package_class(JNIEnv *env, jobject activity, const char *class_name)
 int text_input_install(JNIEnv *env, jobject activity);
 int text_input_show(int typing);
 void text_input_set(jlong field, int edit, const jchar *characters, int length, int selection_start,
-	int selection_end, int composing_start, int composing_end, int secret);
+	int selection_end, int composing_start, int composing_end, int kind);
 
 // The phone's own emoji (emoji.c, with EmojiPicture.java): install runs on the interface thread
 // when Android makes the activity; draw is safe from any thread, and its answer is freed by the

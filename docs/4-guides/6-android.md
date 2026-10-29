@@ -137,7 +137,7 @@ for the keyboard and tells Go the whole state after each edit.
 
 ```text
 the program's field                       TextInput.java (a copy of the text)        the keyboard
-  EditText(field, text, secret)   ──────►  set: the text, the caret, the composing  ──► suggests from it
+  EditText(field, text, kind)     ──────►  set: the text, the caret, the composing  ──► suggests from it
   TakeTextEdit(field)             ◄──────  edited: the whole text after each edit   ◄── commits, composes, deletes
 ```
 
@@ -145,11 +145,15 @@ Both sides edit at once (a hardware key goes to Go; a word goes to Java), so eac
 edits is numbered: Go's text says which edit it comes after, and a text from before the latest one
 is dropped, as the keyboard has typed since. An edit of a field no longer typed in is dropped too.
 Positions cross as UTF-16 units, as Java counts them, and become characters in Go: an emoji is one
-character and two units. A `secret` field asks for a password's keyboard, with no suggestions; Enter
-is the keyboard's *Done*, which reaches Go as the Enter key. A package without the class (made by an
+character and two units. The field's `TextKind` chooses the keys: a `Password` gets a password's
+keyboard, with no suggestions; a `LineOfText` has *Done* where Enter is, which reaches Go as the
+Enter key; `LinesOfText` (a text area) has a new-line key instead, whose line break arrives in the
+text like any character (`TYPE_TEXT_FLAG_MULTI_LINE`), and predictions keep working across lines. A package without the class (made by an
 older tool) types key by key, as before. Tried on the Android 14 emulator with Android's own
 keyboard: "harb" composes underlined, its suggestion "harbour" replaces it, a hardware key and the
-keyboard's backspace edit the same text, and a password gets no suggestions.
+keyboard's backspace edit the same text, a password gets no suggestions, and a text area's
+new-line key (Android's own LatinIME, which commits it as a "\n") breaks the line while the
+suggestions go on. A keyboard that sends Enter as a key event instead (some do) is not tried yet.
 
 **A finger lifted leaves nothing under it.** After the frame where a finger is lifted
 (`input.TouchPointer`), the pointer goes off the window (`State.PointerLeaves`): with a mouse, the

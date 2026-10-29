@@ -23,7 +23,7 @@ calls, was about two thirds of what a 3D view cost on a phone.
 | `func AskForNotifications()` | AskForNotifications shows Android's question to allow the program's notifications, on Android 13 and later; the package's manifest must name android.permission.POST_NOTIFICATIONS. |
 | `func CanChooseFiles() bool` | CanChooseFiles tells whether the package carries the file chooser (FileChooser.java): a package made by an older tool does not. |
 | `func ChooseFiles(largest int64, chosen func([]ChosenFile)) bool` | ChooseFiles opens Android's document chooser, where the person picks one file or several. |
-| `func EditText(field uint64, text TextInput, secret bool)` | EditText tells the on-screen keyboard the text of the field being typed in, so it edits that text: it suggests words from it, composes in it and deletes from it. |
+| `func EditText(field uint64, text TextInput, kind TextKind)` | EditText tells the on-screen keyboard the text of the field being typed in, so it edits that text: it suggests words from it, composes in it and deletes from it. |
 | `func Feel(feeling Feeling)` | Feel gives a buzz of a kind, if the person has touch feedback on. |
 | `func FeelLongPress()` | FeelLongPress gives the short buzz Android's own applications give when a touch becomes a long press, if the person has touch feedback on. |
 | `func Graphics() string` | Graphics names the phone's OpenGL ES and GPU once the window has drawn, or what stopped it. |
@@ -276,6 +276,20 @@ type TextInput struct {
 	SelectionStart, SelectionEnd int // the caret when they are equal
 	ComposingStart, ComposingEnd int // equal when nothing is being composed
 }
+```
+
+### TextKind
+
+TextKind is what a field takes, so the on-screen keyboard offers the keys for it.
+
+```go
+type TextKind int
+
+const (
+	LineOfText  TextKind = iota // one line: Enter is done
+	Password                    // one line the keyboard shows dots for, and suggests nothing from
+	LinesOfText                 // many lines: Enter starts a new one
+)
 ```
 
 ### Video

@@ -28,13 +28,18 @@ public final class TextInput extends View {
 	static native void edited(long field, int edit, String text, int selectionStart, int selectionEnd,
 		int composingStart, int composingEnd);
 
+	// What a field takes, as Go's TextKind numbers them: the keyboard's keys follow it.
+	static final int LINE_OF_TEXT = 0;
+	static final int PASSWORD = 1;
+	static final int LINES_OF_TEXT = 2;
+
 	private static volatile TextInput current;
 
 	private final Editable text = Editable.Factory.getInstance().newEditable("");
 	private final InputMethodManager manager;
 	private long field; // the field typed in, as Go names it; 0 while none is
 	private int edit; // the keyboard's latest edit, counted
-	private boolean secret;
+	private int kind = LINE_OF_TEXT;
 	private int batch; // how deep the keyboard is in a batch of edits, told at its end
 	private boolean fromGo; // the text is being set to Go's: nothing to tell Go
 
@@ -91,24 +96,24 @@ public final class TextInput extends View {
 	// field Go typed in last, or a field just focused (any edit). Indices are in UTF-16 units, as
 	// Java counts; -1 composing means no composing word. Called from the drawing thread.
 	public static void set(final long field, final int edit, final String text, final int selectionStart,
-			final int selectionEnd, final int composingStart, final int composingEnd, final boolean secret) {
+			final int selectionEnd, final int composingStart, final int composingEnd, final int kind) {
 		final TextInput input = current;
 		if (input == null) return;
 		input.post(new Runnable() {
 			@Override
 			public void run() {
-				input.took(field, edit, text, selectionStart, selectionEnd, composingStart, composingEnd, secret);
+				input.took(field, edit, text, selectionStart, selectionEnd, composingStart, composingEnd, kind);
 			}
 		});
 	}
 
 	private void took(long field, int edit, String text, int selectionStart, int selectionEnd, int composingStart,
-			int composingEnd, boolean secret) {
-		boolean another = field != this.field || secret != this.secret;
+			int composingEnd, int kind) {
+		boolean another = field != this.field || kind != this.kind;
 		if (!another && edit != this.edit) return; // the keyboard typed since: Go's text is older
 		boolean changed = another || !text.contentEquals(this.text);
 		this.field = field;
-		this.secret = secret;
+		this.kind = kind;
 		if (changed) this.text.replace(0, this.text.length(), text);
 		Selection.setSelection(this.text, clamp(selectionStart), clamp(selectionEnd));
 		BaseInputConnection.removeComposingSpans(this.text);
@@ -153,10 +158,22 @@ public final class TextInput extends View {
 
 	@Override
 	public InputConnection onCreateInputConnection(EditorInfo info) {
-		info.inputType = InputType.TYPE_CLASS_TEXT | (secret ? InputType.TYPE_TEXT_VARIATION_PASSWORD
-			: InputType.TYPE_TEXT_FLAG_AUTO_CORRECT);
-		// one line: Enter is done; and no keyboard of its own over the whole screen when the phone lies
-		info.imeOptions = EditorInfo.IME_ACTION_DONE | EditorInfo.IME_FLAG_NO_EXTRACT_UI | EditorInfo.IME_FLAG_NO_FULLSCREEN;
+		// no keyboard of its own over the whole screen when the phone lies
+		int screen = EditorInfo.IME_FLAG_NO_EXTRACT_UI | EditorInfo.IME_FLAG_NO_FULLSCREEN;
+		switch (kind) {
+		case PASSWORD:
+			info.inputType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD;
+			info.imeOptions = EditorInfo.IME_ACTION_DONE | screen;
+			break;
+		case LINES_OF_TEXT: // Enter is a new line, not done
+			info.inputType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_AUTO_CORRECT
+				| InputType.TYPE_TEXT_FLAG_MULTI_LINE;
+			info.imeOptions = EditorInfo.IME_FLAG_NO_ENTER_ACTION | screen;
+			break;
+		default: // one line: Enter is done
+			info.inputType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_AUTO_CORRECT;
+			info.imeOptions = EditorInfo.IME_ACTION_DONE | screen;
+		}
 		info.initialSelStart = Selection.getSelectionStart(text);
 		info.initialSelEnd = Selection.getSelectionEnd(text);
 		return new Connection(this);
