@@ -2,7 +2,8 @@
 // that packages it: it compiles the source against the platform's android.jar and puts the classes
 // in the package's classes.dex. Everything else runs in Go and C; this is the part Android only
 // offers to Java (a screen reader's view of the window, see ScreenReader.java, a view the
-// on-screen keyboard types in, see TextInput.java, and the phone's own emoji, see EmojiPicture.java).
+// on-screen keyboard types in, see TextInput.java, the phone's own emoji, see EmojiPicture.java,
+// and its file chooser, see FileChooser.java).
 package java
 
 import _ "embed"
@@ -40,10 +41,24 @@ const (
 	EmojiPicturePath  = "io/github/akrck02/gorenderer/EmojiPicture.java"
 )
 
+// FileChooser is FileChooser.java: Android's document chooser, opened for Go, which hands back the
+// files the person chose.
+//
+//go:embed FileChooser.java
+var FileChooser string
+
+// FileChooserClass is the class's full name, as a class loader finds it, and FileChooserPath is
+// where its source goes for javac.
+const (
+	FileChooserClass = "io.github.akrck02.gorenderer.FileChooser"
+	FileChooserPath  = "io/github/akrck02/gorenderer/FileChooser.java"
+)
+
 // Source is one Java file a program carries: where it goes for javac, and what it holds.
 type Source struct {
 	Path, Text string
 }
 
 // Sources are every Java file a program carries, for a tool to compile together.
-var Sources = []Source{{ScreenReaderPath, ScreenReader}, {TextInputPath, TextInput}, {EmojiPicturePath, EmojiPicture}}
+var Sources = []Source{{ScreenReaderPath, ScreenReader}, {TextInputPath, TextInput}, {EmojiPicturePath, EmojiPicture},
+	{FileChooserPath, FileChooser}}
