@@ -3,7 +3,8 @@
 // in the package's classes.dex. Everything else runs in Go and C; this is the part Android only
 // offers to Java (a screen reader's view of the window, see ScreenReader.java, a view the
 // on-screen keyboard types in, see TextInput.java, the phone's own emoji, see EmojiPicture.java,
-// and its file chooser, see FileChooser.java).
+// its file chooser, see FileChooser.java, and the activity keeping the intent of a touched
+// notification, see Activity.java).
 package java
 
 import _ "embed"
@@ -54,6 +55,20 @@ const (
 	FileChooserPath  = "io/github/akrck02/gorenderer/FileChooser.java"
 )
 
+// Activity is Activity.java: Android's NativeActivity keeping the intent that brings it back to the
+// front, so a touched notification's target reaches a program already open. A package names it as
+// its activity (ActivityClass) instead of android.app.NativeActivity.
+//
+//go:embed Activity.java
+var Activity string
+
+// ActivityClass is the activity's full name, for the manifest, and ActivityPath where its source
+// goes for javac.
+const (
+	ActivityClass = "io.github.akrck02.gorenderer.Activity"
+	ActivityPath  = "io/github/akrck02/gorenderer/Activity.java"
+)
+
 // Source is one Java file a program carries: where it goes for javac, and what it holds.
 type Source struct {
 	Path, Text string
@@ -61,4 +76,4 @@ type Source struct {
 
 // Sources are every Java file a program carries, for a tool to compile together.
 var Sources = []Source{{ScreenReaderPath, ScreenReader}, {TextInputPath, TextInput}, {EmojiPicturePath, EmojiPicture},
-	{FileChooserPath, FileChooser}}
+	{FileChooserPath, FileChooser}, {ActivityPath, Activity}}

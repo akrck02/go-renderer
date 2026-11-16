@@ -30,7 +30,9 @@ calls, was about two thirds of what a 3D view cost on a phone.
 | `func LastCrash() string` | LastCrash is the report of the last run's crash, or "" when it ended well. |
 | `func NotificationsAllowed() bool` | NotificationsAllowed tells whether the program may show notifications: always before Android 13, and on Android 13 and later once the person allowed them (AskForNotifications). |
 | `func Notify(channel Channel, id int, title, text string) bool` | Notify shows a notification on a channel in the system's shade, as other applications' are, even while the program is in the background: a title and a line, and touching it opens the program. |
+| `func NotifyAbout(channel Channel, id int, title, text, target string) bool` | NotifyAbout is Notify with a target: what the notification is about, in the program's own words (a screen, a thing's id). |
 | `func OpenLink(link string) bool` | OpenLink opens a link in the application that shows it: a web page in the browser, mailto: in the mail, tel: in the phone, geo: in the maps. |
+| `func OpenedNotification() (string, bool)` | OpenedNotification is the target of the notification touched to open the program (NotifyAbout), and true, once; then "" and false until another is touched. |
 | `func Run(app *window.Application, options Options, draw func(functions GL, fresh bool) error) error` | Run draws the application in the activity's window until the program ends (Android ends it). |
 | `func ScreenReaderFocus() int32` | ScreenReaderFocus is the node the screen reader is on, which the program rings; 0 for none. |
 | `func ScreenReaderOn() bool` | ScreenReaderOn tells whether a screen reader (or another accessibility service) is on: only then is a list of nodes worth making. |
@@ -44,6 +46,12 @@ calls, was about two thirds of what a 3D view cost on a phone.
 | `func Wake()` | Wake makes the window draw a frame now: for a program whose data changes on another goroutine. |
 
 ### Constants and variables
+
+```go
+const UnknownSize = -1
+```
+
+UnknownSize is the Size of a file too big to read whose real size the app holding it did not tell.
 
 ```go
 var VideoNotOpened = failure.Define("android.video-not-opened", "the video could not be opened")
@@ -96,7 +104,7 @@ type Channel struct {
 
 ### ChosenFile
 
-ChosenFile is a file the person chose in Android's file chooser: its name as the chooser shows it, its size in bytes, and its bytes when Read. A file bigger than the caller takes is not read: it comes with its name and size only, so the caller can say why it was left out.
+ChosenFile is a file the person chose in Android's file chooser: its name as the chooser shows it, its size in bytes, and its bytes when Read. A file that is not read comes with its name and size only, so the caller can say why it was left out: a Size over the largest asked, or UnknownSize, is too big; a smaller Size means it could not be read.
 
 ```go
 type ChosenFile struct {
@@ -285,7 +293,9 @@ TextKind is what a field takes, so the on-screen keyboard offers the keys for it
 
 ```go
 type TextKind int
+```
 
+```go
 const (
 	LineOfText  TextKind = iota // one line: Enter is done
 	Password                    // one line the keyboard shows dots for, and suggests nothing from

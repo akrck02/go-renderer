@@ -14,7 +14,10 @@ ANativeActivity *current_activity;
 static int main_started;
 
 static void on_start(ANativeActivity *activity) { goActivityChanged(0); }
-static void on_resume(ANativeActivity *activity) { goActivityChanged(1); }
+static void on_resume(ANativeActivity *activity) {
+	note_resumed();
+	goActivityChanged(1);
+}
 static void on_pause(ANativeActivity *activity) { goActivityChanged(2); }
 static void on_stop(ANativeActivity *activity) { goActivityChanged(3); }
 static void on_destroy(ANativeActivity *activity) { goActivityChanged(4); }

@@ -6,6 +6,7 @@
 
 #include <stdarg.h>
 #include <stddef.h>
+#include <string.h>
 #include "activity.h"
 
 static int cleared(JNIEnv *env) {
@@ -80,8 +81,15 @@ void ask_for_notifications(void) {
 	(*env)->DeleteLocalRef(env, string);
 }
 
-// open_application is what touching the notification does: open the program, as its icon does.
-static jobject open_application(JNIEnv *env, jobject context) {
+// target_extra names the extra a notification's intent carries its target in (notification_target).
+static const char *target_extra = "io.github.akrck02.gorenderer.notification";
+
+// open_application is what touching the notification does: open the program, as its icon does,
+// with the notification's target among the intent's extras when it has one. The intent asks for the
+// activity on top (FLAG_ACTIVITY_SINGLE_TOP), so a program already open is handed it (go-renderer's
+// Activity keeps it) rather than started again; each id has its own pending intent, so one
+// notification's target never takes another's place.
+static jobject open_application(JNIEnv *env, jobject context, int id, const char *target) {
 	jmethodID packages = method(env, context, "getPackageManager", "()Landroid/content/pm/PackageManager;");
 	jmethodID own_name = method(env, context, "getPackageName", "()Ljava/lang/String;");
 	if (packages == NULL || own_name == NULL) return NULL;
@@ -91,13 +99,29 @@ static jobject open_application(JNIEnv *env, jobject context) {
 	if (cleared(env) && manager != NULL && name != NULL) {
 		jmethodID launch = method(env, manager, "getLaunchIntentForPackage", "(Ljava/lang/String;)Landroid/content/Intent;");
 		jobject intent = launch ? (*env)->CallObjectMethod(env, manager, launch, name) : NULL;
+		if (cleared(env) && intent != NULL) {
+			jmethodID flags = method(env, intent, "addFlags", "(I)Landroid/content/Intent;");
+			jobject same = flags ? (*env)->CallObjectMethod(env, intent, flags, 0x20000000) : NULL; // FLAG_ACTIVITY_SINGLE_TOP
+			if (same != NULL) (*env)->DeleteLocalRef(env, same);
+			cleared(env);
+		}
+		if (intent != NULL && target != NULL && target[0] != 0) {
+			jmethodID put = method(env, intent, "putExtra", "(Ljava/lang/String;Ljava/lang/String;)Landroid/content/Intent;");
+			jstring key = (*env)->NewStringUTF(env, target_extra);
+			jstring value = (*env)->NewStringUTF(env, target);
+			jobject same = put ? (*env)->CallObjectMethod(env, intent, put, key, value) : NULL;
+			if (same != NULL) (*env)->DeleteLocalRef(env, same);
+			(*env)->DeleteLocalRef(env, key);
+			(*env)->DeleteLocalRef(env, value);
+			cleared(env);
+		}
 		jclass pending = (*env)->FindClass(env, "android/app/PendingIntent");
 		if (cleared(env) && intent != NULL && pending != NULL) {
 			jmethodID activity = (*env)->GetStaticMethodID(env, pending, "getActivity",
 				"(Landroid/content/Context;ILandroid/content/Intent;I)Landroid/app/PendingIntent;");
 			const int immutable_and_update = 0x04000000 | 0x08000000; // FLAG_IMMUTABLE | FLAG_UPDATE_CURRENT
 			if (cleared(env) && activity != NULL) {
-				result = (*env)->CallStaticObjectMethod(env, pending, activity, context, 0, intent, immutable_and_update);
+				result = (*env)->CallStaticObjectMethod(env, pending, activity, context, id, intent, immutable_and_update);
 				if (!cleared(env)) result = NULL;
 			}
 		}
@@ -150,9 +174,10 @@ static int make_channel(JNIEnv *env, jobject manager, jstring channel, jstring c
 	return made;
 }
 
-// post_notification shows a notification with a title and a text; the same id replaces the one
-// shown before. It returns 0 when it could not.
-int post_notification(int id, const char *channel_id, const char *channel_label, const char *title, const char *text) {
+// post_notification shows a notification with a title and a text, and a target the program reads
+// back when it is touched (empty for none); the same id replaces the one shown before. It returns 0
+// when it could not.
+int post_notification(int id, const char *channel_id, const char *channel_label, const char *title, const char *text, const char *target) {
 	JNIEnv *env = attach_thread();
 	if (env == NULL) return 0;
 	jobject context = current_activity->clazz;
@@ -171,7 +196,7 @@ int post_notification(int id, const char *channel_id, const char *channel_label,
 	jmethodID make = builder_class ? (*env)->GetMethodID(env, builder_class, "<init>", "(Landroid/content/Context;Ljava/lang/String;)V") : NULL;
 	if (cleared(env) && make != NULL && make_channel(env, manager, channel, label)) {
 		jobject builder = (*env)->NewObject(env, builder_class, make, context, channel);
-		jobject opening = open_application(env, context);
+		jobject opening = open_application(env, context, id, target);
 		int icon = small_icon(env, context);
 		if (cleared(env) && builder != NULL && icon != 0 &&
 			call_setter(env, builder, "setSmallIcon", "(I)Landroid/app/Notification$Builder;", icon) &&
@@ -198,4 +223,41 @@ int post_notification(int id, const char *channel_id, const char *channel_label,
 	(*env)->DeleteLocalRef(env, body);
 	(*env)->DeleteLocalRef(env, manager);
 	return posted;
+}
+
+// resumed is set each time the activity comes back to the front: a touched notification brings it,
+// so only then is its intent looked at again (notification_target).
+static volatile int resumed = 1;
+
+void note_resumed(void) { resumed = 1; }
+
+// notification_target is the target of the notification that opened the program, once: it is taken
+// off the activity's intent, so the next asking finds none. NULL for none; the caller frees it.
+char *notification_target(void) {
+	if (!resumed) return NULL;
+	resumed = 0;
+	JNIEnv *env = attach_thread();
+	if (env == NULL) return NULL;
+	jobject activity = current_activity->clazz;
+	jmethodID get_intent = method(env, activity, "getIntent", "()Landroid/content/Intent;");
+	jobject intent = get_intent ? (*env)->CallObjectMethod(env, activity, get_intent) : NULL;
+	if (!cleared(env) || intent == NULL) return NULL;
+	char *found = NULL;
+	jstring key = (*env)->NewStringUTF(env, target_extra);
+	jmethodID get = method(env, intent, "getStringExtra", "(Ljava/lang/String;)Ljava/lang/String;");
+	jstring value = get ? (jstring)(*env)->CallObjectMethod(env, intent, get, key) : NULL;
+	if (cleared(env) && value != NULL) {
+		const char *text = (*env)->GetStringUTFChars(env, value, NULL);
+		if (text != NULL) {
+			found = strdup(text);
+			(*env)->ReleaseStringUTFChars(env, value, text);
+		}
+		jmethodID remove = method(env, intent, "removeExtra", "(Ljava/lang/String;)V");
+		if (remove != NULL) (*env)->CallVoidMethod(env, intent, remove, key);
+		cleared(env);
+		(*env)->DeleteLocalRef(env, value);
+	}
+	(*env)->DeleteLocalRef(env, key);
+	(*env)->DeleteLocalRef(env, intent);
+	return found;
 }
