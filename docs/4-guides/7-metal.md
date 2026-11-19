@@ -82,12 +82,17 @@ Built after the flat path, in the same way:
   makes no graphics calls. OpenGL's captures came out identical, pixel for pixel, before and after
   the move. `metal.SceneRenderer` draws the same plan.
 - **Shaders translated one to one** (`metal/scene_shaders.go`), compiled at start with precise
-  maths: the noise behind the patterns, stars and clouds takes sines of large numbers, and fast
+  maths: the noise behind the stars and clouds takes sines of large numbers, and fast
   maths would round them differently. The uniform blocks are mirrored in Go byte for byte, checked
   by tests on both sides.
 - **A thin Objective-C layer** (`scene_darwin.m`): buffers, textures, pipelines, passes and draw
   calls; the logic stays in Go. A frame waits for the previous one, so buffers can be rewritten in
   place (a simulation moving instances).
+- **Textures** (`metal/scene_textures_darwin.go`): uploaded once per picture and version, in sRGB
+  with their smaller copies; UVs in a buffer of their own. Metal's samplers are declared in the
+  shader, so the six ways of reading a texture (repeated, clamped or mirrored; smooth or sharp)
+  are six samplers, and each draw names one. Written without a Mac: still to be built and looked
+  at on one.
 - **Memoryless depth buffer** where the GPU allows it (Apple silicon): nothing reads it after the
   frame, so it takes no memory.
 - **The viewer** chooses with `-backend` (Metal on macOS, falling back to OpenGL), and the visor

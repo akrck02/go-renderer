@@ -63,6 +63,7 @@ The menu on the left (or the files in `docs/`) follows this order.
 - [Drawing in 2D](4-guides/9-drawing-in-2d.md): shapes, text, images, paths and strokes
 - [Scenes in areas of the window](4-guides/10-scenes-in-areas.md): two views, a radar
 - [Reading pads and keys, and filling the screen](4-guides/11-pads-keys-and-the-whole-screen.md)
+- [Textures on meshes](4-guides/12-textures-on-meshes.md): built-in textures, pictures of your own, glTF
 
 **Reference**
 
@@ -93,7 +94,7 @@ The menu on the left (or the files in `docs/`) follows this order.
 ## 🚧 Not done yet
 
 - **In a browser:** the full scene renderer in WebGL2 (shadows, the sky dome with stars and clouds,
-  waves and tides, patterns, wind and snow), loading `.glb` files in the page, locking the pointer
+  waves and tides, wind and snow), loading `.glb` files in the page, locking the pointer
   for walking, the on-screen keyboard and the system clipboard at any time, WebGPU, and smaller
   files with TinyGo. See [in a web browser](4-guides/5-web.md#not-yet).
 - **On Android:** keyboards for Chinese and Japanese (not tried yet), long presses, and the full

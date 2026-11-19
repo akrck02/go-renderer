@@ -24,6 +24,14 @@ type bakeKey struct {
 	kind         scene.MaterialKind
 	light        lightKey
 	lamps        lampKey
+	textured     bool // baked with UVs, for a textured material
+}
+
+// sameDraw tells whether two keys are the same mesh drawn the same way (turned, coloured, placed
+// under lamps and textured alike), whose bakes differ only by the light of the moment.
+func (key bakeKey) sameDraw(other bakeKey) bool {
+	return key.normalMatrix == other.normalMatrix && key.baseColour == other.baseColour && key.kind == other.kind &&
+		key.lamps.model == other.lamps.model && key.textured == other.textured
 }
 
 // lampKey is the point lights a draw takes (see sceneplan.DrawLights), and where the mesh is,
@@ -147,6 +155,22 @@ func bakeVertices(into []float32, mesh *scene.Mesh, key bakeKey) []float32 {
 		baked[offset+3] = math.Float32frombits(packColour(shaded))
 	}
 	return baked
+}
+
+// floatsPerTexturedBakedVertex is a baked vertex with its UV after it, for a textured draw.
+const floatsPerTexturedBakedVertex = floatsPerBakedVertex + 2
+
+// withUVs lays baked vertices out with their UVs (two a vertex) after each, into into's memory
+// when it is large enough.
+func withUVs(into, baked, uvs []float32) []float32 {
+	vertexCount := len(baked) / floatsPerBakedVertex
+	into = grownTo(into, vertexCount*floatsPerTexturedBakedVertex)
+	for vertex := range vertexCount {
+		to := into[vertex*floatsPerTexturedBakedVertex : (vertex+1)*floatsPerTexturedBakedVertex]
+		copy(to, baked[vertex*floatsPerBakedVertex:(vertex+1)*floatsPerBakedVertex])
+		to[4], to[5] = uvs[2*vertex], uvs[2*vertex+1]
+	}
+	return into
 }
 
 // grownTo is a slice of length size, reusing buffer's memory when it is large enough.

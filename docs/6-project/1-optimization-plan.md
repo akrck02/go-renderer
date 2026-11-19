@@ -258,6 +258,36 @@ under 1 % either way between runs. The bytes of the benchmarks that make no allo
 (`UpdateThousandInstances`' 12–14 KB, a frame's 13–14 or 125–134 B) are their setup, or the first
 frame's growth, spread over however many runs the benchmark chose; no frame allocates, and the
 `AllocsPerRun` tests still say so.
+## Textures (2026-10-26)
+
+[Proposal 2](../proposals/2-textures-on-meshes.md) laid pictures over meshes and turned the six
+procedural patterns into built-in textures. Its imperative: a scene without textures costs what
+it cost before, and no frame allocates. Measured as above (`-count 5`, the median), on Mesa's
+software driver under Xvfb, before the change (commit `5c4bb5f`) and after it:
+
+| Package | Benchmark | Before ns/op | B/op | allocs/op | After ns/op | B/op | allocs/op |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `opengl` | DrawingTheSampleIsland (1280×760; before: its patterns, after: its textures) | 60,044,902 | 3,268 | 59 | 53,702,617 | 772 | 5 |
+| `opengl` | DrawingTheSampleIslandWithoutTextures (every surface plain) | 54,121,840 | 3,268 | 59 | 54,432,848 | 772 | 5 |
+| `internal/sceneplan` | PlanningAFrameOfTheSampleIsland (with its textures) | 2,188 | 0 | 0 | 2,421 | 0 | 0 |
+| `internal/sceneplan` | PlanningAFrameOfTheSampleIslandWithoutTextures | 2,188 | 0 | 0 | 2,151 | 0 | 0 |
+
+What it says, in short:
+
+* **A scene without textures costs the same:** 54.4 ms from 54.1 to draw (the runs move by about
+  2 %), 2.15 µs from 2.19 to plan. Its meshes keep the vertices they had: UVs live in a buffer of
+  their own, made only for a mesh that is drawn with a texture.
+* **Textures are cheaper than the patterns were:** the island with its textures draws in 53.7 ms,
+  from 60.0 with the procedural patterns, which worked out noise and stones for every pixel.
+* **Planning a textured frame costs 0.23 µs more,** for ordering the opaque draws by texture so
+  each texture is bound once; a scene without textures skips nothing but moves nothing either.
+* **The scene renderer allocated 59 times a frame, and now 5:** setting a matrix or a colour on
+  the shader handed cgo a pointer to a copy on the stack, which Go moved to the heap at every call.
+  The copy now goes through a buffer the program keeps. The five left are the 3D labels of the
+  overlay (`scene.WorldTransforms` makes a map, and fitting a label's text two slices), outside
+  this change; a frame without labels (`DrawIn`, the texture tests) allocates nothing, and
+  `TestAFrameWithTexturesAllocatesNothing` keeps it so.
+
 ---
 
 [← All the documentation](../1-overview.md)

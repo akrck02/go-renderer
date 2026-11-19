@@ -23,7 +23,7 @@ var (
 	InvalidGLTF = failure.Define("loaders.invalid-gltf", "the file is not valid glTF")
 	// UnsupportedAccessor is an accessor of a type or component type the loader does not read.
 	UnsupportedAccessor = failure.Define("loaders.unsupported-accessor", "an accessor's type is not supported")
-	// ImageNotDecoded is a sky image that is not a PNG or JPEG, or is damaged.
+	// ImageNotDecoded is a sky image or a texture's picture that is not a PNG or JPEG, or is damaged.
 	ImageNotDecoded = failure.Define("loaders.image-not-decoded", "an image of the scene could not be decoded")
 )
 ```
