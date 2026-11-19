@@ -42,7 +42,7 @@ func (files *fontFileEmoji) find() {
 	files.searched = true
 	files.fonts, files.decoded = nil, map[rune]image.Image{}
 	for _, path := range colourEmojiFiles(files.folders) {
-		data, err := os.ReadFile(path)
+		data, _, err := mapFile(path) // kept for as long as the program draws: never released
 		if err != nil {
 			continue
 		}
