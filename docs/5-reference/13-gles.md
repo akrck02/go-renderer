@@ -126,7 +126,7 @@ type FlatRenderer struct {
 | Function or method | |
 |---|---|
 | `func NewFlatRenderer(functions Functions, fonts overlay.Fonts) (*FlatRenderer, error)` | NewFlatRenderer compiles the shaders and prepares the atlas; text is drawn in fonts (overlay.Fonts{} for the default ones). |
-| `func (renderer *FlatRenderer) Draw(list *draw2d.List, background draw2d.Color, width, height int, scale float32)` | Draw clears the target framebuffer (width × height pixels) to the background colour and paints the list. |
+| `func (renderer *FlatRenderer) Draw(list *draw2d.List, background draw2d.Color, width, height int, scale float32)` | Draw clears the target framebuffer (width × height pixels) to the background colour, its alpha premultiplied (0 leaves it see-through where nothing is painted), and paints the list. |
 
 ### Framebuffer
 
@@ -287,6 +287,10 @@ type SceneRenderer struct {
 	// the screen's gamma: for a target that encodes sRGB itself (a headset's swapchain), which
 	// would otherwise apply the gamma twice and wash the picture out.
 	LinearOutput bool
+	// SeeThrough clears to a transparent background instead of the horizon, so what lies behind
+	// the picture shows where nothing is drawn: a headset's view of the room (openxr's
+	// Options.Passthrough). The surfaces drawn stay opaque.
+	SeeThrough bool
 
 	// Has unexported fields.
 }

@@ -166,6 +166,15 @@ list): touching it opens the program. Android 13 and later show them only once t
 it: `NotificationsAllowed` tells, and `AskForNotifications` shows Android's question (the package
 names `android.permission.POST_NOTIFICATIONS`). Tried on a OnePlus 7 Pro (Android 10).
 
+**What a notification is about.** `NotifyAbout(channel, id, title, text, target)` gives a notification a
+target in the program's own words (a screen, a thing's id); when it is touched, `OpenedNotification()`
+returns it, once, so the program can show that thing. Ask it in every frame: it reads the activity's
+intent only when the program has just come to the front. For the touch to reach a program already
+open, the package's activity is go-renderer's `Activity` (`android/java/Activity.java`, a
+`NativeActivity` that keeps the intent bringing it back), as go-ui-apk names it; with Android's own
+`NativeActivity` only the touch that starts the program carries its target. Each id has its own
+pending intent, so two notifications never swap targets.
+
 **Buzzes.** `Feel(feeling)` gives one of the buzzes Android's own views give
 (`View.performHapticFeedback` on the window's view): `FeelingTick` for something chosen,
 `FeelingConfirm` when something went through, `FeelingReject` when something went wrong or needs a

@@ -26,16 +26,37 @@ func MessagesChannel() Channel { return Channel{ID: "messages", Label: "Messages
 // could not, most often because the person has not allowed notifications (NotificationsAllowed).
 // Safe from any goroutine.
 func Notify(channel Channel, id int, title, text string) bool {
+	return NotifyAbout(channel, id, title, text, "")
+}
+
+// NotifyAbout is Notify with a target: what the notification is about, in the program's own words
+// (a screen, a thing's id). Touching it opens the program, and OpenedNotification then returns the
+// target, so the program can show that thing.
+func NotifyAbout(channel Channel, id int, title, text, target string) bool {
 	if !NotificationsAllowed() {
 		return false
 	}
-	strings := []*C.char{C.CString(channel.ID), C.CString(channel.Label), C.CString(title), C.CString(text)}
+	strings := []*C.char{C.CString(channel.ID), C.CString(channel.Label), C.CString(title), C.CString(text), C.CString(target)}
 	defer func() {
 		for _, text := range strings {
 			C.free(unsafe.Pointer(text))
 		}
 	}()
-	return C.post_notification(C.int(id), strings[0], strings[1], strings[2], strings[3]) != 0
+	return C.post_notification(C.int(id), strings[0], strings[1], strings[2], strings[3], strings[4]) != 0
+}
+
+// OpenedNotification is the target of the notification touched to open the program (NotifyAbout),
+// and true, once; then "" and false until another is touched. Ask it in every frame: it looks at
+// the activity's intent only when the program has just come to the front. The program's activity
+// must be go-renderer's Activity for a touch to reach a program already open (go-ui-apk's
+// manifest names it); with Android's NativeActivity only the touch that starts the program does.
+func OpenedNotification() (string, bool) {
+	target := C.notification_target()
+	if target == nil {
+		return "", false
+	}
+	defer C.free(unsafe.Pointer(target))
+	return C.GoString(target), true
 }
 
 // NotificationsAllowed tells whether the program may show notifications: always before Android 13,
