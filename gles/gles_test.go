@@ -39,6 +39,14 @@ func TestShadersAreOpenGLESTwo(test *testing.T) {
 	}
 }
 
+// Atlases are thousands of pixels wide; read in mediump, as phones give it, glyphs come out cut.
+func TestAtlasesAreReadInHighPrecisionWhereThePhoneHasIt(test *testing.T) {
+	highPrecision := "#ifdef GL_FRAGMENT_PRECISION_HIGH\nvarying highp vec2 atlasCoordinate;\nvarying highp vec2 pictureCoordinate;\n#else"
+	if !strings.Contains(quadFragmentShader, highPrecision) {
+		test.Fatal("the quad fragment shader does not read atlas and picture coordinates in highp where the phone has it")
+	}
+}
+
 func TestACompileErrorIsReported(test *testing.T) {
 	fake := newRecorder()
 	fake.failCompile = true
