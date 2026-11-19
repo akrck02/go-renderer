@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/akrck02/go-renderer/failure"
+	"github.com/akrck02/go-renderer/opengl/overlay"
 )
 
 // Options configure a viewing session, in three groups: where the view starts, how it is drawn,
@@ -63,6 +64,9 @@ type Rendering struct {
 	// FixedSeconds, when not NaN, draws every frame as if this many seconds had passed (water,
 	// clouds and waterfalls stand still): captures that must come out the same, to compare them.
 	FixedSeconds float64
+	// Fonts are what the overlay's text (labels, notices) is drawn with; the zero value is the
+	// default fonts.
+	Fonts overlay.Fonts
 }
 
 // Measure says what a session captures or measures instead of being explored.

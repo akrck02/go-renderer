@@ -35,6 +35,7 @@ JNIEnv *attach_thread(void);
 int window_insets(JNIEnv *env, int *top, int *bottom, int *left, int *right);
 int bar_height(JNIEnv *env, const char *name);
 int night_mode(JNIEnv *env);
+int display_quarter_turns(JNIEnv *env);
 int key_character(JNIEnv *env, int action, int code, int meta);
 void soft_keyboard(int show);
 void leave_program(void);
@@ -90,6 +91,35 @@ jint *emoji_draw(int character, int pixels, int *length);
 void files_install(JNIEnv *env, jobject activity);
 int files_available(void);
 int files_open(jlong largest);
+
+// Running without a window (headset.c), for an OpenXR runtime: all on the drawing thread.
+typedef struct {
+	EGLDisplay display;
+	EGLConfig config;
+	EGLContext context;
+	EGLSurface surface; // a small pbuffer, or EGL_NO_SURFACE when the context is surfaceless
+} headset_context;
+
+int headset_context_open(headset_context *opened);
+void headset_context_close(headset_context *opened);
+void headset_drain_queue(AInputQueue *queue);
+// headset_handles are what an OpenXR runtime needs: JavaVM*, the activity (jobject), EGLDisplay,
+// EGLConfig and EGLContext, as numbers. Several are not addresses Go may hold as pointers (a global
+// reference is an encoded index, EGLDisplay is often 1), so they cross to Go as uintptr_t.
+typedef struct {
+	uintptr_t java_vm, activity, display, config, context;
+} headset_handles;
+
+void headset_handles_fill(JNIEnv *env, headset_context *opened, headset_handles *handles);
+void headset_handles_release(JNIEnv *env, headset_handles *handles);
+void detach_thread(void);
+void finish_activity(void);
+
+// The rotation sensor (rotation.c): safe from any thread. rotation_start says whether the phone has
+// the sensor; rotation_read whether a reading came yet, and gives it as x, y, z, w.
+int rotation_start(void);
+void rotation_stop(void);
+int rotation_read(float *values);
 
 // log_text writes a line to Android's log, under the tag Go.
 void log_text(int priority, const char *text);

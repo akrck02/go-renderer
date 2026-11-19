@@ -27,6 +27,7 @@ what was tested.
 | The drawing thread: waiting, the frame cap, steps and frames | `android/loop.go` |
 | Touches and a hardware keyboard | `android/input.go`; fingers as the pointer in `input.TouchPointer` |
 | OpenGL ES, called directly | `android/gl.go` |
+| Running without a window, for a headset (OpenXR) | `android/headset.go`, `android/headset.c` |
 | The system's bars and theme, and the wallpaper's palettes, through JNI | `android/system.c`, `android/palettes.go` |
 | What a screen reader (TalkBack) reads, and what it asks | `android/screenreader.go`, `screenreader.c`, `android/java/ScreenReader.java` |
 | The text the on-screen keyboard edits: words, suggestions, the word being composed | `android/keyboard.go`, `android/textinput.go`, `textinput.c`, `android/java/TextInput.java` |
@@ -309,6 +310,64 @@ Tried on the Android 14 emulator: one file, two at once (one over the limit, whi
 unread), and a cancel.
 
 ![Android's document chooser over a Go Renderer app](../images/android-file-chooser.png)
+
+## Turning the phone
+
+`StartRotation` starts the phone's rotation sensor and `Rotation` reads how the screen is turned,
+as a camera's orientation: a camera turned by it looks out of the back of the phone, the room's up
+its y, so the screen becomes a window into the scene. `StopRotation` stops it again: the sensor
+draws power, so a program starts it only while it looks through the phone.
+
+- **The game rotation vector.** It leaves the compass out, so a magnet does not swing the view; the
+  heading it starts with is arbitrary, and a program keeps its own from there. A phone without it
+  falls back to the rotation vector, and `StartRotation` says false on one with neither.
+- **Its own thread.** A thread waits on the sensor's queue and keeps the latest reading, about 125
+  a second; `Rotation` takes it whenever a frame draws. The sensor does not wake the window, so a
+  program that follows it asks for frames while it does.
+- **The screen's way up.** The sensor turns the phone's own axes; the window reads how far the
+  display is turned (`Display.getRotation`) each time the configuration changes, and `Rotation`
+  turns the axes with it, so the view stays upright on the phone's side too.
+
+## Without a window
+
+A headset does not show the activity's window: an OpenXR runtime takes each eye's picture from
+images of its own (its *swapchains*) and puts them before the eyes itself. `RunHeadset` is `Run` for
+that case. It is new and has not run on a headset yet: it builds, and that is all that was checked.
+
+```go
+err := android.RunHeadset(android.HeadsetOptions{Hidden: pause, Shown: resume},
+	func(headset android.Headset, functions android.GL) bool {
+		// open the OpenXR session with headset the first time, then wait for the runtime's
+		// frame, draw each eye with functions, and submit it
+		return keepGoing
+	})
+```
+
+| | `Run` | `RunHeadset` |
+|---|---|---|
+| Draws into | the activity's window | the runtime's images; the window is never drawn on |
+| OpenGL ES | 3, else 2, on the window's surface | 3 only, current on a 16×16 pbuffer (no surface at all if the driver has no pbuffer) |
+| Waits | on its looper until something happens | never: `frame` paces itself, with the runtime's `xrWaitFrame` |
+| Frames | when something changed, capped | `frame` is called again and again until it returns false |
+| Touches and keys | the input state | dropped: the controls come through OpenXR |
+
+- **What `frame` gets.** `Headset` carries what the runtime asks for when a session is made on
+  OpenGL ES: the Java VM, the activity (a global reference), and the EGL display, configuration and
+  context the drawing thread holds. They are numbers (`uintptr`), not Go pointers: a global
+  reference is an encoded index and an EGL display is often just 1, which Go's garbage collector
+  must never mistake for an address. The package that speaks to the runtime (`openxr`) turns them
+  back into C handles, and keeps them only while `frame` runs on this thread.
+- **The activity's news is still read**, without sleeping, at the top of each turn: Android still
+  hands the activity a window and an input queue and waits until they are let go before taking them
+  away. The queue's events are finished at once: touches dropped, keys left to Android (the volume)
+  but back, which would otherwise close the activity behind the program.
+- **Paused and resumed.** `Hidden` is called when the activity is paused (the headset taken off, the
+  system's menu over the program), `Shown` when it is resumed, the first time too. `frame` keeps being
+  called while paused: the runtime then says the session is not running, and `frame` sleeps a little
+  instead of drawing.
+- **The end.** When `frame` returns false, the context is let go, the thread leaves Java (a thread
+  that ends still attached stops the whole program), the activity is finished and `RunHeadset`
+  returns. The activity's later news is still answered, so Android's callbacks never wait forever.
 
 ## Not yet
 

@@ -55,6 +55,9 @@ type Label struct {
 	// default text colour. The text itself stays dark on a light pill, so it always reads well.
 	Tint   graphics.Vector
 	Hidden bool
+	// Display writes the label's text in the display font (the overlay's Fonts.Display), as a
+	// theme's titles: the labels' own font when there is none.
+	Display bool
 }
 
 // IsEmpty tells whether the label has nothing to draw.

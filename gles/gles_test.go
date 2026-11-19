@@ -2,6 +2,7 @@ package gles
 
 import (
 	"errors"
+	"math"
 	"strings"
 	"testing"
 
@@ -387,6 +388,46 @@ func TestADrawUnderALampGetsTheLampsUniforms(test *testing.T) {
 	for _, name := range []string{"lightCount", "lightPositions[0]", "lightColors[0]"} {
 		if _, asked := fake.uniforms[name]; !asked {
 			test.Errorf("the draw under the lamp never set %s", name)
+		}
+	}
+}
+
+func TestALinearFlatRendererUndoesTheScreensGamma(test *testing.T) {
+	fake := newRecorder()
+	renderer, err := NewFlatRenderer(fake, overlay.Fonts{})
+	if err != nil {
+		test.Fatal(err)
+	}
+	renderer.Draw(card(), draw2d.MustHex("#eef1f5"), 640, 480, 1)
+	exponent := fake.uniforms["colorExponent"]
+	if fake.floats[exponent] != 1 {
+		test.Fatalf("a screen's colours are raised to %v, want 1", fake.floats[exponent])
+	}
+	renderer.LinearOutput = true
+	renderer.Draw(card(), draw2d.MustHex("#eef1f5"), 640, 480, 1)
+	if fake.floats[exponent] != screenGamma {
+		test.Fatalf("a linear target's colours are raised to %v, want the gamma %v", fake.floats[exponent], screenGamma)
+	}
+	if grey := screenToLinear(draw2d.Color{0.5, 0.5, 0.5, 1}); math.Abs(float64(grey[0])-0.2176) > 1e-3 || grey[3] != 1 {
+		test.Fatalf("the screen's middle grey is %v linear, want about 0.218 with its alpha kept", grey)
+	}
+}
+
+func TestAFlatBackgroundKeepsItsAlphaPremultiplied(test *testing.T) {
+	fake := newRecorder()
+	renderer, err := NewFlatRenderer(fake, overlay.Fonts{})
+	if err != nil {
+		test.Fatal(err)
+	}
+	renderer.Draw(card(), draw2d.Color{0.2, 0.4, 0.6, 1}, 640, 480, 1)
+	renderer.Draw(card(), draw2d.Color{0.2, 0.4, 0.6, 0.5}, 640, 480, 1)
+	renderer.Draw(card(), draw2d.Color{}, 640, 480, 1)
+	want := [][4]float32{{0.2, 0.4, 0.6, 1}, {0.1, 0.2, 0.3, 0.5}, {0, 0, 0, 0}}
+	for index, cleared := range fake.clearColors {
+		for channel := range 4 {
+			if math.Abs(float64(cleared[channel]-want[index][channel])) > 1e-6 {
+				test.Fatalf("background %d cleared to %v, want %v: opaque as it is, see-through premultiplied", index, cleared, want[index])
+			}
 		}
 	}
 }

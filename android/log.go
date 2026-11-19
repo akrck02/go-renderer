@@ -40,6 +40,11 @@ func sendStandardErrorToLog() {
 	}()
 }
 
+// LogError writes a line to Android's log (tag Go) at once. A program that ends right after an
+// error should use it rather than only log.Fatal: standard error reaches the log through a
+// goroutine, which the program's exit may not let run.
+func LogError(text string) { logError(text) }
+
 func logInfo(text string) { logText(C.ANDROID_LOG_INFO, text) }
 
 func logError(text string) { logText(C.ANDROID_LOG_ERROR, text) }
