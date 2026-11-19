@@ -1,0 +1,215 @@
+<h1 id="2-textures-on-meshes">2. Textures on meshes</h1>
+
+<blockquote>
+<p>Status: done · Author&rsquo;s approval: proposal ☑ (2026-10-26, with the decisions below) plan ☑ (2026-10-26, &ldquo;Dale, implementa&rdquo;)</p>
+</blockquote>
+
+<h2 id="why">Why</h2>
+
+<p>A 3D surface in Go Renderer has one colour: its material&rsquo;s <code>BaseColor</code> times its vertex colours,
+plus six procedural patterns (cobbles, masonry, plaster, shingles, planks, grass) that only the
+desktop&rsquo;s shaders draw. A game that shows more needs pictures on its surfaces:</p>
+
+<ul>
+<li><strong>Tiling detail:</strong> panels, a grid, stripes, carbon weave, hexagons, wear, camouflage, windows —
+small pictures repeated across a part and tinted by its colour.</li>
+<li><strong>Pictures made at run time:</strong> a game generates a pattern, or downloads one, and gives it to many
+meshes at once.</li>
+<li><strong>Models that carry their own:</strong> a <code>.glb</code> file&rsquo;s textures are read and thrown away today.</li>
+<li><strong>The same on every target</strong>, the 3DS included, within its limits.</li>
+</ul>
+
+<p>Today <code>scene.Mesh</code> has no texture coordinates and <code>scene.Material</code> no texture, on any backend.</p>
+
+<h2 id="what">What</h2>
+
+<table>
+<thead>
+<tr>
+<th>Id</th>
+<th>Requirement</th>
+<th>Check</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>R1</td>
+<td>A mesh built from code carries texture coordinates (<code>UVs</code>, two per vertex)</td>
+<td>test: a mesh with UVs uploads and draws; a mesh without them draws as today</td>
+</tr>
+
+<tr>
+<td>R2</td>
+<td>A material can carry a texture: the surface&rsquo;s colour is <code>BaseColor</code> × vertex colour × the texture, lit as before</td>
+<td>frames compared under Mesa: a tinted texture, the same texture in two colours</td>
+</tr>
+
+<tr>
+<td>R3</td>
+<td>A texture repeats (or clamps, or mirrors) across the surface, with a scale and an offset on the material, so one small picture tiles a large part</td>
+<td>frames compared: a 64 px picture repeated eight times across a box</td>
+</tr>
+
+<tr>
+<td>R4</td>
+<td>A texture is made from Go pixels at run time (an <code>image.Image</code>, or pixels written and marked changed), kept and shared by many meshes; changing it changes every mesh that shows it, uploaded once</td>
+<td>test: one texture on a hundred meshes is uploaded once; a change uploads it again once</td>
+</tr>
+
+<tr>
+<td>R5</td>
+<td>The 3DS draws textured meshes too: the texture multiplies the baked colour, its sizes and formats are written down (powers of two from 8 to 1024 px a side; which formats), and a texture that does not fit is scaled or refused with an error code</td>
+<td>Azahar capture of a tiled, tinted part; tests of the size rules</td>
+</tr>
+
+<tr>
+<td>R6</td>
+<td><code>loaders.ReadScene</code> and <code>LoadScene</code> read a glTF&rsquo;s base colour textures and texture coordinates (<code>TEXCOORD_0</code>, <code>baseColorTexture</code>, its sampler&rsquo;s wrapping)</td>
+<td>test with a small <code>.glb</code> that carries a texture</td>
+</tr>
+
+<tr>
+<td>R7</td>
+<td>A frame with textures allocates nothing, and a scene without textures costs what it costs today</td>
+<td>the benchmarks of the optimization plan, before and after</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="out-of-scope">Out of scope</h2>
+
+<ul>
+<li>Normal, roughness, metallic and emissive maps: one colour texture first.</li>
+<li>Texture atlases built by the renderer, and texture compression on the desktop.</li>
+<li>Fetching pictures from the network: a program downloads them and hands over the pixels.</li>
+</ul>
+
+<h2 id="decisions">Decisions</h2>
+
+<p>The author&rsquo;s answers (2026-10-26):</p>
+
+<ol>
+<li><strong>Where a texture lives:</strong> a small <code>scene.Texture</code> that holds a <code>draw2d.Image</code> for its pixels
+(one way to keep pixels, for 2D and 3D alike) and the settings only 3D needs: wrapping,
+filtering, the 3DS&rsquo;s format (&ldquo;Me parece correcto&rdquo;).</li>
+<li><strong>Filtering:</strong> chosen per texture, smooth or sharp.</li>
+<li><strong>The 3DS&rsquo;s formats:</strong> save memory where it can: RGBA8, RGB565 and ETC1, chosen per texture.</li>
+<li><strong>The procedural patterns:</strong> they become built-in textures, so every target, the 3DS included,
+draws them; the pattern code in the desktop&rsquo;s shaders goes.</li>
+</ol>
+
+<p>After building, the author answered the review&rsquo;s questions (2026-10-26, &ldquo;Dale&rdquo;):</p>
+
+<ol>
+<li><strong>The old glTF extras</strong> stay, deprecated: <code>&quot;pattern&quot;</code> and <code>&quot;patternScale&quot;</code> are read as the
+built-in texture of that name, the cell size turned into the texture scale that keeps it.</li>
+<li><strong>The built-in textures keep a surface&rsquo;s brightness:</strong> each carries a <code>Gain</code> (a new
+<code>scene.Texture</code> field) that brings its mean in linear light to 1; the material&rsquo;s colour is
+multiplied by it, so nothing changes per pixel.</li>
+<li><strong>The 3DS&rsquo;s limits</strong> (no textures on water and moving nodes, no mipmaps, the fog tinted by the
+texture) stay as documented.</li>
+<li><strong>go-engine</strong> follows on its branch <code>feature/material-textures</code>.</li>
+</ol>
+
+<h2 id="design">Design</h2>
+
+<p><strong>In <code>scene</code>.</strong> <code>Texture</code> is small and kept by the program:</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Texture</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Picture</span>   <span class="o">*</span><span class="nx">draw2d</span><span class="p">.</span><span class="nx">Image</span> <span class="c1">// its pixels; Picture.Changed() uploads them again</span>
+	<span class="nx">Wrap</span>      <span class="nx">Wrap</span>          <span class="c1">// Repeat (the zero value), Clamp, Mirror</span>
+	<span class="nx">Sharp</span>     <span class="kt">bool</span>          <span class="c1">// nearest pixel instead of smooth (with mipmaps on the desktop)</span>
+	<span class="nx">Format</span>    <span class="nx">TextureFormat</span> <span class="c1">// on the 3DS: RGBA8 (default), RGB565 or ETC1; the desktop keeps RGBA8</span>
+<span class="p">}</span>
+</code></pre>
+
+<p><code>Mesh</code> gains <code>UVs []float32</code> (two per vertex, as <code>Positions</code> has three). <code>Material</code> gains
+<code>Texture *Texture</code> and <code>TextureScale</code>, <code>TextureOffset</code> (<code>[2]float32</code>; a zero scale is 1): the
+surface&rsquo;s colour is <code>BaseColor</code> × vertex colour × the texture at (UV × scale + offset). A material
+without a texture draws exactly as today. A textured mesh without UVs takes them from its
+positions (<code>Mesh.SurfaceUVs</code>: x and z on what faces up, along and up on walls, one model unit a
+repeat), as the procedural patterns did from the world position: the island&rsquo;s terrain, a box made
+in code and a model without <code>TEXCOORD_0</code> can still wear a tiling texture.</p>
+
+<p><em>Changed while building (2026-10-26):</em> the plan said a mesh without UVs draws as today; the
+patterns it replaces need no UVs, so without the projection every pattern would have been lost on
+meshes that have none. The projection is worked out once, on the processor, when the mesh is
+uploaded: every backend, the 3DS included, gets the same UVs and no shader changes for it.</p>
+
+<p><strong>Built-in textures.</strong> <code>scene.BuiltInTexture(name string) (*Texture, bool)</code> gives textures made in
+Go the first time they are asked for, then kept: the six patterns of today (cobbles, masonry,
+plaster, shingles, planks, grass) and common tiling ones (panels, grid, stripes, carbon, hexagons,
+worn, camouflage, windows), each a small power of two that tiles without a seam. <code>Material.Pattern</code>
+and <code>PatternScale</code> go, with the patterns&rsquo; code in the desktop&rsquo;s shaders: a material asks for
+<code>BuiltInTexture(&quot;cobbles&quot;)</code> and a <code>TextureScale</code> instead. Nobody outside the repository uses
+<code>Pattern</code> (go-engine and Go UI checked).</p>
+
+<p><strong>The backends.</strong> Each keeps uploaded textures by the picture&rsquo;s id and version, as the 2D picture
+atlas does: one upload for any number of meshes, again only after <code>Changed()</code>; opaque draws are
+sorted by texture, so a texture is bound once a frame. (<em>Changed while building:</em> materials were
+never sorted, and sorting by them would buy nothing, since a material is only uniforms; the
+untextured draws keep their order, first.) A texture&rsquo;s pixels are sRGB, as a PNG&rsquo;s are: the
+desktop and the browser turn them into linear light as they read them.</p>
+
+<ul>
+<li><strong>OpenGL (desktop), OpenGL ES (Android and the browser), Metal (its AI-written renderers):</strong> a
+<code>texCoord</code> attribute, a sampler, wrapping and filtering as the texture says, mipmaps when smooth.</li>
+<li><strong>The 3DS:</strong> the PICA200&rsquo;s texture combiner multiplies the texture by the baked vertex colour, so
+lighting stays baked and textures cost a texture read per pixel, no vertex work. Sizes are powers
+of two from 8 to 1024 a side (a larger or odd picture is scaled once, with a warning). RGB565 and
+ETC1 are encoded in Go when uploaded (ETC1: a small encoder, 4 bits a pixel, no alpha; a texture
+with transparency stays RGBA8 or is refused with an error code).</li>
+</ul>
+
+<p><strong>glTF.</strong> <code>ReadScene</code> and <code>LoadScene</code> read <code>TEXCOORD_0</code>, the base colour texture of the PBR
+material (PNG or JPEG, embedded in a <code>.glb</code> or by URI beside the file) and its sampler&rsquo;s wrapping
+and filtering.</p>
+
+<p><strong>Alternatives not taken.</strong> Textures in <code>draw2d.Image</code> itself: 3D-only settings in a 2D type. A
+texture per mesh instead of per material: materials are already what meshes share. Lighting per
+pixel on the 3DS for textured meshes: the measurements show its vertex work is the cost to avoid.</p>
+
+<h2 id="tasks">Tasks</h2>
+
+<ul>
+<li>[x] T1 — <code>scene.Texture</code>, <code>Wrap</code>, <code>TextureFormat</code>; <code>Mesh.UVs</code>; <code>Material.Texture</code>, <code>TextureScale</code>, <code>TextureOffset</code> · <code>scene</code> · R1, R2, R3 · tests of the defaults and of a mesh&rsquo;s UV count</li>
+<li>[x] T2 — built-in textures that tile without a seam; <code>Pattern</code> removed · <code>scene</code> · R4 · test: each tiles (its edges match), each is made once</li>
+<li>[x] T3 — OpenGL: upload once per version, wrapping, filtering, mipmaps, sorting by texture · <code>opengl</code>, <code>internal/sceneplan</code> · R2–R4, R7 · frames compared under Mesa (a tinted tiled box, sharp and smooth); benchmarks with and without textures</li>
+<li>[x] T4 — OpenGL ES, for Android and the browser · <code>gles</code> · R2–R4 · tests with the recorder; an APK on the emulator</li>
+<li>[x] T5 — Metal (its AI-written renderers) · <code>metal</code> · R2–R4 · the author builds and looks on his Mac</li>
+<li>[x] T6 — the 3DS: tiles to powers of two, RGBA8, RGB565 and an ETC1 encoder, the combiner&rsquo;s multiply · <code>nintendo3ds</code> · R5 · tests of the encoders against reference blocks and of the size rules; Azahar capture; frame time measured with and without textures</li>
+<li>[x] T7 — glTF textures and UVs · <code>loaders</code> · R6 · test with a small <code>.glb</code></li>
+<li>[x] T8 — docs: a guide <em>Textures on meshes</em>, the 3DS guide&rsquo;s limits, the reference; then go-engine&rsquo;s scenes can name a material&rsquo;s texture (a follow-up there) · <code>docs</code> · R1–R6</li>
+</ul>
+
+<h2 id="result">Result</h2>
+
+<p>Built on 2026-10-26, T1 to T8, on <code>docs/textures-on-meshes</code>. Every requirement&rsquo;s check was run:</p>
+
+<ul>
+<li><strong>R1–R4 (OpenGL):</strong> <code>opengl/textures_test.go</code> compares a frame of a tinted 64-pixel picture
+repeated eight times across two quads (smooth and red, sharp and blue) with
+<code>opengl/testdata/two-tinted-textures.png</code> (Mesa, 8 levels a channel, 0.5 % of pixels);
+adding the texture instead of multiplying it fails it (58.6 % of pixels differ). One texture on
+a hundred meshes is uploaded once, and once more after <code>Changed()</code>.</li>
+<li><strong>R2–R4 (OpenGL ES):</strong> tests with the recorder (one upload, UVs only for textured meshes,
+sampling as asked); the sample island with its textures drawn by Go UI&rsquo;s <code>cmd/mobile</code> on the
+Android emulator.</li>
+<li><strong>R5 (3DS):</strong> the ETC1 encoder and the RGB565 and RGBA8 tiling tested against blocks and
+pixels worked out by hand; <code>cmd/textures3ds</code> in Azahar: cobbles in RGBA8, a roof and planks in
+RGB565, walls and ground in ETC1, 60 frames a second and 0.8 ms of citro3d&rsquo;s processing with or
+without textures.</li>
+<li><strong>R6:</strong> a small <code>.glb</code> with an embedded PNG, and one with the picture beside it.</li>
+<li><strong>R7:</strong> see <a href="./project/optimization-plan">the optimization plan</a>:
+a scene without textures costs the same; a textured frame allocates nothing.</li>
+</ul>
+
+<p>Found and fixed on the way: the scene renderer allocated 59 times a frame (cgo pointers to
+matrices on the stack), now none outside the 3D labels; a first 3DS build checked every pixel for
+transparency on every draw.</p>
+
+<p><strong>Still to be reviewed by a person:</strong> everything (AI-written); the Metal renderer was written
+without a Mac and has never been compiled or run; nothing was tried on a real 3DS or phone. Left
+out: textures on the 3DS&rsquo;s water and moving nodes, mipmaps on the 3DS, and the 3D labels&rsquo; five
+allocations a frame. Decisions 5 to 8 were built after the review: the deprecated pattern extras,
+the textures&rsquo; <code>Gain</code>, and go-engine&rsquo;s <code>feature/material-textures</code>.</p>

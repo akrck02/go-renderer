@@ -92,14 +92,15 @@ indices decides which side is the front. Get it backwards and the light falls on
 <pre><code class="language-go"><span class="c1">// hill is a round island: a grid of side × side cells, highest in the middle and under the sea at</span>
 <span class="c1">// its edges. Its surface is ground, so the walker and GroundHeight find it.</span>
 <span class="kd">func</span> <span class="nf">hill</span><span class="p">(</span><span class="nx">side</span> <span class="kt">int</span><span class="p">,</span> <span class="nx">height</span> <span class="kt">float32</span><span class="p">)</span> <span class="o">*</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Mesh</span> <span class="p">{</span>
+	<span class="nx">grass</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">scene</span><span class="p">.</span><span class="nf">BuiltInTexture</span><span class="p">(</span><span class="s">&#34;grass&#34;</span><span class="p">)</span>
 	<span class="nx">mesh</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Mesh</span><span class="p">{</span>
 		<span class="nx">Name</span><span class="p">:</span>   <span class="s">&#34;hill&#34;</span><span class="p">,</span>
 		<span class="nx">Ground</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
 		<span class="nx">Material</span><span class="p">:</span> <span class="o">&amp;</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Material</span><span class="p">{</span>
 			<span class="nx">Kind</span><span class="p">:</span>         <span class="nx">scene</span><span class="p">.</span><span class="nx">LitKind</span><span class="p">,</span>
 			<span class="nx">BaseColor</span><span class="p">:</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">{</span><span class="mf">0.45</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span>
-			<span class="nx">Pattern</span><span class="p">:</span>      <span class="nx">scene</span><span class="p">.</span><span class="nx">PatternGrass</span><span class="p">,</span>
-			<span class="nx">PatternScale</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+			<span class="nx">Texture</span><span class="p">:</span>      <span class="nx">grass</span><span class="p">,</span>
+			<span class="nx">TextureScale</span><span class="p">:</span> <span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="kt">float32</span><span class="p">{</span><span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">},</span>
 		<span class="p">},</span>
 	<span class="p">}</span>
 	<span class="nx">half</span> <span class="o">:=</span> <span class="nb">float32</span><span class="p">(</span><span class="nx">side</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
@@ -124,8 +125,10 @@ indices decides which side is the front. Get it backwards and the light falls on
 </code></pre>
 
 <p><code>ComputeNormals</code> works out smooth normals from the triangles, so the hill is shaded as one rounded
-surface. <code>PatternGrass</code> mottles its colour from the world position, with no texture to load; the
-other patterns are cobbles, masonry, plaster, shingles and planks.</p>
+surface. The built-in <code>grass</code> texture mottles its colour, with no file to load: the hill has no
+UVs, so the texture is laid from where its vertices are, and <code>TextureScale</code> repeats it once every
+four metres. The other built-in textures are cobbles, masonry, plaster, shingles, planks, panels,
+grid, stripes, carbon, hexagons, worn, camouflage and windows.</p>
 
 <h3 id="the-tower">The tower</h3>
 
@@ -200,7 +203,7 @@ points but not directions. Colours use it as opacity.</p>
 
 <ul>
 <li>A mesh is positions and indices, counter-clockwise from the front, with normals for the light.</li>
-<li>A material says how it is shaded; <code>Pattern</code> adds surface detail with no texture.</li>
+<li>A material says how it is shaded; a <code>Texture</code>, such as a built-in one, adds surface detail.</li>
 <li>A node places a mesh with a matrix; <code>Ground: true</code> makes it walkable.</li>
 </ul>
 
@@ -214,7 +217,8 @@ four metres east of it and turned 30°.</p>
 
 ```go
 house := box(3, 2.5, 4, graphics.Vector{0.6, 0.45, 0.3, 1})
-house.Material.Pattern, house.Material.PatternScale = scene.PatternPlanks, 0.3
+house.Material.Texture, _ = scene.BuiltInTexture("planks")
+house.Material.TextureScale = [2]float32{0.8, 0.8}
 height, _ := world.GroundHeight(4, 0)
 world.Nodes = append(world.Nodes, &scene.Node{
 	Name:      "house",

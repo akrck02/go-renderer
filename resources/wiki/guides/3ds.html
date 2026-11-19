@@ -106,6 +106,71 @@ matrix (<code>nintendo3ds.GPUViewProjection</code>) gives the PICA200&rsquo;s qu
 <li><strong>Meshes in linear memory,</strong> uploaded once and again only when <code>Dirty</code>.</li>
 </ul>
 
+<h3 id="textures">Textures</h3>
+
+<p align="center"><img alt="The sample island's village in Azahar: cobbles, brick walls, a slate roof and a plank door, each a built-in texture tinted by its material" src="./images/3ds-textures.png" width="400"></p>
+
+<p>A textured material is drawn by <code>baked.v.pica</code>&rsquo;s twin, <code>bakedtextured.v.pica</code>, which also places
+each vertex&rsquo;s UV on the texture. The light stays baked into the vertex colour, and the first
+colour stage multiplies it by the texture: a texture costs one read a pixel and no vertex work.
+In <code>cmd/textures3ds</code>, which switches the village&rsquo;s textures off and on every ten seconds, a frame
+took the same with and without them in Azahar: 60 frames a second, 0.8 ms of citro3d&rsquo;s
+processing.</p>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Sides</td>
+<td>Powers of two from 8 to 1024 pixels. A picture of other sides is scaled once, as it is uploaded, to the nearest that fit (100 × 30 becomes 128 × 32), with nearest pixels</td>
+</tr>
+
+<tr>
+<td><code>scene.RGBA8</code></td>
+<td>32 bits a pixel, every colour and opacity (the default)</td>
+</tr>
+
+<tr>
+<td><code>scene.RGB565</code></td>
+<td>16 bits a pixel, no opacity</td>
+</tr>
+
+<tr>
+<td><code>scene.ETC1</code></td>
+<td>4 bits a pixel, no opacity, encoded in Go (<code>nintendo3ds/etc1.go</code>) when uploaded</td>
+</tr>
+
+<tr>
+<td>Transparency</td>
+<td>A picture with see-through pixels asked for in RGB565 or ETC1 is kept in RGBA8; <code>nintendo3ds.CheckTexture</code> says so beforehand, with the code <code>nintendo3ds.texture-loses-transparency</code></td>
+</tr>
+
+<tr>
+<td>Smaller copies far away</td>
+<td>None: a smooth texture blends between pixels, but far away it shimmers more than on the desktop</td>
+</tr>
+
+<tr>
+<td>Fog</td>
+<td>In the colour the texture multiplies, so a far textured surface fogs towards the fog&rsquo;s colour times its texture</td>
+</tr>
+
+<tr>
+<td>Water and moving nodes</td>
+<td>Drawn without their texture: their light is worked out on the GPU (<code>scene.v.pica</code>), which reads none yet</td>
+</tr>
+</tbody>
+</table>
+<p>The pixels are laid out as the PICA200 reads them, as the overlay&rsquo;s pictures are: tiles of 8 × 8
+from the bottom of the picture, each in Morton order; ETC1&rsquo;s blocks of 4 × 4 go four to a tile,
+each a little-endian word.</p>
+
 <h2 id="the-bottom-screen">The bottom screen</h2>
 
 <p><code>nintendo3ds.FlatRenderer</code> paints a <code>draw2d.List</code> (an interface: go-ui&rsquo;s, or a program&rsquo;s own) on the
@@ -272,6 +337,8 @@ that package alone would add about 42 KB to every <code>.3dsx</code>, so the ove
 <h2 id="not-yet">Not yet</h2>
 
 <ul>
+<li>Textures on the console itself: they were measured in Azahar only. Textures on water and moving
+nodes, and their smaller copies far away.</li>
 <li>How fast the renderer is on the console with the coarser water (baking the light alone went from
 30 to 36 frames a second: the chip was held back by the number of triangles more than by the
 shader). Positions in shorts and fewer triangles far away

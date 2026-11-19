@@ -738,8 +738,94 @@ compared with the <em>After A/B</em> build in one session they are the same, as 
 and the loading benchmarks (prebuilding a face, a shadow mask, growing the atlas), which move by
 under 1 % either way between runs. The bytes of the benchmarks that make no allocation
 (<code>UpdateThousandInstances</code>&rsquo; 12–14 KB, a frame&rsquo;s 13–14 or 125–134 B) are their setup, or the first
-frame&rsquo;s growth, spread over however many runs the benchmark chose; no frame allocates, and the</p>
+frame&rsquo;s growth, spread over however many runs the benchmark chose; no frame allocates, and the
+<code>AllocsPerRun</code> tests still say so.</p>
 
-<h2 id="allocsperrun-tests-still-say-so"><code>AllocsPerRun</code> tests still say so.</h2>
+<h2 id="textures-2026-10-26">Textures (2026-10-26)</h2>
+
+<p><a href="./proposals/textures-on-meshes">Proposal 2</a> laid pictures over meshes and turned the six
+procedural patterns into built-in textures. Its imperative: a scene without textures costs what
+it cost before, and no frame allocates. Measured as above (<code>-count 5</code>, the median), on Mesa&rsquo;s
+software driver under Xvfb, before the change (commit <code>5c4bb5f</code>) and after it:</p>
+
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Benchmark</th>
+<th align="right">Before ns/op</th>
+<th align="right">B/op</th>
+<th align="right">allocs/op</th>
+<th align="right">After ns/op</th>
+<th align="right">B/op</th>
+<th align="right">allocs/op</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>opengl</code></td>
+<td>DrawingTheSampleIsland (1280×760; before: its patterns, after: its textures)</td>
+<td align="right">60,044,902</td>
+<td align="right">3,268</td>
+<td align="right">59</td>
+<td align="right">53,702,617</td>
+<td align="right">772</td>
+<td align="right">5</td>
+</tr>
+
+<tr>
+<td><code>opengl</code></td>
+<td>DrawingTheSampleIslandWithoutTextures (every surface plain)</td>
+<td align="right">54,121,840</td>
+<td align="right">3,268</td>
+<td align="right">59</td>
+<td align="right">54,432,848</td>
+<td align="right">772</td>
+<td align="right">5</td>
+</tr>
+
+<tr>
+<td><code>internal/sceneplan</code></td>
+<td>PlanningAFrameOfTheSampleIsland (with its textures)</td>
+<td align="right">2,188</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">2,421</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+
+<tr>
+<td><code>internal/sceneplan</code></td>
+<td>PlanningAFrameOfTheSampleIslandWithoutTextures</td>
+<td align="right">2,188</td>
+<td align="right">0</td>
+<td align="right">0</td>
+<td align="right">2,151</td>
+<td align="right">0</td>
+<td align="right">0</td>
+</tr>
+</tbody>
+</table>
+<p>What it says, in short:</p>
+
+<ul>
+<li><strong>A scene without textures costs the same:</strong> 54.4 ms from 54.1 to draw (the runs move by about
+2 %), 2.15 µs from 2.19 to plan. Its meshes keep the vertices they had: UVs live in a buffer of
+their own, made only for a mesh that is drawn with a texture.</li>
+<li><strong>Textures are cheaper than the patterns were:</strong> the island with its textures draws in 53.7 ms,
+from 60.0 with the procedural patterns, which worked out noise and stones for every pixel.</li>
+<li><strong>Planning a textured frame costs 0.23 µs more,</strong> for ordering the opaque draws by texture so
+each texture is bound once; a scene without textures skips nothing but moves nothing either.</li>
+<li><strong>The scene renderer allocated 59 times a frame, and now 5:</strong> setting a matrix or a colour on
+the shader handed cgo a pointer to a copy on the stack, which Go moved to the heap at every call.
+The copy now goes through a buffer the program keeps. The five left are the 3D labels of the
+overlay (<code>scene.WorldTransforms</code> makes a map, and fitting a label&rsquo;s text two slices), outside
+this change; a frame without labels (<code>DrawIn</code>, the texture tests) allocates nothing, and
+<code>TestAFrameWithTexturesAllocatesNothing</code> keeps it so.</li>
+</ul>
+
+<hr>
 
 <p><a href="./overview">← All the documentation</a></p>

@@ -45,10 +45,11 @@ a whole scene.</p>
 <p>That is the whole of <code>cmd/visor</code>, give or take its flags: <code>go run ./cmd/visor island.glb</code> opens
 any file without writing a line.</p>
 
-<p>The loader reads the node tree, positions, normals, vertex colours (<code>COLOR_0</code>), indices, the
-base colour of materials with <code>doubleSided</code> and <code>alphaMode</code>, compressed attributes
-(<code>KHR_mesh_quantization</code>) and instancing (<code>EXT_mesh_gpu_instancing</code>). Textures are not read: colour
-comes from materials, vertex colours and the procedural patterns.</p>
+<p>The loader reads the node tree, positions, normals, vertex colours (<code>COLOR_0</code>), UVs
+(<code>TEXCOORD_0</code>), indices, the base colour of materials and its texture (a PNG or JPEG in the file or
+beside it, with its sampler&rsquo;s wrapping), <code>doubleSided</code> and <code>alphaMode</code>, compressed attributes
+(<code>KHR_mesh_quantization</code>) and instancing (<code>EXT_mesh_gpu_instancing</code>). Other maps (normals,
+roughness, emission) are not read.</p>
 
 <h2 id="extras-what-gltf-cannot-say">Extras: what glTF cannot say</h2>
 
@@ -80,8 +81,8 @@ when <em>Include → Custom Properties</em> is ticked in the exporter.</p>
 
 <tr>
 <td>A material</td>
-<td><code>&quot;kind&quot;: &quot;glow&quot;</code>, <code>&quot;sway&quot;: 0.3</code>, <code>&quot;pattern&quot;: &quot;cobbles&quot;</code>, <code>&quot;patternScale&quot;: 0.5</code></td>
-<td><code>Material.Kind</code>, <code>Sway</code>, <code>Pattern</code> (lessons 1–3)</td>
+<td><code>&quot;kind&quot;: &quot;glow&quot;</code>, <code>&quot;sway&quot;: 0.3</code>, <code>&quot;texture&quot;: &quot;cobbles&quot;</code>, <code>&quot;textureScale&quot;: 0.5</code></td>
+<td><code>Material.Kind</code>, <code>Sway</code>, a built-in <code>Texture</code> and its <code>TextureScale</code> (lessons 1–3)</td>
 </tr>
 
 <tr>

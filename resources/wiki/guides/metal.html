@@ -162,12 +162,17 @@ instance batches, the shadow and seabed regions) moved out of <code>opengl</code
 makes no graphics calls. OpenGL&rsquo;s captures came out identical, pixel for pixel, before and after
 the move. <code>metal.SceneRenderer</code> draws the same plan.</li>
 <li><strong>Shaders translated one to one</strong> (<code>metal/scene_shaders.go</code>), compiled at start with precise
-maths: the noise behind the patterns, stars and clouds takes sines of large numbers, and fast
+maths: the noise behind the stars and clouds takes sines of large numbers, and fast
 maths would round them differently. The uniform blocks are mirrored in Go byte for byte, checked
 by tests on both sides.</li>
 <li><strong>A thin Objective-C layer</strong> (<code>scene_darwin.m</code>): buffers, textures, pipelines, passes and draw
 calls; the logic stays in Go. A frame waits for the previous one, so buffers can be rewritten in
 place (a simulation moving instances).</li>
+<li><strong>Textures</strong> (<code>metal/scene_textures_darwin.go</code>): uploaded once per picture and version, in sRGB
+with their smaller copies; UVs in a buffer of their own. Metal&rsquo;s samplers are declared in the
+shader, so the six ways of reading a texture (repeated, clamped or mirrored; smooth or sharp)
+are six samplers, and each draw names one. Written without a Mac: still to be built and looked
+at on one.</li>
 <li><strong>Memoryless depth buffer</strong> where the GPU allows it (Apple silicon): nothing reads it after the
 frame, so it takes no memory.</li>
 <li><strong>The viewer</strong> chooses with <code>-backend</code> (Metal on macOS, falling back to OpenGL), and the visor

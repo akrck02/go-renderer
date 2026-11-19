@@ -10,6 +10,24 @@ GPU instancing and the environment (sun, sky, fog, water).</p>
 geometry or instances later and mark them Dirty so the backend uploads them
 again.</p>
 
+<h3 id="functions">Functions</h3>
+
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func BuiltInTextureNames() []string</code></td>
+<td>BuiltInTextureNames lists the textures BuiltInTexture makes.</td>
+</tr>
+</tbody>
+</table>
+
 <h3 id="constants-and-variables">Constants and variables</h3>
 <pre><code class="language-go"><span class="kd">const</span> <span class="nx">DefaultMaximumNotices</span> <span class="p">=</span> <span class="mi">5</span>
 </code></pre>
@@ -245,11 +263,30 @@ again.</p>
 	<span class="nx">Sway</span>      <span class="kt">float32</span> <span class="c1">// how much the wind bends the mesh (0 = rigid); for plants modelled with height 1</span>
 	<span class="nx">DepthBias</span> <span class="kt">float32</span> <span class="c1">// pulls the surface towards the camera by this share of its distance, so thin surfaces</span>
 	<span class="c1">// lying on terrain (rivers, roads) stay visible over the terrain&#39;s simpler far versions; 0 = none</span>
-	<span class="nx">Pattern</span>      <span class="nx">Pattern</span> <span class="c1">// procedural surface pattern of lit and glowing materials</span>
-	<span class="nx">PatternScale</span> <span class="kt">float32</span> <span class="c1">// size of one pattern cell (a stone, a course, a shingle) in world units</span>
-	<span class="nx">Foliage</span>      <span class="kt">bool</span>    <span class="c1">// takes the environment&#39;s FoliageTint (leaves that change with the seasons)</span>
+	<span class="nx">Foliage</span> <span class="kt">bool</span> <span class="c1">// takes the environment&#39;s FoliageTint (leaves that change with the seasons)</span>
+	<span class="c1">// Texture lays a picture over the surface (nil = none): its colour is BaseColor × the vertex</span>
+	<span class="c1">// colour × the texture at (UV × TextureScale + TextureOffset), lit as before.</span>
+	<span class="nx">Texture</span>       <span class="o">*</span><span class="nx">Texture</span>
+	<span class="nx">TextureScale</span>  <span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="kt">float32</span> <span class="c1">// repeats of the texture for each unit of UV, along u and v; 0 = 1</span>
+	<span class="nx">TextureOffset</span> <span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="kt">float32</span> <span class="c1">// moves the texture along u and v, in repeats</span>
 <span class="p">}</span>
 </code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (material *Material) EffectiveTextureScale() [2]float32</code></td>
+<td>EffectiveTextureScale is how many times the texture repeats for each unit of UV, along each side, with 0 meaning 1.</td>
+</tr>
+</tbody>
+</table>
 
 <h3 id="materialkind">MaterialKind</h3>
 
@@ -267,12 +304,13 @@ again.</p>
 
 <h3 id="mesh">Mesh</h3>
 
-<p>Mesh is triangle geometry. Positions and normals are xyz triples, colors rgba quads (linear). Indices are optional: without them every three vertices form a triangle.</p>
+<p>Mesh is triangle geometry. Positions and normals are xyz triples, colors rgba quads (linear), UVs (where on a texture each vertex lies) uv pairs. Indices are optional: without them every three vertices form a triangle.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Mesh</span> <span class="kd">struct</span> <span class="p">{</span>
 	<span class="nx">Name</span>      <span class="kt">string</span>
 	<span class="nx">Positions</span> <span class="p">[]</span><span class="kt">float32</span>
 	<span class="nx">Normals</span>   <span class="p">[]</span><span class="kt">float32</span>
 	<span class="nx">Colors</span>    <span class="p">[]</span><span class="kt">float32</span>
+	<span class="nx">UVs</span>       <span class="p">[]</span><span class="kt">float32</span> <span class="c1">// optional; without them a texture is projected from the positions (SurfaceUVs)</span>
 	<span class="nx">Indices</span>   <span class="p">[]</span><span class="kt">uint32</span>
 	<span class="nx">Material</span>  <span class="o">*</span><span class="nx">Material</span>
 	<span class="nx">Details</span>   <span class="p">[]</span><span class="nx">DetailLevel</span> <span class="c1">// simpler versions for when the mesh looks small, from finer to coarser</span>
@@ -307,6 +345,11 @@ again.</p>
 </tr>
 
 <tr>
+<td><code>func (mesh *Mesh) HasUVs() bool</code></td>
+<td>HasUVs tells whether the mesh carries its own UVs, two for each vertex.</td>
+</tr>
+
+<tr>
 <td><code>func (mesh *Mesh) Level(index int) *Mesh</code></td>
 <td>Level returns a version of the mesh: 0 is the mesh itself, 1 the first detail level, and so on.</td>
 </tr>
@@ -319,6 +362,11 @@ again.</p>
 <tr>
 <td><code>func (mesh *Mesh) LevelForScreenSize(screenSize float32) int</code></td>
 <td>LevelForScreenSize returns the index of the version to draw for a model of this apparent size: the coarsest level whose ScreenSize is still larger than it.</td>
+</tr>
+
+<tr>
+<td><code>func (mesh *Mesh) SurfaceUVs() []float32</code></td>
+<td>SurfaceUVs returns the mesh&rsquo;s UVs, or, when it has none, UVs projected from where its vertices are, one unit of the model a repeat: x and z on what faces up or down, along the wall and up on what faces sideways (its facing taken from its normals; up when it has none).</td>
 </tr>
 
 <tr>
@@ -436,40 +484,6 @@ again.</p>
 <tr>
 <td><code>func (overlay *Overlay) VisibleNotices() []VisibleNotice</code></td>
 <td>VisibleNotices returns the notices to draw now, newest first, at most MaximumNotices.</td>
-</tr>
-</tbody>
-</table>
-
-<h3 id="pattern">Pattern</h3>
-
-<p>Pattern is a procedural surface pattern that modulates a lit material&rsquo;s colour, computed from the world position (no texture): stones, blocks, shingles… It fades out where its cells get too small on screen.</p>
-<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Pattern</span> <span class="kt">int</span>
-</code></pre>
-<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
-	<span class="nx">PatternNone</span>     <span class="nx">Pattern</span> <span class="p">=</span> <span class="kc">iota</span>
-	<span class="nx">PatternCobbles</span>          <span class="c1">// irregular paving stones with joints (horizontal surfaces)</span>
-	<span class="nx">PatternMasonry</span>          <span class="c1">// courses of stone blocks with mortar (walls)</span>
-	<span class="nx">PatternPlaster</span>          <span class="c1">// mottled render</span>
-	<span class="nx">PatternShingles</span>         <span class="c1">// overlapping rows of shingles or slates (roofs)</span>
-	<span class="nx">PatternPlanks</span>           <span class="c1">// wooden planks</span>
-	<span class="nx">PatternGrass</span>            <span class="c1">// mottled grass</span>
-<span class="p">)</span>
-</code></pre>
-
-<p>The patterns; PatternNone leaves the material&rsquo;s colour as it is.</p>
-
-<table>
-<thead>
-<tr>
-<th>Function or method</th>
-<th></th>
-</tr>
-</thead>
-
-<tbody>
-<tr>
-<td><code>func PatternNamed(name string) Pattern</code></td>
-<td>PatternNamed returns the pattern with a name (cobbles, masonry, plaster, shingles, planks, grass); PatternNone for any other name.</td>
 </tr>
 </tbody>
 </table>
@@ -625,6 +639,58 @@ again.</p>
 <span class="p">}</span>
 </code></pre>
 
+<h3 id="texture">Texture</h3>
+
+<p>Texture is a picture a material lays over its surfaces: a tiling detail (panels, stones, a weave) or a whole picture. A program makes one, keeps it, and can give it to any number of materials: backends upload its pixels once, and again only after Picture.Changed().</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Texture</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Picture</span> <span class="o">*</span><span class="nx">draw2d</span><span class="p">.</span><span class="nx">Image</span> <span class="c1">// its pixels, the same kind of picture 2D lists draw</span>
+	<span class="nx">Wrap</span>    <span class="nx">Wrap</span>          <span class="c1">// what the surface shows past the picture&#39;s edges</span>
+	<span class="c1">// Sharp shows the nearest pixel, as pixel art wants, instead of blending between pixels (and</span>
+	<span class="c1">// between smaller copies of the picture far away).</span>
+	<span class="nx">Sharp</span>  <span class="kt">bool</span>
+	<span class="nx">Format</span> <span class="nx">TextureFormat</span> <span class="c1">// how the 3DS keeps it in its memory; other targets keep RGBA8</span>
+	<span class="c1">// Gain multiplies the texture&#39;s colour (0 = 1): a picture darker on average than white, as a</span>
+	<span class="c1">// pattern with dark joints is, would darken every surface that wears it. The built-in</span>
+	<span class="c1">// textures set it so that, on average, they keep the material&#39;s brightness.</span>
+	<span class="nx">Gain</span> <span class="kt">float32</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func BuiltInTexture(name string) (texture *Texture, found bool)</code></td>
+<td>BuiltInTexture returns a texture made in Go, by name: surfaces (cobbles, masonry, plaster, shingles, planks, grass) and tiling details (panels, grid, stripes, carbon, hexagons, worn, camouflage, windows).</td>
+</tr>
+
+<tr>
+<td><code>func (texture *Texture) EffectiveGain() float32</code></td>
+<td>EffectiveGain is the texture&rsquo;s Gain, 1 when unset.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="textureformat">TextureFormat</h3>
+
+<p>TextureFormat is how the 3DS keeps a texture&rsquo;s pixels: in full, in half the memory, or in an eighth. Other targets keep every texture in RGBA8.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">TextureFormat</span> <span class="kt">int</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="nx">RGBA8</span>  <span class="nx">TextureFormat</span> <span class="p">=</span> <span class="kc">iota</span> <span class="c1">// 32 bits a pixel: every colour and opacity</span>
+	<span class="nx">RGB565</span>                      <span class="c1">// 16 bits a pixel: no opacity, colours in steps of 1/32 (green 1/64)</span>
+	<span class="nx">ETC1</span>                        <span class="c1">// 4 bits a pixel, compressed in blocks of 4×4: no opacity, small loss in detail</span>
+<span class="p">)</span>
+</code></pre>
+
+<p>The texture formats.</p>
+
 <h3 id="visiblenotice">VisibleNotice</h3>
 
 <p>VisibleNotice is a notice as it should be drawn now.</p>
@@ -694,6 +760,20 @@ again.</p>
 	<span class="nx">Strength</span>  <span class="kt">float32</span>         <span class="c1">// 0 calm, 1 strong</span>
 <span class="p">}</span>
 </code></pre>
+
+<h3 id="wrap">Wrap</h3>
+
+<p>Wrap is what a surface shows where its UVs leave the picture (below 0 or above 1).</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Wrap</span> <span class="kt">int</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
+	<span class="nx">Repeat</span> <span class="nx">Wrap</span> <span class="p">=</span> <span class="kc">iota</span> <span class="c1">// the picture again, as tiles</span>
+	<span class="nx">Clamp</span>              <span class="c1">// the colour at the picture&#39;s edge, stretched</span>
+	<span class="nx">Mirror</span>             <span class="c1">// the picture again, flipped every other time, so its edges always meet</span>
+<span class="p">)</span>
+</code></pre>
+
+<p>The ways a picture wraps.</p>
 
 <hr>
 

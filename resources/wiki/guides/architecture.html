@@ -180,9 +180,10 @@ backend and the Metal flat window both use it, so they behave the same way.</p>
 
 <ul>
 <li><strong>Nodes</strong> with transforms, children, names and tags (the glTF extras), drawing meshes.</li>
-<li><strong>Meshes</strong> with positions, per-vertex normals and colours, indices and a <strong>material</strong>: <code>lit</code>,
-<code>unlit</code>, <code>water</code> or <code>waterfall</code>, with an optional procedural pattern (cobbles, masonry, plaster,
-shingles, planks, grass), a glow, a sway (how much the wind bends it) and a depth bias.</li>
+<li><strong>Meshes</strong> with positions, per-vertex normals, colours and UVs, indices and a <strong>material</strong>:
+<code>lit</code>, <code>unlit</code>, <code>water</code> or <code>waterfall</code>, with an optional texture (a picture of the program&rsquo;s, or
+a built-in one: cobbles, masonry, planks, panels, grid…), a glow, a sway (how much the wind
+bends it) and a depth bias.</li>
 <li><strong>Instances</strong>: one mesh drawn many times (GPU instancing), each copy with its transform and tint.</li>
 <li><strong>Levels of detail</strong>: simpler versions of a mesh for when it looks small on screen.</li>
 <li><strong>The environment</strong>: sun, sky, fog, water plane, wind, snow and foliage tint, and the vertical

@@ -1,0 +1,147 @@
+<h1 id="textures-on-meshes">🧱 Textures on meshes</h1>
+
+<p>This guide is for a program that wants pictures on its 3D surfaces: a tiling detail (stones,
+panels, a grid), a picture it makes at run time, or the textures a model brings. At the end you
+will know how to give a material a texture, how it repeats, and what each target does with it.</p>
+
+<p align="center">
+  <img alt="The sample island's village drawn by OpenGL: cobbles on the square, brick walls, a slate roof, a plank door and mottled ground, each a built-in texture" src="./images/textures-village.jpg" width="640">
+</p>
+
+<h2 id="a-texture-in-four-lines">A texture in four lines</h2>
+<pre><code class="language-go"><span class="nx">cobbles</span><span class="p">,</span> <span class="nx">_</span> <span class="o">:=</span> <span class="nx">scene</span><span class="p">.</span><span class="nf">BuiltInTexture</span><span class="p">(</span><span class="s">&#34;cobbles&#34;</span><span class="p">)</span>
+<span class="nx">square</span><span class="p">.</span><span class="nx">Material</span> <span class="p">=</span> <span class="o">&amp;</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Material</span><span class="p">{</span>
+	<span class="nx">BaseColor</span><span class="p">:</span>    <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span><span class="p">{</span><span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.58</span><span class="p">,</span> <span class="mf">0.55</span><span class="p">,</span> <span class="mi">1</span><span class="p">},</span>
+	<span class="nx">Texture</span><span class="p">:</span>      <span class="nx">cobbles</span><span class="p">,</span>
+	<span class="nx">TextureScale</span><span class="p">:</span> <span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="kt">float32</span><span class="p">{</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">},</span> <span class="c1">// one repeat every two units</span>
+<span class="p">}</span>
+</code></pre>
+
+<p>The surface&rsquo;s colour is <code>BaseColor</code> × its vertex colours × the texture, lit as before. The
+built-in textures are grey, so <code>BaseColor</code> tints them: one texture serves a red brick wall and a
+grey one.</p>
+
+<p><strong>Where the texture lies</strong> comes from the mesh&rsquo;s <code>UVs</code>, two numbers per vertex, as <code>Positions</code>
+has three: (0, 0) is the picture&rsquo;s top-left corner and (1, 1) its bottom-right. A mesh without UVs
+takes them from where its vertices are, one unit of the model a repeat: x and z on what faces up,
+along the wall and up on walls (<code>Mesh.SurfaceUVs</code>). That is how a terrain or a box made in code
+can wear a tiling texture with no UVs at all.</p>
+
+<p><strong>How often it repeats</strong> is <code>TextureScale</code>, the repeats for each unit of UV along u and v (0
+counts as 1), and <code>TextureOffset</code> slides it, in repeats.</p>
+
+<h2 id="the-built-in-textures">The built-in textures</h2>
+
+<p><code>scene.BuiltInTexture(name)</code> makes a texture in Go the first time it is asked for and keeps it,
+so every material that asks for one shares it. Each is a square, 64 or 128 pixels a side, that
+repeats without a seam (a test checks each edge runs into the other). Each has a <code>Gain</code> that
+brings its average to white, so a cobbled square is as bright as its <code>BaseColor</code>, as the old
+procedural patterns were; give a picture of your own a <code>Gain</code> for the same:</p>
+
+<table>
+<thead>
+<tr>
+<th>Surfaces</th>
+<th>Details</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>cobbles, masonry, plaster, shingles, planks, grass</td>
+<td>panels, grid, stripes, carbon, hexagons, worn, camouflage, windows</td>
+</tr>
+</tbody>
+</table>
+<p>In a <code>.glb</code>, a material&rsquo;s extras can ask for one: <code>&quot;texture&quot;: &quot;planks&quot;, &quot;textureScale&quot;: 2</code>.</p>
+
+<h2 id="a-picture-of-your-own">A picture of your own</h2>
+
+<p>Any decoded picture becomes a texture through <code>draw2d.Image</code>, the same type 2D lists draw:</p>
+<pre><code class="language-go"><span class="nx">picture</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">draw2d</span><span class="p">.</span><span class="nf">DecodeImage</span><span class="p">(</span><span class="nx">file</span><span class="p">)</span> <span class="c1">// a PNG, JPEG or GIF</span>
+<span class="k">if</span> <span class="nx">err</span> <span class="o">!=</span> <span class="kc">nil</span> <span class="p">{</span>
+	<span class="k">return</span> <span class="nx">err</span>
+<span class="p">}</span>
+<span class="nx">poster</span> <span class="o">:=</span> <span class="o">&amp;</span><span class="nx">scene</span><span class="p">.</span><span class="nx">Texture</span><span class="p">{</span><span class="nx">Picture</span><span class="p">:</span> <span class="nx">picture</span><span class="p">}</span>
+</code></pre>
+
+<p>Give it to as many materials as you like: each backend uploads its pixels once. To show other
+pixels, write them into <code>picture.Pixels</code> and call <code>picture.Changed()</code>: the texture is uploaded
+again, once, and every mesh that shows it changes. A picture&rsquo;s colours are sRGB, as a PNG&rsquo;s are,
+and come out as they went in under white light.</p>
+
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Values</th>
+<th>Default</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>Wrap</code></td>
+<td><code>scene.Repeat</code>, <code>scene.Clamp</code>, <code>scene.Mirror</code></td>
+<td>Repeat</td>
+</tr>
+
+<tr>
+<td><code>Sharp</code></td>
+<td>nearest pixel (pixel art) instead of blended</td>
+<td>smooth</td>
+</tr>
+
+<tr>
+<td><code>Format</code></td>
+<td>on the 3DS: <code>scene.RGBA8</code>, <code>scene.RGB565</code>, <code>scene.ETC1</code></td>
+<td>RGBA8</td>
+</tr>
+</tbody>
+</table>
+
+<p align="center">
+  <img alt="One picture of four squares, repeated eight times across two quads: red and smooth on the left, blue and sharp on the right" src="./images/textures-tinted.png" width="256">
+</p>
+
+<h2 id="models-that-bring-their-own">Models that bring their own</h2>
+
+<p><code>loaders.LoadScene</code> and <code>ReadScene</code> read a glTF&rsquo;s <code>TEXCOORD_0</code> and its materials&rsquo; base colour
+texture: a PNG or JPEG inside the <code>.glb</code>, in a data URI, or beside a <code>.gltf</code> (<code>LoadScene</code> only).
+The sampler&rsquo;s wrapping along u becomes <code>Wrap</code>, and a nearest magnification <code>Sharp</code>. Two
+materials that name the same texture share one <code>scene.Texture</code>.</p>
+
+<h2 id="on-each-target">On each target</h2>
+
+<table>
+<thead>
+<tr>
+<th>Target</th>
+<th>What it does</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>OpenGL (desktop)</td>
+<td>sRGB textures with smaller copies for distance (mipmaps), sampled as each texture asks</td>
+</tr>
+
+<tr>
+<td>OpenGL ES (browser, Android)</td>
+<td>The same; a picture whose sides are not powers of two is clamped, without smaller copies, as OpenGL ES 2 requires</td>
+</tr>
+
+<tr>
+<td>Metal</td>
+<td>The same as the desktop; written without a Mac, still to be built and looked at on one</td>
+</tr>
+
+<tr>
+<td>Nintendo 3DS</td>
+<td>Sides scaled to powers of two from 8 to 1024; RGBA8, RGB565 or ETC1; the texture multiplies the baked light. Water and moving nodes draw without it. See <a href="./guides/3ds">the 3DS guide</a></td>
+</tr>
+</tbody>
+</table>
+<p>A scene without textures costs what it did before them: UVs live in a buffer of their own, made
+only for meshes drawn with a texture (see <a href="./project/optimization-plan">the optimization plan</a>).</p>
