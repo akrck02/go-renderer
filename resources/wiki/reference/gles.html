@@ -127,7 +127,7 @@ them.</p>
 
 <tr>
 <td><code>func (renderer *FlatRenderer) Draw(list *draw2d.List, background draw2d.Color, width, height int, scale float32)</code></td>
-<td>Draw clears the target framebuffer (width × height pixels) to the background colour and paints the list.</td>
+<td>Draw clears the target framebuffer (width × height pixels) to the background colour, its alpha premultiplied (0 leaves it see-through where nothing is painted), and paints the list.</td>
 </tr>
 </tbody>
 </table>
@@ -283,6 +283,10 @@ them.</p>
 	<span class="c1">// the screen&#39;s gamma: for a target that encodes sRGB itself (a headset&#39;s swapchain), which</span>
 	<span class="c1">// would otherwise apply the gamma twice and wash the picture out.</span>
 	<span class="nx">LinearOutput</span> <span class="kt">bool</span>
+	<span class="c1">// SeeThrough clears to a transparent background instead of the horizon, so what lies behind</span>
+	<span class="c1">// the picture shows where nothing is drawn: a headset&#39;s view of the room (openxr&#39;s</span>
+	<span class="c1">// Options.Passthrough). The surfaces drawn stay opaque.</span>
+	<span class="nx">SeeThrough</span> <span class="kt">bool</span>
 
 	<span class="c1">// Has unexported fields.</span>
 <span class="p">}</span>

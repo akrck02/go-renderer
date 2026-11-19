@@ -83,8 +83,18 @@ calls, was about two thirds of what a 3D view cost on a phone.</p>
 </tr>
 
 <tr>
+<td><code>func NotifyAbout(channel Channel, id int, title, text, target string) bool</code></td>
+<td>NotifyAbout is Notify with a target: what the notification is about, in the program&rsquo;s own words (a screen, a thing&rsquo;s id).</td>
+</tr>
+
+<tr>
 <td><code>func OpenLink(link string) bool</code></td>
 <td>OpenLink opens a link in the application that shows it: a web page in the browser, mailto: in the mail, tel: in the phone, geo: in the maps.</td>
+</tr>
+
+<tr>
+<td><code>func OpenedNotification() (string, bool)</code></td>
+<td>OpenedNotification is the target of the notification touched to open the program (NotifyAbout), and true, once; then &ldquo;&rdquo; and false until another is touched.</td>
 </tr>
 
 <tr>
@@ -165,6 +175,10 @@ calls, was about two thirds of what a 3D view cost on a phone.</p>
 </table>
 
 <h3 id="constants-and-variables">Constants and variables</h3>
+<pre><code class="language-go"><span class="kd">const</span> <span class="nx">UnknownSize</span> <span class="p">=</span> <span class="o">-</span><span class="mi">1</span>
+</code></pre>
+
+<p>UnknownSize is the Size of a file too big to read whose real size the app holding it did not tell.</p>
 <pre><code class="language-go"><span class="kd">var</span> <span class="nx">HeadsetContextNotMade</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;android.headset-context-not-made&#34;</span><span class="p">,</span>
 </code></pre>
 <pre><code class="language-go"><span class="kd">var</span> <span class="nx">VideoNotOpened</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;android.video-not-opened&#34;</span><span class="p">,</span> <span class="s">&#34;the video could not be opened&#34;</span><span class="p">)</span>
@@ -225,7 +239,7 @@ calls, was about two thirds of what a 3D view cost on a phone.</p>
 
 <h3 id="chosenfile">ChosenFile</h3>
 
-<p>ChosenFile is a file the person chose in Android&rsquo;s file chooser: its name as the chooser shows it, its size in bytes, and its bytes when Read. A file bigger than the caller takes is not read: it comes with its name and size only, so the caller can say why it was left out.</p>
+<p>ChosenFile is a file the person chose in Android&rsquo;s file chooser: its name as the chooser shows it, its size in bytes, and its bytes when Read. A file that is not read comes with its name and size only, so the caller can say why it was left out: a Size over the largest asked, or UnknownSize, is too big; a smaller Size means it could not be read.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">ChosenFile</span> <span class="kd">struct</span> <span class="p">{</span>
 	<span class="nx">Name</span>    <span class="kt">string</span>
 	<span class="nx">Size</span>    <span class="kt">int64</span>
@@ -636,8 +650,8 @@ calls, was about two thirds of what a 3D view cost on a phone.</p>
 
 <p>TextKind is what a field takes, so the on-screen keyboard offers the keys for it.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">TextKind</span> <span class="kt">int</span>
-
-<span class="kd">const</span> <span class="p">(</span>
+</code></pre>
+<pre><code class="language-go"><span class="kd">const</span> <span class="p">(</span>
 	<span class="nx">LineOfText</span>  <span class="nx">TextKind</span> <span class="p">=</span> <span class="kc">iota</span> <span class="c1">// one line: Enter is done</span>
 	<span class="nx">Password</span>                    <span class="c1">// one line the keyboard shows dots for, and suggests nothing from</span>
 	<span class="nx">LinesOfText</span>                 <span class="c1">// many lines: Enter starts a new one</span>
