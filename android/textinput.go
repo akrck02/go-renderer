@@ -14,6 +14,15 @@ type TextInput struct {
 	ComposingStart, ComposingEnd int // equal when nothing is being composed
 }
 
+// TextKind is what a field takes, so the on-screen keyboard offers the keys for it.
+type TextKind int
+
+const (
+	LineOfText  TextKind = iota // one line: Enter is done
+	Password                    // one line the keyboard shows dots for, and suggests nothing from
+	LinesOfText                 // many lines: Enter starts a new one
+)
+
 // keyboardText is what goes between the program and the keyboard's view (TextInput.java). The
 // keyboard's edits arrive on Android's interface thread; the program takes them and sends its own
 // text on the drawing thread.
@@ -26,10 +35,10 @@ type keyboardText struct {
 
 	// what the view has, as far as the drawing thread knows: the program's text is sent only when it
 	// differs
-	sentField  uint64
-	sent       TextInput
-	sentSecret bool
-	takenEdit  int32 // the keyboard's last edit taken, which the program's text comes after
+	sentField uint64
+	sent      TextInput
+	sentKind  TextKind
+	takenEdit int32 // the keyboard's last edit taken, which the program's text comes after
 }
 
 // keep holds an edit of the keyboard's until the program takes it; a newer one replaces it.
@@ -56,11 +65,11 @@ func (keyboard *keyboardText) take(field uint64) (TextInput, bool) {
 }
 
 // toSend tells whether the program's text differs from what the view has, and remembers it as sent.
-func (keyboard *keyboardText) toSend(field uint64, text TextInput, secret bool) bool {
-	if field == keyboard.sentField && text == keyboard.sent && secret == keyboard.sentSecret {
+func (keyboard *keyboardText) toSend(field uint64, text TextInput, kind TextKind) bool {
+	if field == keyboard.sentField && text == keyboard.sent && kind == keyboard.sentKind {
 		return false
 	}
-	keyboard.sentField, keyboard.sent, keyboard.sentSecret = field, text, secret
+	keyboard.sentField, keyboard.sent, keyboard.sentKind = field, text, kind
 	return true
 }
 

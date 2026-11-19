@@ -137,7 +137,7 @@ for the keyboard and tells Go the whole state after each edit.
 
 ```text
 the program's field                       TextInput.java (a copy of the text)        the keyboard
-  EditText(field, text, secret)   ──────►  set: the text, the caret, the composing  ──► suggests from it
+  EditText(field, text, kind)     ──────►  set: the text, the caret, the composing  ──► suggests from it
   TakeTextEdit(field)             ◄──────  edited: the whole text after each edit   ◄── commits, composes, deletes
 ```
 
@@ -145,11 +145,15 @@ Both sides edit at once (a hardware key goes to Go; a word goes to Java), so eac
 edits is numbered: Go's text says which edit it comes after, and a text from before the latest one
 is dropped, as the keyboard has typed since. An edit of a field no longer typed in is dropped too.
 Positions cross as UTF-16 units, as Java counts them, and become characters in Go: an emoji is one
-character and two units. A `secret` field asks for a password's keyboard, with no suggestions; Enter
-is the keyboard's *Done*, which reaches Go as the Enter key. A package without the class (made by an
+character and two units. The field's `TextKind` chooses the keys: a `Password` gets a password's
+keyboard, with no suggestions; a `LineOfText` has *Done* where Enter is, which reaches Go as the
+Enter key; `LinesOfText` (a text area) has a new-line key instead, whose line break arrives in the
+text like any character (`TYPE_TEXT_FLAG_MULTI_LINE`), and predictions keep working across lines. A package without the class (made by an
 older tool) types key by key, as before. Tried on the Android 14 emulator with Android's own
 keyboard: "harb" composes underlined, its suggestion "harbour" replaces it, a hardware key and the
-keyboard's backspace edit the same text, and a password gets no suggestions.
+keyboard's backspace edit the same text, a password gets no suggestions, and a text area's
+new-line key (Android's own LatinIME, which commits it as a "\n") breaks the line while the
+suggestions go on. A keyboard that sends Enter as a key event instead (some do) is not tried yet.
 
 **A finger lifted leaves nothing under it.** After the frame where a finger is lifted
 (`input.TouchPointer`), the pointer goes off the window (`State.PointerLeaves`): with a mouse, the
@@ -262,6 +266,49 @@ and moved out of `/system/fonts` (drawn by Android). Before this, the second sho
 ![Emoji read from the font file, on Android 14](../images/android-emoji-font-file.png)
 
 ![The same emoji drawn by Android, with no CBDT font](../images/android-emoji-drawn-by-android.png)
+
+## Choosing files
+
+A person picks files, a photo or a document, through Android's own document chooser:
+
+```go
+android.ChooseFiles(16<<20, func(chosen []android.ChosenFile) {
+	for _, file := range chosen {
+		log.Println(file.Name, file.Size, file.Read) // notes.txt 23 true
+	}
+})
+```
+
+`chosen` is called once when the person is done, on another goroutine (never Android's main
+thread), so it takes the program's own lock; an empty list means they cancelled. The first argument is the largest file the program
+takes, in bytes: a bigger one comes back with its name and size but unread (`Read` false), so a
+video picked by mistake never fills the phone's memory, and the program can say why it left it out.
+A file too big whose app does not tell its size says `UnknownSize`; an unread file with a size
+within the limit could not be read. Files reach Go one at a time as they are read.
+`ChooseFiles` returns false when the chooser cannot open: one is open already, or the package was
+made without the class.
+
+```text
+android (Go)              keeps the one open chooser, gathers what Java hands over
+files.c                   opens the class over the activity; passes each file on to Go
+FileChooser.java          a fragment: ACTION_OPEN_DOCUMENT, then reads each document
+```
+
+**Why a fragment.** Android gives what was chosen to the activity's `onActivityResult`, and
+`NativeActivity` does not pass that on to native code. A fragment with no view, added for one
+choice, gets its own `onActivityResult`; then it leaves. The other way, a second activity in the
+manifest, would mean changing every app's manifest. `android.app.Fragment` is deprecated in favour
+of a support library Go Renderer does not carry, but still works on every Android it runs on.
+
+**Read at once, off the main thread.** The permission to read a chosen document lasts as long as
+the activity, so the bytes are read straight away, on a thread of their own, never on Android's
+main thread, where a big file would freeze the app. A size the other app tells wrong is checked
+against what it gives.
+
+Tried on the Android 14 emulator: one file, two at once (one over the limit, which came back
+unread), and a cancel.
+
+![Android's document chooser over a Go Renderer app](../images/android-file-chooser.png)
 
 ## Not yet
 

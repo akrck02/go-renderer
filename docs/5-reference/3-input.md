@@ -325,6 +325,7 @@ type State struct {
 | `func (state *State) Touches() []Touch` | Touches returns the fingers on the screen now: for gestures of more than one finger (pinch, twist). |
 | `func (state *State) Typed(key Key) bool` | Typed reports whether a key went down or was repeated by the system during this step: what text fields use for Backspace or the arrows, so holding them keeps acting. |
 | `func (state *State) TypedText() string` | TypedText returns the characters typed during this step, in order. |
+| `func (state *State) TypedTextWithLineBreaks() string` | TypedTextWithLineBreaks is TypedText with a '\n' for each Enter typed, where it came among the characters: a field of many lines types them in order, however many arrive in one step. |
 | `func (state *State) Unclaimed() State` | Unclaimed returns a copy of the state without what an interface claimed: no buttons, pointer movement or scroll when it has the mouse, no keys or characters when it has the keyboard. |
 
 ### Touch

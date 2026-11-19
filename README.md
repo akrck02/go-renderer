@@ -41,6 +41,7 @@ I write most of my code by hand, so I want to be clear about where AI was used h
   (`android`, with its C), the shared clock (`frameloop`) and `cmd/web-island`, and later emoji
   in a page (`cmd/web-emoji`), the screen reader's side on Android (`android/screenreader*`, with the Java class in `android/java`),
   the phone's own emoji on Android (`android/emoji*`, with `EmojiPicture.java`),
+  the file chooser on Android (`android/files*`, with `FileChooser.java`),
   and the first drawing on the Nintendo 3DS (`nintendo3ds`, with its C, and `cmd/triangle3ds`).
 - **My hand-written parts, refactored by the AI at my request (2026-10-22):** the `Renderer`
   contract and `models` (split into `immediate`, `window` and `camera.Lens`), the `graphics`
@@ -131,7 +132,7 @@ New here? Start with the [overview](docs/1-overview.md), then [get started](docs
 | [The overlay](docs/4-guides/3-overlay.md) | Labels, the header and notices over the 3D view, and free 2D drawing (`draw2d`). |
 | [glTF extras](docs/4-guides/4-gltf-extras.md) | What the renderer reads from a scene's extras: sky, water, materials, labels. |
 | [In a web browser](docs/4-guides/5-web.md) | The island through WebGL2, and the renderers shared with phones. |
-| [On Android](docs/4-guides/6-android.md) | A program as an Android app: its own activity, the keyboard, screen readers. |
+| [On Android](docs/4-guides/6-android.md) | A program as an Android app: its own activity, the keyboard, screen readers, choosing files. |
 | [Metal](docs/4-guides/7-metal.md) | The Metal backend on macOS: why, how it fits, what was measured. |
 | [On the Nintendo 3DS](docs/4-guides/8-3ds.md) | Drawing through the 3DS's PICA200 with citro3d (`nintendo3ds`), built with TinyGo. |
 | [Drawing in 2D](docs/4-guides/9-drawing-in-2d.md) | Rectangles, text, icons, images, clips, layers, and paths drawn as strokes. |

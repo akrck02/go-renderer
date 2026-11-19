@@ -9,7 +9,10 @@
 // the keyboard for a step, so the camera does not move while a slider is dragged or a name typed.
 package input
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // Key is a backend-independent key code.
 type Key int
@@ -199,6 +202,7 @@ func (feed Feed) SetKey(key Key, isDown bool) {
 	if isDown && !state.keysHeld[key] {
 		state.keysPressedNow[key] = true
 		state.keysTypedNow[key] = true
+		state.typeLineBreak(key)
 	}
 	state.keysHeld[key] = isDown
 }
@@ -208,6 +212,15 @@ func (feed Feed) RepeatKey(key Key) {
 	state := feed.state
 	if isValidKey(key) {
 		state.keysTypedNow[key] = true
+		state.typeLineBreak(key)
+	}
+}
+
+// typeLineBreak keeps an Enter typed among the characters, where it came, for a field of many
+// lines (TypedTextWithLineBreaks).
+func (state *State) typeLineBreak(key Key) {
+	if key == KeyEnter {
+		state.characters = append(state.characters, '\n')
 	}
 }
 
@@ -321,7 +334,17 @@ func (state *State) Pressed(key Key) bool { return isValidKey(key) && state.keys
 func (state *State) Typed(key Key) bool { return isValidKey(key) && state.keysTypedNow[key] }
 
 // TypedText returns the characters typed during this step, in order.
-func (state *State) TypedText() string { return string(state.characters) }
+func (state *State) TypedText() string {
+	text := string(state.characters)
+	if !strings.ContainsRune(text, '\n') {
+		return text
+	}
+	return strings.ReplaceAll(text, "\n", "")
+}
+
+// TypedTextWithLineBreaks is TypedText with a '\n' for each Enter typed, where it came among the
+// characters: a field of many lines types them in order, however many arrive in one step.
+func (state *State) TypedTextWithLineBreaks() string { return string(state.characters) }
 
 // Button reports whether a mouse button is held.
 func (state *State) Button(button MouseButton) bool {

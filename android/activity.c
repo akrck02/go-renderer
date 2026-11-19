@@ -46,6 +46,8 @@ void ANativeActivity_onCreate(ANativeActivity *activity, void *saved_state, size
 	text_input_install(activity->env, activity->clazz);
 	// the phone's own emoji, for those no font file the overlay reads has
 	emoji_install(activity->env, activity->clazz);
+	// the document chooser, for the files a person picks
+	files_install(activity->env, activity->clazz);
 	if (!main_started) {
 		uintptr_t main_code = (uintptr_t)dlsym(RTLD_DEFAULT, "main.main");
 		if (main_code == 0) {

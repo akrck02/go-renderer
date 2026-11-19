@@ -76,7 +76,7 @@ jclass load_package_class(JNIEnv *env, jobject activity, const char *class_name)
 int text_input_install(JNIEnv *env, jobject activity);
 int text_input_show(int typing);
 void text_input_set(jlong field, int edit, const jchar *characters, int length, int selection_start,
-	int selection_end, int composing_start, int composing_end, int secret);
+	int selection_end, int composing_start, int composing_end, int kind);
 
 // The phone's own emoji (emoji.c, with EmojiPicture.java): install runs on the interface thread
 // when Android makes the activity; draw is safe from any thread, and its answer is freed by the
@@ -84,6 +84,12 @@ void text_input_set(jlong field, int edit, const jchar *characters, int length, 
 void emoji_install(JNIEnv *env, jobject activity);
 int emoji_available(void);
 jint *emoji_draw(int character, int pixels, int *length);
+
+// The file chooser (files.c, with FileChooser.java): install runs on the interface thread when
+// Android makes the activity; the others are safe from any thread.
+void files_install(JNIEnv *env, jobject activity);
+int files_available(void);
+int files_open(jlong largest);
 
 // log_text writes a line to Android's log, under the tag Go.
 void log_text(int priority, const char *text);
