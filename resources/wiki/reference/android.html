@@ -33,7 +33,17 @@ calls, was about two thirds of what a 3D view cost on a phone.</p>
 </tr>
 
 <tr>
-<td><code>func EditText(field uint64, text TextInput, secret bool)</code></td>
+<td><code>func CanChooseFiles() bool</code></td>
+<td>CanChooseFiles tells whether the package carries the file chooser (FileChooser.java): a package made by an older tool does not.</td>
+</tr>
+
+<tr>
+<td><code>func ChooseFiles(largest int64, chosen func([]ChosenFile)) bool</code></td>
+<td>ChooseFiles opens Android&rsquo;s document chooser, where the person picks one file or several.</td>
+</tr>
+
+<tr>
+<td><code>func EditText(field uint64, text TextInput, kind TextKind)</code></td>
 <td>EditText tells the on-screen keyboard the text of the field being typed in, so it edits that text: it suggests words from it, composes in it and deletes from it.</td>
 </tr>
 
@@ -185,6 +195,17 @@ calls, was about two thirds of what a 3D view cost on a phone.</p>
 </tr>
 </tbody>
 </table>
+
+<h3 id="chosenfile">ChosenFile</h3>
+
+<p>ChosenFile is a file the person chose in Android&rsquo;s file chooser: its name as the chooser shows it, its size in bytes, and its bytes when Read. A file bigger than the caller takes is not read: it comes with its name and size only, so the caller can say why it was left out.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">ChosenFile</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Name</span>    <span class="kt">string</span>
+	<span class="nx">Size</span>    <span class="kt">int64</span>
+	<span class="nx">Content</span> <span class="p">[]</span><span class="kt">byte</span>
+	<span class="nx">Read</span>    <span class="kt">bool</span>
+<span class="p">}</span>
+</code></pre>
 
 <h3 id="feeling">Feeling</h3>
 
@@ -559,6 +580,18 @@ calls, was about two thirds of what a 3D view cost on a phone.</p>
 	<span class="nx">SelectionStart</span><span class="p">,</span> <span class="nx">SelectionEnd</span> <span class="kt">int</span> <span class="c1">// the caret when they are equal</span>
 	<span class="nx">ComposingStart</span><span class="p">,</span> <span class="nx">ComposingEnd</span> <span class="kt">int</span> <span class="c1">// equal when nothing is being composed</span>
 <span class="p">}</span>
+</code></pre>
+
+<h3 id="textkind">TextKind</h3>
+
+<p>TextKind is what a field takes, so the on-screen keyboard offers the keys for it.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">TextKind</span> <span class="kt">int</span>
+
+<span class="kd">const</span> <span class="p">(</span>
+	<span class="nx">LineOfText</span>  <span class="nx">TextKind</span> <span class="p">=</span> <span class="kc">iota</span> <span class="c1">// one line: Enter is done</span>
+	<span class="nx">Password</span>                    <span class="c1">// one line the keyboard shows dots for, and suggests nothing from</span>
+	<span class="nx">LinesOfText</span>                 <span class="c1">// many lines: Enter starts a new one</span>
+<span class="p">)</span>
 </code></pre>
 
 <h3 id="video">Video</h3>

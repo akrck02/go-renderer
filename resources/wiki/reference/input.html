@@ -537,6 +537,11 @@ so the camera does not move while a slider is dragged or a name typed.</p>
 </tr>
 
 <tr>
+<td><code>func (state *State) TypedTextWithLineBreaks() string</code></td>
+<td>TypedTextWithLineBreaks is TypedText with a &lsquo;\n&rsquo; for each Enter typed, where it came among the characters: a field of many lines types them in order, however many arrive in one step.</td>
+</tr>
+
+<tr>
 <td><code>func (state *State) Unclaimed() State</code></td>
 <td>Unclaimed returns a copy of the state without what an interface claimed: no buttons, pointer movement or scroll when it has the mouse, no keys or characters when it has the keyboard.</td>
 </tr>

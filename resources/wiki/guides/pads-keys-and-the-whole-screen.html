@@ -62,7 +62,9 @@ it prints. In a window it looks like this:</p>
 </table>
 <p><code>input.Key</code> holds letters, digits, arrows, Space, Tab, Enter, Escape, Shift, Control, Alt, the
 Command or Windows key (<code>KeySuper</code>), and <code>KeyF1</code> to <code>KeyF12</code>. Characters typed (an &ldquo;ñ&rdquo;, an &ldquo;€&rdquo;)
-come from <code>TypedText()</code>, after the keyboard layout. When an interface has the keyboard (a text
+come from <code>TypedText()</code>, after the keyboard layout. A field of many lines reads
+<code>TypedTextWithLineBreaks()</code> instead: the same characters with a <code>'\n'</code> for each Enter, where it came
+among them, so a fast typist&rsquo;s lines keep their order even when several arrive in one step. When an interface has the keyboard (a text
 field), it calls <code>ClaimKeyboard</code>, and <code>Unclaimed()</code> gives the rest of the program a state without
 those keys.</p>
 

@@ -229,7 +229,7 @@ offers no connection, so the package carries a small view of its own, <code>Text
 the corner, drawing nothing, focused while a field is typed in. It keeps a copy of the field&rsquo;s text
 for the keyboard and tells Go the whole state after each edit.</p>
 <pre><code class="language-text">the program&#39;s field                       TextInput.java (a copy of the text)        the keyboard
-  EditText(field, text, secret)   ──────►  set: the text, the caret, the composing  ──► suggests from it
+  EditText(field, text, kind)     ──────►  set: the text, the caret, the composing  ──► suggests from it
   TakeTextEdit(field)             ◄──────  edited: the whole text after each edit   ◄── commits, composes, deletes
 </code></pre>
 
@@ -237,11 +237,15 @@ for the keyboard and tells Go the whole state after each edit.</p>
 edits is numbered: Go&rsquo;s text says which edit it comes after, and a text from before the latest one
 is dropped, as the keyboard has typed since. An edit of a field no longer typed in is dropped too.
 Positions cross as UTF-16 units, as Java counts them, and become characters in Go: an emoji is one
-character and two units. A <code>secret</code> field asks for a password&rsquo;s keyboard, with no suggestions; Enter
-is the keyboard&rsquo;s <em>Done</em>, which reaches Go as the Enter key. A package without the class (made by an
+character and two units. The field&rsquo;s <code>TextKind</code> chooses the keys: a <code>Password</code> gets a password&rsquo;s
+keyboard, with no suggestions; a <code>LineOfText</code> has <em>Done</em> where Enter is, which reaches Go as the
+Enter key; <code>LinesOfText</code> (a text area) has a new-line key instead, whose line break arrives in the
+text like any character (<code>TYPE_TEXT_FLAG_MULTI_LINE</code>), and predictions keep working across lines. A package without the class (made by an
 older tool) types key by key, as before. Tried on the Android 14 emulator with Android&rsquo;s own
 keyboard: &ldquo;harb&rdquo; composes underlined, its suggestion &ldquo;harbour&rdquo; replaces it, a hardware key and the
-keyboard&rsquo;s backspace edit the same text, and a password gets no suggestions.</p>
+keyboard&rsquo;s backspace edit the same text, a password gets no suggestions, and a text area&rsquo;s
+new-line key (Android&rsquo;s own LatinIME, which commits it as a &ldquo;\n&rdquo;) breaks the line while the
+suggestions go on. A keyboard that sends Enter as a key event instead (some do) is not tried yet.</p>
 
 <p><strong>A finger lifted leaves nothing under it.</strong> After the frame where a finger is lifted
 (<code>input.TouchPointer</code>), the pointer goes off the window (<code>State.PointerLeaves</code>): with a mouse, the
@@ -354,6 +358,45 @@ and moved out of <code>/system/fonts</code> (drawn by Android). Before this, the
 <p><img src="./images/android-emoji-font-file.png" alt="Emoji read from the font file, on Android 14" /></p>
 
 <p><img src="./images/android-emoji-drawn-by-android.png" alt="The same emoji drawn by Android, with no CBDT font" /></p>
+
+<h2 id="choosing-files">Choosing files</h2>
+
+<p>A person picks files, a photo or a document, through Android&rsquo;s own document chooser:</p>
+<pre><code class="language-go"><span class="nx">android</span><span class="p">.</span><span class="nf">ChooseFiles</span><span class="p">(</span><span class="mi">16</span><span class="o">&lt;&lt;</span><span class="mi">20</span><span class="p">,</span> <span class="kd">func</span><span class="p">(</span><span class="nx">chosen</span> <span class="p">[]</span><span class="nx">android</span><span class="p">.</span><span class="nx">ChosenFile</span><span class="p">)</span> <span class="p">{</span>
+	<span class="k">for</span> <span class="nx">_</span><span class="p">,</span> <span class="nx">file</span> <span class="o">:=</span> <span class="k">range</span> <span class="nx">chosen</span> <span class="p">{</span>
+		<span class="nx">log</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">file</span><span class="p">.</span><span class="nx">Name</span><span class="p">,</span> <span class="nx">file</span><span class="p">.</span><span class="nx">Size</span><span class="p">,</span> <span class="nx">file</span><span class="p">.</span><span class="nx">Read</span><span class="p">)</span> <span class="c1">// notes.txt 23 true</span>
+	<span class="p">}</span>
+<span class="p">})</span>
+</code></pre>
+
+<p><code>chosen</code> is called once when the person is done, on another goroutine (never Android&rsquo;s main
+thread), so it takes the program&rsquo;s own lock; an empty list means they cancelled. The first argument is the largest file the program
+takes, in bytes: a bigger one comes back with its name and size but unread (<code>Read</code> false), so a
+video picked by mistake never fills the phone&rsquo;s memory, and the program can say why it left it out.
+A file too big whose app does not tell its size says <code>UnknownSize</code>; an unread file with a size
+within the limit could not be read. Files reach Go one at a time as they are read.
+<code>ChooseFiles</code> returns false when the chooser cannot open: one is open already, or the package was
+made without the class.</p>
+<pre><code class="language-text">android (Go)              keeps the one open chooser, gathers what Java hands over
+files.c                   opens the class over the activity; passes each file on to Go
+FileChooser.java          a fragment: ACTION_OPEN_DOCUMENT, then reads each document
+</code></pre>
+
+<p><strong>Why a fragment.</strong> Android gives what was chosen to the activity&rsquo;s <code>onActivityResult</code>, and
+<code>NativeActivity</code> does not pass that on to native code. A fragment with no view, added for one
+choice, gets its own <code>onActivityResult</code>; then it leaves. The other way, a second activity in the
+manifest, would mean changing every app&rsquo;s manifest. <code>android.app.Fragment</code> is deprecated in favour
+of a support library Go Renderer does not carry, but still works on every Android it runs on.</p>
+
+<p><strong>Read at once, off the main thread.</strong> The permission to read a chosen document lasts as long as
+the activity, so the bytes are read straight away, on a thread of their own, never on Android&rsquo;s
+main thread, where a big file would freeze the app. A size the other app tells wrong is checked
+against what it gives.</p>
+
+<p>Tried on the Android 14 emulator: one file, two at once (one over the limit, which came back
+unread), and a cancel.</p>
+
+<p><img src="./images/android-file-chooser.png" alt="Android&rsquo;s document chooser over a Go Renderer app" /></p>
 
 <h2 id="not-yet">Not yet</h2>
 

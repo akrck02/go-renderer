@@ -1,0 +1,158 @@
+<h1 id="5-choosing-files-on-android">5. Choosing files on Android</h1>
+
+<blockquote>
+<p>Status: built, pending review · Author&rsquo;s approval: proposal ☑ (&ldquo;approved&rdquo;, 2026-10-29) plan ☑ (&ldquo;approved&rdquo;, 2026-10-29)</p>
+</blockquote>
+
+<h2 id="why">Why</h2>
+
+<p>An app drawn with Go Renderer cannot let a person pick a file on an Android phone. Go UI&rsquo;s
+<code>window.ChooseFiles</code> opens the browser&rsquo;s file chooser on the web, and says &ldquo;none here&rdquo; on
+Android, because Go Renderer has no way to open the system&rsquo;s one.</p>
+
+<p>llm-center is the first to need it: its author attaches a screenshot or a log to an answer from
+the phone, and today has to leave the app for the page in the phone&rsquo;s browser. Any app that takes
+a picture, a document or a backup from the person needs the same.</p>
+
+<h2 id="what">What</h2>
+
+<table>
+<thead>
+<tr>
+<th>Id</th>
+<th>Requirement</th>
+<th>Check</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>R1</td>
+<td><strong>Open the chooser.</strong> <code>android.ChooseFiles</code> opens Android&rsquo;s own document chooser, for one file or several, over the app</td>
+<td>by hand on the emulator: the chooser opens, the app is still there when it closes</td>
+</tr>
+
+<tr>
+<td>R2</td>
+<td><strong>Hand back names and bytes.</strong> When the person chooses, Go gets each file&rsquo;s display name, its size, and its bytes; when they cancel, an empty list</td>
+<td>by hand on the emulator with a picture and a text file; a test of the Go side with the Java answer faked</td>
+</tr>
+
+<tr>
+<td>R3</td>
+<td><strong>Never read a file whole that is too big.</strong> The caller says the largest size it takes; a bigger file comes back with its name and size, unread, as Go UI&rsquo;s <code>ChosenFile</code> already says (<code>Read: false</code>)</td>
+<td>test: a file over the limit comes back unread</td>
+</tr>
+
+<tr>
+<td>R4</td>
+<td><strong>One at a time, safe from any goroutine.</strong> A second call while the chooser is open returns false; the answer comes on another goroutine, as Go UI&rsquo;s does on the web</td>
+<td>test of the Go side</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="out-of-scope">Out of scope</h2>
+
+<ul>
+<li>Choosing a folder, or saving a file (<code>ACTION_CREATE_DOCUMENT</code>): their own change when an app
+needs them.</li>
+<li>Filtering by type (only pictures, say): every type is offered, as on the web today. A <code>types</code>
+argument can come when a caller needs it.</li>
+<li>Go UI&rsquo;s Android side (<code>window.ChooseFiles</code> calling this): Go UI&rsquo;s own change, once this is in.</li>
+</ul>
+
+<h2 id="design">Design</h2>
+
+<p>Android hands back what a person chose in <code>onActivityResult</code>, a method of the activity. Go
+Renderer runs inside <code>NativeActivity</code>, which does not pass that method on to native code. So the
+chooser needs a piece of Java that is told the answer.</p>
+
+<p><strong>A headless fragment.</strong> A small Java class, <code>FileChooser</code>, joins the activity as a fragment with
+no view. It starts the chooser (<code>ACTION_OPEN_DOCUMENT</code>, <code>CATEGORY_OPENABLE</code>, <code>*/*</code>,
+<code>EXTRA_ALLOW_MULTIPLE</code>), receives <code>onActivityResult</code>, and for each chosen <code>Uri</code>:</p>
+
+<ol>
+<li>asks the <code>ContentResolver</code> for its display name and size (<code>OpenableColumns</code>);</li>
+<li>reads its bytes through <code>openInputStream</code> only when the size is within the caller&rsquo;s limit;</li>
+<li>calls Go once, through a <code>native</code> method as <code>TextInput</code> does, with the names, sizes and bytes.</li>
+</ol>
+
+<p>Then it removes itself. The reading runs on a background thread, never on Android&rsquo;s main thread,
+so a large file does not freeze the app.</p>
+
+<p><strong>On the Go side,</strong> <code>android.ChooseFiles(largest int64, chosen func([]ChosenFile)) bool</code>:</p>
+
+<ul>
+<li><code>ChosenFile{Name string; Size int64; Content []byte; Read bool}</code>, the same shape as Go UI&rsquo;s.</li>
+<li>It returns false if a chooser is already open, or the package has none. Opening itself happens
+later, on Android&rsquo;s main thread: if it fails there, <code>chosen</code> is called with nothing.</li>
+<li><code>chosen</code> is called once, on the goroutine that received the answer from Java; the caller copes
+with that as it does with the web&rsquo;s, by taking its own lock.</li>
+</ul>
+
+<p>The C between them follows <code>services.c</code>: <code>attach_thread</code>, <code>cleared</code> after each JNI call, local
+references deleted.</p>
+
+<p><strong>Not taken.</strong></p>
+
+<ul>
+<li><em>A second activity in the manifest</em>, transparent, that only opens the chooser: it works on
+every Android, but every app would need its manifest changed, in Go UI for Android&rsquo;s
+<code>go-ui-apk</code> as well. The fragment needs nothing outside Go Renderer.</li>
+<li><em><code>android.app.Fragment</code> is deprecated</em> since Android 9, in favour of the support libraries&rsquo;
+fragment. The support libraries are a dependency Go Renderer does not have, and the platform&rsquo;s
+fragment still works on every Android an app of ours runs on. If it ever stops, the second
+activity above is the way out.</li>
+<li><em>Passing a <code>Uri</code> to Go and reading it later</em>: the permission to read it lasts only as long as
+the activity, and Go would need JNI for every read. Reading at once is simpler.</li>
+</ul>
+
+<h2 id="tasks">Tasks</h2>
+
+<p>On <code>feature/file-chooser</code> (from <code>main</code>), one commit per task, no push.</p>
+
+<ul>
+<li>[ ] T1 — <code>ChosenFile</code> and the Go side: <code>android.ChooseFiles(largest, chosen)</code> keeps the one open request, refuses a second, and turns Java&rsquo;s answer (names, sizes, bytes or none) into <code>[]ChosenFile</code>, unread above <code>largest</code> · <code>android/files.go</code> · R2–R4 · tests <code>a second chooser while one is open is refused</code>, <code>a file over the limit comes back unread</code>, <code>a cancelled chooser hands back no files</code></li>
+<li>[ ] T2 — <code>FileChooser.java</code>: the headless fragment that opens <code>ACTION_OPEN_DOCUMENT</code>, reads each <code>Uri</code>&rsquo;s name and size through <code>OpenableColumns</code>, its bytes on a background thread when within the limit, calls Go once and removes itself; added to <code>java.Sources</code> · <code>android/java/</code> · R1–R3 · the test that the class name and package agree, as for the other Java classes</li>
+<li>[ ] T3 — The JNI side: the class found and its native method registered as <code>textinput.c</code> does; the call from Go attaches the thread, never throws into Go, and frees its references · <code>android/files.c</code> · R1, R4 · build for android/arm64 and android/amd64</li>
+<li>[ ] T4 — By hand on the emulator: a small test app opens the chooser, takes a picture and a text file, and cancels once; a capture of the chooser over the app in <code>docs/images/</code> · R1, R2 · emulator capture</li>
+<li>[ ] T5 — Docs: the Android guide gains &ldquo;Choosing files&rdquo;, with the limits and why a fragment; the reference lists <code>ChooseFiles</code> and <code>ChosenFile</code>; README&rsquo;s AI disclosure kept true · <code>docs/</code> · the docs build</li>
+</ul>
+
+<h2 id="result">Result</h2>
+
+<p>Built and tried on the Android 14 emulator. Pending the author&rsquo;s review.</p>
+
+<p><strong>Tests.</strong> <code>go test ./android</code> covers the Go side: a second chooser is refused while one is open, a
+file over the limit comes back unread, a cancel hands back nothing, a chooser that could not open
+lets the next one, a late answer is never mixed into the next chooser&rsquo;s files, and the Java class
+is where its name says and is given to the tool. <code>go vet</code> and the build pass for android/arm64 and
+android/amd64; the Java compiles against Android 36&rsquo;s <code>android.jar</code> with every warning on.</p>
+
+<p><strong>By hand,</strong> with a throwaway app on the emulator: one file (read, with its bytes); a picture and a
+2 MB file together under a 1 MiB limit (the picture read, the other unread with its real size); a
+cancel, then the chooser again; and the same with &ldquo;Don&rsquo;t keep activities&rdquo; on, so the activity is
+rebuilt behind the chooser: one answer, and no second chooser.</p>
+
+<p><strong>Fixed after the review.</strong></p>
+
+<ul>
+<li>A rebuilt activity no longer opens a second chooser: the fragment saves that it is open.</li>
+<li>Go is always told the end: when the activity is going, its state is saved, or the fragment
+cannot join, the choice ends empty; and when the activity ends for good before an answer.</li>
+<li>Files go to Go one at a time as they are read, so many photos never sit in Java&rsquo;s memory at
+once; running out of memory while reading leaves that file unread instead of ending the app.</li>
+<li>A file too big whose real size is not known says <code>UnknownSize</code>, never a made-up one; a file that
+could not be read says a size within the limit, and the docs say how to tell them apart.</li>
+<li>A name Java could not copy reaches Go empty instead of stopping the program.</li>
+<li>An answer that comes when no chooser is open is dropped.</li>
+<li>Go&rsquo;s callback never runs on Android&rsquo;s main thread.</li>
+</ul>
+
+<p><strong>Kept as it was.</strong> <code>ChooseFiles</code> answers with a bool, not an error code: it mirrors Go UI&rsquo;s
+<code>ChooseFiles</code>, and its caller does the same thing for either reason (it hides its button).</p>
+
+<p><strong>Still open.</strong> Go UI&rsquo;s Android side, which calls this, is Go UI&rsquo;s own change; until it is made,
+llm-center&rsquo;s paperclip stays hidden in the app. Process death while the chooser is open was not
+tried.</p>
