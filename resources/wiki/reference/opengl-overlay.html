@@ -89,8 +89,9 @@ the OpenGL scene renderer uploads its atlas and draws its quads.</p>
 <p>Fonts are what a Painter or a Measurer draws text with: the TrueType or OpenType fonts, one per weight, and where the system&rsquo;s fonts are, for the characters they lack. The zero value is the default: the Go fonts and the system&rsquo;s usual folders.</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Fonts</span> <span class="kd">struct</span> <span class="p">{</span>
 	<span class="c1">// Regular, Medium, Bold and Mono are a font file&#39;s bytes each; an empty one keeps the Go font</span>
-	<span class="c1">// of that weight.</span>
-	<span class="nx">Regular</span><span class="p">,</span> <span class="nx">Medium</span><span class="p">,</span> <span class="nx">Bold</span><span class="p">,</span> <span class="nx">Mono</span> <span class="p">[]</span><span class="kt">byte</span>
+	<span class="c1">// of that weight. Display is a decorative font for the labels that ask for it</span>
+	<span class="c1">// (scene.Label.Display); an empty one writes them in the labels&#39; own font (Medium).</span>
+	<span class="nx">Regular</span><span class="p">,</span> <span class="nx">Medium</span><span class="p">,</span> <span class="nx">Bold</span><span class="p">,</span> <span class="nx">Mono</span><span class="p">,</span> <span class="nx">Display</span> <span class="p">[]</span><span class="kt">byte</span>
 	<span class="c1">// Folders are where the system&#39;s fonts and colour emoji are looked for, for characters the</span>
 	<span class="c1">// fonts lack. nil is DefaultFontFolders(); an empty, non-nil list looks nowhere, and such</span>
 	<span class="c1">// characters are drawn as a question mark, unless UseSystemEmoji has a drawer for them. In</span>

@@ -37,6 +37,12 @@
 
 <p>The spaces a shape can be given in.</p>
 
+<h3 id="fieldofview">FieldOfView</h3>
+
+<p>FieldOfView is how far an eye sees to each side, as OpenXR gives it: angles from the eye&rsquo;s forward direction, left and down negative. A headset&rsquo;s eyes are not symmetric: each sees more to the outside than towards the nose.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">FieldOfView</span> <span class="kd">struct</span><span class="p">{</span> <span class="nx">LeftRadians</span><span class="p">,</span> <span class="nx">RightRadians</span><span class="p">,</span> <span class="nx">UpRadians</span><span class="p">,</span> <span class="nx">DownRadians</span> <span class="kt">float32</span> <span class="p">}</span>
+</code></pre>
+
 <h3 id="matrix">Matrix</h3>
 
 <p>Matrix is a 4 × 4 matrix flattened into 16 values, column after column (column-major), the order OpenGL, Vulkan and Metal read. Element (row, column) is at index column*4 + row.</p>
@@ -70,6 +76,11 @@
 <tr>
 <td><code>func OrthographicOpenGL(left, right, bottom, top, near, far float32) Matrix</code></td>
 <td>OrthographicOpenGL returns a projection without perspective for OpenGL: the box from (left, bottom, -near) to (right, top, -far) fills the screen, depth mapped to [-1, 1].</td>
+</tr>
+
+<tr>
+<td><code>func PerspectiveFromFieldOfView(field FieldOfView, near, far float32) Matrix</code></td>
+<td>PerspectiveFromFieldOfView returns the OpenGL projection (y up, depth from -1 at near to 1 at far) of an eye that sees field: an off-centre frustum, the four angles each at an edge of the picture.</td>
 </tr>
 
 <tr>
@@ -125,6 +136,83 @@
 <tr>
 <td><code>func (matrix Matrix) Multiply(other Matrix) Matrix</code></td>
 <td>Multiply returns matrix × other: the transform that applies other first, then matrix.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="pose">Pose</h3>
+
+<p>Pose is where something is and which way it is turned, as a headset tracks an eye, the head or a hand: Position in metres in the headset&rsquo;s space (its w is ignored), Orientation turning the thing&rsquo;s own axes (x right, y up, looking down -z) into that space.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Pose</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">Orientation</span> <span class="nx">Quaternion</span>
+	<span class="nx">Position</span>    <span class="nx">Vector</span>
+<span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func (pose Pose) Matrix() Matrix</code></td>
+<td>Matrix returns the matrix that takes the thing&rsquo;s own space to the space it is posed in: rotate, then move.</td>
+</tr>
+
+<tr>
+<td><code>func (pose Pose) ViewMatrix() Matrix</code></td>
+<td>ViewMatrix returns the inverse of Matrix: from the space the eye is posed in to the eye&rsquo;s own space, what a view matrix is.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="quaternion">Quaternion</h3>
+
+<p>Quaternion is a rotation, written as OpenXR (and glTF) give it: x, y and z are the axis times the sine of half the angle, w the cosine of half the angle. It is expected to be of length 1.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Quaternion</span> <span class="kd">struct</span><span class="p">{</span> <span class="nx">X</span><span class="p">,</span> <span class="nx">Y</span><span class="p">,</span> <span class="nx">Z</span><span class="p">,</span> <span class="nx">W</span> <span class="kt">float32</span> <span class="p">}</span>
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func IdentityQuaternion() Quaternion</code></td>
+<td>IdentityQuaternion is the rotation that turns nothing.</td>
+</tr>
+
+<tr>
+<td><code>func QuaternionAroundY(radians float64) Quaternion</code></td>
+<td>QuaternionAroundY returns the rotation around the y axis (up) by radians, counter-clockwise seen from above, as RotateY.</td>
+</tr>
+
+<tr>
+<td><code>func (rotation Quaternion) Conjugate() Quaternion</code></td>
+<td>Conjugate returns the rotation that undoes this one (for a quaternion of length 1).</td>
+</tr>
+
+<tr>
+<td><code>func (rotation Quaternion) Matrix() Matrix</code></td>
+<td>Matrix returns the matrix that turns points as the quaternion does.</td>
+</tr>
+
+<tr>
+<td><code>func (rotation Quaternion) Multiply(other Quaternion) Quaternion</code></td>
+<td>Multiply returns rotation × other: the rotation that turns by other first, then by rotation.</td>
+</tr>
+
+<tr>
+<td><code>func (rotation Quaternion) Rotate(vector Vector) Vector</code></td>
+<td>Rotate returns vector turned by the quaternion; its w is kept, so points stay points.</td>
 </tr>
 </tbody>
 </table>

@@ -102,6 +102,10 @@ them.</p>
 	<span class="c1">// Target is the framebuffer Draw draws into: 0, the screen, unless the caller made one to</span>
 	<span class="c1">// draw a picture offscreen.</span>
 	<span class="nx">Target</span> <span class="nx">Framebuffer</span>
+	<span class="c1">// LinearOutput makes the colours, which are the screen&#39;s (sRGB), be written linear: for a</span>
+	<span class="c1">// target that encodes sRGB itself, as a headset&#39;s panel does, where they would otherwise come</span>
+	<span class="c1">// out twice as light.</span>
+	<span class="nx">LinearOutput</span> <span class="kt">bool</span>
 
 	<span class="c1">// Has unexported fields.</span>
 <span class="p">}</span>
@@ -275,6 +279,10 @@ them.</p>
 	<span class="c1">// Target is the framebuffer Draw draws into: 0, the screen, unless the caller made one to</span>
 	<span class="c1">// draw a picture offscreen.</span>
 	<span class="nx">Target</span> <span class="nx">Framebuffer</span>
+	<span class="c1">// LinearOutput makes the shaders and the clear write linear colour instead of turning it to</span>
+	<span class="c1">// the screen&#39;s gamma: for a target that encodes sRGB itself (a headset&#39;s swapchain), which</span>
+	<span class="c1">// would otherwise apply the gamma twice and wash the picture out.</span>
+	<span class="nx">LinearOutput</span> <span class="kt">bool</span>
 
 	<span class="c1">// Has unexported fields.</span>
 <span class="p">}</span>
@@ -298,6 +306,11 @@ them.</p>
 <td><code>func (renderer *SceneRenderer) Draw(world *scene.Scene, camera camera.Lens, width, height int)</code></td>
 <td>Draw draws a frame of the scene seen by the camera, in the target framebuffer of width × height pixels.</td>
 </tr>
+
+<tr>
+<td><code>func (renderer *SceneRenderer) DrawViews(world *scene.Scene, covering camera.Lens, aspect float32, views []View)</code></td>
+<td>DrawViews plans the frame once, from covering (see camera.CoveringLens) and its aspect (width over height), and draws it in every view with the view&rsquo;s own matrices and eye.</td>
+</tr>
 </tbody>
 </table>
 
@@ -317,6 +330,23 @@ them.</p>
 
 <p>Uniform is where a program reads a uniform value; -1 when the program has none of that name (the compiler drops uniforms it does not use).</p>
 <pre><code class="language-go"><span class="kd">type</span> <span class="nx">Uniform</span> <span class="kt">int32</span>
+</code></pre>
+
+<h3 id="view">View</h3>
+
+<p>View is one picture DrawViews draws: an eye of a headset.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">View</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Target is the framebuffer it is drawn into, with a depth buffer. Views may share one, each</span>
+	<span class="c1">// in its own viewport.</span>
+	<span class="nx">Target</span> <span class="nx">Framebuffer</span>
+	<span class="c1">// X, Y, Width and Height are its viewport in the target, in pixels from the bottom-left.</span>
+	<span class="nx">X</span><span class="p">,</span> <span class="nx">Y</span><span class="p">,</span> <span class="nx">Width</span><span class="p">,</span> <span class="nx">Height</span> <span class="kt">int</span>
+	<span class="c1">// View and Projection are the eye&#39;s matrices (see camera.Rig and</span>
+	<span class="c1">// graphics.PerspectiveFromFieldOfView).</span>
+	<span class="nx">View</span><span class="p">,</span> <span class="nx">Projection</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Matrix</span>
+	<span class="c1">// Eye is the eye in the world: lighting, fog and the water&#39;s reflection are worked out from it.</span>
+	<span class="nx">Eye</span> <span class="nx">graphics</span><span class="p">.</span><span class="nx">Vector</span>
+<span class="p">}</span>
 </code></pre>
 
 <hr>

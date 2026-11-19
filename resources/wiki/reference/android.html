@@ -68,6 +68,11 @@ calls, was about two thirds of what a 3D view cost on a phone.</p>
 </tr>
 
 <tr>
+<td><code>func LogError(text string)</code></td>
+<td>LogError writes a line to Android&rsquo;s log (tag Go) at once.</td>
+</tr>
+
+<tr>
 <td><code>func NotificationsAllowed() bool</code></td>
 <td>NotificationsAllowed tells whether the program may show notifications: always before Android 13, and on Android 13 and later once the person allowed them (AskForNotifications).</td>
 </tr>
@@ -83,8 +88,18 @@ calls, was about two thirds of what a 3D view cost on a phone.</p>
 </tr>
 
 <tr>
+<td><code>func Rotation() (space.Quaternion, bool)</code></td>
+<td>Rotation is how the screen is turned in the room, as a camera&rsquo;s orientation: a camera turned by it looks out of the back of the phone, with the screen&rsquo;s top as its up and the room&rsquo;s up as the scene&rsquo;s y.</td>
+</tr>
+
+<tr>
 <td><code>func Run(app *window.Application, options Options, draw func(functions GL, fresh bool) error) error</code></td>
 <td>Run draws the application in the activity&rsquo;s window until the program ends (Android ends it).</td>
+</tr>
+
+<tr>
+<td><code>func RunHeadset(options HeadsetOptions, frame func(headset Headset, functions GL) bool) error</code></td>
+<td>RunHeadset runs a program that draws for a headset rather than into a window: an OpenXR runtime takes its pictures from images of its own.</td>
 </tr>
 
 <tr>
@@ -110,6 +125,16 @@ calls, was about two thirds of what a 3D view cost on a phone.</p>
 <tr>
 <td><code>func ShowKeyboard(typing bool)</code></td>
 <td>ShowKeyboard asks for the on-screen keyboard while a text field is being typed in, and puts it away when none is: call it in every step (go-ui&rsquo;s window does, with Context.Typing).</td>
+</tr>
+
+<tr>
+<td><code>func StartRotation() bool</code></td>
+<td>StartRotation starts reading the phone&rsquo;s rotation sensor, for Rotation: it says false when the phone has none.</td>
+</tr>
+
+<tr>
+<td><code>func StopRotation()</code></td>
+<td>StopRotation stops the rotation sensor.</td>
 </tr>
 
 <tr>
@@ -140,6 +165,8 @@ calls, was about two thirds of what a 3D view cost on a phone.</p>
 </table>
 
 <h3 id="constants-and-variables">Constants and variables</h3>
+<pre><code class="language-go"><span class="kd">var</span> <span class="nx">HeadsetContextNotMade</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;android.headset-context-not-made&#34;</span><span class="p">,</span>
+</code></pre>
 <pre><code class="language-go"><span class="kd">var</span> <span class="nx">VideoNotOpened</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;android.video-not-opened&#34;</span><span class="p">,</span> <span class="s">&#34;the video could not be opened&#34;</span><span class="p">)</span>
 </code></pre>
 
@@ -486,6 +513,24 @@ calls, was about two thirds of what a 3D view cost on a phone.</p>
 </tr>
 </tbody>
 </table>
+
+<h3 id="headset">Headset</h3>
+
+<p>Headset is what an OpenXR runtime needs from the program: the Java VM, the activity, and the EGL context its drawing thread holds (JavaVM*, jobject, EGLDisplay, EGLConfig, EGLContext), handed over as they are for the package that speaks to the runtime. They are numbers, not Go pointers: a jobject global reference is an encoded index and an EGLDisplay is often 1, which the garbage collector must never take for an address.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">Headset</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="nx">JavaVM</span><span class="p">,</span> <span class="nx">Activity</span><span class="p">,</span> <span class="nx">Display</span><span class="p">,</span> <span class="nx">Config</span><span class="p">,</span> <span class="nx">Context</span> <span class="kt">uintptr</span>
+<span class="p">}</span>
+</code></pre>
+
+<h3 id="headsetoptions">HeadsetOptions</h3>
+
+<p>HeadsetOptions tune RunHeadset.</p>
+<pre><code class="language-go"><span class="kd">type</span> <span class="nx">HeadsetOptions</span> <span class="kd">struct</span> <span class="p">{</span>
+	<span class="c1">// Hidden is called on the drawing thread when the activity is paused (the headset taken off, the</span>
+	<span class="c1">// system&#39;s menu over the program), Shown when it is resumed, the first time included.</span>
+	<span class="nx">Hidden</span><span class="p">,</span> <span class="nx">Shown</span> <span class="kd">func</span><span class="p">()</span>
+<span class="p">}</span>
+</code></pre>
 
 <h3 id="insets">Insets</h3>
 
