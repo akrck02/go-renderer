@@ -27,6 +27,7 @@ const (
 	iconFace                    // Lucide: icons
 	regularFace                 // Go Regular: body text of drawings (interfaces)
 	monoFace                    // Go Mono Bold: codes and keys (draw2d.Mono)
+	displayFace                 // the display font, else the labels': a theme's titles (scene.Label.Display)
 )
 
 // Fonts are what a Painter or a Measurer draws text with: the TrueType or OpenType fonts, one per
@@ -34,8 +35,9 @@ const (
 // default: the Go fonts and the system's usual folders.
 type Fonts struct {
 	// Regular, Medium, Bold and Mono are a font file's bytes each; an empty one keeps the Go font
-	// of that weight.
-	Regular, Medium, Bold, Mono []byte
+	// of that weight. Display is a decorative font for the labels that ask for it
+	// (scene.Label.Display); an empty one writes them in the labels' own font (Medium).
+	Regular, Medium, Bold, Mono, Display []byte
 	// Folders are where the system's fonts and colour emoji are looked for, for characters the
 	// fonts lack. nil is DefaultFontFolders(); an empty, non-nil list looks nowhere, and such
 	// characters are drawn as a question mark, unless UseSystemEmoji has a drawer for them. In
@@ -78,6 +80,8 @@ func listPrebuiltCharacters() []rune {
 type fonts struct {
 	parsed map[faceName]*opentype.Font
 	faces  map[faceKey]font.Face
+	// measures are each face's vertical measures, worked out once
+	measures map[faceKey]faceMetrics
 	// fallbackFaces are faces of the system's fonts, for characters the program's fonts lack
 	fallbackFaces map[fallbackKey]font.Face
 	// system and emoji are the system's fonts and colour emoji in the chosen folders, shared with
@@ -98,9 +102,10 @@ type faceKey struct {
 
 func loadFonts(chosen Fonts) (*fonts, error) {
 	sources := map[faceName][]byte{textFace: orDefault(chosen.Medium, gomedium.TTF), strongFace: orDefault(chosen.Bold, gobold.TTF),
-		iconFace: lucide.Font(), regularFace: orDefault(chosen.Regular, goregular.TTF), monoFace: orDefault(chosen.Mono, gomonobold.TTF)}
+		iconFace: lucide.Font(), regularFace: orDefault(chosen.Regular, goregular.TTF), monoFace: orDefault(chosen.Mono, gomonobold.TTF),
+		displayFace: orDefault(chosen.Display, orDefault(chosen.Medium, gomedium.TTF))}
 	system, emoji := systemFontsIn(chosen.folders())
-	loaded := &fonts{parsed: map[faceName]*opentype.Font{}, faces: map[faceKey]font.Face{}, fallbackFaces: map[fallbackKey]font.Face{},
+	loaded := &fonts{parsed: map[faceName]*opentype.Font{}, faces: map[faceKey]font.Face{}, measures: map[faceKey]faceMetrics{}, fallbackFaces: map[fallbackKey]font.Face{},
 		system: system, emoji: emoji}
 	for name, data := range sources {
 		parsed, err := opentype.Parse(data)
@@ -112,14 +117,16 @@ func loadFonts(chosen Fonts) (*fonts, error) {
 	return loaded, nil
 }
 
-// face returns a font at a size in pixels. Text is hinted to the pixel grid so it stays crisp at
-// small sizes; icons are not, so their strokes keep their drawn proportions.
+// face returns a font at a size in pixels. Text is hinted to the pixel grid up and down, so its
+// lines stay crisp at small sizes, but not across: letters keep their own widths, as a browser's
+// do, so a word is as wide here as on a web page. Icons are not hinted, so their strokes keep
+// their drawn proportions.
 func (loaded *fonts) face(name faceName, size int) font.Face {
 	key := faceKey{name, size}
 	if face, found := loaded.faces[key]; found {
 		return face
 	}
-	hinting := font.HintingFull
+	hinting := font.HintingVertical
 	if name == iconFace {
 		hinting = font.HintingNone
 	}
@@ -182,18 +189,57 @@ type faceMetrics struct {
 	ascent, descent, capHeight float32
 }
 
+// metrics are a face's vertical measures as a browser takes them: the font's own ascent and
+// descent at this size, each rounded to the nearest pixel, so a line of text is as tall here as
+// on a web page in the same font. (Hinting would round both up, a pixel taller.)
 func (loaded *fonts) metrics(name faceName, size int) faceMetrics {
-	face := loaded.face(name, size)
-	if face == nil {
+	key := faceKey{name, size}
+	if measures, found := loaded.measures[key]; found {
+		return measures
+	}
+	parsed := loaded.parsed[name]
+	if parsed == nil || size <= 0 {
 		return faceMetrics{}
 	}
-	measures := face.Metrics()
+	measures, err := parsed.Metrics(nil, fixed.I(size), font.HintingNone)
+	if err != nil {
+		// a parsed font measures any positive size; keep the zero measures if it does not
+		return faceMetrics{}
+	}
 	capHeight := toPixels(measures.CapHeight)
 	if capHeight <= 0 {
 		capHeight = toPixels(measures.Ascent) * 0.7
 	}
-	return faceMetrics{ascent: toPixels(measures.Ascent), descent: toPixels(measures.Descent), capHeight: capHeight}
+	rounded := faceMetrics{ascent: roundPixel(measures.Ascent), descent: roundPixel(measures.Descent), capHeight: capHeight}
+	loaded.measures[key] = rounded
+	return rounded
 }
+
+// noLetter stands for no letter before the first, or before one after an emoji: nothing to
+// kern against.
+const noLetter rune = -1
+
+// kerning is how much closer, or further, character sits to the letter before it in a face, as
+// the font asks and browsers do («AV», «To»). Letters from different fonts are not kerned.
+func (loaded *fonts) kerning(name faceName, size int, previous, character rune) float32 {
+	if previous == noLetter || name == iconFace {
+		return 0
+	}
+	face := loaded.face(name, size)
+	if face == nil || !loaded.hasOwnGlyph(face, previous) || !loaded.hasOwnGlyph(face, character) {
+		return 0
+	}
+	return toPixels(face.Kern(previous, character))
+}
+
+// hasOwnGlyph tells whether a face itself draws character, rather than a fallback font.
+func (loaded *fonts) hasOwnGlyph(face font.Face, character rune) bool {
+	_, found := face.GlyphAdvance(character)
+	return found
+}
+
+// roundPixel is a length rounded to the nearest whole pixel.
+func roundPixel(value fixed.Int26_6) float32 { return float32(math.Round(float64(toPixels(value)))) }
 
 // glyph returns the picture of a character in a face, drawing it into the atlas the first time.
 // The entry's offset places the picture relative to the dot on the baseline.

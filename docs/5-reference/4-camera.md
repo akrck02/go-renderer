@@ -23,6 +23,15 @@ const (
 
 Default projection values, used where a Lens's fields are zero.
 
+```go
+const (
+	DefaultRigWalkSpeedMetres = 1.5         // a calm walk
+	DefaultRigTurnRadians     = math.Pi / 6 // twelve steps make a whole turn
+)
+```
+
+Defaults of a RigWalk, used where its fields are zero.
+
 ### Controller
 
 Controller moves a camera from input.
@@ -64,6 +73,7 @@ type Lens struct {
 
 | Function or method | |
 |---|---|
+| `func CoveringLens(rig Rig, eyes []graphics.Pose, fields []graphics.FieldOfView, near, far float32) (lens Lens, aspect float32)` | CoveringLens is one symmetric camera that sees everything the eyes see, for planning a frame (culling, levels of detail, the order of translucent surfaces) once for all of them; aspect is the width over the height of its picture. |
 | `func (camera Lens) IsOrthographic() bool` | IsOrthographic tells whether the camera has no perspective. |
 | `func (camera Lens) Projection() (fieldOfViewRadians, near, far float32)` | Projection returns the camera's field of view (radians) and clipping planes, with the defaults where its fields are zero. |
 | `func (camera Lens) ProjectionMatrix(aspect float64) graphics.Matrix` | ProjectionMatrix returns the camera's projection for OpenGL, perspective or orthographic, for a screen of this width over height. |
@@ -136,6 +146,51 @@ type Ray struct {
 | `func (ray Ray) At(distance float32) graphics.Vector` | At returns the point at a distance along the ray. |
 | `func (ray Ray) PointAtHeight(height float32) (graphics.Vector, bool)` | PointAtHeight returns where the ray meets the horizontal plane at a drawn height: a flat floor, a table top. |
 | `func (ray Ray) PointOnGround(ground func(x, z float32) (float32, bool), verticalScale, lowest, highest float32) (graphics.Vector, bool)` | PointOnGround returns the first point where the ray meets a relief: ground gives the height of the ground at a point (in true heights, as scene.Scene.GroundHeight does, false where there is none), verticalScale is the exaggeration it is drawn with, and lowest and highest bound the ground's true heights (the scene's bounds), so the search only covers where it can be. |
+
+### Rig
+
+Rig places a headset's tracked space in the world. A headset reports where the eyes, the head and the hands are in its own space, in metres, from a point on the floor of the room; the rig says where that point stands in the scene, which way the room is turned, and how many scene units a metre is. Walking with a stick moves the rig; walking in the room moves the poses.
+
+```go
+type Rig struct {
+	// Position is where the room's origin (on its floor) is in the world.
+	Position graphics.Vector
+	// YawRadians turns the room around the world's up (y) axis, counter-clockwise seen from above.
+	YawRadians float32
+	// Scale is scene units per metre (0 = 1). Above 1 the player is a giant: a step crosses more
+	// of the scene and the eyes are wider apart in it, so the world looks smaller.
+	Scale float32
+}
+```
+
+| Function or method | |
+|---|---|
+| `func (rig Rig) EyePosition(eye graphics.Pose) graphics.Vector` | EyePosition is where an eye is in the world: what lighting, fog and water reflections are worked out from. |
+| `func (rig Rig) EyeView(eye graphics.Pose) graphics.Matrix` | EyeView is the view matrix of an eye (a pose in the headset's space): from the world to the eye. |
+| `func (rig Rig) Matrix() graphics.Matrix` | Matrix takes the headset's space (metres) to the world: scale, turn, then move. |
+| `func (rig Rig) Place(pose graphics.Pose) graphics.Matrix` | Place is the model matrix of something tracked (a hand, a controller) in the world. |
+
+### RigWalk
+
+RigWalk moves a headset's rig with a pad's sticks: the left stick walks the way the head looks (flat on the ground), the right stick turns in steps around the head. The head itself is never moved by the program: a view that turns smoothly without the head turning makes many people sick, a step does not.
+
+```go
+type RigWalk struct {
+	// SpeedMetres is how far a full stick walks in a second, in the room's metres (0 =
+	// DefaultRigWalkSpeedMetres); a giant (Rig.Scale above 1) covers as many of its own metres.
+	SpeedMetres float32
+	// TurnRadians is one step of a turn (0 = DefaultRigTurnRadians).
+	TurnRadians float32
+	// Ground, when set, keeps the room's floor on the ground under the head.
+	Ground GroundFunc
+
+	// Has unexported fields.
+}
+```
+
+| Function or method | |
+|---|---|
+| `func (walk *RigWalk) Update(state *input.State, seconds float64, head graphics.Pose, rig *Rig)` | Update walks and turns the rig from the input's sticks, seconds after the last update. |
 
 ### Walk
 

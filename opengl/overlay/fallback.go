@@ -134,10 +134,14 @@ func hasFontExtension(path string) bool {
 	return false
 }
 
+// separators are taken out of font files' names. One replacer for every name: building one costs
+// kilobytes, and a system holds thousands of font files.
+var separators = strings.NewReplacer("-", "", "_", "", " ", "")
+
 // plainName is a file's name in lower case, without its extension and separators.
 func plainName(path string) string {
 	name := strings.ToLower(strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)))
-	return strings.NewReplacer("-", "", "_", "", " ", "").Replace(name)
+	return separators.Replace(name)
 }
 
 // search looks for a font with the character: first among the files named for its script, then,
@@ -163,37 +167,48 @@ func (fallback *fallbackFonts) search(character rune) *opentype.Font {
 // fontIn reads a file, the first time, and returns its font that has the character. A file whose
 // fonts lack it is not kept, as most are never needed; one that has it is.
 func (fallback *fallbackFonts) fontIn(file fontFile, character rune) *opentype.Font {
-	fonts, kept := fallback.read[file.path]
-	if !kept {
-		fonts = readFonts(file.path)
+	if fonts, kept := fallback.read[file.path]; kept {
+		return fontWith(fonts, character)
 	}
+	fonts, release := readFonts(file.path)
+	found := fontWith(fonts, character)
+	if found == nil {
+		release() // most files are looked in once and never needed again
+		return nil
+	}
+	fallback.read[file.path] = fonts
+	return found
+}
+
+// fontWith is the first of fonts that has the character, or nil.
+func fontWith(fonts []*opentype.Font, character rune) *opentype.Font {
 	for _, font := range fonts {
 		if hasCharacter(font, character) {
-			fallback.read[file.path] = fonts
 			return font
 		}
 	}
 	return nil
 }
 
-// readFonts parses a font file, or each font of a collection. A file that cannot be read or is not
-// a font has none.
-func readFonts(path string) []*opentype.Font {
-	data, err := os.ReadFile(path)
+// readFonts parses a font file, or each font of a collection, mapped rather than copied (see
+// mapFile); release lets the file go, after which its fonts must not be used. A file that cannot
+// be read or is not a font has none.
+func readFonts(path string) (fonts []*opentype.Font, release func()) {
+	data, release, err := mapFile(path)
 	if err != nil {
-		return nil
+		return nil, func() {}
 	}
 	collection, err := opentype.ParseCollection(data)
 	if err != nil {
-		return nil
+		release()
+		return nil, func() {}
 	}
-	var fonts []*opentype.Font
 	for index := range collection.NumFonts() {
 		if font, err := collection.Font(index); err == nil {
 			fonts = append(fonts, font)
 		}
 	}
-	return fonts
+	return fonts, release
 }
 
 func hasCharacter(font *opentype.Font, character rune) bool {

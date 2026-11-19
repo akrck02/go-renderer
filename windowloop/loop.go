@@ -1,10 +1,12 @@
 // Package windowloop runs a GLFW window's main loop for any drawing backend (OpenGL, Metal): the
 // window's events, input, drawing on demand, the fixed-step update clock, frames asked for while
-// the window is being resized, the pointer's shape and lock, and the whole screen. A backend only
-// has to draw and show a frame.
+// the window is being resized, the pointer's shape and lock, and the whole screen. A window that
+// draws on demand and stays idle for three seconds gives the memory the program no longer uses
+// back to the system. A backend only has to draw and show a frame.
 package windowloop
 
 import (
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -143,7 +145,7 @@ func framesTitle(title, version string, frames int) string {
 // resizeFollower keeps a window's content in step with its size. While a window is being resized,
 // some systems (macOS) hold the program inside glfw.PollEvents until the mouse is let go, so the
 // main loop draws nothing and the window shows a stretched or empty frame: it flickers. The
-// follower draws from the window's refresh callback meanwhile, after an update step at the new
+// follower draws from the window's refresh and size callbacks meanwhile, after an update step at the new
 // size so an interface lays itself out again.
 type resizeFollower struct {
 	framebufferSize func() (width, height int)
@@ -160,7 +162,7 @@ func followResizing(glfwWindow *glfw.Window, app *window.Application, clock *fra
 	if app.Input != nil {
 		follower.updateSizes = func() { UpdateSizes(glfwWindow, app.Input) }
 	}
-	glfwWindow.SetRefreshCallback(func(*glfw.Window) {
+	draw := func() {
 		if *failure != nil {
 			return
 		}
@@ -169,8 +171,24 @@ func followResizing(glfwWindow *glfw.Window, app *window.Application, clock *fra
 			return
 		}
 		*failure = drawFrame()
+	}
+	glfwWindow.SetRefreshCallback(func(*glfw.Window) { draw() })
+	// macOS asks for a refresh only when AppKit paints the view, which it never does for a view that
+	// hosts a Metal layer; the new size does arrive at every step of a resize, so draw then too.
+	var previous glfw.FramebufferSizeCallback
+	previous = glfwWindow.SetFramebufferSizeCallback(func(resized *glfw.Window, width, height int) {
+		afterSizeChange(previous, resized, width, height, draw)
 	})
 	return follower
+}
+
+// afterSizeChange runs the size callback the backend installed (OpenGL's viewport), then draws:
+// in that order, so the frame is drawn for the new size.
+func afterSizeChange(previous glfw.FramebufferSizeCallback, resized *glfw.Window, width, height int, draw func()) {
+	if previous != nil {
+		previous(resized, width, height)
+	}
+	draw()
 }
 
 // advance runs the update steps that are due. When the window changed size and no step is due, it
@@ -212,10 +230,49 @@ func waitForWork(state *input.State, followUp bool) bool {
 	case wanted:
 		glfw.WaitEventsTimeout(delay.Seconds())
 	default:
-		glfw.WaitEvents()
+		sleepReleasingMemory(idleWaiter{state: state})
 	}
 	return state.Feed().HasInput()
 }
+
+// idleBeforeRelease is how long a window that draws on demand waits with nothing to do before
+// it gives the system back the memory the program no longer uses.
+const idleBeforeRelease = 3 * time.Second
+
+// waiter is what sleepReleasingMemory needs from the window: the real one waits for GLFW's
+// events, a test's pretends to.
+type waiter interface {
+	waitAtMost(time.Duration) (slept bool) // slept: nothing woke it before the time was up
+	waitForever()
+	hadInput() bool
+	release()
+}
+
+// sleepReleasingMemory sleeps until there is work. A program's memory holds what it no longer
+// uses until the collector runs, and the runtime gives freed pages back to the system only
+// slowly, so an idle window would keep the memory of its busiest moment. Once the window has had
+// nothing to do for idleBeforeRelease, it collects and gives that memory back, then sleeps on:
+// once per idle spell, while nobody is waiting for a frame.
+func sleepReleasingMemory(window waiter) {
+	slept := window.waitAtMost(idleBeforeRelease)
+	if !slept || window.hadInput() {
+		return // woken by input or Wake: there is a frame to draw
+	}
+	window.release()
+	window.waitForever()
+}
+
+// idleWaiter waits for a GLFW window's events and gives memory back through the runtime.
+type idleWaiter struct{ state *input.State }
+
+func (idleWaiter) waitAtMost(duration time.Duration) bool {
+	started := time.Now()
+	glfw.WaitEventsTimeout(duration.Seconds())
+	return time.Since(started) >= duration
+}
+func (idleWaiter) waitForever()          { glfw.WaitEvents() }
+func (waiter idleWaiter) hadInput() bool { return waiter.state.Feed().HasInput() }
+func (idleWaiter) release()              { debug.FreeOSMemory() }
 
 // Wake makes a window that draws on demand draw a frame now: for a program whose data changes
 // on another goroutine (a download finishing, a message arriving). Safe from any goroutine.

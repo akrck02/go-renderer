@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/png"
 	"os"
+	"time"
 
 	"github.com/go-gl/glfw/v3.4/glfw"
 
@@ -159,6 +160,18 @@ func (metal *metalWindow) capture(app *window.Application, clock *frameloop.Cloc
 			return err
 		}
 		if err := drawApplication(app); err != nil {
+			return err
+		}
+	}
+	if app.Input != nil {
+		drawFrame := func() error {
+			glfw.PollEvents()
+			if err := frameloop.RunUpdateStep(app, clock.Step()); err != nil {
+				return err
+			}
+			return drawApplication(app)
+		}
+		if err := frameloop.Settle(app.Input.Feed().TakeFrameRequest, drawFrame, time.Sleep); err != nil {
 			return err
 		}
 	}

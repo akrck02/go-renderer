@@ -102,6 +102,17 @@ file under 8 MB, the last resort. Files are read the first time a character need
 found is kept, shared by every painter and measurer. Letters are drawn one after another, left to
 right: Arabic letters are not joined yet, and right-to-left text is not turned round.
 
+**Mapped, not copied.** On macOS, Linux and Android, a system font file is mapped into memory
+rather than read into it: the system reads only the pages of the glyphs drawn, shares them with
+every other program using that font, and drops them when memory runs short. A font file holds
+thousands of glyphs and an interface draws a few dozen, and the files are large: macOS's own
+interface font is 7.5 MB, its colour emoji about 180 MB. A file looked in for a character it
+lacks is let go at once. Windows and the browser read files whole, as before.
+
+One risk comes with it: a font file cut shorter, in place, while a program has it mapped stops
+that program (`SIGBUS`). The system's own fonts live on read-only volumes; deleting or replacing a
+user's font is harmless, as the old file stays until it is let go.
+
 **Emoji** are drawn in their own colours, from the system's colour emoji font: each is a PNG in
 the font's `CBDT` table, found through `CBLC` and `cmap`, which `colour.go` reads (`x/image` does
 not). An emoji becomes a picture in the picture atlas, scaled once to each size it is drawn at, and

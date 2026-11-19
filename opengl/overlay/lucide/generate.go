@@ -1,7 +1,8 @@
 //go:build ignore
 
 // generate writes codepoints.go, the table from Lucide icon names to the characters of
-// lucide.ttf, from the codepoints.json of the lucide-static npm package:
+// lucide.ttf, from the codepoints.json of the lucide-static npm package. Names whose drawing is
+// empty in the font (Lucide keeps its withdrawn brand logos that way) are left out:
 //
 //	npm pack lucide-static@<version>   # then unpack it and copy package/font/lucide.ttf here
 //	go run generate.go <version> path/to/package/font/codepoints.json
@@ -14,7 +15,13 @@ import (
 	"os"
 	"sort"
 	"strings"
+
+	"golang.org/x/image/font/sfnt"
+	"golang.org/x/image/math/fixed"
 )
+
+// drawingSize is the size, in pixels, an icon is drawn at to see whether its drawing is empty.
+const drawingSize = 24
 
 func main() {
 	if len(os.Args) != 3 {
@@ -36,9 +43,15 @@ func generate(version, path string) error {
 	if err := json.Unmarshal(data, &codepoints); err != nil {
 		return err
 	}
+	drawn, err := drawnIn("lucide.ttf")
+	if err != nil {
+		return err
+	}
 	names := make([]string, 0, len(codepoints))
-	for name := range codepoints {
-		names = append(names, name)
+	for name, character := range codepoints {
+		if drawn(rune(character)) {
+			names = append(names, name)
+		}
 	}
 	sort.Strings(names)
 	var source strings.Builder
@@ -57,4 +70,25 @@ func generate(version, path string) error {
 		return err
 	}
 	return os.WriteFile("codepoints.go", formatted, 0o644)
+}
+
+// drawnIn reads a font and answers whether a character has a drawing that is not empty.
+func drawnIn(path string) (func(rune) bool, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	parsed, err := sfnt.Parse(data)
+	if err != nil {
+		return nil, err
+	}
+	var buffer sfnt.Buffer
+	return func(character rune) bool {
+		index, err := parsed.GlyphIndex(&buffer, character)
+		if err != nil || index == 0 {
+			return false
+		}
+		segments, err := parsed.LoadGlyph(&buffer, index, fixed.I(drawingSize), nil)
+		return err == nil && len(segments) > 0
+	}, nil
 }

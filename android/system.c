@@ -125,6 +125,17 @@ int night_mode(JNIEnv *env) {
 	return night;
 }
 
+// display_quarter_turns is how far the screen is turned from the phone's natural way up, in quarter
+// turns counter-clockwise (Display.getRotation: Surface.ROTATION_0 to ROTATION_270).
+int display_quarter_turns(JNIEnv *env) {
+	jobject manager = call_object(env, current_activity->clazz, "getWindowManager", "()Landroid/view/WindowManager;");
+	jobject display = call_object(env, manager, "getDefaultDisplay", "()Landroid/view/Display;");
+	int turns = call_int(env, display, "getRotation");
+	if (display != NULL) (*env)->DeleteLocalRef(env, display);
+	if (manager != NULL) (*env)->DeleteLocalRef(env, manager);
+	return turns;
+}
+
 // system_colours reads Android's own palettes, made from the wallpaper (Android 12 and later): the
 // colours named system_<palette>_<tone> for each palette and tone given, as ARGB, into colours. It
 // returns 0 when the phone has no such colours (an older Android), and reads nothing then.

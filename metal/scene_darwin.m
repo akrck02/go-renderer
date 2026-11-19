@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "scene_darwin.h"
+#include "readback_darwin.h"
 
 @interface SceneDevice : NSObject
 @property(nonatomic, strong) NSWindow *window;
@@ -77,6 +78,12 @@ void *sceneDeviceCreate(void *cocoaWindow, int vsync, char **failure) {
 		NSView *view = scene.window.contentView;
 		view.layer = layer;
 		view.wantsLayer = YES;
+		// while an edge is dragged, AppKit asks the view to redraw at every new size (GLFW's
+		// refresh callback draws the frame), and a frame that is late is pinned to the top-left
+		// corner instead of stretched to fill the window
+		view.layerContentsRedrawPolicy = NSViewLayerContentsRedrawDuringViewResize;
+		layer.needsDisplayOnBoundsChange = YES;
+		layer.contentsGravity = kCAGravityTopLeft;
 		scene.layer = layer;
 		return retained(scene);
 	}
@@ -270,7 +277,7 @@ void *sceneFrameBegin(void *handle, int width, int height, int offscreen) {
 			                                                                                     height:height
 			                                                                                  mipmapped:NO];
 			descriptor.usage = MTLTextureUsageRenderTarget;
-			descriptor.storageMode = MTLStorageModeManaged;
+			descriptor.storageMode = readableStorage(scene.device);
 			frame.target = [scene.device newTextureWithDescriptor:descriptor];
 		} else {
 			CAMetalLayer *layer = scene.layer;
@@ -404,9 +411,7 @@ void sceneFrameFinish(void *frameHandle, uint8_t *pixels, double *gpuSeconds) {
 	@autoreleasepool {
 		SceneFrame *frame = (__bridge_transfer SceneFrame *)frameHandle;
 		if (pixels != NULL) {
-			id<MTLBlitCommandEncoder> blit = [frame.commands blitCommandEncoder];
-			[blit synchronizeResource:frame.target];
-			[blit endEncoding];
+			bringBack(frame.commands, frame.target);
 		}
 		if (frame.drawable != nil && !frame.resizing) {
 			[frame.commands presentDrawable:frame.drawable];
