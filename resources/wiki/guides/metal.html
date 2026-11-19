@@ -17,7 +17,8 @@ draws only through Metal.</p>
 <p>It is <strong>not</strong> needed for performance or battery today. An interface that draws on demand sleeps
 while idle, and each frame it does draw is one draw call; the translation layer costs about
 0.1–0.2 ms of such a frame. Metal is insurance, plus a few things OpenGL cannot do on macOS:
-smooth live resizing (<code>presentsWithTransaction</code>), choosing the low-power GPU, and pacing frames
+smooth live resizing (<code>presentsWithTransaction</code>, with AppKit asking for a frame at every new
+size and a late frame pinned to the top-left corner rather than stretched), choosing the low-power GPU, and pacing frames
 with the display.</p>
 
 <h2 id="what-was-built">What was built</h2>
@@ -151,6 +152,54 @@ still</strong> (a probe with 30 lines of text, <code>-continuous</code>):</p>
 </table>
 <p>Most of the memory saved is the window&rsquo;s buffers and the driver&rsquo;s caches: OpenGL on macOS runs on
 a translation layer over Metal, which keeps more buffers and caches of its own.</p>
+
+<p><strong>Where a still window&rsquo;s memory goes.</strong> An inventory application of about a dozen pages, after a
+minute through all of them, on an Apple M4 with a 2560 × 1664 screen, measured with <code>footprint</code>:</p>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Before</th>
+<th>After mapping fonts and giving memory back when idle</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Footprint</td>
+<td>84 MB (peak 133)</td>
+<td><strong>71 MB</strong> (peak 121)</td>
+</tr>
+
+<tr>
+<td>The window&rsquo;s two drawables (IOSurface)</td>
+<td>31 MB</td>
+<td>31 MB</td>
+</tr>
+
+<tr>
+<td>Go&rsquo;s memory (Untagged)</td>
+<td>28 MB</td>
+<td><strong>15 MB</strong></td>
+</tr>
+
+<tr>
+<td>The system&rsquo;s frameworks (Malloc)</td>
+<td>10 MB</td>
+<td>11 MB</td>
+</tr>
+
+<tr>
+<td>The GPU&rsquo;s buffers (IOAccelerator)</td>
+<td>5 MB</td>
+<td>5 MB</td>
+</tr>
+</tbody>
+</table>
+<p>The two drawables are the floor of a Retina window: each is the whole window at four bytes a
+pixel. What the program can still shape is Go&rsquo;s part (see <code>windowloop</code>, which gives freed memory
+back after three idle seconds, and the overlay guide, on mapped fonts).</p>
 
 <h2 id="the-3d-scene-renderer">The 3D scene renderer</h2>
 

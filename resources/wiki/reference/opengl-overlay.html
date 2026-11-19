@@ -37,6 +37,10 @@ the OpenGL scene renderer uploads its atlas and draws its quads.</p>
 </code></pre>
 
 <p>FontNotRead is returned by NewPainter and NewMeasurer when one of the fonts (the default ones or those given in Fonts) is not a TrueType or OpenType font.</p>
+<pre><code class="language-go"><span class="kd">var</span> <span class="nx">SystemFontNotFound</span> <span class="p">=</span> <span class="nx">failure</span><span class="p">.</span><span class="nf">Define</span><span class="p">(</span><span class="s">&#34;overlay.system-font-not-found&#34;</span><span class="p">,</span> <span class="s">&#34;the system&#39;s interface font is not on this device&#34;</span><span class="p">)</span>
+</code></pre>
+
+<p>SystemFontNotFound is returned by SystemFonts when none of the system&rsquo;s interface fonts it knows is on this device; the Go fonts are still there to draw with.</p>
 
 <h3 id="atlas">Atlas</h3>
 
@@ -94,6 +98,22 @@ the OpenGL scene renderer uploads its atlas and draws its quads.</p>
 	<span class="nx">Folders</span> <span class="p">[]</span><span class="kt">string</span>
 <span class="p">}</span>
 </code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Function or method</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code>func SystemFonts() (Fonts, error)</code></td>
+<td>SystemFonts are the fonts the system draws its own interface with, so a program reads like the rest of the device and like a web page using system-ui on it.</td>
+</tr>
+</tbody>
+</table>
 
 <h3 id="frame">Frame</h3>
 
