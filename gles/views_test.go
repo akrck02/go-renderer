@@ -5,8 +5,10 @@ import (
 	"testing"
 
 	"github.com/akrck02/go-renderer/camera"
+	"github.com/akrck02/go-renderer/draw2d"
 	"github.com/akrck02/go-renderer/graphics"
 	"github.com/akrck02/go-renderer/opengl/overlay"
+	"github.com/akrck02/go-renderer/scene"
 	"github.com/akrck02/go-renderer/scene/sample"
 )
 
@@ -150,5 +152,37 @@ func TestASeeThroughSceneClearsToNothingSoTheRoomShows(test *testing.T) {
 		if !seeThrough && alpha != 1 {
 			test.Errorf("not see-through: clear alpha %v, want the opaque horizon", alpha)
 		}
+	}
+}
+
+// A headset's eyes draw textured meshes as a screen does, and leave the UV attribute off for
+// what is drawn after them.
+func TestDrawViewsDrawsTexturedMeshesInEveryEye(test *testing.T) {
+	fake, renderer, _ := newTexturedScene(test)
+	world := scene.New()
+	world.Nodes = []*scene.Node{triangle(&scene.Material{Texture: &scene.Texture{Picture: draw2d.NewBlankImage(16, 16)}}, nil)}
+	rig := camera.Rig{Position: graphics.Vector{0, 3, 3, 1}, Scale: 1}
+	field := graphics.FieldOfView{LeftRadians: -0.8, RightRadians: 0.8, UpRadians: 0.8, DownRadians: -0.8}
+	const downRadians = -0.7 // the eyes look down at the triangle on the ground
+	lookingDown := graphics.Pose{Orientation: graphics.Quaternion{X: float32(math.Sin(downRadians / 2)), W: float32(math.Cos(downRadians / 2))}}
+	views := []View{
+		{Target: 100, Width: 640, Height: 480, View: rig.EyeView(lookingDown), Projection: graphics.PerspectiveFromFieldOfView(field, 0.1, 100), Eye: rig.EyePosition(lookingDown)},
+		{Target: 101, Width: 640, Height: 480, View: rig.EyeView(lookingDown), Projection: graphics.PerspectiveFromFieldOfView(field, 0.1, 100), Eye: rig.EyePosition(lookingDown)},
+	}
+	covering, aspect := camera.CoveringLens(rig, []graphics.Pose{lookingDown, lookingDown}, []graphics.FieldOfView{field, field}, 0.1, 100)
+	renderer.DrawViews(world, covering, aspect, views)
+
+	drawsIn := map[Framebuffer]int{}
+	for _, draw := range fake.draws {
+		drawsIn[draw.framebuffer]++
+	}
+	if drawsIn[100] == 0 || drawsIn[101] == 0 {
+		test.Fatalf("draws per eye = %v, want the textured triangle in both", drawsIn)
+	}
+	if renderer.textures.uploads != 1 {
+		test.Errorf("the texture was uploaded %d times for two eyes, wanted once", renderer.textures.uploads)
+	}
+	if renderer.uvsOn {
+		test.Error("DrawViews left the UV attribute on")
 	}
 }
