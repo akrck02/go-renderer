@@ -123,11 +123,14 @@ public final class TextInput extends View {
 			fromGo = false;
 		}
 		if (manager == null) return;
-		if (changed) {
-			manager.restartInput(this); // a text the keyboard did not type: it starts over with it
-		} else {
-			tellSelection();
+		if (another) {
+			manager.restartInput(this); // another field: the keyboard starts over with it
+			return;
 		}
+		// the same field with a text the keyboard did not type (a held Delete sent as keys, a
+		// hardware key): the keyboard reads it from the editable; restarting it would stop the
+		// key it is repeating
+		tellSelection();
 	}
 
 	private int clamp(int index) {
