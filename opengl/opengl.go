@@ -39,7 +39,7 @@ func (opengl *Window) Run(app *window.Application) error {
 		return err
 	}
 	opengl.window = glfwWindow
-	defer glfw.Terminate()
+	defer windowloop.StopGLFW()
 	if err := opengl.start(app); err != nil {
 		return err
 	}
@@ -143,5 +143,13 @@ func (opengl *Window) framebufferSize(app *window.Application) (width, height in
 }
 
 // Wake makes a window that draws on demand draw a frame now: for a program whose data changes
-// on another goroutine (a download finishing, a message arriving). Safe from any goroutine.
+// on another goroutine (a download finishing, a message arriving). Safe from any goroutine, at
+// any time.
 func Wake() { windowloop.Wake() }
+
+// SetZoom makes the window draw that many times larger than the screen's scale, as a browser's
+// zoom does (see windowloop.SetZoom). Call it from an update step.
+func SetZoom(factor float64) { windowloop.SetZoom(factor) }
+
+// Zoom is the zoom SetZoom gave, 1 by default.
+func Zoom() float64 { return windowloop.Zoom() }

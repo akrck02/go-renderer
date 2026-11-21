@@ -8,7 +8,9 @@ import "github.com/akrck02/go-renderer/opengl"
 
 | Function | |
 |---|---|
+| `func SetZoom(factor float64)` | SetZoom makes the window draw that many times larger than the screen's scale, as a browser's zoom does (see windowloop.SetZoom). |
 | `func Wake()` | Wake makes a window that draws on demand draw a frame now: for a program whose data changes on another goroutine (a download finishing, a message arriving). |
+| `func Zoom() float64` | Zoom is the zoom SetZoom gave, 1 by default. |
 
 ### Constants and variables
 

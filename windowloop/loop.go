@@ -41,8 +41,7 @@ type loop struct {
 // application stops. drawFrame draws and shows one frame; it may skip one that would look like
 // the last (window.Callbacks.Unchanged). It must be called on the main thread.
 func Run(glfwWindow *glfw.Window, app *window.Application, clock *frameloop.Clock, drawFrame func() error) error {
-	running := &loop{window: glfwWindow, app: app, clock: clock, drawFrame: drawFrame,
-		onDemand: app.DrawOnDemand && app.Input != nil, titleCounter: framesCounter{since: time.Now()}}
+	running := newLoop(glfwWindow, app, clock, drawFrame)
 	running.resize = followResizing(glfwWindow, app, clock, drawFrame, &running.failure)
 	for !glfwWindow.ShouldClose() && !app.Stop {
 		if err := running.frame(); err != nil {
@@ -50,6 +49,14 @@ func Run(glfwWindow *glfw.Window, app *window.Application, clock *frameloop.Cloc
 		}
 	}
 	return nil
+}
+
+// newLoop is the loop of a window about to show. Its first frame is drawn without waiting for an
+// event, as a follow-up is: on Wayland a window only appears once it has a frame, so a window
+// that waited for an event first would wait for ever, unseen.
+func newLoop(glfwWindow *glfw.Window, app *window.Application, clock *frameloop.Clock, drawFrame func() error) *loop {
+	return &loop{window: glfwWindow, app: app, clock: clock, drawFrame: drawFrame,
+		onDemand: app.DrawOnDemand && app.Input != nil, followUp: true, titleCounter: framesCounter{since: time.Now()}}
 }
 
 // frame runs one turn of the loop: events, update steps, and a frame when one is due.
@@ -60,6 +67,9 @@ func (running *loop) frame() error {
 	}
 	if running.app.Input != nil {
 		running.pad.read(running.app.Input)
+		if zoom != appliedZoom {
+			UpdateSizes(running.window, running.app.Input)
+		}
 	}
 	stepsBefore := running.clock.Steps()
 	if err := running.resize.advance(); err != nil {
@@ -273,7 +283,3 @@ func (idleWaiter) waitAtMost(duration time.Duration) bool {
 func (idleWaiter) waitForever()          { glfw.WaitEvents() }
 func (waiter idleWaiter) hadInput() bool { return waiter.state.Feed().HasInput() }
 func (idleWaiter) release()              { debug.FreeOSMemory() }
-
-// Wake makes a window that draws on demand draw a frame now: for a program whose data changes
-// on another goroutine (a download finishing, a message arriving). Safe from any goroutine.
-func Wake() { glfw.PostEmptyEvent() }

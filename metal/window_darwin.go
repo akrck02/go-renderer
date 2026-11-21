@@ -85,10 +85,10 @@ func (metal *metalWindow) run(app *window.Application, makeRenderer func(*glfw.W
 	if !windowloop.OnMainThread() {
 		return windowloop.NotOnMainThread
 	}
-	if err := glfw.Init(); err != nil {
+	if err := windowloop.StartGLFW(); err != nil {
 		return err
 	}
-	defer glfw.Terminate()
+	defer windowloop.StopGLFW()
 	glfwWindow, err := openWindow(app)
 	if err != nil {
 		return err

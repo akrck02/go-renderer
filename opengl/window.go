@@ -3,6 +3,7 @@ package opengl
 import (
 	"github.com/akrck02/go-renderer/failure"
 	"github.com/akrck02/go-renderer/window"
+	"github.com/akrck02/go-renderer/windowloop"
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.4/glfw"
 )
@@ -16,13 +17,13 @@ const (
 // openWindow starts GLFW and opens the application's window with an OpenGL 4.1 context, current
 // on this thread.
 func openWindow(app *window.Application) (*glfw.Window, error) {
-	if err := glfw.Init(); err != nil {
+	if err := windowloop.StartGLFW(); err != nil {
 		return nil, failure.Wrap(WindowNotOpened, "starting GLFW", err)
 	}
 	setWindowHints(app)
 	glfwWindow, err := glfw.CreateWindow(app.Width, app.Height, windowTitle(app), nil, nil)
 	if err != nil {
-		glfw.Terminate()
+		windowloop.StopGLFW()
 		return nil, failure.Wrap(WindowNotOpened, "creating the window", err)
 	}
 	if app.Input == nil {
@@ -53,6 +54,9 @@ func setWindowHints(app *window.Application) {
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
 	glfw.WindowHint(glfw.CocoaRetinaFramebuffer, glfw.True)
+	// On X11 and Windows a window is measured in pixels: open it as many times larger as the
+	// screen is dense, so it is as big as asked on any screen (macOS and Wayland do it themselves).
+	glfw.WindowHint(glfw.ScaleToMonitor, glfw.True)
 	if app.Kind == window.Headless {
 		glfw.WindowHint(glfw.Visible, glfw.False)
 	}

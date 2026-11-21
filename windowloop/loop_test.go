@@ -130,3 +130,10 @@ func TestANewSizeRunsTheBackendsCallbackThenDraws(test *testing.T) {
 		test.Errorf("%v, want %v", happened, want)
 	}
 }
+
+func TestAWindowDrawingOnDemandDrawsItsFirstFrameWithoutWaiting(test *testing.T) {
+	app := &window.Application{Options: window.Options{DrawOnDemand: true}, Input: input.NewState()}
+	if running := newLoop(nil, app, frameloop.NewClock(1), nil); !running.followUp {
+		test.Fatal("the first frame waits for an event, which a Wayland window never gets before it shows")
+	}
+}

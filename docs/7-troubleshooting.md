@@ -65,11 +65,17 @@ xvfb-run go run ./cmd/visor -sample island -capture island.png
 
 GLFW 3.4 can talk to Wayland directly: it prefers Wayland when `WAYLAND_DISPLAY` is set and its
 Wayland support was built, and X11 otherwise. Some Wayland desktops (GNOME among them) draw no title bar for such windows. To run under X11 through
-XWayland instead, unset the variable for one run:
+XWayland instead, unset the variable for one run, or build without Wayland support:
 
 ```sh
 env -u WAYLAND_DISPLAY go run ./cmd/visor -sample island
+go run -tags x11 ./cmd/visor -sample island
 ```
+
+On a dense screen the window keeps its size either way. On X11 a window is measured in pixels, so
+it opens as many times larger as the screen's scale (`Xft.dpi`, which GNOME sets when XWayland
+scales natively), and its size and the cursor reach the program in layout pixels, as they do on
+Wayland and macOS.
 
 ### `windowloop.not-on-main-thread: the window loop must run on the main thread`
 

@@ -19,8 +19,12 @@ system. A backend only has to draw and show a frame.
 | `func ForwardInput(window *glfw.Window, state *input.State)` | ForwardInput sends GLFW keyboard, mouse, scroll and text events into an input.State, and gives it the system clipboard. |
 | `func OnMainThread() bool` | OnMainThread is only checked on macOS, the one system that requires it. |
 | `func Run(glfwWindow *glfw.Window, app *window.Application, clock *frameloop.Clock, drawFrame func() error) error` | Run calls the application's update steps and drawFrame until the window closes or the application stops. |
-| `func UpdateSizes(window *glfw.Window, state *input.State)` | UpdateSizes copies the framebuffer and window sizes into the input state. |
+| `func SetZoom(factor float64)` | SetZoom makes the program draw that many times larger than the screen's scale (1 for its own size), as a browser's zoom does: the window's size and the cursor reach the input state divided by it, so an interface laid out by them grows. |
+| `func StartGLFW() error` | StartGLFW starts GLFW, which Wake can wake from then on. |
+| `func StopGLFW()` | StopGLFW stops GLFW, closing what windows are left; Wake does nothing from then on. |
+| `func UpdateSizes(window *glfw.Window, state *input.State)` | UpdateSizes copies the framebuffer and window sizes into the input state, the window's in layout pixels: divided by the scale the framebuffer does not carry, and by the zoom. |
 | `func Wake()` | Wake makes a window that draws on demand draw a frame now: for a program whose data changes on another goroutine (a download finishing, a message arriving). |
+| `func Zoom() float64` | Zoom is the zoom SetZoom gave, 1 by default. |
 
 ### Constants and variables
 
