@@ -1,6 +1,7 @@
 package overlay
 
 import (
+	"bytes"
 	"image"
 	"image/draw"
 	"math"
@@ -35,7 +36,8 @@ const (
 // default: the Go fonts and the system's usual folders.
 type Fonts struct {
 	// Regular, Medium, Bold and Mono are a font file's bytes each; an empty one keeps the Go font
-	// of that weight. Display is a decorative font for the labels that ask for it
+	// of that weight. A Bold that is the Regular's own file (a variable font, which holds every
+	// weight) is drawn as a made-up bold, its strokes widened. Display is a decorative font for the labels that ask for it
 	// (scene.Label.Display); an empty one writes them in the labels' own font (Medium).
 	Regular, Medium, Bold, Mono, Display []byte
 	// Folders are where the system's fonts and colour emoji are looked for, for characters the
@@ -88,6 +90,9 @@ type fonts struct {
 	// every painter and measurer that looks in the same folders
 	system *fallbackFonts
 	emoji  *emojiFont
+	// boldMadeUp tells that the bold is the regular font's own file, a variable font's: x/image
+	// draws only its default weight, so the strong face is emboldened by hand
+	boldMadeUp bool
 }
 
 type fallbackKey struct {
@@ -106,7 +111,7 @@ func loadFonts(chosen Fonts) (*fonts, error) {
 		displayFace: orDefault(chosen.Display, orDefault(chosen.Medium, gomedium.TTF))}
 	system, emoji := systemFontsIn(chosen.folders())
 	loaded := &fonts{parsed: map[faceName]*opentype.Font{}, faces: map[faceKey]font.Face{}, measures: map[faceKey]faceMetrics{}, fallbackFaces: map[fallbackKey]font.Face{},
-		system: system, emoji: emoji}
+		system: system, emoji: emoji, boldMadeUp: len(chosen.Bold) > 0 && bytes.Equal(chosen.Bold, chosen.Regular)}
 	for name, data := range sources {
 		parsed, err := opentype.Parse(data)
 		if err != nil {
@@ -134,6 +139,9 @@ func (loaded *fonts) face(name faceName, size int) font.Face {
 	if err != nil {
 		// a parsed font accepts any positive size, so this only happens for a size of zero
 		return nil
+	}
+	if name == strongFace && loaded.boldMadeUp {
+		face = newEmboldened(face, size)
 	}
 	loaded.faces[key] = face
 	return face

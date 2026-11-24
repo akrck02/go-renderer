@@ -45,3 +45,16 @@ func TestAVariableFontIsReadOnceForBothWeights(test *testing.T) {
 		test.Errorf("the regular and bold weights of one file are two copies in memory")
 	}
 }
+
+func TestTheSystemMonospacedFontIsTheFirstOneFound(test *testing.T) {
+	folder := test.TempDir()
+	if err := os.WriteFile(filepath.Join(folder, "Second.ttf"), []byte("second"), 0o644); err != nil {
+		test.Fatal(err)
+	}
+	if mono := monoFontIn([]string{folder}, []string{"First.ttf", "Second.ttf"}); string(mono) != "second" {
+		test.Errorf("the monospaced font read is %q, not the first one found", mono)
+	}
+	if mono := monoFontIn([]string{folder}, []string{"Missing.ttf"}); mono != nil {
+		test.Errorf("a monospaced font %q is read where there is none", mono)
+	}
+}

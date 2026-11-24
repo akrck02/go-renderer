@@ -20,18 +20,47 @@ var systemFaces = map[string][]systemFace{
 	"ios":     {{"SFUI.ttf", "SFUI.ttf"}},
 	"windows": {{"segoeui.ttf", "segoeuib.ttf"}},
 	"linux": {
+		{"AdwaitaSans-Regular.ttf", "AdwaitaSans-Regular.ttf"},
 		{"DejaVuSans.ttf", "DejaVuSans-Bold.ttf"},
 		{"NotoSans-Regular.ttf", "NotoSans-Bold.ttf"},
 		{"Cantarell-Regular.otf", "Cantarell-Bold.otf"},
 	},
 }
 
+// systemMonoFaces are the monospaced fonts each system reads code in (its terminal's, its code
+// editor's), the most usual first.
+var systemMonoFaces = map[string][]string{
+	"android": {"DroidSansMono.ttf"},
+	"darwin":  {"SFNSMono.ttf"},
+	"windows": {"consola.ttf"},
+	"linux":   {"AdwaitaMono-Regular.ttf", "DejaVuSansMono.ttf", "NotoSansMono-Regular.ttf"},
+}
+
 // SystemFonts are the fonts the system draws its own interface with, so a program reads like the
-// rest of the device and like a web page using system-ui on it. The medium weight is the regular
-// one, as a browser draws it when the font has no medium. It looks in DefaultFontFolders; when no
-// known font is there it returns the zero Fonts, the Go fonts, with SystemFontNotFound.
+// rest of the device and like a web page using system-ui on it, and the one it reads code in
+// (Mono). The medium weight is the regular one, as a browser draws it when the font has no medium.
+// A desktop that names its fonts (GNOME's settings, or fontconfig's sans-serif and monospace) is
+// asked first; otherwise the fonts are looked for in DefaultFontFolders. When no known interface
+// font is there it returns SystemFontNotFound, with the Go fonts for the interface (and the
+// system's monospaced font, if one was found).
 func SystemFonts() (Fonts, error) {
-	return interfaceFontsIn(DefaultFontFolders(), systemFaces[runtime.GOOS])
+	if fonts, err := desktopFonts(); err == nil {
+		return fonts, nil
+	}
+	folders := DefaultFontFolders()
+	fonts, err := interfaceFontsIn(folders, systemFaces[runtime.GOOS])
+	fonts.Mono = monoFontIn(folders, systemMonoFaces[runtime.GOOS])
+	return fonts, err
+}
+
+// monoFontIn reads the first of these monospaced fonts found in folders; nil when there is none.
+func monoFontIn(folders []string, names []string) []byte {
+	for _, name := range names {
+		if found := findFontFile(folders, name); found != nil {
+			return found
+		}
+	}
+	return nil
 }
 
 func interfaceFontsIn(folders []string, faces []systemFace) (Fonts, error) {

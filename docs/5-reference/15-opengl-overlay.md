@@ -69,7 +69,8 @@ Fonts are what a Painter or a Measurer draws text with: the TrueType or OpenType
 ```go
 type Fonts struct {
 	// Regular, Medium, Bold and Mono are a font file's bytes each; an empty one keeps the Go font
-	// of that weight. Display is a decorative font for the labels that ask for it
+	// of that weight. A Bold that is the Regular's own file (a variable font, which holds every
+	// weight) is drawn as a made-up bold, its strokes widened. Display is a decorative font for the labels that ask for it
 	// (scene.Label.Display); an empty one writes them in the labels' own font (Medium).
 	Regular, Medium, Bold, Mono, Display []byte
 	// Folders are where the system's fonts and colour emoji are looked for, for characters the
@@ -82,7 +83,7 @@ type Fonts struct {
 
 | Function or method | |
 |---|---|
-| `func SystemFonts() (Fonts, error)` | SystemFonts are the fonts the system draws its own interface with, so a program reads like the rest of the device and like a web page using system-ui on it. |
+| `func SystemFonts() (Fonts, error)` | SystemFonts are the fonts the system draws its own interface with, so a program reads like the rest of the device and like a web page using system-ui on it, and the one it reads code in (Mono). |
 
 ### Frame
 
