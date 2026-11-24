@@ -125,8 +125,9 @@ type Clipboard interface {
 	SetClipboardText(text string)
 }
 
-// MultiClickInterval is the longest pause between the presses of a double click, and
-// MultiClickDistancePixels how far, in window coordinates, the pointer may move between them.
+// MultiClickInterval is the longest pause between the presses of a double click, or of a key
+// pressed twice (PressedTwice), and MultiClickDistancePixels how far, in window coordinates, the
+// pointer may move between a double click's presses.
 const (
 	MultiClickInterval       = 400 * time.Millisecond
 	MultiClickDistancePixels = 4.0
@@ -134,23 +135,27 @@ const (
 
 // State is the input state for the current frame.
 type State struct {
-	keysHeld           [keyCount]bool
-	keysPressedNow     [keyCount]bool
-	padHeld            [padButtonCount]bool // a game pad's buttons (pad.go)
-	padLayout          PadLayout            // which names the pad prints (padlayout.go)
-	padPressedNow      [padButtonCount]bool
-	keysTypedNow       [keyCount]bool // pressed or repeated by the system
-	buttonsHeld        [mouseButtonCount]bool
-	buttonsPressedNow  [mouseButtonCount]bool
-	buttonsReleasedNow [mouseButtonCount]bool
-	clicks             [mouseButtonCount]int // clicks of the last press this step: 1, 2 (double), 3…
-	lastPress          pressRecord
-	characters         []rune
-	CursorX, CursorY   float64 // cursor position in window coordinates
-	CursorDeltaX       float64 // cursor movement since the previous frame
-	CursorDeltaY       float64
-	ScrollDelta        float64 // vertical scroll since the previous frame
-	ScrollDeltaX       float64 // horizontal scroll since the previous frame (trackpads, tilting wheels)
+	keysHeld       [keyCount]bool
+	keysPressedNow [keyCount]bool
+	// keysPressedTwiceNow are the keys pressed this frame a second time in a row (PressedTwice),
+	// and lastKeyPress the press before
+	keysPressedTwiceNow [keyCount]bool
+	lastKeyPress        keyPressRecord
+	padHeld             [padButtonCount]bool // a game pad's buttons (pad.go)
+	padLayout           PadLayout            // which names the pad prints (padlayout.go)
+	padPressedNow       [padButtonCount]bool
+	keysTypedNow        [keyCount]bool // pressed or repeated by the system
+	buttonsHeld         [mouseButtonCount]bool
+	buttonsPressedNow   [mouseButtonCount]bool
+	buttonsReleasedNow  [mouseButtonCount]bool
+	clicks              [mouseButtonCount]int // clicks of the last press this step: 1, 2 (double), 3…
+	lastPress           pressRecord
+	characters          []rune
+	CursorX, CursorY    float64 // cursor position in window coordinates
+	CursorDeltaX        float64 // cursor movement since the previous frame
+	CursorDeltaY        float64
+	ScrollDelta         float64 // vertical scroll since the previous frame
+	ScrollDeltaX        float64 // horizontal scroll since the previous frame (trackpads, tilting wheels)
 	// stickX, stickY, rightStickX and rightStickY are a game pad's sticks (Stick, RightStick),
 	// set by the backend every frame (Feed.SetStick).
 	stickX, stickY           float64
@@ -201,6 +206,7 @@ func (feed Feed) SetKey(key Key, isDown bool) {
 	}
 	if isDown && !state.keysHeld[key] {
 		state.keysPressedNow[key] = true
+		state.keysPressedTwiceNow[key] = state.isSecondPress(key)
 		state.keysTypedNow[key] = true
 		state.typeLineBreak(key)
 	}
@@ -261,6 +267,25 @@ func (state *State) countClicks(button MouseButton) int {
 	}
 	state.lastPress = pressRecord{button: button, at: now, x: state.CursorX, y: state.CursorY, count: count}
 	return count
+}
+
+// keyPressRecord is a key's press: which key and when; a zero time once it was the second of a pair.
+type keyPressRecord struct {
+	key Key
+	at  time.Time
+}
+
+// isSecondPress tells whether a press of a key follows one of the same key, soon enough, with no
+// other key pressed between, and keeps it as the press before the next. A pair, once made, is
+// forgotten, so a third press starts a new one.
+func (state *State) isSecondPress(key Key) bool {
+	now, previous := state.now(), state.lastKeyPress
+	second := previous.key == key && !previous.at.IsZero() && now.Sub(previous.at) <= MultiClickInterval
+	state.lastKeyPress = keyPressRecord{key: key, at: now}
+	if second {
+		state.lastKeyPress.at = time.Time{}
+	}
+	return second
 }
 
 func (state *State) now() time.Time {
@@ -328,6 +353,13 @@ func (state *State) Down(key Key) bool { return isValidKey(key) && state.keysHel
 
 // Pressed reports whether a key went down during this frame.
 func (state *State) Pressed(key Key) bool { return isValidKey(key) && state.keysPressedNow[key] }
+
+// PressedTwice tells whether a key went down this frame for the second time in a row: soon after
+// its last press (MultiClickInterval), with no other key pressed between, as IntelliJ's double
+// Shift. A third press is a first again.
+func (state *State) PressedTwice(key Key) bool {
+	return isValidKey(key) && state.keysPressedTwiceNow[key]
+}
 
 // Typed reports whether a key went down or was repeated by the system during this step: what
 // text fields use for Backspace or the arrows, so holding them keeps acting.
@@ -484,6 +516,7 @@ func (feed Feed) EndFrame() {
 	state := feed.state
 	state.CursorDeltaX, state.CursorDeltaY, state.ScrollDelta, state.ScrollDeltaX = 0, 0, 0, 0
 	state.keysPressedNow = [keyCount]bool{}
+	state.keysPressedTwiceNow = [keyCount]bool{}
 	state.padPressedNow = [padButtonCount]bool{}
 	state.keysTypedNow = [keyCount]bool{}
 	state.buttonsPressedNow = [mouseButtonCount]bool{}

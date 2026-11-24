@@ -24,7 +24,7 @@ const (
 )
 ```
 
-MultiClickInterval is the longest pause between the presses of a double click, and MultiClickDistancePixels how far, in window coordinates, the pointer may move between them.
+MultiClickInterval is the longest pause between the presses of a double click, or of a key pressed twice (PressedTwice), and MultiClickDistancePixels how far, in window coordinates, the pointer may move between a double click's presses.
 
 ### Clipboard
 
@@ -314,6 +314,7 @@ type State struct {
 | `func (state *State) PadLayout() PadLayout` | PadLayout is the layout of the pad being read; XboxLayout until the backend sets another. |
 | `func (state *State) PadPressed(button PadButton) bool` | PadPressed tells whether a game pad's button went down this frame. |
 | `func (state *State) Pressed(key Key) bool` | Pressed reports whether a key went down during this frame. |
+| `func (state *State) PressedTwice(key Key) bool` | PressedTwice tells whether a key went down this frame for the second time in a row: soon after its last press (MultiClickInterval), with no other key pressed between, as IntelliJ's double Shift. |
 | `func (state *State) RequestFrame(delay time.Duration)` | RequestFrame asks the backend for another frame within a delay, even if no input arrives: the next step of an animation, a caret's blink, a tooltip due. |
 | `func (state *State) RightStick() (x, y float64)` | RightStick is a game pad's second stick (a New 3DS's C-stick, a pad's right one), as Stick. |
 | `func (state *State) SetClipboardText(text string)` | SetClipboardText puts a text on the system clipboard, when there is one. |

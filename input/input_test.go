@@ -286,3 +286,47 @@ func TestFeedingTheStateAllocatesNothing(test *testing.T) {
 		test.Fatalf("feeding a frame allocated %v times", allocations)
 	}
 }
+
+// tap presses a key and lets it go, then ends the frame, a step later on the clock.
+func tap(state *State, clock *fakeClock, key Key) {
+	state.Feed().SetKey(key, true)
+	state.Feed().SetKey(key, false)
+	state.Feed().EndFrame()
+	clock.now = clock.now.Add(100 * time.Millisecond)
+}
+
+// A key pressed twice quickly, nothing between, is pressed twice, as IntelliJ's double Shift:
+// once, too slowly, or with another key between, it is not; and a third press starts again.
+func TestAKeyPressedTwiceQuicklyIsPressedTwice(test *testing.T) {
+	state, clock := newStateWithClock()
+	tap(state, clock, KeyShift)
+	state.Feed().SetKey(KeyShift, true)
+	if !state.PressedTwice(KeyShift) {
+		test.Fatal("Shift pressed twice in 100 ms is not pressed twice")
+	}
+	state.Feed().SetKey(KeyShift, false)
+	state.Feed().EndFrame()
+	if state.PressedTwice(KeyShift) {
+		test.Error("pressed twice lasts past its frame")
+	}
+	tap(state, clock, KeyShift)
+	if state.PressedTwice(KeyShift) {
+		test.Error("a third press counts as pressed twice again")
+	}
+	clock.now = clock.now.Add(time.Second)
+	tap(state, clock, KeyShift)
+	clock.now = clock.now.Add(time.Second)
+	state.Feed().SetKey(KeyShift, true)
+	state.Feed().SetKey(KeyShift, false)
+	if state.PressedTwice(KeyShift) {
+		test.Error("Shift pressed twice a second apart is pressed twice")
+	}
+	state.Feed().EndFrame()
+	clock.now = clock.now.Add(time.Second)
+	tap(state, clock, KeyShift)
+	tap(state, clock, KeyA)
+	state.Feed().SetKey(KeyShift, true)
+	if state.PressedTwice(KeyShift) {
+		test.Error("Shift, A, Shift is Shift pressed twice")
+	}
+}
