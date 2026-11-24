@@ -23,6 +23,7 @@ func (fullscreen *Fullscreen) Apply(window *glfw.Window, state *input.State) {
 	fullscreen.on = wanted
 	if !wanted {
 		window.SetMonitor(nil, fullscreen.x, fullscreen.y, fullscreen.width, fullscreen.height, glfw.DontCare)
+		decorate(window, true)
 		return
 	}
 	fullscreen.x, fullscreen.y = window.GetPos()
@@ -33,6 +34,7 @@ func (fullscreen *Fullscreen) Apply(window *glfw.Window, state *input.State) {
 		state.SetFullscreen(false)
 		return
 	}
+	decorate(window, false)
 	mode := monitor.GetVideoMode()
 	window.SetMonitor(monitor, 0, 0, mode.Width, mode.Height, mode.RefreshRate)
 }
@@ -60,4 +62,19 @@ func monitorUnder(window *glfw.Window) *glfw.Monitor {
 // overlap is how long two spans on a line share.
 func overlap(start, end, otherStart, otherEnd int) int {
 	return max(0, min(end, otherEnd)-max(start, otherStart))
+}
+
+// decorate shows or hides a Wayland window's title bar, drawn by libdecor. On the whole screen it
+// must be hidden: libdecor keeps the bar's room above the content even when it draws no bar, so
+// the frame starts a bar's height down and a black band shows over it. Elsewhere the system takes
+// the bar away by itself.
+func decorate(window *glfw.Window, shown bool) {
+	if glfw.GetPlatform() != glfw.PlatformWayland {
+		return
+	}
+	value := glfw.False
+	if shown {
+		value = glfw.True
+	}
+	window.SetAttrib(glfw.Decorated, value)
 }
