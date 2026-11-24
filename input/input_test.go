@@ -330,3 +330,11 @@ func TestAKeyPressedTwiceQuicklyIsPressedTwice(test *testing.T) {
 		test.Error("Shift, A, Shift is Shift pressed twice")
 	}
 }
+
+// TypedText is read every frame, and most frames type nothing: reading it then must cost nothing.
+func TestReadingNoTypedTextAllocatesNothing(test *testing.T) {
+	state := NewState()
+	if allocations := testing.AllocsPerRun(100, func() { _ = state.TypedText() }); allocations != 0 {
+		test.Errorf("reading no typed text allocates %v times", allocations)
+	}
+}

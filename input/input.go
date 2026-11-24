@@ -367,6 +367,9 @@ func (state *State) Typed(key Key) bool { return isValidKey(key) && state.keysTy
 
 // TypedText returns the characters typed during this step, in order.
 func (state *State) TypedText() string {
+	if len(state.characters) == 0 {
+		return "" // most steps type nothing: then nothing is made
+	}
 	text := string(state.characters)
 	if !strings.ContainsRune(text, '\n') {
 		return text
