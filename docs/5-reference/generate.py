@@ -23,6 +23,7 @@ PACKAGES = [
     ("input", "3-input.md", "", "", "core"),
     ("camera", "4-camera.md", "", "", "core"),
     ("draw2d", "5-draw2d.md", "", "", "core"),
+    ("svg", "23-svg.md", "", "", "core"),
     ("loaders", "6-loaders.md", "", "", "core"),
     ("graphics", "7-graphics.md", "", "", "core"),
     ("window", "8-window.md", "", "", "core"),

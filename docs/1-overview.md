@@ -64,6 +64,7 @@ The menu on the left (or the files in `docs/`) follows this order.
 - [Scenes in areas of the window](4-guides/10-scenes-in-areas.md): two views, a radar
 - [Reading pads and keys, and filling the screen](4-guides/11-pads-keys-and-the-whole-screen.md)
 - [Textures on meshes](4-guides/12-textures-on-meshes.md): built-in textures, pictures of your own, glTF
+- [Drawing an SVG icon](4-guides/13-svg-icons.md): reading icon sets, and how a path becomes pixels
 
 **Reference**
 

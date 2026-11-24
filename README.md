@@ -32,6 +32,7 @@ I write most of my code by hand, so I want to be clear about where AI was used h
   `opengl/overlay`, and the 2D draw lists of `draw2d` it paints), `camera`, `input`, `viewer`,
   `cmd/visor` and the documentation in `docs/`. It also extended `graphics`, `loaders` and the
   first `models` package.
+  In November 2026 it wrote the SVG reader and drawer (`svg`).
   Since October 2026 it also wrote the shared window loop (`windowloop`), the frame planning both
   scene renderers share (`internal/sceneplan`), the sample island (`scene/sample`) and the Metal renderers
   in `metal/` (flat and 3D: `FlatWindow`, `FlatRenderer`, `SceneWindow`, `SceneRenderer`, the

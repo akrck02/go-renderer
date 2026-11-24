@@ -15,6 +15,7 @@ root), so they say exactly what `go doc` says; for the whole comment of anything
 | Read the keyboard, the mouse and fingers | [`input`](3-input.md) |
 | Move a camera myself, or find what is under the pointer | [`camera`](4-camera.md) |
 | Paint flat shapes, text, icons and pictures over the view | [`draw2d`](5-draw2d.md) |
+| Draw an SVG icon into a picture | [`svg`](23-svg.md) |
 | Vectors, matrices, transforms | [`graphics`](7-graphics.md) |
 | A made-up island to test with | [`scene/sample`](9-scene-sample.md) |
 | Run my own program in a window: its options, update and draw | [`window`](8-window.md) |
@@ -29,6 +30,7 @@ root), so they say exactly what `go doc` says; for the whole comment of anything
 | [`input`](3-input.md) | A snapshot of the keyboard, mouse and touch screen at each step; claims, the clipboard, the pointer's shape, frames asked for |
 | [`camera`](4-camera.md) | The `Camera`; orbit, walking and map controllers; the ray through a pixel |
 | [`draw2d`](5-draw2d.md) | A list of flat shapes in layout pixels, which the backends paint over everything |
+| [`svg`](23-svg.md) | SVG documents read and drawn into pictures, as icon sets need |
 | [`loaders`](6-loaders.md) | glTF 2.0 with the renderer's extras |
 | [`graphics`](7-graphics.md) | `Vector`, `Matrix`, transformations and projections |
 | [`window`](8-window.md) | A program in a window: its `Options`, its `Callbacks` (update, draw) and the `Application` they make |
